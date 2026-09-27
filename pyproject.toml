@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hazewave"
+version = "0.1.0"
+description = "Neural audio stem separation tools for Hazewave."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+separation = [
+  "demucs>=4.0.1,<5",
+  "torch>=2.2,<3",
+]
+dev = [
+  "pytest>=8,<9",
+]
+
+[project.scripts]
+hazewave = "hazewave.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
