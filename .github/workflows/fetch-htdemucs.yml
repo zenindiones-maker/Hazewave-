@@ -1,0 +1,30 @@
+name: Fetch HTDemucs Model
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/fetch-htdemucs.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  fetch-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download official HTDemucs checkpoint
+        run: |
+          set -euo pipefail
+          mkdir -p model
+          curl -fL --retry 5 --retry-delay 2             https://dl.fbaipublicfiles.com/demucs/hybrid_transformer/955717e8-8726e21a.th             -o model/955717e8-8726e21a.th
+          echo "8726e21a993978c7ba086d3872e7608d7d5bfca646ca4aca459ffda844faa8b4  model/955717e8-8726e21a.th" | sha256sum -c -
+
+      - name: Upload verified checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: htdemucs-checkpoint
+          path: model/955717e8-8726e21a.th
+          if-no-files-found: error
+          retention-days: 1
