@@ -1,0 +1,46 @@
+name: ACE-Step Runtime Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "src/hazewave/acestep.py"
+      - "tests/test_acestep.py"
+      - ".github/workflows/acestep-runtime-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Hazewave
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Clone pinned ACE-Step
+        run: |
+          git clone --filter=blob:none https://github.com/ace-step/ACE-Step-1.5.git .runtime/ACE-Step-1.5
+          git -C .runtime/ACE-Step-1.5 checkout --detach ca1e85fe9430179831e6bc6be790c332190a3866
+          test "$(git -C .runtime/ACE-Step-1.5 rev-parse HEAD)" = "ca1e85fe9430179831e6bc6be790c332190a3866"
+
+      - name: Resolve ACE-Step environment
+        working-directory: .runtime/ACE-Step-1.5
+        run: uv sync
+
+      - name: Import ACE-Step runtime
+        working-directory: .runtime/ACE-Step-1.5
+        run: uv run python -c "import acestep; print('ACESTEP_IMPORT=PASS')"
+
+      - name: Validate API entrypoint
+        working-directory: .runtime/ACE-Step-1.5
+        run: uv run acestep-api --help > /tmp/acestep-api-help.txt
