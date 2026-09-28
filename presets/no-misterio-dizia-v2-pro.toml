@@ -1,0 +1,78 @@
+[preset]
+name = "no-misterio-dizia-v2-pro"
+engine = "stem-reamp-base-preserving"
+instrumental_only = true
+
+[source]
+duration_seconds = 207.987
+sample_rate_hz = 44100
+
+[locks]
+preserve_pitch = true
+preserve_timing = true
+preserve_lead_performance = true
+preserve_dry_percussion = true
+new_lead_melody = false
+vocals = false
+
+[separation]
+model = "htdemucs"
+drums_preserved = true
+guitar_source_stem = "other"
+bass_source_stem = "bass"
+vocal_residue_discarded = true
+
+[guitar_reamp]
+original_stem_reduction = 0.75
+processed_stem_mix = 2.7
+highpass_hz = 105
+low_shelf_hz = 240
+low_shelf_gain_db = 2.8
+body_hz = 420
+body_gain_db = 2.4
+presence_hz = 1900
+presence_gain_db = 3.6
+upper_presence_hz = 3300
+upper_presence_gain_db = 1.8
+high_shelf_hz = 6800
+high_shelf_gain_db = -2.5
+distortion_drive_db = 7.0
+compression_ratio = 3.2
+lowpass_hz = 7200
+
+[bass_reamp]
+original_stem_reduction = 0.20
+processed_stem_mix = 2.0
+sub_stem_mix = 3.4
+highpass_hz = 31
+low_shelf_hz = 92
+low_shelf_gain_db = 5.5
+body_hz = 185
+body_gain_db = 2.8
+audibility_hz = 720
+audibility_gain_db = 2.3
+distortion_drive_db = 4.5
+compression_ratio = 4.2
+lowpass_hz = 2400
+
+[tribal_room]
+source = "drums"
+mix = 4.5
+highpass_hz = 260
+lowpass_hz = 3900
+delay_ms = 75
+delay_feedback = 0.13
+reverb_room_size = 0.38
+
+[master]
+limiter_ceiling_linear = 0.870964
+limiter_attack_ms = 5
+limiter_release_ms = 90
+measured_lufs_i = -10.2
+measured_true_peak_dbfs = -0.9
+
+[measured_delta_vs_clean]
+sub_35_120_hz_db = 3.82
+bass_body_120_300_hz_db = 11.32
+guitar_presence_900_3500_hz_db = 12.92
+upper_guitar_3500_7000_hz_db = 9.47
