@@ -4,11 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hazewave"
-version = "0.1.0"
-description = "Neural audio stem separation tools for Hazewave."
+version = "0.2.0"
+description = "Local generative music and neural audio processing tools for Hazewave."
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+  "httpx>=0.27,<1",
+]
 
 [project.optional-dependencies]
 separation = [
