@@ -1,0 +1,65 @@
+# Hazewave mix preset — No mistério dizia / V1
+#
+# Source audio is intentionally not committed to Git.
+# This preset records the exact external source identity and the mix constraints.
+
+[preset]
+name = "no-misterio-dizia-v1"
+engine = "hybrid-base-preserving"
+instrumental_only = true
+
+[source]
+expected_sha256 = "540325c9a4d6888d68a6d50bd8ac4c11adc25bb6d2ef2668fb85ec34dce70c4b"
+sample_rate_hz = 44100
+content_duration_seconds = 207.988005
+
+[musical_lock]
+tempo_bpm = 114.84375
+estimated_key = "C# minor"
+preserve_pitch = true
+preserve_key = true
+preserve_timing = true
+preserve_lead_melody = true
+preserve_dry_percussion = true
+allow_new_lead_melody = false
+allow_vocals = false
+
+[guitar_parallel]
+highpass_hz = 160
+lowpass_hz = 5800
+body_center_hz = 330
+body_gain_db = 2.2
+presence_center_hz = 2300
+presence_gain_db = 1.8
+parallel_level_db = -9.0
+analog_soft_clip = true
+
+[bass_parallel]
+highpass_hz = 32
+lowpass_hz = 190
+virtual_bass_cutoff_hz = 160
+virtual_bass_strength = 1.45
+parallel_level_db = -5.5
+source_locked = true
+
+[tribal_ambience]
+highpass_hz = 220
+lowpass_hz = 4200
+delay_ms = [62, 118]
+delay_decay = [0.16, 0.09]
+parallel_level_db = -20.0
+derive_from_existing_transients = true
+
+[master]
+normalize = false
+limiter = false
+target_behavior = "warm gritty powerful, not over-polished"
+observed_peak_dbfs = -2.6
+observed_mean_db = -17.1
+
+[ace_step_future_pass]
+# Do not use full-song cover when exact base preservation is mandatory.
+# Prefer additive LEGO/track generation from the locked source context.
+preferred_task = "lego"
+candidate_tracks = ["bass", "fx", "percussion"]
+use_cover_for_master = false
