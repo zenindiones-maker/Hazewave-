@@ -1,5 +1,5 @@
 {
-  "schema": "HazewaveDomainModel/v2",
+  "schema": "HazewaveDomainModel/v3",
   "project": "HAZEWAVE",
   "principle": "HAZE creates the signal. WAVE gives it form. HAZEWAVE is where they become one.",
   "domains": {
@@ -88,10 +88,25 @@
     "id": "NEANDERCAUS",
     "format": "interactive animated series",
     "role": "First original animated series produced by HAZE Studio + WAVE Studio.",
+    "story": "A global, era-by-era history of humanity's relationship with sound from deep prehistory to generative AI.",
+    "scope": "Multiple world regions must be researched within the relevant eras; the series must not use a single Western progress narrative.",
     "spoken_dialogue": "NONE",
-    "narrative_voice": "Songs and music by Hazewave artists function as dialogue.",
-    "soundtrack_pipeline": "Full HAZE production including AI-assisted instrumentals, human performance, artist-authorized RVC where used, editing, mixing and mastering.",
-    "visual_pipeline": "Full WAVE production including writing, art direction, storyboard, animatic, animation, generative visuals, compositing and interactive presentation.",
+    "narrative_voice": "Music is dialogue.",
+    "vocal_identity": {
+      "single_human_identity": true,
+      "origin": "Brazilian human performer",
+      "persistent_across_series": true,
+      "generic_fallback": "FORBIDDEN",
+      "voice_conversion": "AUTHORIZED_RVC_ONLY"
+    },
+    "soundtrack_pipeline": "Full HAZE production: research-informed composition, AI-assisted instrumentals, the same Brazilian human vocal identity, authorized RVC where used, sound design, editing, mixing and mastering.",
+    "visual_pipeline": "Full WAVE production: research, writing, world/character design, storyboard, animatic, animation, generative visuals, compositing and interactive presentation.",
+    "truth_classes": [
+      "VERIFIED",
+      "PROBABLE",
+      "DISPUTED",
+      "SPECULATIVE_CANON"
+    ],
     "status": "CONCEPT_DEFINITION"
   },
   "rights": {
@@ -102,6 +117,6 @@
     "haze": "ACTIVE_FOUNDATION_EXISTS",
     "wave": "STUDIO_CONCEPT_AND_ENGINE_FOUNDATION",
     "brand_site": "CONCEPT_DEFINED",
-    "neandercaus": "SERIES_CONCEPT_DEFINED"
+    "neandercaus": "GLOBAL_SOUND_HISTORY_SERIES_CANON_DEFINED"
   }
 }
