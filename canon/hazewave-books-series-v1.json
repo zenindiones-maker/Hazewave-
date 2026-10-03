@@ -1,5 +1,5 @@
 {
-  "schema": "HazewaveBooksSystem/v1",
+  "schema": "HazewaveBooksSystem/v2",
   "project": "HAZEWAVE",
   "public_identity": "HAZEWAVE BOOKS",
   "editorial_owner": "WAVE Studio",
@@ -68,5 +68,30 @@
     "educational packs",
     "exhibitions"
   ],
-  "status": "CONCEPT_FOUNDATION"
+  "status": "ACADEMIC_LIBRARY_AND_EDUCATIONAL_SYSTEM_FOUNDATION",
+  "academic_library": {
+    "id": "HAZEWAVE_ACADEMIC_LIBRARY",
+    "level": "university",
+    "first_volume": {
+      "id": "HW-ACAD-001",
+      "public_title": "Música de Antes da Pré-História",
+      "academic_title": "Antes da Música — Do primeiro mundo sonoro da Terra ao primeiro ouvinte humano",
+      "scope": "Physical sound before life, evolution of mechanosensation and hearing, acoustic communication, and the threshold of human musical behavior.",
+      "thesis": "Sound predates listeners; hearing evolves from older mechanosensory capacities; music emerges later as a distinct cultural phenomenon.",
+      "target_words": "100000-130000",
+      "target_pages": "350-500",
+      "peer_review_required": true,
+      "status": "RESEARCH_DESIGN"
+    },
+    "publication_standard": {
+      "methodology_required": true,
+      "historiography_required": true,
+      "claim_evidence_map_required": true,
+      "external_peer_review_minimum": 2,
+      "academic_bibliography": true,
+      "notes": true,
+      "indexes": true,
+      "stable_edition": true
+    }
+  }
 }
