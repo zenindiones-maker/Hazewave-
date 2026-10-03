@@ -1,0 +1,58 @@
+{
+  "schema": "HazewaveAcademicClaim/v1",
+  "description": "Machine-readable claim/evidence record for Hazewave Academic Library.",
+  "required": [
+    "claim_id",
+    "book_id",
+    "chapter_id",
+    "claim_text",
+    "claim_type",
+    "evidence_status",
+    "sources",
+    "review_status"
+  ],
+  "claim_type_enum": [
+    "HISTORICAL",
+    "ARCHAEOLOGICAL",
+    "MUSICOLOGICAL",
+    "ETHNOMUSICOLOGICAL",
+    "ORGANOLOGICAL",
+    "ACOUSTIC",
+    "COGNITIVE",
+    "PHILOSOPHICAL",
+    "INTERPRETIVE"
+  ],
+  "evidence_status_enum": [
+    "VERIFIED",
+    "PROBABLE",
+    "DISPUTED",
+    "UNKNOWN",
+    "SPECULATIVE_SCENE",
+    "ANALYTICAL_THOUGHT_EXPERIMENT",
+    "HAZE_INTERPRETATION"
+  ],
+  "record": {
+    "claim_id": "HW001-C00-000",
+    "book_id": "HW-ACAD-001",
+    "chapter_id": "CH00",
+    "claim_text": "",
+    "claim_type": "HISTORICAL",
+    "evidence_status": "UNKNOWN",
+    "sources": [
+      {
+        "source_id": "",
+        "locator": "",
+        "support_note": "",
+        "public_link": "",
+        "access_date": ""
+      }
+    ],
+    "counterevidence": [],
+    "alternative_interpretations": [],
+    "limitations": [],
+    "review_status": "PENDING",
+    "reviewers": [],
+    "edition_binding": "",
+    "last_reviewed": ""
+  }
+}
