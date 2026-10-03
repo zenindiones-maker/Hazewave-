@@ -1,5 +1,5 @@
 {
-  "schema": "HazewaveDomainModel/v3",
+  "schema": "HazewaveDomainModel/v4",
   "project": "HAZEWAVE",
   "principle": "HAZE creates the signal. WAVE gives it form. HAZEWAVE is where they become one.",
   "domains": {
@@ -25,13 +25,16 @@
         "mastering",
         "soundtrack production",
         "motif DNA",
-        "audio feature extraction"
+        "audio feature extraction",
+        "audio companions",
+        "audiobook production",
+        "historical listening demonstrations"
       ]
     },
     "WAVE": {
       "meaning": "image",
       "public_identity": "WAVE Studio",
-      "responsibility": "Story, image, animation, film, photography, motion, light, geometry, simulation, interaction and visual memory.",
+      "responsibility": "Story, image, animation, film, photography, publishing, editorial design, writing systems, motion, light, geometry, simulation, interaction and visual memory.",
       "foundation": "Living Resonance Engine",
       "target_studio_capabilities": [
         "screenwriting",
@@ -45,7 +48,13 @@
         "photography",
         "compositing",
         "interactive websites",
-        "visual identity"
+        "visual identity",
+        "publishing",
+        "editorial development",
+        "research visualization",
+        "book design",
+        "typography/layout",
+        "print/ebook production"
       ],
       "runtime_direction": [
         "WebGPU compute first",
@@ -117,6 +126,16 @@
     "haze": "ACTIVE_FOUNDATION_EXISTS",
     "wave": "STUDIO_CONCEPT_AND_ENGINE_FOUNDATION",
     "brand_site": "CONCEPT_DEFINED",
-    "neandercaus": "GLOBAL_SOUND_HISTORY_SERIES_CANON_DEFINED"
+    "neandercaus": "GLOBAL_SOUND_HISTORY_SERIES_CANON_DEFINED",
+    "books": "HAZEWAVE_BOOKS_CONCEPT_DEFINED"
+  },
+  "publishing": {
+    "public_identity": "HAZEWAVE BOOKS",
+    "editorial_owner": "WAVE Studio",
+    "sonic_owner": "HAZE Studio",
+    "first_collection": "NEANDERCAUS LIBRARY",
+    "role": "Educational publishing system covering the global history and influence of sound from deep prehistory to generative AI.",
+    "narrative_device": "Readers are transported into each era as contemporary people obsessed with music; immersive prose is separated from factual evidence.",
+    "status": "CONCEPT_FOUNDATION"
   }
 }
