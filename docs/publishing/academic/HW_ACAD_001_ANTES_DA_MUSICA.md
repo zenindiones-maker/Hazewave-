@@ -3,364 +3,412 @@
 ## Working title
 
 # MÚSICA DE ANTES DA PRÉ-HISTÓRIA
-## Volume 1 — Antes da Música
-### Do primeiro mundo sonoro da Terra ao primeiro ouvinte humano
+## Volume 1 — O Primeiro Ouvinte
+### Som, consciência e experiência humana antes da música organizada
 
-## Academic positioning
+## Canonical correction
 
-This volume is conceived as a university-level interdisciplinary monograph, not a popular-history introduction.
+This volume is **human-centered from the first page**.
 
-It asks a question that precedes archaeology of musical instruments:
+It does **not** attempt to narrate the biological origin of hearing, the origin of life, or the entire physical history of sound before humans.
 
-> What had to exist — physically, biologically and cognitively — before music could exist?
+Those topics may appear only as brief scientific context when they clarify a human question.
 
-The book begins before human culture and follows the prerequisites of musical experience:
+The book's true subject is:
 
-```text
-VIBRATION
-→ MEDIUM
-→ GEOPHONY
-→ LIFE
-→ MECHANOSENSATION
-→ HEARING
-→ ACOUSTIC COMMUNICATION
-→ VOCALIZATION
-→ HOMININ LISTENING
-→ INTENTIONAL HUMAN SOUND
-→ THRESHOLD OF MUSIC
-```
+> What does sound mean when we place ourselves inside the earliest human sound world with the critical consciousness of a person from the present — and even with questions that belong to the future?
 
-The volume ends at the threshold where the next volume can begin: humans intentionally organizing sound.
+## Narrative device
+
+The reader is placed inside an early-human / Paleolithic sound world.
+
+The narrative uses a deliberately impossible but controlled perspective:
+
+- we inhabit the material and sensory conditions of the era;
+- we do not bring modern technology with us;
+- we do not magically know what historical people thought;
+- we retain a modern/future capacity to ask analytical questions;
+- every immersive reconstruction is separated from the scholarly evidence that supports or limits it.
+
+Working name for the device:
+
+# THE HAZEWAVE LISTENER
+
+The Hazewave Listener is not a historical character presented as fact.
+
+It is a research-and-writing device that lets us ask:
+
+- What would attract our attention first?
+- Which sounds would mean danger?
+- Which sounds would imply food, weather, animals, water or other humans?
+- When would repetition become pattern?
+- When would pattern become expectation?
+- When would expectation become pleasure, ritual or memory?
+- When would a human discover that the body itself can intentionally produce rhythm?
+- When would echo become something more than an accident?
+- When would a cry become signal?
+- When would signal become expression?
+- When does intentional sound become something we are willing to call music?
 
 ## Central thesis
 
-Sound as a physical event predates listeners.
+The deep history of human music should not begin with the first surviving instrument.
 
-Hearing is not the beginning of vibration; it is an evolutionary way of detecting mechanical energy.
+It should begin with the **human act of listening**.
 
-Music appears much later and cannot be treated as synonymous with every sound, every animal vocalization, or every biological response to vibration.
+Before preserved instruments, notation or recordings, humans already lived inside dense acoustic worlds.
 
-Therefore, the deep history of music must begin by separating:
+The volume investigates how environmental sound, body sound, voice, repetition, space, memory, social coordination and intentionality could have formed the experiential conditions from which musical behavior later became archaeologically visible.
 
-1. sound as a physical phenomenon;
-2. mechanosensation as biological detection of force;
-3. hearing as specialized sensory processing;
-4. acoustic communication as signaling;
-5. music as culturally organized human behavior.
+The book does not claim to recover the first song or identify the first musician.
 
-The book investigates the transitions between these levels without inventing a single recoverable “first sound”, “first cry” or “first song”.
+It examines the conditions in which human sound could become meaningful, repeatable, social and eventually musical.
 
-## The opening philosophical problem
+## Philosophical opening
 
-Working opening:
+Working opening question:
 
-> What was the first sound?
+> What was the first sound that mattered to us?
 
-The book immediately complicates the question.
+Not:
 
-Sound can mean at least two different things:
+> What was the first sound on Earth?
 
-- a mechanical pressure/vibration phenomenon in a medium;
-- an auditory experience produced by a nervous system.
+The distinction is essential.
 
-If no listener exists, the physical wave can exist while the experience of hearing cannot.
+The book begins from the human listener.
 
-This distinction becomes the conceptual doorway into the entire Hazewave academic project.
+A possible opening scene:
 
-## The “first cry” rule
+A human wakes before sunrise.
 
-The image of “the first living being crying at birth” is retained as a literary/philosophical provocation, not as a factual claim.
+There is no word for music.
+No instrument category.
+No notation.
+No recording.
+No theory of acoustics.
 
-The earliest known life was microbial, billions of years before animals with vocal organs.
+There is only a world that sounds.
 
-The book can open with the imagined question:
+Wind moves through vegetation.
+Something cracks beyond the visible edge of the camp.
+Breathing has rhythm.
+A child cries.
+Stone hits stone.
+Footsteps identify approach before a face can be seen.
+A voice travels farther than an arm.
 
-> Did life announce itself with a cry?
+Our modern mind is placed inside that sensory world and asks:
 
-Then answer:
+> At what point does hearing become listening?
 
-> Almost certainly not in the literal sense. Life existed long before lungs, larynges, ears or nervous systems.
+That question is the true beginning of the Hazewave Academic Library.
 
-This transformation from intuition to evidence is part of the book’s educational method.
+## Academic rule
+
+The immersive perspective is a literary/analytical device.
+
+It may never be used as evidence.
+
+Every chapter maintains two clearly distinct layers:
+
+### EXPERIENCE LAYER
+
+A controlled reconstruction written from inside the scene.
+
+### EVIDENCE LAYER
+
+Archaeology, paleoanthropology, acoustics, ethnomusicology, cognitive science and other scholarly evidence explaining what can and cannot be responsibly claimed.
+
+The reader should always know when the book is imagining and when it is demonstrating.
 
 ## Evidence status
-
-Historical/scientific claims use:
 
 - VERIFIED
 - PROBABLE
 - DISPUTED
 - SPECULATIVE_SCENE
-- PHILOSOPHICAL_PROPOSITION
+- ANALYTICAL_THOUGHT_EXPERIMENT
 - HAZE_INTERPRETATION
 
-No speculative reconstruction may be silently presented as empirical history.
+## Core domains
 
-## Disciplinary scope
+The book concentrates on human questions:
 
-The book deliberately crosses fields:
-
-- acoustics / physics;
-- Earth history;
-- geophysics;
-- origin-of-life studies;
-- evolutionary biology;
-- mechanobiology;
-- sensory neuroscience;
-- comparative hearing;
-- bioacoustics;
-- soundscape ecology;
-- animal communication;
 - paleoanthropology;
-- cognitive evolution;
-- philosophy of sound;
-- philosophy / anthropology of music.
+- archaeology;
+- archaeomusicology;
+- acoustic ecology;
+- environmental acoustics;
+- human auditory attention;
+- cognition and memory;
+- vocal communication;
+- gesture and rhythm;
+- anthropology of music;
+- ritual and collective behavior;
+- philosophy of music;
+- philosophy of perception;
+- experimental archaeology;
+- cave / landscape acoustics.
 
-Each chapter must identify which discipline supports which claims.
+Evolutionary biology and comparative hearing may appear only where directly necessary to establish a human capacity or limitation.
 
 ## Part structure
 
-### PART I — A WORLD WITH NO EARS
+### PART I — WE ARRIVE IN A WORLD THAT ALREADY SOUNDS
 
 Questions:
-- Can sound exist without a listener?
-- What is a pressure wave?
-- What media existed on early Earth?
-- What would geophony mean before life?
-- Which early-Earth sound claims can be modeled, and which cannot be recovered?
+- What does an early-human soundscape contain?
+- What information can be obtained before anything is seen?
+- What is foreground sound versus background sound?
+- How much of the world is perceived through listening?
 
 Topics:
-- vibration and medium;
-- solids, liquids and gases;
-- atmosphere and hydrosphere;
-- impacts, tectonics, volcanism, water and weather;
-- limits of reconstructing ancient soundscapes;
-- geophony.
+- wind;
+- water;
+- weather;
+- animals;
+- fire;
+- movement;
+- distance;
+- darkness;
+- terrain;
+- silence.
 
-### PART II — LIFE LEARNS FORCE
+### PART II — THE BODY IS THE FIRST INSTRUMENT WE ALWAYS HAVE
 
 Questions:
-- What is mechanosensation?
-- How old are biological mechanisms for sensing mechanical force?
-- How is sensing pressure/touch different from hearing?
+- Which intentional sounds require no external object?
+- How do breath, voice, hands, feet and movement create patterns?
+- When does a repeated body action become rhythm?
 
 Topics:
-- mechanosensitive channels;
-- microbial mechanotransduction;
-- early multicellular sensory systems;
-- ancient mechanoreception;
-- transition from general force sensing to specialized sensory cells.
+- breathing;
+- heartbeat as perceived experience;
+- clapping;
+- stamping;
+- striking the body;
+- vocalization;
+- repetition;
+- synchronization;
+- work rhythm;
+- play.
 
-### PART III — BEFORE EARS BECOME EARS
+### PART III — VOICE BEFORE SONG
 
 Questions:
-- How did auditory systems emerge from older mechanosensory systems?
-- What is the relationship among balance, lateral-line sensing and hearing?
-- How did water-to-land transitions change auditory evolution?
+- What can a voice do before we call it singing?
+- How do distance, emotion and group identity transform vocal sound?
+- Where might the boundary between call, speech-like communication and song become analytically useful?
 
 Topics:
-- statocysts / balance;
-- hair cells;
-- vertebrate inner ear;
-- lateral line;
-- aquatic sound;
-- tympanic ears;
-- terrestrial hearing;
-- convergent vs homologous auditory innovations.
+- cry;
+- alarm;
+- contact call;
+- imitation;
+- pitch;
+- timbre;
+- repetition;
+- group response;
+- emotional expression.
 
-### PART IV — LIFE MAKES SOUND FOR LIFE
+### PART IV — THE WORLD ANSWERS BACK
 
 Questions:
-- When does sound production become communication?
-- How deep in evolutionary time can acoustic communication be inferred?
-- What do competing phylogenetic models disagree about?
+- What happens when humans notice echo and resonance?
+- How do caves, rock shelters, forests, cliffs and open plains transform sound?
+- Could acoustic properties influence how spaces are experienced or used?
 
 Topics:
-- biological sound production;
-- acoustic signaling;
-- reproduction, territory, parental care and social coordination;
-- vertebrate communication;
-- competing hypotheses for the antiquity of acoustic communication;
-- biophony.
+- echo;
+- reverberation;
+- resonance;
+- enclosure;
+- distance;
+- cave acoustics;
+- landscape acoustics;
+- archaeological limits.
 
-### PART V — THE MAMMALIAN SOUND WORLD
+### PART V — OBJECTS BEGIN TO ANSWER
 
 Questions:
-- What changes in mammalian hearing?
-- How do social behavior and vocalization interact?
-- What is a “cry” biologically?
+- When does striking, scraping, shaking or blowing an object become intentional sound production?
+- How can we distinguish tool noise from sound-making behavior?
+- What evidence survives?
 
 Topics:
-- mammalian middle/inner ear;
-- frequency range;
-- maternal/offspring communication;
-- distress calls;
-- social vocalization;
-- the evolution of primate auditory ecology.
+- stone;
+- wood;
+- bone;
+- shells;
+- seeds;
+- skins;
+- resonant objects;
+- percussive surfaces;
+- accidental vs intentional sound.
 
-### PART VI — TOWARD THE HUMAN LISTENER
+### PART VI — PATTERN, MEMORY, EXPECTATION
 
 Questions:
-- What can fossils tell us about hominin hearing?
-- What can they not tell us?
-- How can auditory anatomy, ecology and communication be studied without inventing a first song?
+- Why does repetition matter?
+- How might pattern help coordination and memory?
+- When do listeners begin to predict what comes next?
 
 Topics:
-- primate hearing;
-- hominin auditory anatomy;
-- vocal communication;
-- social listening;
-- environmental sound;
-- body-produced sound;
+- pulse;
+- repetition;
+- anticipation;
+- entrainment;
+- collective timing;
+- memory;
+- call-and-response;
+- shared attention.
+
+### PART VII — THE SOCIAL SOUND
+
+Questions:
+- What can sound do for a group?
+- How might sound organize work, warning, bonding, mourning, courtship, play or ritual?
+- What claims can archaeology support?
+
+Topics:
+- group cohesion;
+- territory;
+- ceremony;
+- mourning;
+- celebration;
+- movement;
+- dance;
+- identity;
 - limits of inference.
 
-### PART VII — WHEN DOES SOUND BECOME MUSIC?
+### PART VIII — THE THRESHOLD OF MUSIC
 
 Questions:
+- What definition of music is useful this far back?
+- Is intentionality enough?
 - Is repetition enough?
-- Is intention required?
-- Is rhythm biological, cultural or both?
-- Can animal song be called music?
-- Can we define a “first music” archaeologically?
+- Does music require culture, pattern, pleasure, social use or all of these?
+- Why can we not simply identify a single first song?
 
-Topics:
-- definitions of music;
-- sound vs signal vs music;
-- intentionality;
-- entrainment;
-- rhythm;
-- vocalization;
-- collective behavior;
-- the problem of missing evidence.
-
-The final chapter stops before claiming a first human musical event.
+The volume ends at the point where intentional organized sound becomes a plausible subject for the archaeology of music.
 
 ## Working chapter map
 
-1. The First Sound: a question we cannot literally answer
-2. Sound Without Ears
-3. Earth as an Acoustic System
-4. Ocean, Rock, Atmosphere
-5. The First Life Was Not a Singer
-6. The Oldest Sense May Have Been Force
-7. Cells That Feel Movement
-8. From Balance to Hearing
-9. Underwater Worlds of Vibration
-10. Ears Move Onto Land
-11. When Life Begins to Call
-12. The Evolutionary Debate Over Acoustic Communication
-13. Biophony Before Humanity
-14. Mammals and the Social Power of Voice
-15. Cry, Alarm, Courtship, Contact
-16. Primates as Listeners
-17. Hominins in a World of Sound
-18. The First Human Listener as a Scientific Limit
-19. Signal, Pattern, Intention
-20. When Can We Finally Say “Music”?
+1. The First Sound That Mattered
+2. Hearing Before Seeing
+3. Night, Distance and Danger
+4. Water, Wind, Fire and Animal Worlds
+5. The Sound of Another Human
+6. Breath
+7. The Cry
+8. Hands
+9. Feet
+10. Repetition
+11. Voice Before Song
+12. Calling Across Distance
+13. Imitation
+14. The World Answers Back
+15. Echo
+16. Caves and Acoustic Space
+17. Stone Against Stone
+18. When an Object Becomes a Sound Object
+19. Pattern and Expectation
+20. Many Bodies, One Pulse
+21. Memory Through Sound
+22. Sound and Social Life
+23. Ritual Without Inventing the Past
+24. The Problem of the First Music
+25. The Threshold
 
 ## Academic target
 
-Working manuscript target:
+Working target:
 
-- 100,000–130,000 words;
-- approximately 350–500 final pages depending on design;
-- 20 substantial chapters;
-- explicit methodology;
-- historiographic/review sections;
+- 100,000–140,000 words;
+- approximately 350–520 pages depending on scholarly apparatus and design;
+- 25 substantial chapters;
+- methodology chapter;
+- historiographic review;
+- evidence map per chapter;
 - extensive notes;
 - academic bibliography;
 - glossary;
 - subject index;
-- name/taxon index where useful;
+- place/site index;
 - timeline;
-- diagrams of sensory evolution;
-- evidence-status boxes;
-- external peer review.
+- diagrams and maps;
+- external peer review by at least two relevant specialists.
 
-Length is not a success criterion by itself.
+## Methodological standard
 
-The thesis and evidence map determine the final size.
+The book should not claim access to prehistoric consciousness.
 
-## Research anchors for the first dossier
+Instead, it combines:
 
-Initial high-level anchors already identified:
+- archaeological evidence;
+- paleoanthropological evidence;
+- acoustic measurements / modeling where appropriate;
+- experimental archaeology;
+- comparative material evidence with explicit limits;
+- cognitive research relevant to human listening;
+- critical philosophy of sound/music;
+- carefully labeled narrative thought experiments.
 
-- early Earth atmosphere/hydrosphere and the deep-time biosphere;
-- contested evidence for earliest life;
-- evolution of mechanosensation;
-- evolution of vertebrate inner ears and hearing;
-- soundscape ecology: geophony / biophony / anthrophony;
-- competing phylogenetic accounts of acoustic communication.
-
-These anchors are discovery starting points, not the final bibliography.
+The modern/future consciousness belongs to the narrator, not to the prehistoric people being studied.
 
 ## HAZE companion
 
-HAZE does not fabricate “authentic sounds” for deep time.
+HAZE creates a listening laboratory for each chapter.
 
-It creates labeled listening demonstrations:
+Examples:
 
-- GEOPHYSICAL_MODEL
-- PHYSICS_DEMONSTRATION
-- EXTANT_SPECIES_REFERENCE
+- darkness localization experiment;
+- distance and attenuation;
+- stone / wood / bone timbre comparisons;
+- breath and pulse demonstrations;
+- echo / cave-response simulations;
+- repetition-to-rhythm experiments;
+- call-and-response;
+- group synchronization;
+- reconstruction of plausible sound materials;
+- original HAZE interpretations.
+
+Every asset is labeled by evidentiary status:
+
 - DOCUMENTED_EXPERIMENT
+- MATERIAL_DEMONSTRATION
+- ACOUSTIC_MODEL
+- ARCHAEOLOGICAL_RECONSTRUCTION
 - HAZE_INTERPRETATION
 - SPECULATIVE_SOUNDSCAPE
 
-Possible companion modules:
+## WAVE responsibility
 
-- propagation in water vs air;
-- vibration through solids;
-- mechanosensation demonstration;
-- comparative hearing ranges;
-- extant animal acoustic communication;
-- modeled geophony;
-- transition from signal to intentionally organized sound.
+WAVE is the academic editor and visual publisher.
 
-## WAVE editorial / visual system
+It creates:
 
-WAVE owns:
-
-- scientific diagrams;
-- evolutionary trees;
-- geological timelines;
-- scale comparisons;
-- maps;
-- evidence visualizations;
-- figure provenance;
-- speculative-scene art;
-- typography and layout;
-- print / ebook / web edition.
-
-Visual reconstructions must be marked as reconstructions.
-
-AI-generated imagery must never be presented as archaeological or scientific documentation.
-
-## University-use target
-
-The book is designed to be usable in courses touching:
-
-- music history;
-- musicology;
-- sound studies;
-- bioacoustics;
-- evolutionary biology;
-- anthropology;
-- archaeology;
-- sensory neuroscience;
-- philosophy of music.
-
-Adoption is never guaranteed by format alone.
-
-The publication process therefore requires external subject-matter review, transparent sourcing and a stable scholarly edition.
+- site maps;
+- environmental reconstructions;
+- acoustic diagrams;
+- object/material diagrams;
+- cave/landscape acoustic visualizations;
+- timelines;
+- archaeological-site maps;
+- evidence-status graphics;
+- speculative scenes clearly labeled;
+- typography;
+- layout;
+- print / ebook / web editions.
 
 ## Relationship to Volume 002
 
-Volume 001 ends at the threshold of intentionally organized human sound.
+Volume 001 asks how a human listener can discover meaning, pattern and intentionality in sound.
 
-A future Volume 002 can begin with:
+Volume 002 begins once intentionally organized human sound becomes more materially visible:
 
-# BODY, VOICE, RHYTHM
-## Human sound before surviving instruments
+# VOLUME 002 — BODY, VOICE, RHYTHM
+## The emergence of organized human sound before surviving formal musical systems
 
-This prevents Volume 001 from pretending to cover both billions of years of sensory evolution and the full archaeology of human music in one book.
+The exact chronological boundary will be determined by research rather than by a fictional date.
