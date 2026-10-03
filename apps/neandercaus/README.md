@@ -1,166 +1,279 @@
 # HAZEWAVE — NEANDERCAUS
 
-**From breath to latent space.**
+## Canonical role
 
-NEANDERCAUS is the first canonical interactive work built from the two Hazewave domains:
+**NEANDERCAUS is the first original interactive animated series produced inside HAZEWAVE.**
 
-- **HAZE** — sound;
-- **WAVE** — image.
+It is not the Hazewave website, not a documentary timeline, and not a generic music visualizer.
 
-It is not a conventional portfolio site and not a documentary timeline. It is an interactive audiovisual history in which one persistent material evolves from primordial sound-making to generative AI.
+It is a full audiovisual work in which **HAZE produces the music and sonic identity** while **WAVE produces the story world, animation, image language and interactive presentation**.
 
-## Narrative principle
+The series has **no conventional spoken dialogue**.
 
-The visitor should feel a continuous causal chain:
+The music carries the dramatic voice of the work.
 
-```text
-BREATH
-→ BONE
-→ RESONANCE
-→ SYMBOL
-→ MACHINE
-→ VOLTAGE
-→ SAMPLE
-→ PROTOCOL
-→ MODEL
-→ NEANDERCAUS
-```
+> The songs are the dialogue.
 
-The same matter survives every transition.
+Artists connected to Hazewave perform the emotional and narrative function normally assigned to spoken lines. Lyrics, melody, timbre, rhythm, silence, motifs, sound design and visual acting together communicate character, conflict and meaning.
+
+## Core formula
 
 ```text
-dust
-→ pigment
-→ bone
-→ metal
-→ groove
-→ electricity
-→ tape
-→ sample
-→ pixel
-→ data
-→ latent matter
+HAZE STUDIO
+music + voices + sound
+        ↓
+HAZEWAVE TRANSLATION
+        ↓
+WAVE STUDIO
+story + animation + image + interaction
+        ↓
+NEANDERCAUS
 ```
 
-## Two histories in parallel
+## HAZE Studio responsibility
 
-### HAZE / sound
+HAZE owns the complete musical production pipeline for the series.
+
+Expected capabilities include:
+
+- musical concept and soundtrack architecture;
+- motif DNA / leitmotifs for characters and story arcs;
+- composition and arrangement;
+- AI-assisted instrumental generation;
+- reference-audio workflows;
+- stems and source separation;
+- human performance capture;
+- artist-authorized RVC / voice conversion;
+- vocal production;
+- sound design and foley;
+- spatial audio where useful;
+- editing;
+- mixing;
+- mastering;
+- soundtrack sequencing;
+- cue sheets and synchronization metadata;
+- provenance for models, source audio and authorized voices.
+
+### Human voice rule
+
+A real artist's voice may only be converted/cloned when the artist or rights holder has explicitly authorized that use.
+
+Voice identity is part of the artist, not a generic model asset.
+
+The production system should preserve:
+
+- source performer identity;
+- consent/authorization evidence;
+- model/version identity;
+- reference provenance;
+- song/episode usage;
+- final approved vocal artifact.
+
+## WAVE Studio responsibility
+
+WAVE owns the complete visual production pipeline.
+
+Expected capabilities include:
+
+- series bible;
+- world building;
+- character design;
+- environment design;
+- screenwriting without conventional spoken dialogue;
+- visual dramaturgy;
+- storyboards;
+- animatics;
+- shot planning;
+- layout;
+- 2D / 2.5D / 3D animation as artistically justified;
+- generative motion;
+- HazeMatter;
+- Living Resonance Engine;
+- lighting;
+- compositing;
+- visual effects;
+- editing;
+- title design;
+- interactive scenes;
+- web-native presentation;
+- final film/video masters.
+
+WAVE must be capable of producing an authored cartoon/animated series, not only reactive graphics.
+
+## Narrative language
+
+Because there is no conventional spoken dialogue, narrative information must be distributed intentionally across:
 
 ```text
-breath
-→ voice
-→ impact
-→ instrument
-→ notation
-→ recording
-→ synthesis
-→ sampling
-→ digital representation
-→ generative model
+CHARACTER ACTING
++ CAMERA
++ EDITING
++ MUSIC
++ LYRICS
++ MOTIF
++ SOUND DESIGN
++ COLOR
++ MATERIAL
++ INTERACTION
+= STORY
 ```
 
-### WAVE / image
+A scene must remain understandable through visual action and musical structure rather than relying on exposition.
+
+Songs can function as:
+
+- inner monologue;
+- confrontation;
+- memory;
+- narration;
+- character introduction;
+- transition;
+- world-building;
+- emotional reversal;
+- chapter ending.
+
+## Artists as canonical voices
+
+Hazewave artists are not merely soundtrack contributors.
+
+An artist may become a recurring **musical voice** associated with:
+
+- a character;
+- a faction;
+- an emotional state;
+- an epoch;
+- a recurring motif;
+- a narrative point of view.
+
+The artist's musical identity can therefore affect both HAZE and WAVE.
+
+Example:
 
 ```text
-shadow
-→ mark
-→ pigment
-→ symbol
-→ pattern
-→ optics
-→ photograph
-→ film
-→ pixel
-→ simulation
-→ generative world
+ARTIST IDENTITY
+   ↓
+voice / timbre / motif
+   ↓
+HAZE STATE
+   ↓
+visual material / movement / palette / topology
+   ↓
+WAVE STATE
 ```
 
-The histories begin separate and progressively couple.
+## Interactive-series model
 
-The final chapter is the point where audio and image become one computational system:
+NEANDERCAUS is authored first as a coherent animated series.
 
-```text
-HAZE + WAVE → HAZEWAVE
-```
+Interactivity must deepen the work without turning every scene into a game.
 
-## Canon and evidence
+Three interaction layers are allowed:
 
-NEANDERCAUS may use speculative art, but it must never disguise speculation as archaeological or historical fact.
+1. **ATMOSPHERIC** — input perturbs HazeMatter, camera parallax, particles or environmental response while canon remains unchanged.
+2. **EXPLORATORY** — the viewer may inspect objects, memories, stems, art, alternate visual layers or historical/contextual material.
+3. **AUTHORED BRANCH** — only where an actual branch is intentionally written, scored, animated and canonically defined.
 
-Every historical element should be classifiable as:
+Random UI interaction must never substitute for story direction.
 
-- **VERIFIED** — supported by strong evidence;
-- **DISPUTED** — real scholarly disagreement exists;
-- **SPECULATIVE_CANON** — an artistic bridge invented for Neandercaus.
+## Initial story-world thesis
 
-The fictional canon may be bold. The evidence labels must remain honest.
+The creative seed remains the long arc from primal sound/image-making to machine intelligence, but it is now the **world and mythology of the animated series**, not a literal website timeline.
 
-## Site behavior
+Working thematic axis:
 
-The experience should be continuous rather than a set of ordinary pages.
+> From the first human mark and first organized sound to a world where sound, image and machine intelligence become inseparable.
 
-Time is navigated primarily through the transformation of HazeMatter.
+Historical or archaeological references may inspire the work, but fictional canon must not be presented as historical fact.
 
-The website should not rely on an unrelated background animation. It uses the same WAVE engine as the music visualizer.
+Evidence classes for research material:
 
-Core invariant:
+- **VERIFIED**
+- **DISPUTED**
+- **SPECULATIVE_CANON**
 
-```text
-WEBSITE_VISUAL_ENGINE == MUSIC_VISUAL_ENGINE
-```
+## Visual identity
 
-## Interaction grammar by epoch
+NEANDERCAUS uses the WAVE visual foundation:
 
-Interaction evolves with the history.
+- resonance;
+- Chladni-inspired nodal structures;
+- Faraday-inspired surface organization;
+- HazeMatter;
+- mobile field structures;
+- scar memory;
+- morphing boundaries;
+- volumetric haze;
+- procedural/generative motion;
+- sparse computational diagnostics.
+
+The final style must be recognizable as Hazewave and must not look like a generic cyberpunk, Matrix imitation or audio visualizer.
+
+## Sound-image coupling
+
+The soundtrack is not pasted under finished animation.
+
+HAZE and WAVE share a typed state contract.
 
 Examples:
 
-- **BREATH** — touch/movement disturbs dust and reveals acoustic space.
-- **BONE** — gesture bends airflow and excites tube-like resonance.
-- **RESONANCE** — drag excites nodal modes and reorganizes matter.
-- **SYMBOL** — stable forms become marks and repeatable notation-like structures.
-- **MACHINE** — circular motion scrubs grooves and mechanical memory.
-- **VOLTAGE** — gesture modifies fields and oscillators.
-- **SAMPLE** — fragments can be captured, repeated and recombined.
-- **PROTOCOL** — nodes connect into synchronized structures.
-- **MODEL** — the system begins to predict/continue patterns from partial input.
-- **NEANDERCAUS** — HAZE and WAVE become inseparable.
+```text
+motif identity      → recurring visual topology
+vocal roughness     → material erosion
+harmonic stability  → symmetry persistence
+section change      → scene/topology transition
+transient energy    → impact/fracture
+phrase contour      → movement arc
+artist identity     → persistent material signature
+```
 
-The user perturbs the world; the user does not simply operate a dashboard.
+This coupling should be designed during pre-production, not added in post.
 
-## Motif DNA
+## Production phases
 
-The work should contain a recurring musical identity that evolves across epochs.
+```text
+SERIES BIBLE
+→ STORY ARC
+→ EPISODE OUTLINE
+→ MUSICAL DRAMATURGY
+→ SONG / CUE DESIGN
+→ STORYBOARD
+→ DEMO SOUNDTRACK
+→ ANIMATIC
+→ FINAL HAZE PRODUCTION
+→ FINAL WAVE ANIMATION
+→ COMPOSITING / SYNC
+→ INTERACTIVE LAYER
+→ MASTER / WEB EXPERIENCE
+```
 
-A minimal motif may be defined by:
+## Relationship to the Hazewave site
 
-- a short pitch relationship;
-- a rhythmic cell;
-- a characteristic interval;
-- a timbral gesture.
+NEANDERCAUS lives **inside** the larger Hazewave platform.
 
-The motif must remain recognizable even when instrumentation and production language change.
+The Hazewave site is the public home for:
 
-This lets the same musical idea travel from primitive acoustic gesture to machine-generated form.
+- the brand;
+- concepts and manifesto;
+- artists;
+- releases;
+- music;
+- films and videos;
+- photography;
+- projects;
+- NEANDERCAUS and future works;
+- free downloads;
+- merchandise;
+- editorial/archive material.
 
-## Opening
+NEANDERCAUS is one flagship original work among future Hazewave projects.
 
-Start almost completely black.
+## Current status
 
-The first interaction creates a physical event, not a menu action.
-
-A touch, click or movement produces a small impact/air event. The environment responds through delayed reflections, dust and spatial deformation.
-
-Only after the user has caused a first resonance should the interface reveal the first epoch.
-
-## Closing
-
-Do not conclude with “AI is the future.”
-
-The final scene should remain unresolved.
-
-The accumulated HazeMatter contains traces of all previous epochs while the model layer generates new possible continuations.
-
-The final question is causal rather than promotional:
-
-> What does the next sound cause?
+```text
+SERIES=CONCEPT_DEFINITION
+HAZE_STUDIO=FOUNDATION_EXISTS
+WAVE_STUDIO=FOUNDATION_STARTED
+SPOKEN_DIALOGUE=NONE
+MUSIC_AS_DIALOGUE=CANONICAL
+INTERACTIVE_PRESENTATION=REQUIRED
+```
