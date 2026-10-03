@@ -1,5 +1,5 @@
 {
-  "schema": "HazewaveBooksSystem/v2",
+  "schema": "HazewaveBooksSystem/v3",
   "project": "HAZEWAVE",
   "public_identity": "HAZEWAVE BOOKS",
   "editorial_owner": "WAVE Studio",
@@ -46,8 +46,8 @@
     ]
   },
   "narrative_contract": {
-    "perspective": "plural first-person time-travel listener",
-    "rule": "Immersive scenes may dramatize uncertainty but never silently convert speculation into fact.",
+    "perspective": "Human-centered time-travel listener: we inhabit an early-human sound world with present/future critical questions while keeping immersive reconstruction distinct from evidence.",
+    "rule": "The modern/future analytical consciousness belongs to the narrator. It must never be projected onto prehistoric people as fact.",
     "anti_progress_ladder": true,
     "living_cultures_are_contemporary": true
   },
@@ -75,11 +75,17 @@
     "first_volume": {
       "id": "HW-ACAD-001",
       "public_title": "Música de Antes da Pré-História",
-      "academic_title": "Antes da Música — Do primeiro mundo sonoro da Terra ao primeiro ouvinte humano",
-      "scope": "Physical sound before life, evolution of mechanosensation and hearing, acoustic communication, and the threshold of human musical behavior.",
-      "thesis": "Sound predates listeners; hearing evolves from older mechanosensory capacities; music emerges later as a distinct cultural phenomenon.",
-      "target_words": "100000-130000",
-      "target_pages": "350-500",
+      "academic_title": "O Primeiro Ouvinte — Som, consciência e experiência humana antes da música organizada",
+      "scope": "A human-centered study of listening, environmental sound, body, voice, echo, objects, pattern, memory and social sound before formal musical systems become archaeologically visible.",
+      "perspective": "A controlled time-travel thought experiment: a present/future critical consciousness experiences early-human material and sensory conditions without importing modern technology or claiming access to prehistoric minds.",
+      "thesis": "The deep history of music begins with the human act of listening, not with the first surviving instrument.",
+      "excludes_as_primary_scope": [
+        "origin of life",
+        "biological origin of hearing",
+        "pre-human evolutionary history of acoustic communication"
+      ],
+      "target_words": "100000-140000",
+      "target_pages": "350-520",
       "peer_review_required": true,
       "status": "RESEARCH_DESIGN"
     },
