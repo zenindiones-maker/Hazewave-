@@ -1,5 +1,5 @@
 {
-  "schema": "HazewaveBooksSystem/v4",
+  "schema": "HazewaveBooksSystem/v5",
   "project": "HAZEWAVE",
   "public_identity": "HAZEWAVE BOOKS",
   "editorial_owner": "WAVE Studio",
@@ -68,7 +68,7 @@
     "educational packs",
     "exhibitions"
   ],
-  "status": "ACADEMIC_LIBRARY_AND_EDUCATIONAL_SYSTEM_FOUNDATION",
+  "status": "ACADEMIC_LIBRARY_SYSTEM_V1_DOCUMENTED",
   "academic_library": {
     "id": "HAZEWAVE_ACADEMIC_LIBRARY",
     "level": "university",
@@ -88,7 +88,13 @@
       "target_pages": "350-520",
       "peer_review_required": true,
       "status": "RESEARCH_DESIGN",
-      "master_outline": "docs/publishing/academic/HW_ACAD_001_MASTER_OUTLINE_V1.md"
+      "master_outline": "docs/publishing/academic/HW_ACAD_001_MASTER_OUTLINE_V1.md",
+      "research_program": "docs/publishing/academic/HW_ACAD_001_RESEARCH_PROGRAM_V1.md",
+      "canonical_documents": [
+        "docs/publishing/academic/HW_ACAD_001_ANTES_DA_MUSICA.md",
+        "docs/publishing/academic/HW_ACAD_001_MASTER_OUTLINE_V1.md",
+        "docs/publishing/academic/HW_ACAD_001_RESEARCH_PROGRAM_V1.md"
+      ]
     },
     "publication_standard": {
       "methodology_required": true,
@@ -109,6 +115,42 @@
       "anachronism_review_required": true,
       "counterinterpretation_required": true,
       "epistemic_boundary_required": true
+    },
+    "system_documents": {
+      "index": "docs/publishing/academic/README.md",
+      "master_spec": "docs/publishing/academic/HAZEWAVE_ACADEMIC_LIBRARY_MASTER_SPEC_V1.md",
+      "research_pipeline": "docs/publishing/academic/HAZEWAVE_ACADEMIC_RESEARCH_PIPELINE_V1.md",
+      "university_standard": "docs/publishing/academic/HAZEWAVE_UNIVERSITY_PUBLICATION_STANDARD_V1.md",
+      "narrative_protocol": "docs/publishing/academic/HAZEWAVE_HISTORICAL_NARRATIVE_PROTOCOL_V1.md",
+      "musicology_source_standard": "docs/publishing/academic/HAZEWAVE_SCHOLARLY_SOURCE_MUSICOLOGY_STANDARD_V1.md",
+      "musicology_analysis_framework": "docs/publishing/academic/HAZEWAVE_MUSICOLOGY_ANALYSIS_FRAMEWORK_V1.md",
+      "peer_review_governance": "docs/publishing/academic/HAZEWAVE_PEER_REVIEW_AND_EDITORIAL_GOVERNANCE_V1.md",
+      "asset_provenance": "docs/publishing/academic/HAZEWAVE_ACADEMIC_ASSET_PROVENANCE_STANDARD_V1.md",
+      "reader_verification": "docs/publishing/academic/HAZEWAVE_READER_VERIFICATION_AND_SOURCE_PORTAL_V1.md",
+      "global_history_program": "docs/publishing/academic/HAZEWAVE_GLOBAL_SOUND_HISTORY_PROGRAM_V1.md"
+    },
+    "machine_readable_contracts": {
+      "claim_schema": "canon/hazewave-academic-claim-schema-v1.json",
+      "research_window_schema": "canon/hazewave-research-window-schema-v1.json"
+    },
+    "verification_contract": {
+      "claim_traceability_required": true,
+      "exact_source_locator_required_when_feasible": true,
+      "public_source_portal_target": true,
+      "correction_history_required": true
+    },
+    "musicology_contract": {
+      "named_culture_region_period_required_when_feasible": true,
+      "vague_tribal_category_forbidden_as_final_analysis": true,
+      "local_terminology_required_when_available": true,
+      "audio_evidence_typing_required": true,
+      "analytical_disagreement_must_be_visible": true
+    },
+    "long_range_program": {
+      "architecture": "BRAIDED_GLOBAL_CHRONOLOGY",
+      "fixed_volume_ceiling": false,
+      "granularity": "EVIDENCE_DENSITY_DRIVEN",
+      "program_document": "docs/publishing/academic/HAZEWAVE_GLOBAL_SOUND_HISTORY_PROGRAM_V1.md"
     }
   }
 }
