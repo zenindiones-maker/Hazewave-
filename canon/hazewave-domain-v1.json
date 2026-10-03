@@ -1,38 +1,51 @@
 {
-  "schema": "HazewaveDomainModel/v1",
+  "schema": "HazewaveDomainModel/v2",
   "project": "HAZEWAVE",
   "principle": "HAZE creates the signal. WAVE gives it form. HAZEWAVE is where they become one.",
   "domains": {
     "HAZE": {
       "meaning": "sound",
-      "responsibility": "Everything whose primary medium is audio, music, voice, rhythm, timbre, synthesis, analysis or sonic memory.",
+      "public_identity": "HAZE Studio",
+      "responsibility": "Music, audio, voice, rhythm, timbre, composition, synthesis, analysis, sound design and sonic memory.",
       "current_capabilities": [
         "ACE-Step 1.5 music generation",
         "Demucs/HTDemucs stem separation",
         "reference-audio generation",
         "cover/remix workflows"
       ],
-      "future_capabilities": [
-        "audio feature extraction",
+      "target_studio_capabilities": [
+        "composition",
+        "arrangement",
+        "AI-assisted instrumental production",
+        "human vocal production",
+        "artist-authorized RVC/voice conversion",
+        "sound design",
+        "editing",
+        "mixing",
+        "mastering",
+        "soundtrack production",
         "motif DNA",
-        "sonic fingerprints",
-        "composition state",
-        "real-time AudioWorklet analysis"
+        "audio feature extraction"
       ]
     },
     "WAVE": {
       "meaning": "image",
-      "responsibility": "Everything whose primary medium is image, motion, light, geometry, simulation, interactive space or visual memory.",
+      "public_identity": "WAVE Studio",
+      "responsibility": "Story, image, animation, film, photography, motion, light, geometry, simulation, interaction and visual memory.",
       "foundation": "Living Resonance Engine",
-      "visual_language": [
-        "Chladni-inspired nodal structures",
-        "Faraday-inspired surface organization",
-        "field-driven particles",
-        "volumetric haze",
-        "reaction-diffusion",
-        "scar memory",
-        "morphing boundaries",
-        "scientific-system overlays"
+      "target_studio_capabilities": [
+        "screenwriting",
+        "world building",
+        "character design",
+        "storyboarding",
+        "animatics",
+        "2D/2.5D/3D animation",
+        "generative motion",
+        "film/video",
+        "photography",
+        "compositing",
+        "interactive websites",
+        "visual identity"
       ],
       "runtime_direction": [
         "WebGPU compute first",
@@ -46,61 +59,49 @@
   "bridge": {
     "name": "Hazewave Translation Layer",
     "contract": "HAZE_STATE -> WAVE_STATE",
-    "rule": "The visual system must respond to structured sonic meaning, not only amplitude.",
-    "inputs": [
-      "onset",
-      "RMS",
-      "spectral centroid",
-      "spectral flux",
-      "chroma",
-      "harmonicity",
-      "roughness",
-      "stereo field",
-      "phrase state",
-      "section state",
-      "motif identity"
-    ],
-    "outputs": [
-      "impulse",
-      "material density",
-      "nodal complexity",
-      "symmetry",
-      "fracture",
-      "field direction",
-      "boundary deformation",
-      "haze density",
-      "scar persistence",
-      "camera tension"
+    "rule": "Visual behavior responds to structured sonic meaning, not only amplitude.",
+    "examples": [
+      "motif identity -> recurring visual topology",
+      "vocal roughness -> material erosion",
+      "section change -> topology transition",
+      "artist identity -> persistent material signature"
     ]
   },
-  "world": {
-    "material": "HazeMatter",
-    "engine": "Hazewave Resonance Engine",
-    "invariant": "WEBSITE_VISUAL_ENGINE == MUSIC_VISUAL_ENGINE",
-    "determinism": "same audio + same seed + same engine version => same signature"
+  "brand_platform": {
+    "role": "Canonical public home for the Hazewave brand, artists, music, films, photos, projects, original works, downloads and merchandise.",
+    "requirements": [
+      "persistent music player",
+      "shared WAVE visual engine",
+      "artists",
+      "music/releases",
+      "films/videos",
+      "photos",
+      "projects",
+      "original works",
+      "free direct music downloads",
+      "merchandise shop",
+      "manifesto/archive"
+    ],
+    "invariant": "WEBSITE_VISUAL_ENGINE == MUSIC_VISUAL_ENGINE"
   },
   "first_canonical_work": {
     "id": "NEANDERCAUS",
-    "title": "HAZEWAVE — NEANDERCAUS",
-    "thesis": "From breath to latent space.",
-    "role": "First canonical interactive work built from HAZE and WAVE.",
-    "narrative_axis": "A musical and visual history from primordial human sound-making to generative AI, with evidence and speculation explicitly distinguished.",
-    "epochs": [
-      "BREATH",
-      "BONE",
-      "RESONANCE",
-      "SYMBOL",
-      "MACHINE",
-      "VOLTAGE",
-      "SAMPLE",
-      "PROTOCOL",
-      "MODEL",
-      "NEANDERCAUS"
-    ]
+    "format": "interactive animated series",
+    "role": "First original animated series produced by HAZE Studio + WAVE Studio.",
+    "spoken_dialogue": "NONE",
+    "narrative_voice": "Songs and music by Hazewave artists function as dialogue.",
+    "soundtrack_pipeline": "Full HAZE production including AI-assisted instrumentals, human performance, artist-authorized RVC where used, editing, mixing and mastering.",
+    "visual_pipeline": "Full WAVE production including writing, art direction, storyboard, animatic, animation, generative visuals, compositing and interactive presentation.",
+    "status": "CONCEPT_DEFINITION"
+  },
+  "rights": {
+    "voice_conversion": "Only with explicit authorization from the artist/rights holder.",
+    "provenance": "Preserve source performer, consent/authorization, model/version and final approved usage."
   },
   "status": {
     "haze": "ACTIVE_FOUNDATION_EXISTS",
-    "wave": "CONCEPT_FOUNDATION_CREATED",
-    "neandercaus": "CANON_DESIGN_STARTED"
+    "wave": "STUDIO_CONCEPT_AND_ENGINE_FOUNDATION",
+    "brand_site": "CONCEPT_DEFINED",
+    "neandercaus": "SERIES_CONCEPT_DEFINED"
   }
 }
