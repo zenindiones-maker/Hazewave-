@@ -1,0 +1,80 @@
+{
+  "schema": "NeandercausSeriesCanon/v1",
+  "project": "HAZEWAVE",
+  "work": "NEANDERCAUS",
+  "format": "interactive animated series",
+  "premise": "One Brazilian human voice crosses the global history of sound, from deep prehistory to generative AI.",
+  "dialogue_contract": {
+    "spoken_dialogue": false,
+    "music_is_dialogue": true,
+    "single_human_vocal_identity": true,
+    "vocalist_origin": "Brazil",
+    "identity_persistence": "entire_series",
+    "generic_voice_fallback": false,
+    "voice_conversion": "explicitly authorized RVC/voice-conversion only"
+  },
+  "historical_contract": {
+    "chronology": "era_by_era",
+    "geography": "global",
+    "anti_linear_progress_rule": "Cultures are not depicted as rungs on a primitive-to-advanced ladder.",
+    "truth_classes": [
+      "VERIFIED",
+      "PROBABLE",
+      "DISPUTED",
+      "SPECULATIVE_CANON"
+    ],
+    "regional_coverage": [
+      "Africa",
+      "Southwest Asia / Middle East",
+      "South Asia",
+      "Central / North Asia",
+      "East Asia",
+      "Southeast Asia",
+      "Oceania / Pacific",
+      "Europe",
+      "North America",
+      "Mesoamerica / Caribbean",
+      "South America"
+    ],
+    "era_completion_rule": "An era is not historically designed until its intended claims and regional references have an evidence matrix."
+  },
+  "macro_eras": [
+    "DEEP_TIME_BODY_STONE",
+    "EARLY_INSTRUMENTS_MATERIAL_RESONANCE",
+    "SETTLEMENT_RITUAL_ENSEMBLE",
+    "ANCIENT_MUSICAL_SYSTEMS",
+    "REGIONAL_CLASSICAL_COURT_SACRED_TRADITIONS",
+    "MIGRATION_TRADE_CONTACT_HYBRIDIZATION",
+    "MECHANICAL_SOUND_PRINT_INDUSTRIALIZATION",
+    "RECORDING_RADIO_ELECTRIFICATION",
+    "TAPE_SYNTHESIS_STUDIO",
+    "SAMPLING_HIPHOP_ELECTRONIC_NETWORKS",
+    "DIGITAL_AUDIO_INTERNET",
+    "GENERATIVE_AI_HAZEWAVE"
+  ],
+  "production_unit": [
+    "ERA_RESEARCH_DOSSIER",
+    "GLOBAL_REGION_MATRIX",
+    "CLAIM_EVIDENCE_MAP",
+    "STORY_CHAPTER",
+    "SONG_CUE_PACKAGE",
+    "SAME_VOCALIST_PERFORMANCE",
+    "STORYBOARD",
+    "ANIMATIC",
+    "FINAL_HAZE_MASTER",
+    "FINAL_WAVE_MASTER",
+    "INTERACTIVE_LAYER",
+    "PROVENANCE_RECEIPT"
+  ],
+  "musical_continuity": {
+    "motif_dna": true,
+    "same_voice": true,
+    "rule": "Instrumentation and production may transform radically; the human vocal identity and recurring musical DNA remain recognizable."
+  },
+  "visual_continuity": {
+    "material": "HazeMatter",
+    "engine": "Living Resonance Engine",
+    "rule": "Each era has distinct art direction but remains visibly part of the Hazewave world."
+  },
+  "status": "CANON_FOUNDATION"
+}

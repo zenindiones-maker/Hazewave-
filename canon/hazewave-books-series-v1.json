@@ -1,0 +1,156 @@
+{
+  "schema": "HazewaveBooksSystem/v5",
+  "project": "HAZEWAVE",
+  "public_identity": "HAZEWAVE BOOKS",
+  "editorial_owner": "WAVE Studio",
+  "sonic_owner": "HAZE Studio",
+  "first_collection": {
+    "id": "NEANDERCAUS_LIBRARY",
+    "premise": "A didactic time-travel journey through the global history of sound, written from the perspective of contemporary music obsessives transported into each era.",
+    "range": "deep prehistory to generative AI",
+    "global_scope": true,
+    "truth_classes": [
+      "VERIFIED",
+      "PROBABLE",
+      "DISPUTED",
+      "SPECULATIVE_SCENE",
+      "HAZE_INTERPRETATION"
+    ]
+  },
+  "medium_contract": {
+    "WAVE": [
+      "research synthesis",
+      "writing workflow",
+      "editing",
+      "illustration",
+      "photography",
+      "maps",
+      "diagrams",
+      "typography",
+      "layout",
+      "covers",
+      "print",
+      "ebook",
+      "web",
+      "accessibility"
+    ],
+    "HAZE": [
+      "audio companions",
+      "music interpretation",
+      "instrument/timbre examples",
+      "soundscapes",
+      "narration",
+      "audiobooks",
+      "soundtrack",
+      "audio provenance"
+    ]
+  },
+  "narrative_contract": {
+    "perspective": "Human-centered time-travel listener: we inhabit an early-human sound world with present/future critical questions while keeping immersive reconstruction distinct from evidence.",
+    "rule": "The modern/future analytical consciousness belongs to the narrator. It must never be projected onto prehistoric people as fact.",
+    "anti_progress_ladder": true,
+    "living_cultures_are_contemporary": true
+  },
+  "research_contract": {
+    "evidence_first": true,
+    "claim_evidence_map_required": true,
+    "regional_coverage_review": true,
+    "cultural_review_for_sensitive_claims": true,
+    "visual_provenance_required": true,
+    "sonic_provenance_required": true
+  },
+  "cross_media": [
+    "books",
+    "Neandercaus episodes",
+    "site essays",
+    "audio companions",
+    "interactive Wave scenes",
+    "educational packs",
+    "exhibitions"
+  ],
+  "status": "ACADEMIC_LIBRARY_SYSTEM_V1_DOCUMENTED",
+  "academic_library": {
+    "id": "HAZEWAVE_ACADEMIC_LIBRARY",
+    "level": "university",
+    "first_volume": {
+      "id": "HW-ACAD-001",
+      "public_title": "Música de Antes da Pré-História",
+      "academic_title": "O Primeiro Ouvinte — Som, consciência e experiência humana antes da música organizada",
+      "scope": "A human-centered study of listening, environmental sound, body, voice, echo, objects, pattern, memory and social sound before formal musical systems become archaeologically visible.",
+      "perspective": "A controlled time-travel thought experiment: a present/future critical consciousness experiences early-human material and sensory conditions without importing modern technology or claiming access to prehistoric minds.",
+      "thesis": "The deep history of music begins with the human act of listening, not with the first surviving instrument.",
+      "excludes_as_primary_scope": [
+        "origin of life",
+        "biological origin of hearing",
+        "pre-human evolutionary history of acoustic communication"
+      ],
+      "target_words": "100000-140000",
+      "target_pages": "350-520",
+      "peer_review_required": true,
+      "status": "RESEARCH_DESIGN",
+      "master_outline": "docs/publishing/academic/HW_ACAD_001_MASTER_OUTLINE_V1.md",
+      "research_program": "docs/publishing/academic/HW_ACAD_001_RESEARCH_PROGRAM_V1.md",
+      "canonical_documents": [
+        "docs/publishing/academic/HW_ACAD_001_ANTES_DA_MUSICA.md",
+        "docs/publishing/academic/HW_ACAD_001_MASTER_OUTLINE_V1.md",
+        "docs/publishing/academic/HW_ACAD_001_RESEARCH_PROGRAM_V1.md"
+      ]
+    },
+    "publication_standard": {
+      "methodology_required": true,
+      "historiography_required": true,
+      "claim_evidence_map_required": true,
+      "external_peer_review_minimum": 2,
+      "academic_bibliography": true,
+      "notes": true,
+      "indexes": true,
+      "stable_edition": true
+    },
+    "narrative_protocol": {
+      "name": "BITEMPORAL_LENS",
+      "definition": "Evidence-bound immersion: the reader inhabits a historically constrained human scene while a separated present/future analytical lens interrogates the evidence.",
+      "historical_minds_rule": "Modern/future analytical consciousness belongs to the narrator and is never projected onto prehistoric people as fact.",
+      "scene_coordinate_required": true,
+      "evidence_envelope_required": true,
+      "anachronism_review_required": true,
+      "counterinterpretation_required": true,
+      "epistemic_boundary_required": true
+    },
+    "system_documents": {
+      "index": "docs/publishing/academic/README.md",
+      "master_spec": "docs/publishing/academic/HAZEWAVE_ACADEMIC_LIBRARY_MASTER_SPEC_V1.md",
+      "research_pipeline": "docs/publishing/academic/HAZEWAVE_ACADEMIC_RESEARCH_PIPELINE_V1.md",
+      "university_standard": "docs/publishing/academic/HAZEWAVE_UNIVERSITY_PUBLICATION_STANDARD_V1.md",
+      "narrative_protocol": "docs/publishing/academic/HAZEWAVE_HISTORICAL_NARRATIVE_PROTOCOL_V1.md",
+      "musicology_source_standard": "docs/publishing/academic/HAZEWAVE_SCHOLARLY_SOURCE_MUSICOLOGY_STANDARD_V1.md",
+      "musicology_analysis_framework": "docs/publishing/academic/HAZEWAVE_MUSICOLOGY_ANALYSIS_FRAMEWORK_V1.md",
+      "peer_review_governance": "docs/publishing/academic/HAZEWAVE_PEER_REVIEW_AND_EDITORIAL_GOVERNANCE_V1.md",
+      "asset_provenance": "docs/publishing/academic/HAZEWAVE_ACADEMIC_ASSET_PROVENANCE_STANDARD_V1.md",
+      "reader_verification": "docs/publishing/academic/HAZEWAVE_READER_VERIFICATION_AND_SOURCE_PORTAL_V1.md",
+      "global_history_program": "docs/publishing/academic/HAZEWAVE_GLOBAL_SOUND_HISTORY_PROGRAM_V1.md"
+    },
+    "machine_readable_contracts": {
+      "claim_schema": "canon/hazewave-academic-claim-schema-v1.json",
+      "research_window_schema": "canon/hazewave-research-window-schema-v1.json"
+    },
+    "verification_contract": {
+      "claim_traceability_required": true,
+      "exact_source_locator_required_when_feasible": true,
+      "public_source_portal_target": true,
+      "correction_history_required": true
+    },
+    "musicology_contract": {
+      "named_culture_region_period_required_when_feasible": true,
+      "vague_tribal_category_forbidden_as_final_analysis": true,
+      "local_terminology_required_when_available": true,
+      "audio_evidence_typing_required": true,
+      "analytical_disagreement_must_be_visible": true
+    },
+    "long_range_program": {
+      "architecture": "BRAIDED_GLOBAL_CHRONOLOGY",
+      "fixed_volume_ceiling": false,
+      "granularity": "EVIDENCE_DENSITY_DRIVEN",
+      "program_document": "docs/publishing/academic/HAZEWAVE_GLOBAL_SOUND_HISTORY_PROGRAM_V1.md"
+    }
+  }
+}
