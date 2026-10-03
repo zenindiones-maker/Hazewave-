@@ -1,0 +1,72 @@
+{
+  "schema": "HazewaveBooksSystem/v1",
+  "project": "HAZEWAVE",
+  "public_identity": "HAZEWAVE BOOKS",
+  "editorial_owner": "WAVE Studio",
+  "sonic_owner": "HAZE Studio",
+  "first_collection": {
+    "id": "NEANDERCAUS_LIBRARY",
+    "premise": "A didactic time-travel journey through the global history of sound, written from the perspective of contemporary music obsessives transported into each era.",
+    "range": "deep prehistory to generative AI",
+    "global_scope": true,
+    "truth_classes": [
+      "VERIFIED",
+      "PROBABLE",
+      "DISPUTED",
+      "SPECULATIVE_SCENE",
+      "HAZE_INTERPRETATION"
+    ]
+  },
+  "medium_contract": {
+    "WAVE": [
+      "research synthesis",
+      "writing workflow",
+      "editing",
+      "illustration",
+      "photography",
+      "maps",
+      "diagrams",
+      "typography",
+      "layout",
+      "covers",
+      "print",
+      "ebook",
+      "web",
+      "accessibility"
+    ],
+    "HAZE": [
+      "audio companions",
+      "music interpretation",
+      "instrument/timbre examples",
+      "soundscapes",
+      "narration",
+      "audiobooks",
+      "soundtrack",
+      "audio provenance"
+    ]
+  },
+  "narrative_contract": {
+    "perspective": "plural first-person time-travel listener",
+    "rule": "Immersive scenes may dramatize uncertainty but never silently convert speculation into fact.",
+    "anti_progress_ladder": true,
+    "living_cultures_are_contemporary": true
+  },
+  "research_contract": {
+    "evidence_first": true,
+    "claim_evidence_map_required": true,
+    "regional_coverage_review": true,
+    "cultural_review_for_sensitive_claims": true,
+    "visual_provenance_required": true,
+    "sonic_provenance_required": true
+  },
+  "cross_media": [
+    "books",
+    "Neandercaus episodes",
+    "site essays",
+    "audio companions",
+    "interactive Wave scenes",
+    "educational packs",
+    "exhibitions"
+  ],
+  "status": "CONCEPT_FOUNDATION"
+}
