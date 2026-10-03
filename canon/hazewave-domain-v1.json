@@ -1,0 +1,106 @@
+{
+  "schema": "HazewaveDomainModel/v1",
+  "project": "HAZEWAVE",
+  "principle": "HAZE creates the signal. WAVE gives it form. HAZEWAVE is where they become one.",
+  "domains": {
+    "HAZE": {
+      "meaning": "sound",
+      "responsibility": "Everything whose primary medium is audio, music, voice, rhythm, timbre, synthesis, analysis or sonic memory.",
+      "current_capabilities": [
+        "ACE-Step 1.5 music generation",
+        "Demucs/HTDemucs stem separation",
+        "reference-audio generation",
+        "cover/remix workflows"
+      ],
+      "future_capabilities": [
+        "audio feature extraction",
+        "motif DNA",
+        "sonic fingerprints",
+        "composition state",
+        "real-time AudioWorklet analysis"
+      ]
+    },
+    "WAVE": {
+      "meaning": "image",
+      "responsibility": "Everything whose primary medium is image, motion, light, geometry, simulation, interactive space or visual memory.",
+      "foundation": "Living Resonance Engine",
+      "visual_language": [
+        "Chladni-inspired nodal structures",
+        "Faraday-inspired surface organization",
+        "field-driven particles",
+        "volumetric haze",
+        "reaction-diffusion",
+        "scar memory",
+        "morphing boundaries",
+        "scientific-system overlays"
+      ],
+      "runtime_direction": [
+        "WebGPU compute first",
+        "WebGL2 fallback",
+        "Three.js WebGPURenderer",
+        "TSL/WGSL shaders",
+        "adaptive quality"
+      ]
+    }
+  },
+  "bridge": {
+    "name": "Hazewave Translation Layer",
+    "contract": "HAZE_STATE -> WAVE_STATE",
+    "rule": "The visual system must respond to structured sonic meaning, not only amplitude.",
+    "inputs": [
+      "onset",
+      "RMS",
+      "spectral centroid",
+      "spectral flux",
+      "chroma",
+      "harmonicity",
+      "roughness",
+      "stereo field",
+      "phrase state",
+      "section state",
+      "motif identity"
+    ],
+    "outputs": [
+      "impulse",
+      "material density",
+      "nodal complexity",
+      "symmetry",
+      "fracture",
+      "field direction",
+      "boundary deformation",
+      "haze density",
+      "scar persistence",
+      "camera tension"
+    ]
+  },
+  "world": {
+    "material": "HazeMatter",
+    "engine": "Hazewave Resonance Engine",
+    "invariant": "WEBSITE_VISUAL_ENGINE == MUSIC_VISUAL_ENGINE",
+    "determinism": "same audio + same seed + same engine version => same signature"
+  },
+  "first_canonical_work": {
+    "id": "NEANDERCAUS",
+    "title": "HAZEWAVE — NEANDERCAUS",
+    "thesis": "From breath to latent space.",
+    "role": "First canonical interactive work built from HAZE and WAVE.",
+    "narrative_axis": "A musical and visual history from primordial human sound-making to generative AI, with evidence and speculation explicitly distinguished.",
+    "epochs": [
+      "BREATH",
+      "BONE",
+      "RESONANCE",
+      "SYMBOL",
+      "MACHINE",
+      "VOLTAGE",
+      "SAMPLE",
+      "PROTOCOL",
+      "MODEL",
+      "NEANDERCAUS"
+    ]
+  },
+  "status": {
+    "haze": "ACTIVE_FOUNDATION_EXISTS",
+    "wave": "CONCEPT_FOUNDATION_CREATED",
+    "neandercaus": "CANON_DESIGN_STARTED"
+  }
+}
