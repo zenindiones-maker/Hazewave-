@@ -1,0 +1,58 @@
+{
+  "schema": "HazewaveResearchWindow/v1",
+  "description": "Evidence-bound historical coordinate for immersive academic scenes.",
+  "required": [
+    "window_id",
+    "book_id",
+    "time_range",
+    "geography",
+    "evidence_confidence",
+    "direct_evidence",
+    "open_questions",
+    "forbidden_assumptions"
+  ],
+  "record": {
+    "window_id": "HW001-W00",
+    "book_id": "HW-ACAD-001",
+    "chapters_served": [],
+    "time_range": {
+      "start": "",
+      "end": "",
+      "dating_basis": []
+    },
+    "geography": {
+      "region": "",
+      "site": "",
+      "coordinates": null
+    },
+    "population": {
+      "label": "",
+      "confidence": "",
+      "notes": ""
+    },
+    "environment": {
+      "climate": "",
+      "terrain": "",
+      "fauna": [],
+      "flora": [],
+      "sources": []
+    },
+    "material_culture": [],
+    "fire_status": {
+      "status": "UNKNOWN",
+      "sources": []
+    },
+    "subsistence": [],
+    "spatial_organization": [],
+    "sound_relevant_evidence": [],
+    "sound_affordances": [],
+    "direct_evidence": [],
+    "strong_inferences": [],
+    "plausible_reconstructions": [],
+    "open_questions": [],
+    "forbidden_assumptions": [],
+    "core_sources": [],
+    "reviewers_needed": [],
+    "evidence_confidence": "UNASSESSED"
+  }
+}
