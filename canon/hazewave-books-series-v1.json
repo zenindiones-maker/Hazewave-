@@ -1,5 +1,5 @@
 {
-  "schema": "HazewaveBooksSystem/v3",
+  "schema": "HazewaveBooksSystem/v4",
   "project": "HAZEWAVE",
   "public_identity": "HAZEWAVE BOOKS",
   "editorial_owner": "WAVE Studio",
@@ -87,7 +87,8 @@
       "target_words": "100000-140000",
       "target_pages": "350-520",
       "peer_review_required": true,
-      "status": "RESEARCH_DESIGN"
+      "status": "RESEARCH_DESIGN",
+      "master_outline": "docs/publishing/academic/HW_ACAD_001_MASTER_OUTLINE_V1.md"
     },
     "publication_standard": {
       "methodology_required": true,
@@ -98,6 +99,16 @@
       "notes": true,
       "indexes": true,
       "stable_edition": true
+    },
+    "narrative_protocol": {
+      "name": "BITEMPORAL_LENS",
+      "definition": "Evidence-bound immersion: the reader inhabits a historically constrained human scene while a separated present/future analytical lens interrogates the evidence.",
+      "historical_minds_rule": "Modern/future analytical consciousness belongs to the narrator and is never projected onto prehistoric people as fact.",
+      "scene_coordinate_required": true,
+      "evidence_envelope_required": true,
+      "anachronism_review_required": true,
+      "counterinterpretation_required": true,
+      "epistemic_boundary_required": true
     }
   }
 }
