@@ -4,31 +4,116 @@
 
 **NEANDERCAUS is the first original interactive animated series produced inside HAZEWAVE.**
 
-It is not the Hazewave website, not a documentary timeline, and not a generic music visualizer.
+It is a musical history of humanity discovering, organizing, ritualizing, recording, electrifying, digitizing and finally generating sound — from deep prehistory to the present AI era.
 
-It is a full audiovisual work in which **HAZE produces the music and sonic identity** while **WAVE produces the story world, animation, image language and interactive presentation**.
+The series moves **era by era**, and each era is researched across multiple regions of the world rather than told as a single European/Western line of progress.
 
-The series has **no conventional spoken dialogue**.
+It is not the Hazewave website and not a conventional documentary.
 
-The music carries the dramatic voice of the work.
+It is an authored animated work produced by:
+
+```text
+HAZE STUDIO = music / sound / voice
+WAVE STUDIO = story / image / animation / interaction
+```
+
+## The central rule
+
+NEANDERCAUS has **no conventional spoken dialogue**.
 
 > The songs are the dialogue.
 
-Artists connected to Hazewave perform the emotional and narrative function normally assigned to spoken lines. Lyrics, melody, timbre, rhythm, silence, motifs, sound design and visual acting together communicate character, conflict and meaning.
+One Brazilian human vocalist remains the continuous human voice across the entire series.
 
-## Core formula
+The instrumentation, production language, rhythm, timbre, scale systems, spatial design and visual world may change radically from era to era and region to region, but the human vocal identity remains continuous.
+
+Canonical constraint:
 
 ```text
-HAZE STUDIO
-music + voices + sound
-        ↓
-HAZEWAVE TRANSLATION
-        ↓
-WAVE STUDIO
-story + animation + image + interaction
-        ↓
-NEANDERCAUS
+SINGLE_HUMAN_VOCAL_IDENTITY = TRUE
+VOCAL_ORIGIN = BRAZILIAN_HUMAN_PERFORMER
+GENERIC_VOICE_FALLBACK = FORBIDDEN
+VOICE_CONVERSION = ARTIST_AUTHORIZED_RVC_ONLY
 ```
+
+The purpose of this continuity is artistic: one human voice travels through the history of sound while the world around it changes.
+
+## Story thesis
+
+Working thesis:
+
+> One human voice crosses the history of sound.
+
+The series follows humanity's changing relationship with sound:
+
+```text
+BODY
+→ STONE
+→ BONE / WOOD / SKIN
+→ STRING / WIND / PERCUSSION
+→ RITUAL / ENSEMBLE
+→ NOTATION / MEMORY
+→ MECHANICAL REPRODUCTION
+→ ELECTRICITY
+→ RECORDING
+→ SYNTHESIS
+→ SAMPLING
+→ DIGITAL AUDIO
+→ NETWORKED MUSIC
+→ GENERATIVE AI
+→ HAZEWAVE
+```
+
+This sequence is a production framework, not a claim that every culture followed one identical technological path.
+
+## Global history rule
+
+NEANDERCAUS must not depict music history as a ladder from “primitive” cultures to “advanced” cultures.
+
+The work is chronological, but the world is **braided**.
+
+For each major era, research asks:
+
+- what sound-making practices are evidenced in different regions?
+- what instruments/materials are evidenced?
+- what ritual, social, communicative or artistic functions are evidenced?
+- what is known versus inferred?
+- which musical traditions developed in parallel?
+- what contact, migration, trade or technological exchange is evidenced?
+- what survives into later music?
+
+No culture is treated as a decorative preset.
+
+Regional coverage must be explicit and auditable.
+
+Working coverage map:
+
+- Africa;
+- Southwest Asia / Middle East;
+- South Asia;
+- Central / North Asia;
+- East Asia;
+- Southeast Asia;
+- Oceania / Pacific;
+- Europe;
+- North America;
+- Mesoamerica / Caribbean;
+- South America.
+
+The exact episode/era matrix remains a research deliverable. An era is not considered historically designed until its evidence matrix is complete enough for the intended claims.
+
+## Research truth classes
+
+Every historical claim or cultural reference used by production must be tagged:
+
+- **VERIFIED** — supported by strong primary/scholarly evidence;
+- **PROBABLE** — supported but incomplete/indirect;
+- **DISPUTED** — meaningful scholarly disagreement exists;
+- **SPECULATIVE_CANON** — an artistic invention or bridge created for NEANDERCAUS.
+
+Speculation may be visually and musically bold.
+
+It may not be presented as archaeological fact.
 
 ## HAZE Studio responsibility
 
@@ -36,14 +121,16 @@ HAZE owns the complete musical production pipeline for the series.
 
 Expected capabilities include:
 
+- historical/ethnomusicological research packet per era;
 - musical concept and soundtrack architecture;
-- motif DNA / leitmotifs for characters and story arcs;
+- motif DNA / leitmotifs;
 - composition and arrangement;
 - AI-assisted instrumental generation;
 - reference-audio workflows;
 - stems and source separation;
 - human performance capture;
-- artist-authorized RVC / voice conversion;
+- single authorized Brazilian vocal identity;
+- artist-authorized RVC / voice conversion where used;
 - vocal production;
 - sound design and foley;
 - spatial audio where useful;
@@ -52,13 +139,15 @@ Expected capabilities include:
 - mastering;
 - soundtrack sequencing;
 - cue sheets and synchronization metadata;
-- provenance for models, source audio and authorized voices.
+- provenance for models, source audio, references and voices.
 
-### Human voice rule
+### Same-voice covenant
 
-A real artist's voice may only be converted/cloned when the artist or rights holder has explicitly authorized that use.
+The same Brazilian human vocalist is the canonical vocal identity throughout NEANDERCAUS.
 
-Voice identity is part of the artist, not a generic model asset.
+The vocalist may be transformed by production — distance, texture, age-like coloration, spectral treatment, ritual space, radio, tape, digital artifacts, synthetic environments — but the identity must remain traceable to the same human performer.
+
+RVC or another voice-conversion system may only be used with explicit authorization from that performer/rights holder.
 
 The production system should preserve:
 
@@ -69,13 +158,59 @@ The production system should preserve:
 - song/episode usage;
 - final approved vocal artifact.
 
+The work must not use a generic replacement voice when the canonical vocalist is unavailable.
+
+## Musical interpretation rule
+
+Historical research informs the music, but NEANDERCAUS is not required to pretend that a modern studio reconstruction is an authentic recording of an ancient culture.
+
+Every era may contain three layers:
+
+1. **EVIDENCE LAYER** — documented instruments, materials, acoustics, musical structures or practices.
+2. **INTERPRETATION LAYER** — HAZE Studio's contemporary musical composition inspired by that evidence.
+3. **HAZEWAVE LAYER** — deliberate cross-era transformation that links the whole series.
+
+This allows originality without falsely claiming authenticity.
+
+## The continuous musical DNA
+
+A recurring musical identity should survive all eras.
+
+Possible components:
+
+- one interval relationship;
+- one rhythmic cell;
+- one melodic contour;
+- one breath/noise gesture;
+- one recurring lyric idea;
+- the single human vocal identity.
+
+The motif should mutate rather than disappear.
+
+Example:
+
+```text
+body percussion
+→ stone rhythm
+→ bone/wind phrase
+→ string/ensemble motif
+→ mechanical loop
+→ electric riff
+→ sampled fragment
+→ digital sequence
+→ latent/generative transformation
+```
+
+The audience should eventually recognize that the same musical “gene” has been present from the beginning.
+
 ## WAVE Studio responsibility
 
-WAVE owns the complete visual production pipeline.
+WAVE owns the complete visual storytelling pipeline.
 
 Expected capabilities include:
 
 - series bible;
+- historical visual research packet per era/region;
 - world building;
 - character design;
 - environment design;
@@ -98,11 +233,36 @@ Expected capabilities include:
 - web-native presentation;
 - final film/video masters.
 
-WAVE must be capable of producing an authored cartoon/animated series, not only reactive graphics.
+WAVE must be capable of producing a fully authored animated series, not only reactive graphics.
+
+## Visual continuity across human history
+
+The world changes, but HazeMatter survives.
+
+Working transformation chain:
+
+```text
+dust
+→ pigment
+→ stone powder
+→ ash
+→ fiber
+→ metal
+→ groove
+→ magnetic trace
+→ electrical field
+→ pixel
+→ data
+→ latent matter
+```
+
+This is a visual continuity device, not a literal material-history claim.
+
+Each era/region gets its own art direction while remaining part of one Hazewave visual language.
 
 ## Narrative language
 
-Because there is no conventional spoken dialogue, narrative information must be distributed intentionally across:
+Because there is no conventional spoken dialogue, story is carried by:
 
 ```text
 CHARACTER ACTING
@@ -110,6 +270,7 @@ CHARACTER ACTING
 + EDITING
 + MUSIC
 + LYRICS
++ VOCAL PERFORMANCE
 + MOTIF
 + SOUND DESIGN
 + COLOR
@@ -118,8 +279,6 @@ CHARACTER ACTING
 = STORY
 ```
 
-A scene must remain understandable through visual action and musical structure rather than relying on exposition.
-
 Songs can function as:
 
 - inner monologue;
@@ -127,153 +286,92 @@ Songs can function as:
 - memory;
 - narration;
 - character introduction;
-- transition;
+- cultural/era transition;
 - world-building;
 - emotional reversal;
 - chapter ending.
-
-## Artists as canonical voices
-
-Hazewave artists are not merely soundtrack contributors.
-
-An artist may become a recurring **musical voice** associated with:
-
-- a character;
-- a faction;
-- an emotional state;
-- an epoch;
-- a recurring motif;
-- a narrative point of view.
-
-The artist's musical identity can therefore affect both HAZE and WAVE.
-
-Example:
-
-```text
-ARTIST IDENTITY
-   ↓
-voice / timbre / motif
-   ↓
-HAZE STATE
-   ↓
-visual material / movement / palette / topology
-   ↓
-WAVE STATE
-```
 
 ## Interactive-series model
 
 NEANDERCAUS is authored first as a coherent animated series.
 
-Interactivity must deepen the work without turning every scene into a game.
+Interactivity deepens it without turning every scene into a game.
 
-Three interaction layers are allowed:
+Allowed interaction layers:
 
 1. **ATMOSPHERIC** — input perturbs HazeMatter, camera parallax, particles or environmental response while canon remains unchanged.
-2. **EXPLORATORY** — the viewer may inspect objects, memories, stems, art, alternate visual layers or historical/contextual material.
-3. **AUTHORED BRANCH** — only where an actual branch is intentionally written, scored, animated and canonically defined.
+2. **EXPLORATORY** — viewers may inspect objects, instruments, art, musical stems, research notes, maps or alternate visual layers.
+3. **AUTHORED BRANCH** — only when an actual branch is intentionally written, scored, animated and canonically defined.
 
-Random UI interaction must never substitute for story direction.
+## Era production unit
 
-## Initial story-world thesis
-
-The creative seed remains the long arc from primal sound/image-making to machine intelligence, but it is now the **world and mythology of the animated series**, not a literal website timeline.
-
-Working thematic axis:
-
-> From the first human mark and first organized sound to a world where sound, image and machine intelligence become inseparable.
-
-Historical or archaeological references may inspire the work, but fictional canon must not be presented as historical fact.
-
-Evidence classes for research material:
-
-- **VERIFIED**
-- **DISPUTED**
-- **SPECULATIVE_CANON**
-
-## Visual identity
-
-NEANDERCAUS uses the WAVE visual foundation:
-
-- resonance;
-- Chladni-inspired nodal structures;
-- Faraday-inspired surface organization;
-- HazeMatter;
-- mobile field structures;
-- scar memory;
-- morphing boundaries;
-- volumetric haze;
-- procedural/generative motion;
-- sparse computational diagnostics.
-
-The final style must be recognizable as Hazewave and must not look like a generic cyberpunk, Matrix imitation or audio visualizer.
-
-## Sound-image coupling
-
-The soundtrack is not pasted under finished animation.
-
-HAZE and WAVE share a typed state contract.
-
-Examples:
+Each era should eventually produce a complete package:
 
 ```text
-motif identity      → recurring visual topology
-vocal roughness     → material erosion
-harmonic stability  → symmetry persistence
-section change      → scene/topology transition
-transient energy    → impact/fracture
-phrase contour      → movement arc
-artist identity     → persistent material signature
+ERA RESEARCH DOSSIER
++ GLOBAL REGION MATRIX
++ CLAIM / EVIDENCE MAP
++ STORY CHAPTER
++ SONG / CUE PACKAGE
++ SAME-VOCALIST PERFORMANCE
++ STORYBOARD
++ ANIMATIC
++ FINAL HAZE MASTER
++ FINAL WAVE MASTER
++ INTERACTIVE LAYER
++ PROVENANCE RECEIPT
 ```
 
-This coupling should be designed during pre-production, not added in post.
+## Initial macro-era map
 
-## Production phases
+This is a production scaffold, not yet a factual chronology.
 
-```text
-SERIES BIBLE
-→ STORY ARC
-→ EPISODE OUTLINE
-→ MUSICAL DRAMATURGY
-→ SONG / CUE DESIGN
-→ STORYBOARD
-→ DEMO SOUNDTRACK
-→ ANIMATIC
-→ FINAL HAZE PRODUCTION
-→ FINAL WAVE ANIMATION
-→ COMPOSITING / SYNC
-→ INTERACTIVE LAYER
-→ MASTER / WEB EXPERIENCE
-```
+1. **DEEP TIME / BODY / STONE**
+2. **EARLY INSTRUMENTS / MATERIAL RESONANCE**
+3. **SETTLEMENT / RITUAL / ENSEMBLE**
+4. **ANCIENT MUSICAL SYSTEMS**
+5. **REGIONAL CLASSICAL / COURT / SACRED TRADITIONS**
+6. **MIGRATION / TRADE / CONTACT / HYBRIDIZATION**
+7. **MECHANICAL SOUND / PRINT / INDUSTRIALIZATION**
+8. **RECORDING / RADIO / ELECTRIFICATION**
+9. **TAPE / SYNTHESIS / STUDIO**
+10. **SAMPLING / HIP-HOP / ELECTRONIC NETWORKS**
+11. **DIGITAL AUDIO / INTERNET**
+12. **GENERATIVE AI / HAZEWAVE**
+
+The exact boundaries, names and regional ordering remain subject to evidence-based research.
 
 ## Relationship to the Hazewave site
 
-NEANDERCAUS lives **inside** the larger Hazewave platform.
+The website is the public home of Hazewave.
 
-The Hazewave site is the public home for:
+NEANDERCAUS is the first flagship original animated series inside that world.
 
-- the brand;
-- concepts and manifesto;
-- artists;
-- releases;
-- music;
-- films and videos;
-- photography;
-- projects;
-- NEANDERCAUS and future works;
-- free downloads;
+The site will host:
+
+- the series;
+- soundtrack releases;
+- artist pages;
+- visual art;
+- behind-the-scenes;
+- historical/research companions where appropriate;
+- free music downloads;
 - merchandise;
-- editorial/archive material.
-
-NEANDERCAUS is one flagship original work among future Hazewave projects.
+- related interactive experiences.
 
 ## Current status
 
 ```text
 SERIES=CONCEPT_DEFINITION
-HAZE_STUDIO=FOUNDATION_EXISTS
-WAVE_STUDIO=FOUNDATION_STARTED
+CORE_STORY=GLOBAL_HISTORY_OF_SOUND
+TIME_SPAN=DEEP_PREHISTORY_TO_GENERATIVE_AI
+GLOBAL_REGIONAL_SCOPE=REQUIRED
 SPOKEN_DIALOGUE=NONE
 MUSIC_AS_DIALOGUE=CANONICAL
+SINGLE_HUMAN_VOCAL_IDENTITY=TRUE
+VOCAL_ORIGIN=BRAZILIAN_HUMAN_PERFORMER
+HAZE_STUDIO=FOUNDATION_EXISTS
+WAVE_STUDIO=FOUNDATION_STARTED
 INTERACTIVE_PRESENTATION=REQUIRED
+HISTORICAL_ERA_MATRIX=RESEARCH_PENDING
 ```
