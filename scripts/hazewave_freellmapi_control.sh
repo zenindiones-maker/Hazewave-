@@ -11,18 +11,65 @@ FREELLMAPI_UNIFIED_KEY_FILE="$FREELLMAPI_CONFIG_ROOT/unified-api-key"
 FREELLMAPI_PID_FILE="$FREELLMAPI_STATE_ROOT/server.pid"
 FREELLMAPI_LOG_FILE="$FREELLMAPI_STATE_ROOT/server.log"
 CONTROL_LOCK_DIR="$FREELLMAPI_STATE_ROOT/control.lock"
+CONTROL_LOCK_OWNER_FILE="$CONTROL_LOCK_DIR/owner.pid"
 PORT="${FREELLMAPI_PORT:-3001}"
 
+control_lock_owner_alive() {
+  local pid="$1" cmdline
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  test -r "/proc/$pid/cmdline" || return 1
+  cmdline="$(tr '\\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)"
+  [[ "$cmdline" == *"hazewave_freellmapi_control.sh"* ]]
+}
+
 acquire_control_lock() {
-  if ! mkdir "$CONTROL_LOCK_DIR" 2>/dev/null; then
-    echo "HAZEWAVE_FREELLMAPI_CONTROL=BUSY" >&2
-    return 75
-  fi
-  trap 'release_control_lock' EXIT INT TERM
+  local attempt owner stale_dir
+  mkdir -p "$FREELLMAPI_STATE_ROOT"
+
+  for attempt in 1 2 3; do
+    if mkdir "$CONTROL_LOCK_DIR" 2>/dev/null; then
+      printf '%s\n' "$" > "$CONTROL_LOCK_OWNER_FILE"
+      trap 'release_control_lock' EXIT INT TERM
+      return 0
+    fi
+
+    owner="$(cat "$CONTROL_LOCK_OWNER_FILE" 2>/dev/null || true)"
+    if [ -z "$owner" ]; then
+      sleep 0.1
+      owner="$(cat "$CONTROL_LOCK_OWNER_FILE" 2>/dev/null || true)"
+    fi
+
+    if control_lock_owner_alive "$owner"; then
+      echo "HAZEWAVE_FREELLMAPI_CONTROL=BUSY" >&2
+      return 75
+    fi
+
+    stale_dir="${CONTROL_LOCK_DIR}.stale.$.$attempt"
+    if mv "$CONTROL_LOCK_DIR" "$stale_dir" 2>/dev/null; then
+      rm -f "$stale_dir/owner.pid"
+      if ! rmdir "$stale_dir" 2>/dev/null; then
+        echo "HAZEWAVE_FREELLMAPI_CONTROL_STALE_LOCK=UNSAFE_CONTENT" >&2
+        return 76
+      fi
+      echo "HAZEWAVE_FREELLMAPI_CONTROL_STALE_LOCK=RECOVERED" >&2
+      continue
+    fi
+
+    sleep 0.1
+  done
+
+  echo "HAZEWAVE_FREELLMAPI_CONTROL=BUSY" >&2
+  return 75
 }
 
 release_control_lock() {
-  rmdir "$CONTROL_LOCK_DIR" 2>/dev/null || true
+  local owner
+  owner="$(cat "$CONTROL_LOCK_OWNER_FILE" 2>/dev/null || true)"
+  if [ "$owner" = "$" ]; then
+    rm -f "$CONTROL_LOCK_OWNER_FILE"
+    rmdir "$CONTROL_LOCK_DIR" 2>/dev/null || true
+  fi
 }
 
 current_release() {
