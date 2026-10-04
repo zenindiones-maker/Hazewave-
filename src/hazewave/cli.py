@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import json
 
 from hazewave.acestep import (
     ACESTEP_DEFAULT_MODEL_REPO,
@@ -12,6 +13,7 @@ from hazewave.acestep import (
     install_runtime,
     serve_runtime,
 )
+from hazewave.freellmapi import FreeLLMAPIError, run_live_probe
 from hazewave.separation import DEFAULT_MODEL, SeparationError, separate_track
 
 
@@ -48,6 +50,32 @@ def build_parser() -> argparse.ArgumentParser:
         default="wav",
         dest="output_format",
         help="Output format. WAV is lossless; MP3 is encoded at 320 kbps.",
+    )
+
+    free = subcommands.add_parser(
+        "freellmapi",
+        help="Use the Hazewave-scoped FreeLLMAPI provider gateway.",
+    )
+    free_commands = free.add_subparsers(dest="freellmapi_command", required=True)
+
+    probe = free_commands.add_parser(
+        "probe",
+        help="Run one bounded Harness-authorized live provider proof.",
+    )
+    probe.add_argument(
+        "--key-file",
+        default=str(
+            Path.home()
+            / ".config"
+            / "hazewave"
+            / "providers"
+            / "freellmapi"
+            / "unified-api-key"
+        ),
+    )
+    probe.add_argument(
+        "--task-id",
+        default="hazewave-freellmapi-live-proof",
     )
 
     ace = subcommands.add_parser(
@@ -220,7 +248,19 @@ def main() -> int:
             print(f"output={result.output_path}")
             return 0
 
-    except (SeparationError, AceStepError) as exc:
+        if args.command == "freellmapi" and args.freellmapi_command == "probe":
+            key_path = Path(args.key_file).expanduser()
+            if not key_path.is_file():
+                raise FreeLLMAPIError("FREELLMAPI_UNIFIED_API_KEY_FILE_MISSING")
+            receipt = run_live_probe(
+                api_key=key_path.read_text(encoding="utf-8").strip(),
+                task_id=args.task_id,
+            )
+            print("HAZEWAVE_FREELLMAPI_LIVE_PROBE=PASS")
+            print(json.dumps(receipt, sort_keys=True, ensure_ascii=False))
+            return 0
+
+    except (SeparationError, AceStepError, FreeLLMAPIError) as exc:
         print(f"error={exc}")
         return 2
 
