@@ -38,6 +38,8 @@ jobs:
           bash -n scripts/configure_hazewave_telegram.sh
           bash -n scripts/hazewave_telegram_control.sh
           bash -n scripts/install_hazewave_telegram_persistence.sh
+          bash -n scripts/install_hazewave_freellmapi_termux.sh
+          bash -n scripts/hazewave_freellmapi_control.sh
 
       - name: Validate repository contracts
         run: python scripts/validate_repository_contracts.py
