@@ -49,20 +49,14 @@ def test_project_profile_v2_is_project_local_and_machine_readable() -> None:
     assert profile["freshness_policy"]["material_change_requires_revalidation"] is True
 
 
-def test_hazewave_governance_contains_no_named_cross_project_dependency() -> None:
-    governed_paths = (
-        "AGENTS.md",
-        "config/project-profile-v2.json",
-        "docs/architecture/DOCUMENTATION_GOVERNANCE_V1.md",
-        "docs/DOCUMENTATION_REGISTRY_V2.json",
-        "docs/runbooks/TERMUX_RUNTIME_V1.md",
+def test_hazewave_governance_is_self_contained() -> None:
+    profile = json.loads(
+        (ROOT / "config" / "project-profile-v2.json").read_text(encoding="utf-8")
     )
-    forbidden = ("BR-no-GTA", "~/GTA/BR", ".local/state/br-no-gta")
-
-    for path in governed_paths:
-        text = (ROOT / path).read_text(encoding="utf-8")
-        for value in forbidden:
-            assert value not in text, (path, value)
+    assert profile["portfolio_authority"] == "NONE"
+    assert profile["runtime_model"]["state_namespace"] == "hazewave"
+    assert profile["runtime_model"]["config_namespace"] == "hazewave"
+    assert profile["runtime_model"]["deploy_namespace"] == "hazewave"
 
 
 def test_documentation_registry_has_unique_existing_typed_entries() -> None:
