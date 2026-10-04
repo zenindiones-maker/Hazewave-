@@ -140,6 +140,12 @@ def test_live_probe_receipt_is_harness_bound_and_secret_free(monkeypatch: pytest
     from hazewave.freellmapi import run_live_probe
 
     def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/models":
+            assert request.url.params.get("available") == "true"
+            return httpx.Response(
+                200,
+                json={"data": [{"id": "auto", "available": True}]},
+            )
         assert request.url.path == "/v1/chat/completions"
         payload = __import__("json").loads(request.content)
         assert payload["model"] == "auto"
