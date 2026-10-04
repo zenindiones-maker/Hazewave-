@@ -50,19 +50,92 @@ load_runtime_env() {
   export FREELLMAPI_UPDATE_CHECK=off
 }
 
-pid_is_freellmapi() {
-  local pid="$1"
+owned_runtime_pid() {
+  local pid="$1" release cwd cmdline
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
   test -r "/proc/$pid/cmdline" || return 1
-  tr '\0' '\n' < "/proc/$pid/cmdline" 2>/dev/null | grep -Fxq "server/dist/index.js"
+  test -e "/proc/$pid/cwd" || return 1
+  release="$(current_release)"
+  cwd="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
+  cmdline="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)"
+
+  case "$cwd|$cmdline" in
+    "$release|"*"node server/dist/index.js"*)
+      return 0
+      ;;
+    "$release|"*"npm run start -w server"*)
+      return 0
+      ;;
+    "$release/server|"*"node dist/index.js"*)
+      return 0
+      ;;
+    "$release/server|"*"sh -c node dist/index.js"*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
-pid_alive() {
+managed_pid_alive() {
   test -s "$FREELLMAPI_PID_FILE" || return 1
-  local pid
-  pid="$(cat "$FREELLMAPI_PID_FILE")"
+  local pid release cwd cmdline
+  pid="$(cat "$FREELLMAPI_PID_FILE" 2>/dev/null || true)"
   [[ "$pid" =~ ^[0-9]+$ ]] || return 1
   kill -0 "$pid" 2>/dev/null || return 1
-  pid_is_freellmapi "$pid"
+  release="$(current_release)"
+  cwd="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
+  cmdline="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)"
+  test "$cwd" = "$release" || return 1
+  [[ "$cmdline" == *"node server/dist/index.js"* ]]
+}
+
+owned_runtime_pids() {
+  local proc pid
+  for proc in /proc/[0-9]*; do
+    pid="${proc##*/}"
+    if owned_runtime_pid "$pid"; then
+      printf '%s\n' "$pid"
+    fi
+  done
+}
+
+stop_owned_runtime_processes() {
+  local pids pid
+  pids="$(owned_runtime_pids || true)"
+  if [ -n "$pids" ]; then
+    while IFS= read -r pid; do
+      [ -n "$pid" ] || continue
+      kill "$pid" 2>/dev/null || true
+    done <<EOF
+$pids
+EOF
+
+    for _ in 1 2 3 4 5; do
+      local alive=""
+      while IFS= read -r pid; do
+        [ -n "$pid" ] || continue
+        if kill -0 "$pid" 2>/dev/null; then
+          alive="$alive $pid"
+        fi
+      done <<EOF
+$pids
+EOF
+      [ -z "$alive" ] && break
+      sleep 1
+    done
+
+    while IFS= read -r pid; do
+      [ -n "$pid" ] || continue
+      if kill -0 "$pid" 2>/dev/null && owned_runtime_pid "$pid"; then
+        kill -9 "$pid" 2>/dev/null || true
+      fi
+    done <<EOF
+$pids
+EOF
+  fi
+  rm -f "$FREELLMAPI_PID_FILE"
 }
 
 probe() {
@@ -78,12 +151,16 @@ start() {
   local release
   release="$(current_release)"
   load_runtime_env
-  if pid_alive && probe; then
+  if managed_pid_alive && probe; then
     echo "HAZEWAVE_FREELLMAPI=ALREADY_RUNNING"
     return 0
   fi
-  if pid_alive; then
-    kill "$(cat "$FREELLMAPI_PID_FILE")" 2>/dev/null || true
+  if probe >/dev/null 2>&1; then
+    if [ -n "$(owned_runtime_pids || true)" ]; then
+      echo "HAZEWAVE_FREELLMAPI=LEGACY_RUNTIME_ONLINE"
+      echo "HAZEWAVE_FREELLMAPI_ACTION=restart_required_for_pid_rebind"
+      return 4
+    fi
   fi
   rm -f "$FREELLMAPI_PID_FILE"
   (
@@ -92,7 +169,7 @@ start() {
     echo $! > "$FREELLMAPI_PID_FILE"
   )
   for _ in 1 2 3 4 5 6 7 8 9 10; do
-    if pid_alive && probe; then
+    if managed_pid_alive && probe; then
       echo "HAZEWAVE_FREELLMAPI=ONLINE"
       echo "HAZEWAVE_FREELLMAPI_PID=$(cat "$FREELLMAPI_PID_FILE")"
       echo "HAZEWAVE_FREELLMAPI_URL=http://127.0.0.1:$PORT/v1"
@@ -105,26 +182,24 @@ start() {
 }
 
 stop() {
-  if pid_alive; then
-    kill "$(cat "$FREELLMAPI_PID_FILE")"
-    for _ in 1 2 3 4 5; do
-      pid_alive || break
-      sleep 1
-    done
-  fi
-  rm -f "$FREELLMAPI_PID_FILE"
+  stop_owned_runtime_processes
   echo "HAZEWAVE_FREELLMAPI=STOPPED"
 }
 
 status() {
-  local release sha recorded
+  local release sha recorded healthy=0
   release="$(current_release)"
   sha="$(git -C "$release" rev-parse HEAD)"
   recorded="$(cat "$FREELLMAPI_STATE_ROOT/active-sha" 2>/dev/null || true)"
   test -n "$recorded"
   test "$sha" = "$recorded"
-  if pid_alive && probe; then
+  if managed_pid_alive && probe; then
     echo "HAZEWAVE_FREELLMAPI=ONLINE"
+    echo "HAZEWAVE_FREELLMAPI_PROCESS_IDENTITY=MANAGED_DIRECT_NODE"
+    healthy=1
+  elif probe >/dev/null 2>&1 && [ -n "$(owned_runtime_pids || true)" ]; then
+    echo "HAZEWAVE_FREELLMAPI=LEGACY_RUNTIME_ONLINE"
+    echo "HAZEWAVE_FREELLMAPI_PROCESS_IDENTITY=LEGACY_NPM_WRAPPER_OR_CHILD"
   else
     echo "HAZEWAVE_FREELLMAPI=OFFLINE"
   fi
@@ -137,6 +212,7 @@ status() {
   else
     echo "HAZEWAVE_FREELLMAPI_UNIFIED_KEY=NOT_CONFIGURED"
   fi
+  test "$healthy" -eq 1
 }
 
 doctor() {

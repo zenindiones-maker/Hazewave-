@@ -190,8 +190,9 @@ def test_freellmapi_persistence_is_singleton_boot_managed_and_pid_bound() -> Non
     ).read_text(encoding="utf-8")
 
     assert "server/dist/index.js" in control
-    assert "npm run start -w server" not in control
-    assert "pid_is_freellmapi" in control
+    assert "nohup npm run start -w server" not in control
+    assert "managed_pid_alive" in control
+    assert "owned_runtime_pid" in control
     assert "CONTROL_LOCK_DIR" in control
     assert ".termux/boot" in persistence
     assert "hazewave-freellmapi.sh" in persistence
@@ -282,3 +283,21 @@ def test_http_status_error_exposes_safe_status_and_provider_code_without_secret(
     assert "HTTP_503" in message
     assert "no_providers_configured" in message
     assert "freellmapi-secret-value" not in message
+
+
+def test_freellmapi_control_can_migrate_legacy_npm_wrapped_runtime() -> None:
+    control = (ROOT / "scripts" / "hazewave_freellmapi_control.sh").read_text(
+        encoding="utf-8"
+    )
+    persistence = (
+        ROOT / "scripts" / "install_hazewave_freellmapi_persistence.sh"
+    ).read_text(encoding="utf-8")
+
+    assert "owned_runtime_pid" in control
+    assert "/proc/$pid/cwd" in control
+    assert "npm run start -w server" in control
+    assert "node dist/index.js" in control
+    assert "node server/dist/index.js" in control
+    assert "stop_owned_runtime_processes" in control
+    assert 'bash "$CONTROL" restart' in persistence
+    assert 'test "$healthy" -eq 1' in control
