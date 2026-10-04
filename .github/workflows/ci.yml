@@ -27,5 +27,8 @@ jobs:
       - name: Compile package
         run: python -m compileall -q src
 
+      - name: Validate repository contracts
+        run: python scripts/validate_repository_contracts.py
+
       - name: Run tests
         run: pytest

@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hazewave.local/schemas/wave-state-v1.schema.json",
+  "title": "WAVE State v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "state_id",
+    "timestamp_ms",
+    "source_haze_state_id",
+    "resonance_energy",
+    "material_regime",
+    "fracture_impulse",
+    "topology_target",
+    "walker_attractors",
+    "scar_deposition",
+    "symmetry_persistence",
+    "deterministic_seed"
+  ],
+  "properties": {
+    "schema": {
+      "const": "WaveState/v1"
+    },
+    "state_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "source_haze_state_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "resonance_energy": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "material_regime": {
+      "enum": [
+        "DORMANT_HAZE",
+        "NODAL_DUST",
+        "RESONANT_MEMBRANE",
+        "FRACTURE",
+        "SWARM",
+        "FLUID",
+        "CRYSTAL",
+        "SCAR"
+      ]
+    },
+    "fracture_impulse": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "topology_target": {
+      "enum": [
+        "NODAL",
+        "LINE",
+        "MEMBRANE",
+        "VOLUME",
+        "SWARM",
+        "FLUID_FIELD",
+        "CRYSTAL_FIELD"
+      ]
+    },
+    "walker_attractors": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "x",
+          "y",
+          "strength"
+        ],
+        "properties": {
+          "x": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "y": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "strength": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    "scar_deposition": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "symmetry_persistence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "deterministic_seed": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

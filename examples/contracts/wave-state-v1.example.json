@@ -1,0 +1,20 @@
+{
+  "schema": "WaveState/v1",
+  "state_id": "wave-state-demo-0001",
+  "timestamp_ms": 12000,
+  "source_haze_state_id": "haze-state-demo-0001",
+  "resonance_energy": 0.72,
+  "material_regime": "RESONANT_MEMBRANE",
+  "fracture_impulse": 0.18,
+  "topology_target": "MEMBRANE",
+  "walker_attractors": [
+    {
+      "x": 0.42,
+      "y": 0.61,
+      "strength": 0.74
+    }
+  ],
+  "scar_deposition": 0.23,
+  "symmetry_persistence": 0.81,
+  "deterministic_seed": 12000
+}

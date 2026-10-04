@@ -1,0 +1,32 @@
+{
+  "schema": "HazeState/v1",
+  "state_id": "haze-state-demo-0001",
+  "timestamp_ms": 12000,
+  "source_id": "demo-track",
+  "analysis_version": "hazewave-audio-features-v1",
+  "fast": {
+    "energy": 0.72,
+    "transient_strength": 0.41,
+    "spectral_centroid_hz": 2184.5,
+    "spectral_flux": 0.31,
+    "stereo_balance": -0.08
+  },
+  "meso": {
+    "tempo_bpm": 96,
+    "beat_phase": 0.25,
+    "harmonic_stability": 0.83,
+    "timbre_vector": [
+      0.22,
+      -0.11,
+      0.64,
+      0.07
+    ]
+  },
+  "macro": {
+    "section_id": "verse-a",
+    "motif_id": "motif-01",
+    "track_progress": 0.34,
+    "long_term_intensity": 0.58
+  },
+  "confidence": 0.91
+}

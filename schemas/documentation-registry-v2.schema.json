@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hazewave.local/schemas/documentation-registry-v2.schema.json",
+  "title": "Hazewave Documentation Registry v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "project_id",
+    "scope",
+    "documents"
+  ],
+  "properties": {
+    "schema": {
+      "const": "HazewaveDocumentationRegistry/v2"
+    },
+    "project_id": {
+      "const": "HAZEWAVE"
+    },
+    "scope": {
+      "const": "GOVERNANCE_AND_SYSTEM_DOCUMENTS"
+    },
+    "documents": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "path",
+          "type",
+          "authority",
+          "status",
+          "owner",
+          "applies_to",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "enum": [
+              "AGENT_CONTRACT",
+              "PROJECT_PROFILE",
+              "CANON",
+              "ARCHITECTURE_DECISION",
+              "EXPLANATION",
+              "REFERENCE",
+              "RUNBOOK",
+              "PUBLISHING_STANDARD",
+              "PROJECT_SPEC"
+            ]
+          },
+          "authority": {
+            "enum": [
+              "NORMATIVE",
+              "CANONICAL",
+              "OPERATIONAL",
+              "EXPLANATORY"
+            ]
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "DEVELOPMENT",
+              "SUPERSEDED"
+            ]
+          },
+          "owner": {
+            "enum": [
+              "HAZEWAVE",
+              "HAZE",
+              "WAVE",
+              "BRIDGE",
+              "PUBLISHING",
+              "NEANDERCAUS"
+            ]
+          },
+          "applies_to": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "description": {
+            "type": "string",
+            "minLength": 10
+          }
+        }
+      }
+    }
+  }
+}
