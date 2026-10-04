@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from hashlib import sha256
 from typing import Any, Iterable
 from urllib.parse import urlparse
 
@@ -28,6 +29,7 @@ class FreeLLMAPICompletionResult:
     served_model: str | None
     usage: dict[str, Any]
     raw: dict[str, Any]
+    routed_via: str | None = None
     provider_gateway: str = "FREELLMAPI"
     authority: str = AUTHORITY
 
@@ -189,4 +191,63 @@ class FreeLLMAPIClient:
             served_model=(str(raw.get("model")) if raw.get("model") is not None else None),
             usage=dict(usage) if isinstance(usage, dict) else {},
             raw=raw,
+            routed_via=(response.headers.get("X-Routed-Via") or None),
         )
+
+
+
+def run_live_probe(
+    *,
+    api_key: str,
+    task_id: str = "hazewave-freellmapi-live-proof",
+    base_url: str = DEFAULT_BASE_URL,
+) -> dict[str, Any]:
+    """Execute one bounded real provider call and return a secret-free receipt."""
+
+    from hazewave.harness import HazewaveTask, issue_authorization, route_task
+
+    task = HazewaveTask(
+        task_id=str(task_id),
+        goal="Analyze a synthetic non-secret sonic descriptor as a provider connectivity proof.",
+        required_capability="audio.analyze",
+        requested_domain="HAZE",
+    )
+    decision = route_task(task)
+    authorization = issue_authorization(decision)
+
+    with FreeLLMAPIClient(base_url, api_key=api_key) as client:
+        result = client.chat(
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        "Synthetic sonic descriptor: 120 BPM, C minor, 4/4, "
+                        "steady kick on quarter notes. Return one concise structural observation."
+                    ),
+                }
+            ],
+            authorization=authorization,
+            task_id=task.task_id,
+            capability_id=task.required_capability,
+            data_classification="INTERNAL_NON_SECRET",
+            model="auto",
+            temperature=0.0,
+            max_tokens=64,
+        )
+
+    return {
+        "schema": "HazewaveProviderProbeReceipt/v1",
+        "status": "PASS",
+        "project_id": "HAZEWAVE",
+        "authority": AUTHORITY,
+        "task_id": task.task_id,
+        "authorization_id": authorization.authorization_id,
+        "capability_id": task.required_capability,
+        "domain": decision.selected_domain,
+        "data_classification": "INTERNAL_NON_SECRET",
+        "provider_gateway": result.provider_gateway,
+        "routed_via": result.routed_via,
+        "served_model": result.served_model,
+        "content_sha256": sha256(result.content.encode("utf-8")).hexdigest(),
+        "usage": result.usage,
+    }

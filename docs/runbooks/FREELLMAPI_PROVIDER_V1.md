@@ -147,3 +147,49 @@ To upgrade:
 If the gateway is unavailable, Hazewave must report provider unavailability. It must not bypass Harness authorization or silently send private data to another endpoint.
 
 If FreeLLMAPI, an upstream model provider, or a free-tier route changes terms or reliability materially, stop treating that route as eligible until reviewed.
+
+
+## Live Harness-to-provider proof
+
+After the unified API key is stored at:
+
+`~/.config/hazewave/providers/freellmapi/unified-api-key`
+
+run one bounded real provider call through the Hazewave client:
+
+```bash
+PYTHONPATH="$HOME/.local/share/hazewave/deploy/current/src" \
+python -m hazewave.cli freellmapi probe
+```
+
+Expected:
+
+```text
+HAZEWAVE_FREELLMAPI_LIVE_PROBE=PASS
+```
+
+The JSON receipt contains the Hazewave task and authorization binding, selected HAZE capability, data classification, FreeLLMAPI route/model evidence, response-content digest and token usage. It does not contain the unified API key or raw upstream provider keys.
+
+The proof prompt is synthetic text and is classified `INTERNAL_NON_SECRET`; it does not upload private audio/media.
+
+## Persistence
+
+Install a project-local singleton supervisor and Termux:Boot entry:
+
+```bash
+bash scripts/install_hazewave_freellmapi_persistence.sh
+```
+
+The supervisor checks the exact FreeLLMAPI process every 30 seconds and restarts it through the Hazewave control boundary when unavailable. The process is launched directly as:
+
+`node server/dist/index.js`
+
+rather than through an npm wrapper, so the recorded PID can be bound to the actual provider server process.
+
+Expected:
+
+```text
+HAZEWAVE_FREELLMAPI_PERSISTENCE=PASS
+```
+
+Runtime persistence after a real Android reboot remains a runtime-evidence requirement; installation of the boot entry alone is not proof that Android executed it.

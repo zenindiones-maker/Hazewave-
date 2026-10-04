@@ -181,6 +181,7 @@ def validate_freellmapi_provider_contract() -> None:
         "src/hazewave/freellmapi.py",
         "scripts/install_hazewave_freellmapi_termux.sh",
         "scripts/hazewave_freellmapi_control.sh",
+        "scripts/install_hazewave_freellmapi_persistence.sh",
         "docs/architecture/decisions/ADR-0005-freellmapi-provider-gateway.md",
         "docs/runbooks/FREELLMAPI_PROVIDER_V1.md",
     )
@@ -197,7 +198,10 @@ def validate_freellmapi_provider_contract() -> None:
     control = (
         ROOT / "scripts" / "hazewave_freellmapi_control.sh"
     ).read_text(encoding="utf-8")
-    combined = provider + "\n" + installer + "\n" + control
+    persistence = (
+        ROOT / "scripts" / "install_hazewave_freellmapi_persistence.sh"
+    ).read_text(encoding="utf-8")
+    combined = provider + "\n" + installer + "\n" + control + "\n" + persistence
 
     required = (
         "716948f20b12ec1c9b7c6fcebd22a3e7233cda1b",
@@ -206,6 +210,9 @@ def validate_freellmapi_provider_contract() -> None:
         ".config/hazewave/providers/freellmapi",
         "HOST=127.0.0.1",
         "FREELLMAPI_UPDATE_CHECK=off",
+        "server/dist/index.js",
+        ".termux/boot",
+        "hazewave-freellmapi.sh",
         "HAZEWAVE_HARNESS",
         "_ALLOWED_EGRESS_CLASSES",
         "INTERNAL_NON_SECRET",
