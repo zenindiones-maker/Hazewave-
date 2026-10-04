@@ -27,6 +27,7 @@ load_runtime_env() {
   }
   mkdir -p "$FREELLMAPI_STATE_ROOT" "$FREELLMAPI_CONFIG_ROOT"
   chmod 700 "$FREELLMAPI_STATE_ROOT" "$FREELLMAPI_CONFIG_ROOT"
+  export NODE_ENV=production
   export HOST=127.0.0.1
   export PORT
   export FREEAPI_DB_PATH="$FREELLMAPI_STATE_ROOT/freellmapi.db"
