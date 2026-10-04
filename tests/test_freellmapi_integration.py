@@ -299,3 +299,4 @@ def test_freellmapi_control_can_migrate_legacy_npm_wrapped_runtime() -> None:
     assert "node server/dist/index.js" in control
     assert "stop_owned_runtime_processes" in control
     assert 'bash "$CONTROL" restart' in persistence
+    assert 'test "$healthy" -eq 1' in control
