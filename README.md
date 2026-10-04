@@ -76,6 +76,43 @@ Fundação:
 
 `apps/neandercaus/README.md`
 
+## Estado de implementação
+
+O Hazewave separa explicitamente **capacidade executável atual** de **arquitetura/canon em desenvolvimento**.
+
+Hoje:
+
+- HAZE possui runtime executável para ACE-Step 1.5 e Demucs/HTDemucs;
+- Hazewave Harness possui routing e autorização project-local para HAZE/WAVE/BRIDGE;
+- o runtime Termux usa releases imutáveis por SHA;
+- HAZE_STATE e WAVE_STATE possuem contratos JSON Schema versionados;
+- o Hazewave Asset Manifest define a base de provenance de mídia/artefatos;
+- WAVE/Living Resonance está em desenvolvimento arquitetural e ainda não deve ser tratado como engine completa de produção.
+
+## Governança e documentação
+
+Antes de modificar o projeto, leia:
+
+- `AGENTS.md` — contrato operacional para agentes;
+- `config/project-profile-v2.json` — autoridade, segurança, domínios e runtime;
+- `docs/HAZEWAVE_SYSTEM_INDEX.md` — navegação humana;
+- `docs/DOCUMENTATION_REGISTRY_V2.json` — registry machine-readable;
+- `docs/architecture/DOCUMENTATION_GOVERNANCE_V1.md` — classes e precedência documental.
+
+Validação mínima de uma mudança material:
+
+```bash
+python -m compileall -q src
+python scripts/validate_repository_contracts.py
+pytest
+```
+
+No Termux:
+
+```bash
+bash scripts/hazewave_termux_control.sh doctor
+```
+
 ## ACE-Step 1.5 — geração instrumental
 
 O Hazewave integra o **ACE-Step 1.5** como engine local para prompt → instrumental, prompt + áudio de referência, e cover/remix de áudio existente.
