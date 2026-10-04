@@ -122,7 +122,9 @@
       "src/hazewave/harness.py",
       "docs/architecture/",
       "docs/reference/",
-      "docs/runbooks/"
+      "docs/runbooks/",
+      "scripts/",
+      "src/hazewave/telegram_gateway.py"
     ],
     "accepted_unmaterialized_ttl_days": 7
   },
