@@ -191,7 +191,8 @@ def test_freellmapi_persistence_is_singleton_boot_managed_and_pid_bound() -> Non
 
     assert "server/dist/index.js" in control
     assert "nohup npm run start -w server" not in control
-    assert "pid_is_freellmapi" in control
+    assert "managed_pid_alive" in control
+    assert "owned_runtime_pid" in control
     assert "CONTROL_LOCK_DIR" in control
     assert ".termux/boot" in persistence
     assert "hazewave-freellmapi.sh" in persistence
