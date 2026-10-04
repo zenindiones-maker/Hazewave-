@@ -101,10 +101,10 @@ fi
 rm -f "$SUPERVISOR_PID"
 rmdir "$LOCK_DIR" 2>/dev/null || true
 
+bash "$CONTROL" start
+
 nohup bash "$SUPERVISOR" >>"$SUPERVISOR_LOG" 2>&1 </dev/null &
 sleep 1
-
-bash "$CONTROL" start
 
 echo "HAZEWAVE_TELEGRAM_PERSISTENCE=PASS"
 echo "HAZEWAVE_TELEGRAM_SUPERVISOR=$SUPERVISOR"

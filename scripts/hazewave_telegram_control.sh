@@ -13,9 +13,22 @@ LOG_FILE="$HAZEWAVE_TELEGRAM_STATE_ROOT/gateway.log"
 REVISION_FILE="$HAZEWAVE_TELEGRAM_STATE_ROOT/runtime-revision"
 READY_FILE="$HAZEWAVE_TELEGRAM_STATE_ROOT/ready"
 TOKEN_FILE="$HAZEWAVE_TELEGRAM_CONFIG_ROOT/bot-token"
+CONTROL_LOCK_DIR="$HAZEWAVE_TELEGRAM_STATE_ROOT/gateway-control.lock"
 
 mkdir -p "$HAZEWAVE_TELEGRAM_STATE_ROOT" "$HAZEWAVE_TELEGRAM_CONFIG_ROOT"
 chmod 700 "$HAZEWAVE_TELEGRAM_STATE_ROOT" "$HAZEWAVE_TELEGRAM_CONFIG_ROOT" 2>/dev/null || true
+
+acquire_gateway_control_lock() {
+  if ! mkdir "$CONTROL_LOCK_DIR" 2>/dev/null; then
+    echo "HAZEWAVE_TELEGRAM_CONTROL=BUSY" >&2
+    return 75
+  fi
+  trap 'release_gateway_control_lock' EXIT INT TERM
+}
+
+release_gateway_control_lock() {
+  rmdir "$CONTROL_LOCK_DIR" 2>/dev/null || true
+}
 
 current_release() {
   test -L "$HAZEWAVE_CURRENT" || {
@@ -167,12 +180,15 @@ doctor_gateway() {
 
 case "${1:-status}" in
   start)
+    acquire_gateway_control_lock
     start_gateway
     ;;
   stop)
+    acquire_gateway_control_lock
     stop_gateway
     ;;
   restart)
+    acquire_gateway_control_lock
     stop_gateway
     start_gateway
     ;;
