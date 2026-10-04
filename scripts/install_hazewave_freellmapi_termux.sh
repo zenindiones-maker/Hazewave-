@@ -52,7 +52,7 @@ if [ ! -d "$RELEASE_DIR" ]; then
   git --git-dir="$FREELLMAPI_REPO_GIT" worktree add --detach "$RELEASE_DIR" "$DESIRED_SHA" >/dev/null
   (
     cd "$RELEASE_DIR"
-    npm install --no-audit --no-fund
+    npm ci --no-audit --no-fund
     npm run build
   )
 fi
