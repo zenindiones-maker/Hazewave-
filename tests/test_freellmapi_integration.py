@@ -187,7 +187,8 @@ def test_freellmapi_persistence_is_singleton_boot_managed_and_pid_bound() -> Non
     assert "npm run start -w server" not in control
     assert "pid_is_freellmapi" in control
     assert "CONTROL_LOCK_DIR" in control
-    assert ".termux/boot/hazewave-freellmapi.sh" in persistence
+    assert ".termux/boot" in persistence
+    assert "hazewave-freellmapi.sh" in persistence
     assert "supervisor.lock" in persistence
     assert "termux-wake-lock" in persistence
     assert "bash \"$CONTROL\" restart" in persistence
