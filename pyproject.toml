@@ -19,7 +19,8 @@ separation = [
 ]
 dev = [
   "pytest>=8,<9",
-  "jsonschema>=4.23,<5",
+  "jsonschema==4.17.3",
+  "pyrsistent>=0.20,<0.22",
 ]
 
 [project.scripts]
