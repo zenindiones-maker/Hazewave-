@@ -11,7 +11,7 @@ def test_persistence_starts_gateway_before_supervisor_to_avoid_dual_restart_race
     ).read_text(encoding="utf-8")
 
     gateway_start = script.index('bash "$CONTROL" start')
-    supervisor_start = script.index('nohup bash "$SUPERVISOR"')
+    supervisor_start = script.rindex('nohup bash "$SUPERVISOR"')
 
     assert gateway_start < supervisor_start
 
