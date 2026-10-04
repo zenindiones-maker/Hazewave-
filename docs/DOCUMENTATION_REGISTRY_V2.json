@@ -241,6 +241,21 @@
         "termux"
       ],
       "description": "Operational procedure for installing, configuring, starting and validating the Hazewave-scoped FreeLLMAPI provider runtime."
+    },
+    {
+      "id": "freellmapi-a15-runtime-proof-2026-10-04",
+      "path": "docs/reference/FREELLMAPI_A15_RUNTIME_PROOF_2026-10-04.md",
+      "type": "REFERENCE",
+      "authority": "EXPLANATORY",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "providers",
+        "runtime",
+        "termux",
+        "evidence"
+      ],
+      "description": "Observed A15 runtime proof for the Hazewave-scoped FreeLLMAPI gateway, including exact runtime/provider SHAs, persistence installation state, live Harness-to-provider receipt, and remaining reboot-verification boundary."
     }
   ]
 }
