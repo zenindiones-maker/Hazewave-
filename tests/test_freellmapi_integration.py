@@ -60,6 +60,7 @@ def test_chat_requires_harness_bound_authorization_and_keeps_router_subordinate(
         assert payload["messages"] == [{"role": "user", "content": "analyze this structure"}]
         return httpx.Response(
             200,
+            headers={"X-Routed-Via": "groq/openai/gpt-oss-20b"},
             json={
                 "id": "chatcmpl-test",
                 "model": "provider/model-served",
@@ -81,6 +82,7 @@ def test_chat_requires_harness_bound_authorization_and_keeps_router_subordinate(
     assert result.served_model == "provider/model-served"
     assert result.authority == "HAZEWAVE_HARNESS"
     assert result.provider_gateway == "FREELLMAPI"
+    assert result.routed_via == "groq/openai/gpt-oss-20b"
 
 
 def test_private_media_and_credentials_are_fail_closed_before_provider_egress() -> None:
@@ -132,3 +134,60 @@ def test_freellmapi_architecture_and_runbook_are_registered() -> None:
     paths = {entry["path"] for entry in registry["documents"]}
     assert "docs/architecture/decisions/ADR-0005-freellmapi-provider-gateway.md" in paths
     assert "docs/runbooks/FREELLMAPI_PROVIDER_V1.md" in paths
+
+
+def test_live_probe_receipt_is_harness_bound_and_secret_free(monkeypatch: pytest.MonkeyPatch) -> None:
+    from hazewave.freellmapi import run_live_probe
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/chat/completions"
+        payload = __import__("json").loads(request.content)
+        assert payload["model"] == "auto"
+        assert "Synthetic sonic descriptor" in payload["messages"][0]["content"]
+        return httpx.Response(
+            200,
+            headers={"X-Routed-Via": "test-provider/test-model"},
+            json={
+                "id": "chatcmpl-probe",
+                "model": "test-model",
+                "choices": [{"message": {"role": "assistant", "content": "Stable pulse structure."}}],
+                "usage": {"prompt_tokens": 8, "completion_tokens": 4, "total_tokens": 12},
+            },
+        )
+
+    fake = _client(handler)
+    monkeypatch.setattr("hazewave.freellmapi.FreeLLMAPIClient", lambda *a, **k: fake)
+    receipt = run_live_probe(
+        api_key="freellmapi-secret-value",
+        task_id="hazewave-provider-proof-test",
+    )
+    fake.close()
+
+    assert receipt["schema"] == "HazewaveProviderProbeReceipt/v1"
+    assert receipt["status"] == "PASS"
+    assert receipt["authority"] == "HAZEWAVE_HARNESS"
+    assert receipt["capability_id"] == "audio.analyze"
+    assert receipt["data_classification"] == "INTERNAL_NON_SECRET"
+    assert receipt["provider_gateway"] == "FREELLMAPI"
+    assert receipt["routed_via"] == "test-provider/test-model"
+    assert receipt["served_model"] == "test-model"
+    assert len(receipt["content_sha256"]) == 64
+    assert "freellmapi-secret-value" not in __import__("json").dumps(receipt)
+
+
+def test_freellmapi_persistence_is_singleton_boot_managed_and_pid_bound() -> None:
+    control = (ROOT / "scripts" / "hazewave_freellmapi_control.sh").read_text(
+        encoding="utf-8"
+    )
+    persistence = (
+        ROOT / "scripts" / "install_hazewave_freellmapi_persistence.sh"
+    ).read_text(encoding="utf-8")
+
+    assert "server/dist/index.js" in control
+    assert "npm run start -w server" not in control
+    assert "pid_is_freellmapi" in control
+    assert "CONTROL_LOCK_DIR" in control
+    assert ".termux/boot/hazewave-freellmapi.sh" in persistence
+    assert "supervisor.lock" in persistence
+    assert "termux-wake-lock" in persistence
+    assert "bash \"$CONTROL\" restart" in persistence
