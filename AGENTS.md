@@ -111,6 +111,21 @@ Hazewave Termux namespaces are:
 
 Runtime-generated data, models, credentials and private media live outside immutable source releases.
 
+### Dedicated Telegram runtime
+
+Hazewave Telegram uses the dedicated bot identity `@HazewaveAgentBot`.
+
+Its boundaries are:
+
+- code: immutable `~/.local/share/hazewave/deploy/current`;
+- config: `~/.config/hazewave/telegram/`;
+- state: `~/.local/state/hazewave/telegram/`;
+- token: local credential only, never committed;
+- access: explicitly paired private user;
+- authority: Telegram is transport only; Hazewave Harness remains the project authority.
+
+Do not reuse another project's bot token, state, supervisor, gateway, runtime checkout, or credential material.
+
 ## Path-specific expectations
 
 ### `src/hazewave/`
