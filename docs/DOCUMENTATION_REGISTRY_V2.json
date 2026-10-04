@@ -184,6 +184,34 @@
         "ACADEMIC_LIBRARY"
       ],
       "description": "Master scholarly and editorial requirements for the Hazewave Academic Library."
+    },
+    {
+      "id": "adr-0004-hazewave-telegram-runtime",
+      "path": "docs/architecture/decisions/ADR-0004-hazewave-telegram-runtime-isolation.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "telegram",
+        "runtime",
+        "termux"
+      ],
+      "description": "Records dedicated Hazewave Telegram bot identity, immutable runtime execution, local credential storage and pairing boundaries."
+    },
+    {
+      "id": "telegram-runtime-runbook-v1",
+      "path": "docs/runbooks/TELEGRAM_RUNTIME_V1.md",
+      "type": "RUNBOOK",
+      "authority": "OPERATIONAL",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "telegram",
+        "runtime",
+        "termux"
+      ],
+      "description": "Operational procedure for configuring, pairing, starting and validating the dedicated Hazewave Telegram runtime."
     }
   ]
 }
