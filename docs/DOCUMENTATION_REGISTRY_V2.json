@@ -1,0 +1,189 @@
+{
+  "schema": "HazewaveDocumentationRegistry/v2",
+  "project_id": "HAZEWAVE",
+  "scope": "GOVERNANCE_AND_SYSTEM_DOCUMENTS",
+  "documents": [
+    {
+      "id": "agents-root",
+      "path": "AGENTS.md",
+      "type": "AGENT_CONTRACT",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "repository"
+      ],
+      "description": "Operational contract for agents working in the Hazewave repository."
+    },
+    {
+      "id": "project-profile-v2",
+      "path": "config/project-profile-v2.json",
+      "type": "PROJECT_PROFILE",
+      "authority": "NORMATIVE",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "governance",
+        "runtime",
+        "agents"
+      ],
+      "description": "Machine-readable project authority, domain, safety and runtime profile."
+    },
+    {
+      "id": "project-profile-v1",
+      "path": "config/project-profile-v1.json",
+      "type": "PROJECT_PROFILE",
+      "authority": "NORMATIVE",
+      "status": "SUPERSEDED",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "migration-history"
+      ],
+      "description": "Superseded ProjectProfile migration marker retained for explicit version transition."
+    },
+    {
+      "id": "domain-canon-v1",
+      "path": "canon/hazewave-domain-v1.json",
+      "type": "CANON",
+      "authority": "CANONICAL",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE",
+        "NEANDERCAUS"
+      ],
+      "description": "Creative and domain identity model for HAZE, WAVE and their translation boundary."
+    },
+    {
+      "id": "doc-governance-v1",
+      "path": "docs/architecture/DOCUMENTATION_GOVERNANCE_V1.md",
+      "type": "REFERENCE",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "documentation",
+        "agents"
+      ],
+      "description": "Defines document classes, authority, lifecycle, precedence and drift handling."
+    },
+    {
+      "id": "adr-0001",
+      "path": "docs/architecture/decisions/ADR-0001-haze-wave-domain-boundary.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "description": "Records the separate HAZE and WAVE domains and the typed bridge between them."
+    },
+    {
+      "id": "adr-0002",
+      "path": "docs/architecture/decisions/ADR-0002-hazewave-harness.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "harness",
+        "agents"
+      ],
+      "description": "Records the project-local Hazewave Harness authority and capability-first routing model."
+    },
+    {
+      "id": "adr-0003",
+      "path": "docs/architecture/decisions/ADR-0003-immutable-termux-runtime.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "termux",
+        "runtime"
+      ],
+      "description": "Records immutable SHA-addressed Termux releases and separation from development checkout."
+    },
+    {
+      "id": "state-contracts-v1",
+      "path": "docs/reference/HAZE_WAVE_STATE_CONTRACTS_V1.md",
+      "type": "REFERENCE",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "BRIDGE",
+      "applies_to": [
+        "HAZE_STATE",
+        "WAVE_STATE"
+      ],
+      "description": "Human-readable reference for the machine-validated HAZE and WAVE state contracts."
+    },
+    {
+      "id": "harness-reference-v1",
+      "path": "docs/reference/HAZEWAVE_HARNESS_V1.md",
+      "type": "REFERENCE",
+      "authority": "OPERATIONAL",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "harness"
+      ],
+      "description": "Technical reference for current Hazewave Harness authority and capability surface."
+    },
+    {
+      "id": "termux-runbook-v1",
+      "path": "docs/runbooks/TERMUX_RUNTIME_V1.md",
+      "type": "RUNBOOK",
+      "authority": "OPERATIONAL",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "termux",
+        "runtime"
+      ],
+      "description": "Operational procedures for installing, checking and synchronizing the Hazewave Termux runtime."
+    },
+    {
+      "id": "living-resonance-v1",
+      "path": "docs/wave/WAVE_LIVING_RESONANCE_ENGINE_V1.md",
+      "type": "EXPLANATION",
+      "authority": "EXPLANATORY",
+      "status": "DEVELOPMENT",
+      "owner": "WAVE",
+      "applies_to": [
+        "WAVE",
+        "BRIDGE"
+      ],
+      "description": "Design explanation and target architecture for the Living Resonance Engine."
+    },
+    {
+      "id": "neandercaus-foundation",
+      "path": "apps/neandercaus/README.md",
+      "type": "PROJECT_SPEC",
+      "authority": "CANONICAL",
+      "status": "DEVELOPMENT",
+      "owner": "NEANDERCAUS",
+      "applies_to": [
+        "NEANDERCAUS"
+      ],
+      "description": "Foundation and creative production constraints for the NEANDERCAUS series."
+    },
+    {
+      "id": "academic-master-spec-v1",
+      "path": "docs/publishing/academic/HAZEWAVE_ACADEMIC_LIBRARY_MASTER_SPEC_V1.md",
+      "type": "PUBLISHING_STANDARD",
+      "authority": "NORMATIVE",
+      "status": "DEVELOPMENT",
+      "owner": "PUBLISHING",
+      "applies_to": [
+        "HAZEWAVE_BOOKS",
+        "ACADEMIC_LIBRARY"
+      ],
+      "description": "Master scholarly and editorial requirements for the Hazewave Academic Library."
+    }
+  ]
+}
