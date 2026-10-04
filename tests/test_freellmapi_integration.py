@@ -75,7 +75,7 @@ def test_chat_requires_harness_bound_authorization_and_keeps_router_subordinate(
             authorization=_authorization(),
             task_id="t-provider-1",
             capability_id="audio.analyze",
-            data_classification="INTERNAL_NON_SECRET",
+            data_classification="PUBLIC",
         )
 
     assert result.content == "ok"
@@ -94,7 +94,7 @@ def test_private_media_and_credentials_are_fail_closed_before_provider_egress() 
         return httpx.Response(500)
 
     with _client(handler) as client:
-        for classification in ("PRIVATE_MEDIA", "CREDENTIAL"):
+        for classification in ("INTERNAL_NON_SECRET", "PRIVATE_MEDIA", "CREDENTIAL"):
             with pytest.raises(FreeLLMAPIError, match="DATA_CLASS_NOT_ALLOWED"):
                 client.chat(
                     messages=[{"role": "user", "content": "do not send"}],
@@ -173,7 +173,7 @@ def test_live_probe_receipt_is_harness_bound_and_secret_free(monkeypatch: pytest
     assert receipt["status"] == "PASS"
     assert receipt["authority"] == "HAZEWAVE_HARNESS"
     assert receipt["capability_id"] == "audio.analyze"
-    assert receipt["data_classification"] == "INTERNAL_NON_SECRET"
+    assert receipt["data_classification"] == "PUBLIC"
     assert receipt["provider_gateway"] == "FREELLMAPI"
     assert receipt["routed_via"] == "test-provider/test-model"
     assert receipt["served_model"] == "test-model"
@@ -276,7 +276,7 @@ def test_http_status_error_exposes_safe_status_and_provider_code_without_secret(
                 authorization=_authorization(),
                 task_id="t-provider-1",
                 capability_id="audio.analyze",
-                data_classification="INTERNAL_NON_SECRET",
+                data_classification="PUBLIC",
             )
 
     message = str(exc.value)
@@ -301,3 +301,25 @@ def test_freellmapi_control_can_migrate_legacy_npm_wrapped_runtime() -> None:
     assert "stop_owned_runtime_processes" in control
     assert 'bash "$CONTROL" restart' in persistence
     assert 'test "$healthy" -eq 1' in control
+
+
+def test_auto_routing_is_public_only() -> None:
+    called = False
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal called
+        called = True
+        return httpx.Response(500)
+
+    with _client(handler) as client:
+        with pytest.raises(FreeLLMAPIError, match="DATA_CLASS_NOT_ALLOWED"):
+            client.chat(
+                messages=[{"role": "user", "content": "internal project text"}],
+                authorization=_authorization(),
+                task_id="t-provider-1",
+                capability_id="audio.analyze",
+                data_classification="INTERNAL_NON_SECRET",
+                model="auto",
+            )
+
+    assert called is False
