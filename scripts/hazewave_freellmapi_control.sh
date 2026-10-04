@@ -10,7 +10,20 @@ FREELLMAPI_ENCRYPTION_KEY_FILE="$FREELLMAPI_CONFIG_ROOT/encryption-key"
 FREELLMAPI_UNIFIED_KEY_FILE="$FREELLMAPI_CONFIG_ROOT/unified-api-key"
 FREELLMAPI_PID_FILE="$FREELLMAPI_STATE_ROOT/server.pid"
 FREELLMAPI_LOG_FILE="$FREELLMAPI_STATE_ROOT/server.log"
+CONTROL_LOCK_DIR="$FREELLMAPI_STATE_ROOT/control.lock"
 PORT="${FREELLMAPI_PORT:-3001}"
+
+acquire_control_lock() {
+  if ! mkdir "$CONTROL_LOCK_DIR" 2>/dev/null; then
+    echo "HAZEWAVE_FREELLMAPI_CONTROL=BUSY" >&2
+    return 75
+  fi
+  trap 'release_control_lock' EXIT INT TERM
+}
+
+release_control_lock() {
+  rmdir "$CONTROL_LOCK_DIR" 2>/dev/null || true
+}
 
 current_release() {
   test -L "$FREELLMAPI_CURRENT" || {
@@ -37,11 +50,19 @@ load_runtime_env() {
   export FREELLMAPI_UPDATE_CHECK=off
 }
 
+pid_is_freellmapi() {
+  local pid="$1"
+  test -r "/proc/$pid/cmdline" || return 1
+  tr '\0' '\n' < "/proc/$pid/cmdline" 2>/dev/null | grep -Fxq "server/dist/index.js"
+}
+
 pid_alive() {
   test -s "$FREELLMAPI_PID_FILE" || return 1
   local pid
   pid="$(cat "$FREELLMAPI_PID_FILE")"
-  kill -0 "$pid" 2>/dev/null
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  pid_is_freellmapi "$pid"
 }
 
 probe() {
@@ -67,7 +88,7 @@ start() {
   rm -f "$FREELLMAPI_PID_FILE"
   (
     cd "$release"
-    nohup npm run start -w server >>"$FREELLMAPI_LOG_FILE" 2>&1 &
+    nohup node server/dist/index.js >>"$FREELLMAPI_LOG_FILE" 2>&1 </dev/null &
     echo $! > "$FREELLMAPI_PID_FILE"
   )
   for _ in 1 2 3 4 5 6 7 8 9 10; do
@@ -129,12 +150,15 @@ doctor() {
 
 case "${1:-status}" in
   start)
+    acquire_control_lock
     start
     ;;
   stop)
+    acquire_control_lock
     stop
     ;;
   restart)
+    acquire_control_lock
     stop
     start
     ;;
