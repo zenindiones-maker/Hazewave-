@@ -48,6 +48,7 @@ test -f "$RELEASE_DIR/scripts/install_hazewave_telegram_persistence.sh"
 test -f "$RELEASE_DIR/src/hazewave/freellmapi.py"
 test -f "$RELEASE_DIR/scripts/install_hazewave_freellmapi_termux.sh"
 test -f "$RELEASE_DIR/scripts/hazewave_freellmapi_control.sh"
+test -f "$RELEASE_DIR/scripts/install_hazewave_freellmapi_persistence.sh"
 
 NEXT_LINK="$HAZEWAVE_DEPLOY_ROOT/.current.$DESIRED_SHA"
 rm -f "$NEXT_LINK"
