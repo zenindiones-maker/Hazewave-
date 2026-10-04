@@ -136,6 +136,45 @@ def validate_project_isolation() -> None:
             raise ValueError(f"HAZEWAVE_RUNTIME_NAMESPACE_MISSING:{required}")
 
 
+def validate_telegram_runtime_contract() -> None:
+    required_files = (
+        "src/hazewave/telegram_gateway.py",
+        "scripts/configure_hazewave_telegram.sh",
+        "scripts/hazewave_telegram_control.sh",
+        "scripts/install_hazewave_telegram_persistence.sh",
+        "docs/architecture/decisions/ADR-0004-hazewave-telegram-runtime-isolation.md",
+        "docs/runbooks/TELEGRAM_RUNTIME_V1.md",
+    )
+    for relative in required_files:
+        if not (ROOT / relative).is_file():
+            raise FileNotFoundError(f"HAZEWAVE_TELEGRAM_RUNTIME_MISSING:{relative}")
+
+    combined = "\n".join(
+        (ROOT / relative).read_text(encoding="utf-8")
+        for relative in (
+            "scripts/configure_hazewave_telegram.sh",
+            "scripts/hazewave_telegram_control.sh",
+            "scripts/install_hazewave_telegram_persistence.sh",
+        )
+    )
+    for required in (
+        ".config/hazewave/telegram",
+        ".local/state/hazewave/telegram",
+        ".local/share/hazewave/deploy/current",
+        "HazewaveAgentBot",
+    ):
+        if required not in combined:
+            raise ValueError(f"HAZEWAVE_TELEGRAM_ISOLATION_MISSING:{required}")
+    if "Hazewave-dev" in combined:
+        raise ValueError("HAZEWAVE_TELEGRAM_DEPENDS_ON_DEVELOPMENT_CHECKOUT")
+    control = (ROOT / "scripts" / "hazewave_telegram_control.sh").read_text(
+        encoding="utf-8"
+    )
+    for forbidden in ("git merge", "git pull", "git checkout"):
+        if forbidden in control:
+            raise ValueError(f"HAZEWAVE_TELEGRAM_RUNTIME_MUTATES_GIT:{forbidden}")
+
+
 def validate_profile_migration() -> None:
     old = load_json("config/project-profile-v1.json")
     if old.get("status") != "SUPERSEDED":
@@ -150,6 +189,7 @@ def main() -> int:
     validate_registry()
     validate_agent_contract()
     validate_project_isolation()
+    validate_telegram_runtime_contract()
     validate_profile_migration()
     print(f"HAZEWAVE_JSON_SCHEMA_ENGINE=jsonschema/{version('jsonschema')}")
     print("HAZEWAVE_SCHEMA_PORTABLE_SUBSET=PASS")
@@ -157,6 +197,7 @@ def main() -> int:
     print("HAZEWAVE_DOCUMENTATION_REGISTRY=PASS")
     print("HAZEWAVE_AGENT_CONTRACT=PASS")
     print("HAZEWAVE_PROJECT_ISOLATION=PASS")
+    print("HAZEWAVE_TELEGRAM_RUNTIME_ISOLATION=PASS")
     print("HAZEWAVE_PROJECT_PROFILE_MIGRATION=PASS")
     print("HAZEWAVE_REPOSITORY_CONTRACTS=PASS")
     return 0
