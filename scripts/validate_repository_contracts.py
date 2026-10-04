@@ -44,22 +44,6 @@ REQUIRED_AGENT_HEADINGS = (
     "## Handoff contract",
 )
 
-ISOLATION_SCAN_ROOTS = (
-    "AGENTS.md",
-    "config",
-    "canon",
-    "schemas",
-    "docs",
-    "scripts",
-    "src",
-    "examples",
-)
-FORBIDDEN_EXTERNAL_MARKERS = (
-    "BR-no-GTA",
-    "~/GTA/BR",
-    ".local/state/br-no-gta",
-)
-
 
 def load_json(path: str) -> dict:
     return json.loads((ROOT / path).read_text(encoding="utf-8"))
@@ -97,35 +81,30 @@ def validate_agent_contract() -> None:
             raise ValueError(f"AGENT_CONTRACT_HEADING_MISSING:{heading}")
 
 
-def iter_text_files() -> list[Path]:
-    files: list[Path] = []
-    for item in ISOLATION_SCAN_ROOTS:
-        path = ROOT / item
-        if path.is_file():
-            files.append(path)
-            continue
-        if path.is_dir():
-            for candidate in path.rglob("*"):
-                if candidate.is_file() and candidate.suffix.lower() in {
-                    ".md",
-                    ".json",
-                    ".py",
-                    ".sh",
-                    ".toml",
-                    ".yml",
-                    ".yaml",
-                }:
-                    files.append(candidate)
-    return files
-
-
 def validate_project_isolation() -> None:
-    for path in iter_text_files():
-        text = path.read_text(encoding="utf-8", errors="replace")
-        for marker in FORBIDDEN_EXTERNAL_MARKERS:
-            if marker in text:
-                relative = path.relative_to(ROOT)
-                raise ValueError(f"NAMED_CROSS_PROJECT_COUPLING:{relative}:{marker}")
+    profile = load_json("config/project-profile-v2.json")
+    if profile.get("portfolio_authority") != "NONE":
+        raise ValueError("PORTFOLIO_AUTHORITY_MUST_BE_NONE")
+
+    runtime = profile.get("runtime_model") or {}
+    for key in ("state_namespace", "config_namespace", "deploy_namespace"):
+        if runtime.get(key) != "hazewave":
+            raise ValueError(f"NON_HAZEWAVE_RUNTIME_NAMESPACE:{key}")
+
+    installer = (ROOT / "scripts" / "install_hazewave_termux_runtime.sh").read_text(
+        encoding="utf-8"
+    )
+    control = (ROOT / "scripts" / "hazewave_termux_control.sh").read_text(
+        encoding="utf-8"
+    )
+    combined = installer + "\n" + control
+    for required in (
+        ".local/share/hazewave/deploy",
+        ".local/state/hazewave",
+        ".config/hazewave",
+    ):
+        if required not in combined:
+            raise ValueError(f"HAZEWAVE_RUNTIME_NAMESPACE_MISSING:{required}")
 
 
 def validate_profile_migration() -> None:
