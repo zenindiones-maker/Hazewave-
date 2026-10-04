@@ -15,7 +15,7 @@ FREELLMAPI_VERSION = "v0.13.4"
 FREELLMAPI_PINNED_REF = "716948f20b12ec1c9b7c6fcebd22a3e7233cda1b"
 DEFAULT_BASE_URL = "http://127.0.0.1:3001/v1"
 
-_ALLOWED_EGRESS_CLASSES = frozenset({"PUBLIC", "INTERNAL_NON_SECRET"})
+_ALLOWED_EGRESS_CLASSES = frozenset({"PUBLIC"})
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
@@ -246,7 +246,7 @@ def run_live_probe(
             authorization=authorization,
             task_id=task.task_id,
             capability_id=task.required_capability,
-            data_classification="INTERNAL_NON_SECRET",
+            data_classification="PUBLIC",
             model="auto",
             temperature=0.0,
             max_tokens=64,
@@ -261,7 +261,7 @@ def run_live_probe(
         "authorization_id": authorization.authorization_id,
         "capability_id": task.required_capability,
         "domain": decision.selected_domain,
-        "data_classification": "INTERNAL_NON_SECRET",
+        "data_classification": "PUBLIC",
         "provider_gateway": result.provider_gateway,
         "routed_via": result.routed_via,
         "served_model": result.served_model,

@@ -62,15 +62,17 @@ Hazewave Harness remains:
 
 Initial integration is **text-only provider egress**.
 
-Allowed classes:
+Allowed classes in the initial gateway policy:
 
-- `PUBLIC`;
-- `INTERNAL_NON_SECRET`.
+- `PUBLIC`.
 
-Fail closed:
+Fail closed before provider egress:
 
+- `INTERNAL_NON_SECRET`;
 - `PRIVATE_MEDIA`;
 - `CREDENTIAL`.
+
+The public-only boundary is intentional. The first empirically proven keyless route was Kilo, and the upstream FreeLLMAPI provider documentation states that Kilo's anonymous free route logs prompts/outputs for training. Hazewave therefore does not treat generic FreeLLMAPI `auto` routing as an approved destination for internal project context. Any future widening beyond `PUBLIC` requires an explicit provider/model eligibility policy whose data-handling terms are reviewed before egress.
 
 This deliberately does not activate FreeLLMAPI image, audio or video routing for Hazewave. Those surfaces require a separate provider-by-provider privacy, rights and data-handling review before private or rights-bearing media can leave the project boundary.
 
