@@ -113,6 +113,41 @@ No Termux:
 bash scripts/hazewave_termux_control.sh doctor
 ```
 
+## FreeLLMAPI — provider gateway opcional
+
+Hazewave integra FreeLLMAPI como **gateway subordinado de inferência**, não como autoridade do projeto.
+
+Baseline aceito:
+
+- upstream: `tashfeenahmed/freellmapi`;
+- release: `v0.13.4`;
+- commit exato: `716948f20b12ec1c9b7c6fcebd22a3e7233cda1b`;
+- endpoint local: `http://127.0.0.1:3001/v1`.
+
+A integração inicial é somente para texto `PUBLIC` ou `INTERNAL_NON_SECRET`. `PRIVATE_MEDIA` e `CREDENTIAL` falham fechado antes de qualquer egress para providers externos.
+
+O runtime fica fora do source tree em namespaces próprios do Hazewave:
+
+`~/.local/share/hazewave/providers/freellmapi/`
+
+`~/.local/state/hazewave/providers/freellmapi/`
+
+`~/.config/hazewave/providers/freellmapi/`
+
+Instalação e operação:
+
+```bash
+bash scripts/install_hazewave_freellmapi_termux.sh
+bash scripts/hazewave_freellmapi_control.sh start
+bash scripts/hazewave_freellmapi_control.sh doctor
+```
+
+FreeLLMAPI permanece `authority=NONE`; Hazewave Harness continua sendo a autoridade project-local. O upstream também declara explicitamente que os free tiers são para experimentação/aprendizado, não um substrate de produção estável.
+
+Arquitetura: `docs/architecture/decisions/ADR-0005-freellmapi-provider-gateway.md`
+
+Runbook: `docs/runbooks/FREELLMAPI_PROVIDER_V1.md`
+
 ## ACE-Step 1.5 — geração instrumental
 
 O Hazewave integra o **ACE-Step 1.5** como engine local para prompt → instrumental, prompt + áudio de referência, e cover/remix de áudio existente.
