@@ -140,6 +140,12 @@ def _read_required(path: Path, label: str) -> str:
     return value
 
 
+def _load_pairing_code(paths: GatewayPaths) -> str:
+    if not paths.pairing_code_file.exists():
+        return ""
+    return paths.pairing_code_file.read_text(encoding="utf-8").strip()
+
+
 def _load_allowed_user(paths: GatewayPaths) -> int | None:
     if not paths.allowed_user_file.exists():
         return None
@@ -246,11 +252,6 @@ def serve() -> int:
         raise RuntimeError("HAZEWAVE_TELEGRAM_WEBHOOK_CONFLICT")
 
     runtime_sha = _runtime_sha()
-    pairing_code = (
-        paths.pairing_code_file.read_text(encoding="utf-8").strip()
-        if paths.pairing_code_file.exists()
-        else ""
-    )
 
     offset = 0
     if paths.offset_file.exists():
@@ -297,6 +298,7 @@ def serve() -> int:
                 continue
             sender_user_id, chat_id, text, _username = parsed
             configured_user_id = _load_allowed_user(paths)
+            pairing_code = _load_pairing_code(paths)
             decision = pairing_decision(
                 configured_user_id=configured_user_id,
                 pairing_code=pairing_code,
@@ -319,7 +321,6 @@ def serve() -> int:
                 _write_private(paths.allowed_user_file, str(decision.pair_user_id) + "\n")
                 if paths.pairing_code_file.exists():
                     paths.pairing_code_file.unlink()
-                pairing_code = ""
                 api.call(
                     "sendMessage",
                     {
