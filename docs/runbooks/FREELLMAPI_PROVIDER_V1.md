@@ -114,7 +114,7 @@ Initial outbound data policy:
 
 ```text
 PUBLIC              ALLOW
-INTERNAL_NON_SECRET ALLOW
+INTERNAL_NON_SECRET DENY
 PRIVATE_MEDIA       DENY
 CREDENTIAL          DENY
 ```
@@ -170,7 +170,9 @@ HAZEWAVE_FREELLMAPI_LIVE_PROBE=PASS
 
 The JSON receipt contains the Hazewave task and authorization binding, selected HAZE capability, data classification, FreeLLMAPI route/model evidence, response-content digest and token usage. It does not contain the unified API key or raw upstream provider keys.
 
-The proof prompt is synthetic text and is classified `INTERNAL_NON_SECRET`; it does not upload private audio/media.
+The proof prompt is synthetic, non-user text and is classified `PUBLIC`; it does not upload internal project context, private audio/media, or credentials.
+
+The first observed keyless route in the A15 proof was Kilo. FreeLLMAPI's upstream provider documentation states that Kilo's anonymous free route logs prompts/outputs for training. For that reason Hazewave keeps generic FreeLLMAPI routing public-only until a provider/model eligibility policy has been reviewed and enforced.
 
 ## Persistence
 
