@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 import json
+from importlib.metadata import version
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
+
+PORTABLE_UNSUPPORTED_SCHEMA_KEYWORDS = {
+    "$dynamicRef",
+    "$recursiveRef",
+    "$vocabulary",
+}
 
 SCHEMA_INSTANCE_PAIRS = (
     ("schemas/project-profile-v2.schema.json", "config/project-profile-v2.json"),
@@ -47,6 +54,28 @@ REQUIRED_AGENT_HEADINGS = (
 
 def load_json(path: str) -> dict:
     return json.loads((ROOT / path).read_text(encoding="utf-8"))
+
+
+def _walk_schema_keywords(value: object) -> set[str]:
+    found: set[str] = set()
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key in PORTABLE_UNSUPPORTED_SCHEMA_KEYWORDS:
+                found.add(key)
+            found.update(_walk_schema_keywords(child))
+    elif isinstance(value, list):
+        for child in value:
+            found.update(_walk_schema_keywords(child))
+    return found
+
+
+def validate_portable_schema_subset() -> None:
+    for schema_path, _ in SCHEMA_INSTANCE_PAIRS:
+        schema = load_json(schema_path)
+        unsupported = _walk_schema_keywords(schema)
+        if unsupported:
+            values = ",".join(sorted(unsupported))
+            raise ValueError(f"TERMUX_SCHEMA_FEATURE_REQUIRES_REVIEW:{schema_path}:{values}")
 
 
 def validate_schema_instances() -> None:
@@ -116,11 +145,14 @@ def validate_profile_migration() -> None:
 
 
 def main() -> int:
+    validate_portable_schema_subset()
     validate_schema_instances()
     validate_registry()
     validate_agent_contract()
     validate_project_isolation()
     validate_profile_migration()
+    print(f"HAZEWAVE_JSON_SCHEMA_ENGINE=jsonschema/{version('jsonschema')}")
+    print("HAZEWAVE_SCHEMA_PORTABLE_SUBSET=PASS")
     print("HAZEWAVE_SCHEMA_VALIDATION=PASS")
     print("HAZEWAVE_DOCUMENTATION_REGISTRY=PASS")
     print("HAZEWAVE_AGENT_CONTRACT=PASS")
