@@ -207,8 +207,9 @@ def validate_freellmapi_provider_contract() -> None:
         "HOST=127.0.0.1",
         "FREELLMAPI_UPDATE_CHECK=off",
         "HAZEWAVE_HARNESS",
+        "_ALLOWED_EGRESS_CLASSES",
+        "INTERNAL_NON_SECRET",
         "PRIVATE_MEDIA",
-        "CREDENTIAL",
     )
     for value in required:
         if value not in combined:
