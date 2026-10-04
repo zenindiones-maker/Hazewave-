@@ -39,7 +39,8 @@ fi
 
 test "$(git -C "$RELEASE_DIR" rev-parse HEAD)" = "$DESIRED_SHA"
 test -f "$RELEASE_DIR/config/project-profile-v2.json"
-test -f "$RELEASE_DIR/src/hazewave/harness.py"\ntest -f "$RELEASE_DIR/docs/DOCUMENTATION_REGISTRY_V2.json"
+test -f "$RELEASE_DIR/src/hazewave/harness.py"
+test -f "$RELEASE_DIR/docs/DOCUMENTATION_REGISTRY_V2.json"
 
 NEXT_LINK="$HAZEWAVE_DEPLOY_ROOT/.current.$DESIRED_SHA"
 rm -f "$NEXT_LINK"
