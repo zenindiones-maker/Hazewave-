@@ -192,3 +192,87 @@ def test_freellmapi_persistence_is_singleton_boot_managed_and_pid_bound() -> Non
     assert "supervisor.lock" in persistence
     assert "termux-wake-lock" in persistence
     assert "bash \"$CONTROL\" restart" in persistence
+
+
+def test_models_available_only_queries_router_readiness() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/models"
+        assert request.url.params.get("available") == "true"
+        return httpx.Response(
+            200,
+            json={
+                "data": [
+                    {"id": "auto", "object": "model", "available": True},
+                    {"id": "provider/model", "object": "model", "available": True},
+                ]
+            },
+        )
+
+    with _client(handler) as client:
+        models = client.models(available_only=True)
+
+    assert [row["id"] for row in models] == ["auto", "provider/model"]
+
+
+def test_live_probe_fails_before_chat_when_router_has_no_available_models(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from hazewave.freellmapi import run_live_probe
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            self.chat_called = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def models(self, *, available_only: bool = False):
+            assert available_only is True
+            return []
+
+        def chat(self, **kwargs):
+            self.chat_called = True
+            raise AssertionError("chat must not run without an available route")
+
+    fake = FakeClient()
+    monkeypatch.setattr("hazewave.freellmapi.FreeLLMAPIClient", lambda *a, **k: fake)
+
+    with pytest.raises(FreeLLMAPIError, match="FREELLMAPI_NO_AVAILABLE_MODELS"):
+        run_live_probe(
+            api_key="freellmapi-secret-value",
+            task_id="hazewave-provider-proof-no-route",
+        )
+
+    assert fake.chat_called is False
+
+
+def test_http_status_error_exposes_safe_status_and_provider_code_without_secret() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            503,
+            json={
+                "error": {
+                    "message": "No usable provider key configured",
+                    "type": "provider_error",
+                    "code": "no_providers_configured",
+                }
+            },
+        )
+
+    with _client(handler, api_key="freellmapi-secret-value") as client:
+        with pytest.raises(FreeLLMAPIError) as exc:
+            client.chat(
+                messages=[{"role": "user", "content": "synthetic text"}],
+                authorization=_authorization(),
+                task_id="t-provider-1",
+                capability_id="audio.analyze",
+                data_classification="INTERNAL_NON_SECRET",
+            )
+
+    message = str(exc.value)
+    assert "HTTP_503" in message
+    assert "no_providers_configured" in message
+    assert "freellmapi-secret-value" not in message
