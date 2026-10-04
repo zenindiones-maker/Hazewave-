@@ -124,7 +124,12 @@
       "docs/reference/",
       "docs/runbooks/",
       "scripts/",
-      "src/hazewave/telegram_gateway.py"
+      "src/hazewave/telegram_gateway.py",
+      "src/hazewave/freellmapi.py",
+      "scripts/install_hazewave_freellmapi_termux.sh",
+      "scripts/hazewave_freellmapi_control.sh",
+      "docs/architecture/decisions/ADR-0005-freellmapi-provider-gateway.md",
+      "docs/runbooks/FREELLMAPI_PROVIDER_V1.md"
     ],
     "accepted_unmaterialized_ttl_days": 7
   },

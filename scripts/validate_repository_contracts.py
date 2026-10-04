@@ -175,6 +175,49 @@ def validate_telegram_runtime_contract() -> None:
             raise ValueError(f"HAZEWAVE_TELEGRAM_RUNTIME_MUTATES_GIT:{forbidden}")
 
 
+
+def validate_freellmapi_provider_contract() -> None:
+    required_files = (
+        "src/hazewave/freellmapi.py",
+        "scripts/install_hazewave_freellmapi_termux.sh",
+        "scripts/hazewave_freellmapi_control.sh",
+        "docs/architecture/decisions/ADR-0005-freellmapi-provider-gateway.md",
+        "docs/runbooks/FREELLMAPI_PROVIDER_V1.md",
+    )
+    for relative in required_files:
+        if not (ROOT / relative).is_file():
+            raise FileNotFoundError(f"HAZEWAVE_FREELLMAPI_MISSING:{relative}")
+
+    provider = (ROOT / "src" / "hazewave" / "freellmapi.py").read_text(
+        encoding="utf-8"
+    )
+    installer = (
+        ROOT / "scripts" / "install_hazewave_freellmapi_termux.sh"
+    ).read_text(encoding="utf-8")
+    control = (
+        ROOT / "scripts" / "hazewave_freellmapi_control.sh"
+    ).read_text(encoding="utf-8")
+    combined = provider + "\n" + installer + "\n" + control
+
+    required = (
+        "716948f20b12ec1c9b7c6fcebd22a3e7233cda1b",
+        ".local/share/hazewave/providers/freellmapi",
+        ".local/state/hazewave/providers/freellmapi",
+        ".config/hazewave/providers/freellmapi",
+        "HOST=127.0.0.1",
+        "FREELLMAPI_UPDATE_CHECK=off",
+        "HAZEWAVE_HARNESS",
+        "_ALLOWED_EGRESS_CLASSES",
+        "INTERNAL_NON_SECRET",
+        "PRIVATE_MEDIA",
+    )
+    for value in required:
+        if value not in combined:
+            raise ValueError(f"HAZEWAVE_FREELLMAPI_CONTRACT_MISSING:{value}")
+    if "BR-no-GTA" in combined:
+        raise ValueError("HAZEWAVE_FREELLMAPI_CROSS_PROJECT_REFERENCE")
+
+
 def validate_profile_migration() -> None:
     old = load_json("config/project-profile-v1.json")
     if old.get("status") != "SUPERSEDED":
@@ -190,6 +233,7 @@ def main() -> int:
     validate_agent_contract()
     validate_project_isolation()
     validate_telegram_runtime_contract()
+    validate_freellmapi_provider_contract()
     validate_profile_migration()
     print(f"HAZEWAVE_JSON_SCHEMA_ENGINE=jsonschema/{version('jsonschema')}")
     print("HAZEWAVE_SCHEMA_PORTABLE_SUBSET=PASS")
@@ -198,6 +242,7 @@ def main() -> int:
     print("HAZEWAVE_AGENT_CONTRACT=PASS")
     print("HAZEWAVE_PROJECT_ISOLATION=PASS")
     print("HAZEWAVE_TELEGRAM_RUNTIME_ISOLATION=PASS")
+    print("HAZEWAVE_FREELLMAPI_PROVIDER_CONTRACT=PASS")
     print("HAZEWAVE_PROJECT_PROFILE_MIGRATION=PASS")
     print("HAZEWAVE_REPOSITORY_CONTRACTS=PASS")
     return 0

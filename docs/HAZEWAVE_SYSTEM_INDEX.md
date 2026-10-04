@@ -32,6 +32,7 @@ Creative canon defines identity and creative invariants. It does not grant execu
 - [ADR-0002 — Hazewave Harness](./architecture/decisions/ADR-0002-hazewave-harness.md)
 - [ADR-0003 — Immutable Termux Runtime](./architecture/decisions/ADR-0003-immutable-termux-runtime.md)
 - [ADR-0004 — Hazewave Telegram Runtime Isolation](./architecture/decisions/ADR-0004-hazewave-telegram-runtime-isolation.md)
+- [ADR-0005 — FreeLLMAPI Provider Gateway](./architecture/decisions/ADR-0005-freellmapi-provider-gateway.md)
 
 ## Machine-readable contracts
 
@@ -50,6 +51,7 @@ Creative canon defines identity and creative invariants. It does not grant execu
 
 - [Termux Runtime Runbook v1](./runbooks/TERMUX_RUNTIME_V1.md)
 - [Hazewave Telegram Runtime Runbook v1](./runbooks/TELEGRAM_RUNTIME_V1.md)
+- [FreeLLMAPI Provider Runtime v1](./runbooks/FREELLMAPI_PROVIDER_V1.md)
 
 ## WAVE
 
