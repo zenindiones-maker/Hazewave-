@@ -190,7 +190,7 @@ def test_freellmapi_persistence_is_singleton_boot_managed_and_pid_bound() -> Non
     ).read_text(encoding="utf-8")
 
     assert "server/dist/index.js" in control
-    assert "npm run start -w server" not in control
+    assert "nohup npm run start -w server" not in control
     assert "pid_is_freellmapi" in control
     assert "CONTROL_LOCK_DIR" in control
     assert ".termux/boot" in persistence
