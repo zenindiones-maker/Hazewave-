@@ -187,7 +187,7 @@ stop() {
 }
 
 status() {
-  local release sha recorded
+  local release sha recorded healthy=0
   release="$(current_release)"
   sha="$(git -C "$release" rev-parse HEAD)"
   recorded="$(cat "$FREELLMAPI_STATE_ROOT/active-sha" 2>/dev/null || true)"
@@ -196,6 +196,7 @@ status() {
   if managed_pid_alive && probe; then
     echo "HAZEWAVE_FREELLMAPI=ONLINE"
     echo "HAZEWAVE_FREELLMAPI_PROCESS_IDENTITY=MANAGED_DIRECT_NODE"
+    healthy=1
   elif probe >/dev/null 2>&1 && [ -n "$(owned_runtime_pids || true)" ]; then
     echo "HAZEWAVE_FREELLMAPI=LEGACY_RUNTIME_ONLINE"
     echo "HAZEWAVE_FREELLMAPI_PROCESS_IDENTITY=LEGACY_NPM_WRAPPER_OR_CHILD"
@@ -211,6 +212,7 @@ status() {
   else
     echo "HAZEWAVE_FREELLMAPI_UNIFIED_KEY=NOT_CONFIGURED"
   fi
+  test "$healthy" -eq 1
 }
 
 doctor() {
