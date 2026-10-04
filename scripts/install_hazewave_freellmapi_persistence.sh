@@ -98,7 +98,7 @@ fi
 rm -f "$SUPERVISOR_PID"
 rmdir "$LOCK_DIR" 2>/dev/null || true
 
-bash "$CONTROL" start
+bash "$CONTROL" restart
 nohup bash "$SUPERVISOR" >>"$SUPERVISOR_LOG" 2>&1 </dev/null &
 sleep 1
 
