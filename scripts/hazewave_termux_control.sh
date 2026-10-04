@@ -18,8 +18,8 @@ doctor() {
   local release sha recorded
   release="$(current_release)"
   test -d "$release"
-  test -f "$release/config/project-profile-v1.json"
-  test -f "$release/src/hazewave/harness.py"
+  test -f "$release/config/project-profile-v2.json"
+  test -f "$release/src/hazewave/harness.py"\n  test -f "$release/docs/DOCUMENTATION_REGISTRY_V2.json"
 
   sha="$(git -C "$release" rev-parse HEAD)"
   recorded="$(cat "$HAZEWAVE_STATE_ROOT/active-sha" 2>/dev/null || true)"
