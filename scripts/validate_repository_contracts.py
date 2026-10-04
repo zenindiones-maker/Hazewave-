@@ -215,8 +215,8 @@ def validate_freellmapi_provider_contract() -> None:
         "hazewave-freellmapi.sh",
         "HAZEWAVE_HARNESS",
         "_ALLOWED_EGRESS_CLASSES",
-        "INTERNAL_NON_SECRET",
-        "PRIVATE_MEDIA",
+        "PUBLIC",
+        "DATA_CLASS_NOT_ALLOWED_FOR_FREELLMAPI",
     )
     for value in required:
         if value not in combined:
