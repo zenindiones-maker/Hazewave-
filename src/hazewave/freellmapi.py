@@ -119,10 +119,11 @@ class FreeLLMAPIClient:
             return False
         return response.status_code == 200
 
-    def models(self) -> list[dict[str, Any]]:
+    def models(self, *, available_only: bool = False) -> list[dict[str, Any]]:
         if not self.api_key:
             raise FreeLLMAPIError("FREELLMAPI_UNIFIED_API_KEY_REQUIRED")
-        response = self._client.get("models")
+        params = {"available": "true"} if available_only else None
+        response = self._client.get("models", params=params)
         response.raise_for_status()
         payload = response.json()
         data = payload.get("data") if isinstance(payload, dict) else None
@@ -171,6 +172,19 @@ class FreeLLMAPIClient:
             response = self._client.post("chat/completions", json=payload)
             response.raise_for_status()
             raw = response.json()
+        except httpx.HTTPStatusError as exc:
+            code = "unknown"
+            try:
+                body = exc.response.json()
+                if isinstance(body, dict):
+                    error = body.get("error")
+                    if isinstance(error, dict) and error.get("code"):
+                        code = str(error["code"])
+            except ValueError:
+                pass
+            raise FreeLLMAPIError(
+                f"FREELLMAPI_REQUEST_FAILED:HTTP_{exc.response.status_code}:{code}"
+            ) from exc
         except (httpx.HTTPError, ValueError) as exc:
             raise FreeLLMAPIError(f"FREELLMAPI_REQUEST_FAILED:{type(exc).__name__}") from exc
 
@@ -216,6 +230,9 @@ def run_live_probe(
     authorization = issue_authorization(decision)
 
     with FreeLLMAPIClient(base_url, api_key=api_key) as client:
+        available = client.models(available_only=True)
+        if not available:
+            raise FreeLLMAPIError("FREELLMAPI_NO_AVAILABLE_MODELS")
         result = client.chat(
             messages=[
                 {
