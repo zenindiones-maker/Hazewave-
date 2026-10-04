@@ -212,6 +212,35 @@
         "termux"
       ],
       "description": "Operational procedure for configuring, pairing, starting and validating the dedicated Hazewave Telegram runtime."
+    },
+    {
+      "id": "adr-0005-freellmapi-provider-gateway",
+      "path": "docs/architecture/decisions/ADR-0005-freellmapi-provider-gateway.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "providers",
+        "runtime",
+        "harness",
+        "termux"
+      ],
+      "description": "Records FreeLLMAPI as a pinned, loopback-only subordinate provider gateway with no Hazewave authority and strict data-egress boundaries."
+    },
+    {
+      "id": "freellmapi-provider-runbook-v1",
+      "path": "docs/runbooks/FREELLMAPI_PROVIDER_V1.md",
+      "type": "RUNBOOK",
+      "authority": "OPERATIONAL",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "providers",
+        "runtime",
+        "termux"
+      ],
+      "description": "Operational procedure for installing, configuring, starting and validating the Hazewave-scoped FreeLLMAPI provider runtime."
     }
   ]
 }
