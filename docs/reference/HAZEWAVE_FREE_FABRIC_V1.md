@@ -51,8 +51,8 @@ Governed provider execution does not use unrestricted FreeLLMAPI `auto`.
 Hazewave discovers routable models, applies its own provider/cost/data policy, then submits an explicit provider-qualified model id such as:
 
 ```text
-github:gpt-free
 kilo:dots-studio/dots-3-note-preview:free
+openrouter:nvidia/nemotron-3-ultra-550b-a55b:free
 ```
 
 The provider reported in `X-Routed-Via` is checked against the selected provider. A provider mismatch fails the request.
@@ -168,6 +168,8 @@ hazewave freellmapi eligible
 hazewave freellmapi eligible --data-classification PUBLIC
 hazewave freellmapi health
 hazewave freellmapi quota
+hazewave freellmapi attest status
+hazewave freellmapi attest write --help
 hazewave freellmapi probe
 hazewave freellmapi probe-all
 ```
@@ -181,6 +183,41 @@ hazewave freellmapi probe-all
 `probe-all` deliberately performs only that one live text request and reports eligibility for the other surfaces without spending their finite free quotas.
 
 `quota` uses read-only MCP usage observability and therefore requires the FreeLLMAPI MCP server to be enabled locally.
+
+## Account-bound provider admission
+
+Providers whose Free plan depends on account billing state are not treated as
+unconditionally zero-cost.
+
+For Groq, OpenRouter and Cloudflare, Hazewave requires a local
+`HazewaveProviderAccountAttestationStore/v1` record bound to every
+FreeLLMAPI `api_keys.id` that a route can use.
+
+The attestation proves, by explicit operator confirmation, that the exact
+credential belongs to a Free-tier account and that paid billing is not enabled.
+It contains no provider secret.
+
+A route fails closed when:
+
+- no matching attestation exists;
+- only some routable keys are attested;
+- the attestation is expired;
+- the account is not Free;
+- paid billing is enabled;
+- billing overflow is not `HARD_STOP`.
+
+Human-written attestations are limited to 31 days and therefore require monthly
+revalidation.
+
+The account-attestation schema is:
+
+`schemas/freellmapi-account-attestations-v1.schema.json`
+
+The local store defaults to:
+
+`~/.config/hazewave/providers/freellmapi/account-attestations.json`
+
+and is owner-only (`0600`).
 
 ## Receipts
 
