@@ -742,3 +742,164 @@ def test_adapter_429_updates_aimd_state_and_releases_lease(tmp_path: Path) -> No
     assert state["concurrency"]["cooldown_kind"] == "RATE_LIMITED"
     assert state["concurrency"]["active_leases"] == {}
     adapter.close()
+
+
+def test_experiment_can_toggle_thinking_without_changing_profile() -> None:
+    common = dict(
+        model_id=MODEL,
+        messages=[{"role": "user", "content": "classify"}],
+        execution_profile=FAST_STRUCTURED,
+        capability_id="reason.general",
+        sampling_policy="DETERMINISTIC_STRUCTURED",
+        seed=42,
+        max_tokens=1024,
+        compatibility={
+            "temperature_supported": True,
+            "top_p_supported": True,
+            "seed_supported": True,
+            "reasoning_budget_supported": True,
+            "max_output_tokens": 32768,
+        },
+    )
+    off = normalize_nvidia_request(
+        **common,
+        enable_thinking_override=False,
+        reasoning_budget=512,
+    )
+    on = normalize_nvidia_request(
+        **common,
+        enable_thinking_override=True,
+        reasoning_budget=512,
+    )
+    assert off["chat_template_kwargs"]["enable_thinking"] is False
+    assert "reasoning_budget" not in off
+    assert on["chat_template_kwargs"]["enable_thinking"] is True
+    assert on["reasoning_budget"] == 512
+    assert off["seed"] == on["seed"] == 42
+    assert off["max_tokens"] == on["max_tokens"] == 1024
+
+
+def test_transport_pass_without_semantic_validator_does_not_grow_aimd(
+    tmp_path: Path,
+) -> None:
+    secret = tmp_path / "nvidia.env"
+    secret.write_text("NVIDIA_API_KEY=nvapi-unit-test\n", encoding="utf-8")
+    secret.chmod(0o600)
+    state_path = tmp_path / "optimization.json"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"finish_reason": "stop", "message": {"content": "ok"}}],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+            },
+        )
+
+    adapter = NvidiaNIMAdapter(
+        secret_path=secret,
+        receipt=_v2_admission_receipt(),
+        transport=httpx.MockTransport(handler),
+        optimization_state_path=state_path,
+    )
+    for index in range(4):
+        adapter.execute(
+            authorization=_optimization_authorization(),
+            model_id=MODEL,
+            execution_profile=FAST_STRUCTURED,
+            messages=[{"role": "user", "content": "classify"}],
+            now=f"2026-10-05T16:00:0{index}+00:00",
+        )
+    assert load_nvidia_optimization_state(state_path)["concurrency"]["limit"] == 1
+
+    for index in range(4, 8):
+        adapter.execute(
+            authorization=_optimization_authorization(),
+            model_id=MODEL,
+            execution_profile=FAST_STRUCTURED,
+            messages=[{"role": "user", "content": "classify"}],
+            semantic_validator=lambda content, tool_calls: content == "ok",
+            now=f"2026-10-05T16:00:0{index}+00:00",
+        )
+    assert load_nvidia_optimization_state(state_path)["concurrency"]["limit"] == 2
+    adapter.close()
+
+
+def test_external_evaluator_can_judge_pending_semantic_result() -> None:
+    pending = HazewaveProviderExecutionResult(
+        provider="nvidia",
+        model_id=MODEL,
+        execution_profile=FAST_STRUCTURED,
+        capability_id="reason.general",
+        status="PASS",
+        content='{"ok":true}',
+        finish_reason="stop",
+        prompt_tokens=1,
+        completion_tokens=1,
+        reasoning_tokens=None,
+        total_tokens=2,
+        latency_ms=10,
+        tool_calls=(),
+        error_class=None,
+        http_status=200,
+        retry_after_seconds=None,
+        cost_class="FREE_DEVELOPMENT_ENDPOINT",
+        semantic_pass=None,
+    )
+    item = {
+        "evaluation": {
+            "kind": "JSON_SUBSET",
+            "expected": {"ok": True},
+        }
+    }
+    evaluation = evaluate_probe_item(item, pending)
+    assert evaluation.semantic_pass is True
+    assert evaluation.quality_score == 1.0
+
+
+def test_explicit_semantic_failure_is_not_re_evaluated_as_pass() -> None:
+    failed = HazewaveProviderExecutionResult(
+        provider="nvidia",
+        model_id=MODEL,
+        execution_profile=FAST_STRUCTURED,
+        capability_id="reason.general",
+        status="FAIL",
+        content='{"ok":true}',
+        finish_reason="stop",
+        prompt_tokens=1,
+        completion_tokens=1,
+        reasoning_tokens=None,
+        total_tokens=2,
+        latency_ms=10,
+        tool_calls=(),
+        error_class="SEMANTIC_CONTRACT_FAILURE",
+        http_status=200,
+        retry_after_seconds=None,
+        cost_class="FREE_DEVELOPMENT_ENDPOINT",
+        semantic_pass=False,
+    )
+    item = {
+        "evaluation": {
+            "kind": "JSON_SUBSET",
+            "expected": {"ok": True},
+        }
+    }
+    assert evaluate_probe_item(item, failed).semantic_pass is False
+
+
+from hazewave.nvidia_optimization import (
+    DEFAULT_NVIDIA_OPTIMIZATION_STATE_PATH,
+    DEFAULT_NVIDIA_PROOF_CAPACITY_STATE_PATH,
+    DEFAULT_NVIDIA_BENCHMARK_CAPACITY_STATE_PATH,
+    DEFAULT_NVIDIA_PROOF_LEARNING_PATH,
+    DEFAULT_NVIDIA_BENCHMARK_LEARNING_PATH,
+)
+
+
+def test_evaluation_states_are_isolated_from_production_learning() -> None:
+    assert DEFAULT_NVIDIA_PROOF_CAPACITY_STATE_PATH != DEFAULT_NVIDIA_OPTIMIZATION_STATE_PATH
+    assert DEFAULT_NVIDIA_BENCHMARK_CAPACITY_STATE_PATH != DEFAULT_NVIDIA_OPTIMIZATION_STATE_PATH
+    assert DEFAULT_NVIDIA_PROOF_CAPACITY_STATE_PATH != DEFAULT_NVIDIA_BENCHMARK_CAPACITY_STATE_PATH
+    assert DEFAULT_NVIDIA_PROOF_LEARNING_PATH != DEFAULT_NVIDIA_BENCHMARK_LEARNING_PATH
+    assert "evaluation" in str(DEFAULT_NVIDIA_PROOF_CAPACITY_STATE_PATH)
+    assert "evaluation" in str(DEFAULT_NVIDIA_BENCHMARK_CAPACITY_STATE_PATH)
