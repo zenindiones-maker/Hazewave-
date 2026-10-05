@@ -218,7 +218,7 @@
       "path": "docs/architecture/decisions/ADR-0005-freellmapi-provider-gateway.md",
       "type": "ARCHITECTURE_DECISION",
       "authority": "NORMATIVE",
-      "status": "ACTIVE",
+      "status": "SUPERSEDED",
       "owner": "HAZEWAVE",
       "applies_to": [
         "providers",
@@ -226,7 +226,7 @@
         "harness",
         "termux"
       ],
-      "description": "Records FreeLLMAPI as a pinned, loopback-only subordinate provider gateway with no Hazewave authority and strict data-egress boundaries."
+      "description": "Historical baseline for the pinned, loopback-only FreeLLMAPI gateway; provider eligibility and governed routing are superseded by ADR-0006."
     },
     {
       "id": "freellmapi-provider-runbook-v1",
