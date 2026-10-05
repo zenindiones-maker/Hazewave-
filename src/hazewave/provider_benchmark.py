@@ -53,21 +53,38 @@ def _route_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     )
     fallback_count = sum(max(0, int(row.get("fallback_count") or 0)) for row in rows)
 
+    semantic_success_rate = len(successes) / max(1, total)
+    quality_score = sum(quality_values) / max(1, len(quality_values))
+    p50_latency_ms = _median(latencies)
+    tokens_per_successful_task = successful_tokens / max(1, len(successes))
+    fallback_rate = fallback_count / max(1, total)
+    useful_work_score = (
+        semantic_success_rate
+        * quality_score
+        / (
+            1.0
+            + tokens_per_successful_task / 1000.0
+            + p50_latency_ms / 5000.0
+            + fallback_rate * 2.0
+        )
+    )
+
     first = rows[0]
     return {
         "provider": first.get("provider"),
         "model_id": first.get("model_id"),
         "execution_profile": first.get("profile"),
         "sample_count": total,
-        "semantic_success_rate": len(successes) / max(1, total),
-        "quality_score": sum(quality_values) / max(1, len(quality_values)),
-        "p50_latency_ms": _median(latencies),
+        "semantic_success_rate": semantic_success_rate,
+        "quality_score": quality_score,
+        "p50_latency_ms": p50_latency_ms,
         "p95_latency_ms": _nearest_rank(latencies, 0.95),
-        "tokens_per_successful_task": successful_tokens / max(1, len(successes)),
+        "tokens_per_successful_task": tokens_per_successful_task,
         "reasoning_tokens_per_success": successful_reasoning / max(1, len(successes)),
-        "fallback_rate": fallback_count / max(1, total),
+        "fallback_rate": fallback_rate,
         "empty_rate": empties / max(1, total),
         "rate_limit_rate": rate_limits / max(1, total),
+        "useful_work_score": useful_work_score,
     }
 
 
@@ -98,6 +115,7 @@ def summarize_cross_provider_rows(
             key=lambda metric: (
                 -float(metric["semantic_success_rate"]),
                 -float(metric["quality_score"]),
+                -float(metric["useful_work_score"]),
                 float(metric["tokens_per_successful_task"]),
                 float(metric["p50_latency_ms"]),
                 str(metric["provider"]),
@@ -108,8 +126,51 @@ def summarize_cross_provider_rows(
             "routes": route_metrics,
             "ranking": ranking,
         }
+    family_grouped: dict[
+        str,
+        dict[str, dict[tuple[str, str, str], list[dict[str, Any]]]],
+    ] = {}
+    for row in rows:
+        capability = str(row.get("capability") or "")
+        task_family = str(row.get("task_family") or "generic")
+        key = (
+            str(row.get("provider") or ""),
+            str(row.get("model_id") or ""),
+            str(row.get("profile") or ""),
+        )
+        family_grouped.setdefault(capability, {}).setdefault(
+            task_family, {}
+        ).setdefault(key, []).append(row)
+
+    task_families: dict[str, Any] = {}
+    for capability, families in sorted(family_grouped.items()):
+        capability_families: dict[str, Any] = {}
+        for family, route_groups in sorted(families.items()):
+            route_metrics = [
+                _route_metrics(route_rows)
+                for _, route_rows in sorted(route_groups.items())
+            ]
+            ranking = sorted(
+                route_metrics,
+                key=lambda metric: (
+                    -float(metric["semantic_success_rate"]),
+                    -float(metric["quality_score"]),
+                    -float(metric["useful_work_score"]),
+                    float(metric["tokens_per_successful_task"]),
+                    float(metric["p50_latency_ms"]),
+                    str(metric["provider"]),
+                    str(metric["model_id"]),
+                ),
+            )
+            capability_families[family] = {
+                "routes": route_metrics,
+                "ranking": ranking,
+            }
+        task_families[capability] = capability_families
+
     return {
-        "schema": "HazewaveCrossProviderBenchmarkSummary/v1",
+        "schema": "HazewaveCrossProviderBenchmarkSummary/v2",
         "authority": "HAZEWAVE_HARNESS",
         "capabilities": capabilities,
+        "task_families": task_families,
     }
