@@ -23,6 +23,10 @@ SCHEMA_INSTANCE_PAIRS = (
         "schemas/hazewave-asset-manifest-v1.schema.json",
         "examples/contracts/hazewave-asset-manifest-v1.example.json",
     ),
+    (
+        "schemas/freellmapi-provider-eligibility-v1.schema.json",
+        "config/freellmapi-provider-eligibility-v1.json",
+    ),
 )
 
 ALLOWED_DOCUMENT_TYPES = {
@@ -183,6 +187,9 @@ def validate_freellmapi_provider_contract() -> None:
         "scripts/hazewave_freellmapi_control.sh",
         "scripts/install_hazewave_freellmapi_persistence.sh",
         "docs/architecture/decisions/ADR-0005-freellmapi-provider-gateway.md",
+        "docs/architecture/decisions/ADR-0006-governed-zero-cost-provider-fabric.md",
+        "schemas/freellmapi-provider-eligibility-v1.schema.json",
+        "config/freellmapi-provider-eligibility-v1.json",
         "docs/runbooks/FREELLMAPI_PROVIDER_V1.md",
     )
     for relative in required_files:
@@ -223,6 +230,22 @@ def validate_freellmapi_provider_contract() -> None:
             raise ValueError(f"HAZEWAVE_FREELLMAPI_CONTRACT_MISSING:{value}")
     if "BR-no-GTA" in combined:
         raise ValueError("HAZEWAVE_FREELLMAPI_CROSS_PROJECT_REFERENCE")
+
+    eligibility = load_json("config/freellmapi-provider-eligibility-v1.json")
+    if eligibility.get("authority") != "HAZEWAVE_HARNESS":
+        raise ValueError("HAZEWAVE_FREE_FABRIC_AUTHORITY_INVALID")
+    if eligibility.get("paid_fallback") != "FORBIDDEN":
+        raise ValueError("HAZEWAVE_FREE_FABRIC_PAID_FALLBACK_MUST_BE_FORBIDDEN")
+    if eligibility.get("unknown_cost") != "DENY":
+        raise ValueError("HAZEWAVE_FREE_FABRIC_UNKNOWN_COST_MUST_DENY")
+    default_policy = eligibility.get("default_policy") or {}
+    if default_policy.get("trust_lane") != "QUARANTINED" or default_policy.get("enabled") is not False:
+        raise ValueError("HAZEWAVE_FREE_FABRIC_DEFAULT_MUST_BE_QUARANTINED")
+    for entry in eligibility.get("providers") or []:
+        if "CREDENTIAL" in (entry.get("allowed_data_classes") or []):
+            raise ValueError(f"HAZEWAVE_FREE_FABRIC_CREDENTIAL_EGRESS_ALLOWED:{entry.get('provider')}")
+        if entry.get("monetary_policy") != "ZERO_COST_VERIFIED" and entry.get("enabled") is True:
+            raise ValueError(f"HAZEWAVE_FREE_FABRIC_NONZERO_ROUTE_ENABLED:{entry.get('provider')}")
 
 
 def validate_profile_migration() -> None:
