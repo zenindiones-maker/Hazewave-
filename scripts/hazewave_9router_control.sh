@@ -85,12 +85,21 @@ start_runtime() {
   fi
 
   rm -f "$PID_FILE"
-  bin="$(launcher_bin)"
+  entry="$(server_entry)"
+  runtime_node_path="$RUNTIME_HOME/.9router/runtime/node_modules"
 
   if command -v setsid >/dev/null 2>&1; then
-    HOME="$RUNTIME_HOME" nohup setsid "$bin"       --host "$HOST"       --port "$PORT"       --no-browser       --skip-update       --log       >>"$LOG_FILE" 2>&1 </dev/null &
+    HOME="$RUNTIME_HOME" \
+    PORT="$PORT" \
+    HOSTNAME="$HOST" \
+    NODE_PATH="$runtime_node_path" \
+    nohup setsid node "$entry" >>"$LOG_FILE" 2>&1 </dev/null &
   else
-    HOME="$RUNTIME_HOME" nohup "$bin"       --host "$HOST"       --port "$PORT"       --no-browser       --skip-update       --log       >>"$LOG_FILE" 2>&1 </dev/null &
+    HOME="$RUNTIME_HOME" \
+    PORT="$PORT" \
+    HOSTNAME="$HOST" \
+    NODE_PATH="$runtime_node_path" \
+    nohup node "$entry" >>"$LOG_FILE" 2>&1 </dev/null &
   fi
   pid=$!
   printf '%s\n' "$pid" > "$PID_FILE"
