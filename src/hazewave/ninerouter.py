@@ -241,6 +241,54 @@ def evaluate_9router_admission(
             return _deny("NINEROUTER_MODEL_PROOF_MISSING", model_id=model)
         if proof.get("status") != "semantic_pass":
             return _deny("NINEROUTER_SEMANTIC_PASS_MISSING", model_id=model)
+
+        sample_count: int | None = None
+        semantic_success_count: int | None = None
+        benchmark_samples = proof.get("benchmark_samples")
+        if isinstance(benchmark_samples, list) and benchmark_samples:
+            sample_count = len(benchmark_samples)
+            semantic_success_count = sum(
+                1
+                for row in benchmark_samples
+                if isinstance(row, dict)
+                and row.get("status") == "semantic_pass"
+            )
+
+        metrics = proof.get("metrics")
+        if isinstance(metrics, dict):
+            metric_samples = metrics.get("sample_count")
+            metric_successes = metrics.get("semantic_success_count")
+            if isinstance(metric_samples, int) and metric_samples >= 0:
+                if sample_count is not None and metric_samples != sample_count:
+                    return _deny(
+                        "NINEROUTER_SEMANTIC_MAJORITY_PROOF_INCONSISTENT",
+                        model_id=model,
+                    )
+                sample_count = metric_samples
+            if isinstance(metric_successes, int) and metric_successes >= 0:
+                if (
+                    semantic_success_count is not None
+                    and metric_successes != semantic_success_count
+                ):
+                    return _deny(
+                        "NINEROUTER_SEMANTIC_MAJORITY_PROOF_INCONSISTENT",
+                        model_id=model,
+                    )
+                semantic_success_count = metric_successes
+
+        if (
+            sample_count is not None
+            and sample_count >= 3
+            and (
+                semantic_success_count is None
+                or semantic_success_count < 2
+            )
+        ):
+            return _deny(
+                "NINEROUTER_SEMANTIC_MAJORITY_PROOF_MISSING",
+                model_id=model,
+            )
+
         if not str(proof.get("response_sha256") or "").strip():
             return _deny("NINEROUTER_PROBE_RESPONSE_PROOF_MISSING", model_id=model)
     else:
