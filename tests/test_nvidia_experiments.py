@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from hazewave.nvidia_experiments import (
+    build_model_access_canary_request,
     compare_parameter_ab,
     select_minimum_reasoning_budget,
     select_sustainable_concurrency,
@@ -65,3 +66,17 @@ def test_concurrency_selector_requires_concurrency_one_baseline() -> None:
         select_sustainable_concurrency([
             {"concurrency": 2, "semantic_success_rate": 1.0, "p95_latency_ms": 1000, "429_rate": 0.0, "fallback_rate": 0.0}
         ])
+
+
+def test_model_access_canary_uses_only_minimal_model_agnostic_parameters() -> None:
+    body = build_model_access_canary_request(
+        "nvidia/nemotron-3-super-120b-a12b"
+    )
+    assert body["model"] == "nvidia/nemotron-3-super-120b-a12b"
+    assert body["stream"] is False
+    assert body["max_tokens"] == 64
+    assert body["temperature"] == 0.0
+    assert "chat_template_kwargs" not in body
+    assert "reasoning_budget" not in body
+    assert "tools" not in body
+    assert "response_format" not in body
