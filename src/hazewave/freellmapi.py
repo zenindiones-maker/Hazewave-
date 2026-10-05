@@ -311,6 +311,34 @@ class FreeLLMAPILocalCatalog:
         ).fetchone()
         return row is not None
 
+    def provider_keys(self) -> list[dict[str, Any]]:
+        """Return secret-free metadata for locally stored provider credentials."""
+
+        try:
+            with self._connect() as db:
+                rows = db.execute(
+                    """
+                    SELECT id, platform, label, enabled, status
+                    FROM api_keys
+                    ORDER BY id
+                    """
+                ).fetchall()
+        except sqlite3.Error as exc:
+            raise FreeLLMAPIError(
+                f"FREELLMAPI_LOCAL_CATALOG_SCHEMA_INVALID:{type(exc).__name__}"
+            ) from exc
+
+        return [
+            {
+                "credential_id": int(row["id"]),
+                "provider": str(row["platform"]),
+                "label": str(row["label"] or ""),
+                "enabled": bool(row["enabled"]),
+                "status": str(row["status"] or "unknown"),
+            }
+            for row in rows
+        ]
+
     def routing_key_ids(
         self,
         provider: str,
