@@ -225,3 +225,17 @@ def test_optimizer_script_benchmarks_entire_free_catalog() -> None:
     assert "combos_allowed: false" in script
     assert "for (let index = 0; index < candidates.length; index += 1)" in script
     assert "optimize)" in control
+
+
+def test_deep_reasoning_prefers_observed_reasoning_before_token_score() -> None:
+    receipt = _v2_receipt()
+    receipt["model_proofs"]["oc/nemotron-3.5-lightning-free"]["reasoning_observed"] = True
+
+    ranked = rank_9router_models(
+        authorization=_authorization("reason.deep"),
+        receipt=receipt,
+        data_classification="PUBLIC",
+        now="2026-10-05T12:30:00+00:00",
+    )
+
+    assert ranked[0] == "oc/nemotron-3.5-lightning-free"
