@@ -131,7 +131,7 @@ def test_9router_free_probe_separates_connectivity_from_execution_admission() ->
     assert "MAX_PROBE_ATTEMPTS = 3" in probe
     assert "max_tokens: 128" in probe
     assert "reasoning_content" in probe
-    assert 'finish_reason === "length"' in probe
+    assert 'finishReason === "length"' in probe
     assert "HAZEWAVE_9ROUTER_FREE_CONNECTIVITY=PASS" in probe
     assert "HAZEWAVE_9ROUTER_FREE_ATTEMPT=" in probe
     assert "execution_admitted_models" in probe
