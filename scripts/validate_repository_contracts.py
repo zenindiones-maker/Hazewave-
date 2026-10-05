@@ -153,46 +153,6 @@ def validate_telegram_runtime_contract() -> None:
         if not (ROOT / relative).is_file():
             raise FileNotFoundError(f"HAZEWAVE_TELEGRAM_RUNTIME_MISSING:{relative}")
 
-    efficiency = load_json("config/9router-efficiency-policy-v1.json")
-    if efficiency.get("schema") != "Hazewave9RouterEfficiencyPolicy/v1":
-        raise ValueError("HAZEWAVE_9ROUTER_EFFICIENCY_SCHEMA_INVALID")
-    if efficiency.get("authority") != "HAZEWAVE_HARNESS":
-        raise ValueError("HAZEWAVE_9ROUTER_EFFICIENCY_AUTHORITY_INVALID")
-    if efficiency.get("gateway_authority") != "NONE":
-        raise ValueError("HAZEWAVE_9ROUTER_EFFICIENCY_GATEWAY_AUTHORITY_INVALID")
-
-    security = efficiency.get("security") or {}
-    if security.get("minimum_fixed_version") != "0.5.8":
-        raise ValueError("HAZEWAVE_9ROUTER_SECURITY_FLOOR_INVALID")
-    if security.get("bind") != "127.0.0.1:20128":
-        raise ValueError("HAZEWAVE_9ROUTER_EFFICIENCY_BIND_INVALID")
-
-    zero_cost = efficiency.get("zero_cost") or {}
-    routing = efficiency.get("routing") or {}
-    token_efficiency = efficiency.get("token_efficiency") or {}
-    optimizer = efficiency.get("optimizer") or {}
-
-    if zero_cost.get("paid_fallback") != "FORBIDDEN":
-        raise ValueError("HAZEWAVE_9ROUTER_EFFICIENCY_PAID_FALLBACK_INVALID")
-    if zero_cost.get("unknown_cost") != "DENY" or routing.get("unknown_cost") != "DENY":
-        raise ValueError("HAZEWAVE_9ROUTER_EFFICIENCY_UNKNOWN_COST_INVALID")
-    if routing.get("combos") != "FORBIDDEN":
-        raise ValueError("HAZEWAVE_9ROUTER_COMBOS_MUST_BE_FORBIDDEN")
-    if routing.get("capacity_adapters") != "FORBIDDEN":
-        raise ValueError("HAZEWAVE_9ROUTER_CAPACITY_ADAPTERS_MUST_BE_FORBIDDEN")
-    if routing.get("paid_tiers") != "FORBIDDEN" or routing.get("cheap_tiers") != "FORBIDDEN":
-        raise ValueError("HAZEWAVE_9ROUTER_NONFREE_TIERS_MUST_BE_FORBIDDEN")
-    if token_efficiency.get("rtk") != "FORCE_ON_DURING_GOVERNED_EXECUTION":
-        raise ValueError("HAZEWAVE_9ROUTER_RTK_POLICY_INVALID")
-    if token_efficiency.get("headroom") != "OFF_UNTIL_MANAGED_LOCAL_PROOF":
-        raise ValueError("HAZEWAVE_9ROUTER_HEADROOM_POLICY_INVALID")
-    if token_efficiency.get("stream") is not False:
-        raise ValueError("HAZEWAVE_9ROUTER_STREAM_POLICY_INVALID")
-    if optimizer.get("benchmark_max_models") != 16:
-        raise ValueError("HAZEWAVE_9ROUTER_BENCHMARK_BOUND_INVALID")
-    if optimizer.get("execution_max_fallbacks") != 3:
-        raise ValueError("HAZEWAVE_9ROUTER_FALLBACK_BOUND_INVALID")
-
     combined = "\n".join(
         (ROOT / relative).read_text(encoding="utf-8")
         for relative in (
@@ -332,6 +292,53 @@ def validate_9router_sidecar_contract() -> None:
         raise ValueError("HAZEWAVE_9ROUTER_UNKNOWN_COST_MUST_DENY")
     if manifest.get("execution_policy") != "DISCOVERY_ONLY_UNTIL_ROUTE_ADMISSION":
         raise ValueError("HAZEWAVE_9ROUTER_EXECUTION_POLICY_INVALID")
+
+    efficiency = load_json("config/9router-efficiency-policy-v1.json")
+    if efficiency.get("schema") != "Hazewave9RouterEfficiencyPolicy/v1":
+        raise ValueError("HAZEWAVE_9ROUTER_EFFICIENCY_SCHEMA_INVALID")
+    if efficiency.get("authority") != "HAZEWAVE_HARNESS":
+        raise ValueError("HAZEWAVE_9ROUTER_EFFICIENCY_AUTHORITY_INVALID")
+    if efficiency.get("gateway_authority") != "NONE":
+        raise ValueError("HAZEWAVE_9ROUTER_EFFICIENCY_GATEWAY_AUTHORITY_INVALID")
+
+    security = efficiency.get("security") or {}
+    if security.get("minimum_fixed_version") != "0.5.8":
+        raise ValueError("HAZEWAVE_9ROUTER_SECURITY_FLOOR_INVALID")
+    if security.get("bind") != "127.0.0.1:20128":
+        raise ValueError("HAZEWAVE_9ROUTER_EFFICIENCY_BIND_INVALID")
+
+    zero_cost = efficiency.get("zero_cost") or {}
+    routing = efficiency.get("routing") or {}
+    token_efficiency = efficiency.get("token_efficiency") or {}
+    optimizer = efficiency.get("optimizer") or {}
+
+    if zero_cost.get("paid_fallback") != "FORBIDDEN":
+        raise ValueError("HAZEWAVE_9ROUTER_EFFICIENCY_PAID_FALLBACK_INVALID")
+    if zero_cost.get("unknown_cost") != "DENY" or routing.get("unknown_cost") != "DENY":
+        raise ValueError("HAZEWAVE_9ROUTER_EFFICIENCY_UNKNOWN_COST_INVALID")
+    if routing.get("combos") != "FORBIDDEN":
+        raise ValueError("HAZEWAVE_9ROUTER_COMBOS_MUST_BE_FORBIDDEN")
+    if routing.get("capacity_adapters") != "FORBIDDEN":
+        raise ValueError("HAZEWAVE_9ROUTER_CAPACITY_ADAPTERS_MUST_BE_FORBIDDEN")
+    if routing.get("paid_tiers") != "FORBIDDEN" or routing.get("cheap_tiers") != "FORBIDDEN":
+        raise ValueError("HAZEWAVE_9ROUTER_NONFREE_TIERS_MUST_BE_FORBIDDEN")
+    if token_efficiency.get("rtk") != "FORCE_ON_DURING_GOVERNED_EXECUTION":
+        raise ValueError("HAZEWAVE_9ROUTER_RTK_POLICY_INVALID")
+    if token_efficiency.get("headroom") != "OFF_UNTIL_MANAGED_LOCAL_PROOF":
+        raise ValueError("HAZEWAVE_9ROUTER_HEADROOM_POLICY_INVALID")
+    if token_efficiency.get("stream") is not False:
+        raise ValueError("HAZEWAVE_9ROUTER_STREAM_POLICY_INVALID")
+    if optimizer.get("benchmark_max_models") != 16:
+        raise ValueError("HAZEWAVE_9ROUTER_BENCHMARK_BOUND_INVALID")
+    if optimizer.get("execution_max_fallbacks") != 3:
+        raise ValueError("HAZEWAVE_9ROUTER_FALLBACK_BOUND_INVALID")
+    cooldown = optimizer.get("transient_cooldown") or {}
+    if (
+        cooldown.get("base_seconds") != 60
+        or cooldown.get("max_seconds") != 900
+        or cooldown.get("strategy") != "EXPONENTIAL"
+    ):
+        raise ValueError("HAZEWAVE_9ROUTER_COOLDOWN_POLICY_INVALID")
 
     combined = "\n".join(
         (ROOT / relative).read_text(encoding="utf-8")
