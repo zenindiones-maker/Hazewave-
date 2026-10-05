@@ -208,7 +208,7 @@ def test_optimizer_script_benchmarks_entire_free_catalog() -> None:
     )
 
     assert "catalog|probe|optimize" in script
-    assert 'schema: "Hazewave9RouterFreeAdmissionReceipt/v2"' in script
+    assert '"Hazewave9RouterFreeAdmissionReceipt/v2"' in script
     assert "model_proofs" in script
     assert "latency_ms" in script
     assert "total_tokens" in script
