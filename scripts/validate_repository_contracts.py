@@ -332,6 +332,21 @@ def validate_9router_sidecar_contract() -> None:
         raise ValueError("HAZEWAVE_9ROUTER_BENCHMARK_BOUND_INVALID")
     if optimizer.get("execution_max_fallbacks") != 3:
         raise ValueError("HAZEWAVE_9ROUTER_FALLBACK_BOUND_INVALID")
+    if optimizer.get("benchmark_sample_count") != 3:
+        raise ValueError("HAZEWAVE_9ROUTER_BENCHMARK_SAMPLE_COUNT_INVALID")
+    if optimizer.get("general_and_code_selection") != "BALANCED_TOKEN_LATENCY_PRODUCT":
+        raise ValueError("HAZEWAVE_9ROUTER_BALANCED_SELECTION_INVALID")
+    if (
+        optimizer.get("deep_reasoning_selection")
+        != "REASONING_EVIDENCE_THEN_BALANCED_TOKEN_LATENCY_PRODUCT"
+    ):
+        raise ValueError("HAZEWAVE_9ROUTER_DEEP_SELECTION_INVALID")
+    live_adaptation = optimizer.get("live_adaptation") or {}
+    if (
+        live_adaptation.get("source") != "ROUTE_HEALTH_EWMA"
+        or live_adaptation.get("alpha") != 0.35
+    ):
+        raise ValueError("HAZEWAVE_9ROUTER_LIVE_ADAPTATION_INVALID")
     cooldown = optimizer.get("transient_cooldown") or {}
     if (
         cooldown.get("base_seconds") != 60
