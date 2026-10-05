@@ -33,16 +33,74 @@ server_entry() {
   fi
 }
 
+discover_owned_server_pids() {
+  python - "$ROOT" <<'PY'
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1]).expanduser().resolve()
+release_prefix = str(root / "releases") + "/"
+matches = []
+
+for proc in Path("/proc").iterdir():
+    if not proc.name.isdigit():
+        continue
+    try:
+        raw = (proc / "cmdline").read_bytes()
+    except (OSError, PermissionError):
+        continue
+    args = [
+        item.decode("utf-8", errors="replace")
+        for item in raw.split(b"\0")
+        if item
+    ]
+    for arg in args:
+        if not arg.startswith(release_prefix):
+            continue
+        if arg.endswith("/node_modules/9router/app/custom-server.js") or arg.endswith(
+            "/node_modules/9router/app/server.js"
+        ):
+            matches.append(int(proc.name))
+            break
+
+for pid in sorted(set(matches)):
+    print(pid)
+PY
+}
+
+reconcile_owned_pid() {
+  local current_pid="" discovered count
+  local -a pids=()
+
+  if test -s "$PID_FILE"; then
+    current_pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+  fi
+
+  while IFS= read -r discovered; do
+    [[ "$discovered" =~ ^[0-9]+$ ]] && pids+=("$discovered")
+  done < <(discover_owned_server_pids)
+
+  count="${#pids[@]}"
+  if [ "$count" -eq 0 ]; then
+    return 1
+  fi
+  if [ "$count" -ne 1 ]; then
+    echo "HAZEWAVE_9ROUTER=FAIL ambiguous_owned_server_processes" >&2
+    return 1
+  fi
+
+  discovered="${pids[0]}"
+  kill -0 "$discovered" 2>/dev/null || return 1
+
+  if [ "$current_pid" != "$discovered" ]; then
+    printf '%s\n' "$discovered" > "$PID_FILE"
+    echo "HAZEWAVE_9ROUTER_PID_RECONCILED=$discovered"
+  fi
+  return 0
+}
+
 owned_server_alive() {
-  test -s "$PID_FILE" || return 1
-  local pid release cmdline
-  pid="$(cat "$PID_FILE" 2>/dev/null || true)"
-  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
-  kill -0 "$pid" 2>/dev/null || return 1
-  release="$(current_release)"
-  test -r "/proc/$pid/cmdline" || return 1
-  cmdline="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)"
-  [[ "$cmdline" == *"$release/node_modules/9router/app/custom-server.js"* || "$cmdline" == *"$release/node_modules/9router/app/server.js"* ]]
+  reconcile_owned_pid
 }
 
 probe() {
@@ -88,19 +146,11 @@ start_runtime() {
   entry="$(server_entry)"
   runtime_node_path="$RUNTIME_HOME/.9router/runtime/node_modules"
 
-  if command -v setsid >/dev/null 2>&1; then
-    HOME="$RUNTIME_HOME" \
-    PORT="$PORT" \
-    HOSTNAME="$HOST" \
-    NODE_PATH="$runtime_node_path" \
-    nohup setsid node "$entry" >>"$LOG_FILE" 2>&1 </dev/null &
-  else
-    HOME="$RUNTIME_HOME" \
-    PORT="$PORT" \
-    HOSTNAME="$HOST" \
-    NODE_PATH="$runtime_node_path" \
-    nohup node "$entry" >>"$LOG_FILE" 2>&1 </dev/null &
-  fi
+  HOME="$RUNTIME_HOME" \
+  PORT="$PORT" \
+  HOSTNAME="$HOST" \
+  NODE_PATH="$runtime_node_path" \
+  nohup node "$entry" >>"$LOG_FILE" 2>&1 </dev/null &
   pid=$!
   printf '%s\n' "$pid" > "$PID_FILE"
 
