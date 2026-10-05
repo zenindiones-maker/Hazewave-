@@ -17,9 +17,16 @@ from hazewave.freellmapi import (
     DEFAULT_BASE_URL,
     FreeLLMAPIClient,
     FreeLLMAPIError,
+    FreeLLMAPILocalCatalog,
     build_free_fabric_eligibility_report,
     build_free_fabric_inventory,
     run_live_probe,
+)
+from hazewave.provider_policy import (
+    DEFAULT_ACCOUNT_ATTESTATION_PATH,
+    load_account_attestations,
+    load_provider_registry,
+    write_account_attestation,
 )
 from hazewave.separation import DEFAULT_MODEL, SeparationError, separate_track
 
@@ -123,6 +130,57 @@ def build_parser() -> argparse.ArgumentParser:
     probe_all.add_argument(
         "--task-id",
         default="hazewave-freellmapi-bounded-surface-proof",
+    )
+
+    attest = free_commands.add_parser(
+        "attest",
+        help="Inspect or create account-bound zero-cost attestations.",
+    )
+    attest_commands = attest.add_subparsers(dest="attest_command", required=True)
+
+    attest_status = attest_commands.add_parser(
+        "status",
+        help="Show secret-free provider key and attestation status.",
+    )
+    attest_status.add_argument(
+        "--file",
+        default=str(DEFAULT_ACCOUNT_ATTESTATION_PATH),
+        help="Local attestation store. Default: project-scoped config path.",
+    )
+
+    attest_write = attest_commands.add_parser(
+        "write",
+        help=(
+            "Persist a human-verified Free-tier attestation for one FreeLLMAPI "
+            "provider key id."
+        ),
+    )
+    attest_write.add_argument("--provider", required=True)
+    attest_write.add_argument("--credential-id", type=int, required=True)
+    attest_write.add_argument("--expires-at", required=True)
+    attest_write.add_argument(
+        "--source-evidence",
+        action="append",
+        required=True,
+        help="Evidence URL or reference; repeat for multiple sources.",
+    )
+    attest_write.add_argument(
+        "--confirm-free-tier",
+        action="store_true",
+        help="Confirm that this exact provider account/key is on the Free tier.",
+    )
+    attest_write.add_argument(
+        "--confirm-no-paid-billing",
+        action="store_true",
+        help=(
+            "Confirm that this exact account/key cannot overflow into paid "
+            "billing without an explicit account upgrade."
+        ),
+    )
+    attest_write.add_argument(
+        "--file",
+        default=str(DEFAULT_ACCOUNT_ATTESTATION_PATH),
+        help="Local attestation store. Default: project-scoped config path.",
     )
 
     ace = subcommands.add_parser(
@@ -295,6 +353,98 @@ def main() -> int:
             print(f"output={result.output_path}")
             return 0
 
+        if args.command == "freellmapi" and args.freellmapi_command == "attest":
+            store_path = Path(args.file).expanduser()
+            if args.attest_command == "status":
+                store = load_account_attestations(store_path)
+                registry = load_provider_registry()
+                account_bound = {
+                    str(row.get("provider") or "").casefold()
+                    for row in (registry.get("providers") or [])
+                    if row.get("enabled") is True
+                    and row.get("monetary_policy")
+                    == "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP"
+                    and row.get("billing_overflow_policy")
+                    == "ACCOUNT_ATTESTATION_REQUIRED"
+                }
+                attestations = {
+                    (
+                        str(row.get("provider") or "").casefold(),
+                        int(row.get("credential_id") or 0),
+                    ): dict(row)
+                    for row in (store.get("attestations") or [])
+                    if isinstance(row, dict)
+                }
+                keys = [
+                    row
+                    for row in FreeLLMAPILocalCatalog().provider_keys()
+                    if str(row.get("provider") or "").casefold() in account_bound
+                ]
+                status_rows = []
+                for key in keys:
+                    identity = (
+                        str(key["provider"]).casefold(),
+                        int(key["credential_id"]),
+                    )
+                    attestation = attestations.get(identity)
+                    status_rows.append(
+                        {
+                            **key,
+                            "attested": attestation is not None,
+                            "attestation_id": (
+                                attestation.get("attestation_id")
+                                if attestation is not None
+                                else None
+                            ),
+                            "expires_at": (
+                                attestation.get("expires_at")
+                                if attestation is not None
+                                else None
+                            ),
+                        }
+                    )
+                print(
+                    json.dumps(
+                        {
+                            "schema": "HazewaveProviderAccountAttestationStatus/v1",
+                            "project_id": "HAZEWAVE",
+                            "authority": "HAZEWAVE_HARNESS",
+                            "store": str(store_path),
+                            "keys": status_rows,
+                        },
+                        sort_keys=True,
+                        ensure_ascii=False,
+                    )
+                )
+                return 0
+
+            if args.attest_command == "write":
+                if not args.confirm_free_tier or not args.confirm_no_paid_billing:
+                    raise FreeLLMAPIError(
+                        "FREELLMAPI_ACCOUNT_ATTESTATION_CONFIRMATIONS_REQUIRED"
+                    )
+                provider = str(args.provider).strip().casefold()
+                credential_id = int(args.credential_id)
+                keys = FreeLLMAPILocalCatalog().provider_keys()
+                if not any(
+                    str(row.get("provider") or "").casefold() == provider
+                    and int(row.get("credential_id") or 0) == credential_id
+                    for row in keys
+                ):
+                    raise FreeLLMAPIError(
+                        "FREELLMAPI_ACCOUNT_ATTESTATION_KEY_NOT_FOUND"
+                    )
+                record = write_account_attestation(
+                    provider=provider,
+                    credential_id=credential_id,
+                    expires_at=args.expires_at,
+                    source_evidence=list(args.source_evidence),
+                    path=store_path,
+                )
+                print("HAZEWAVE_FREELLMAPI_ACCOUNT_ATTESTATION=WRITTEN")
+                print(json.dumps(record, sort_keys=True, ensure_ascii=False))
+                return 0
+
         if args.command == "freellmapi" and args.freellmapi_command == "inventory":
             print(
                 json.dumps(
@@ -380,7 +530,7 @@ def main() -> int:
             print(json.dumps(receipt, sort_keys=True, ensure_ascii=False))
             return 0
 
-    except (SeparationError, AceStepError, FreeLLMAPIError) as exc:
+    except (SeparationError, AceStepError, FreeLLMAPIError, ValueError) as exc:
         print(f"error={exc}")
         return 2
 
