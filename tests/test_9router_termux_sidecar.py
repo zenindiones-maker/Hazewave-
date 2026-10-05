@@ -129,7 +129,7 @@ def test_9router_free_probe_separates_connectivity_from_execution_admission() ->
     probe = (ROOT / "scripts" / "hazewave_9router_free_probe.sh").read_text(encoding="utf-8")
 
     assert "MAX_PROBE_ATTEMPTS = 3" in probe
-    assert "max_tokens: 128" in probe
+    assert 'max_tokens: mode === "optimize" ? 256 : 128' in probe
     assert "reasoning_content" in probe
     assert 'finishReason === "length"' in probe
     assert "HAZEWAVE_9ROUTER_FREE_CONNECTIVITY=PASS" in probe
