@@ -202,7 +202,8 @@ def build_parser() -> argparse.ArgumentParser:
     ninerouter_execute.add_argument("--prompt", required=True)
     ninerouter_execute.add_argument(
         "--model",
-        default="oc/mimo-v2.6-flash-free",
+        default="auto",
+        help="Exact admitted model or auto for optimized receipt-ranked selection.",
     )
     ninerouter_execute.add_argument(
         "--capability",
@@ -227,6 +228,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--max-tokens",
         type=int,
         default=1024,
+    )
+    ninerouter_execute.add_argument(
+        "--max-fallbacks",
+        type=int,
+        default=3,
+        help="Maximum admitted Free models attempted by auto selection.",
     )
 
     ace = subcommands.add_parser(
@@ -362,6 +369,7 @@ def main() -> int:
                 prompt=args.prompt,
                 data_classification=args.data_classification,
                 max_tokens=args.max_tokens,
+                max_fallbacks=args.max_fallbacks,
             )
             print("HAZEWAVE_9ROUTER_EXECUTION=PASS")
             print(json.dumps(asdict(result), sort_keys=True, ensure_ascii=False))
