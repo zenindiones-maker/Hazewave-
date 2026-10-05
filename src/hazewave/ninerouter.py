@@ -426,6 +426,7 @@ class NineRouterExecutionResult:
     selection_mode: str = "exact"
     rtk_enabled: bool = True
     stream: bool = False
+    tool_calls: tuple[dict[str, Any], ...] = ()
 
 
 def _derive_cli_token(data_dir: Path | str = DEFAULT_9ROUTER_DATA_DIR) -> str:
@@ -486,11 +487,86 @@ def _settings_request(
     return body
 
 
-def execute_9router_text(
+def _validate_public_text_messages(
+    messages: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if not isinstance(messages, list) or not messages:
+        raise ValueError("NINEROUTER_MESSAGES_REQUIRED")
+
+    allowed_roles = {"system", "user", "assistant", "tool"}
+    normalized: list[dict[str, Any]] = []
+    for index, raw in enumerate(messages):
+        if not isinstance(raw, dict):
+            raise ValueError(f"NINEROUTER_MESSAGES_INVALID_ITEM:{index}")
+        role = str(raw.get("role") or "").strip()
+        if role not in allowed_roles:
+            raise ValueError(f"NINEROUTER_MESSAGES_INVALID_ROLE:{index}")
+
+        message = dict(raw)
+        content = message.get("content", "")
+        if isinstance(content, str):
+            pass
+        elif isinstance(content, list):
+            for part in content:
+                if (
+                    not isinstance(part, dict)
+                    or part.get("type") not in {"text", "input_text"}
+                    or not isinstance(part.get("text"), str)
+                ):
+                    raise ValueError(
+                        f"NINEROUTER_MESSAGES_NON_TEXT_CONTENT:{index}"
+                    )
+        else:
+            raise ValueError(f"NINEROUTER_MESSAGES_NON_TEXT_CONTENT:{index}")
+
+        if role == "tool":
+            if not str(message.get("tool_call_id") or "").strip():
+                raise ValueError(
+                    f"NINEROUTER_MESSAGES_TOOL_CALL_ID_REQUIRED:{index}"
+                )
+            if not isinstance(content, str):
+                raise ValueError(
+                    f"NINEROUTER_MESSAGES_TOOL_CONTENT_MUST_BE_TEXT:{index}"
+                )
+
+        tool_calls = message.get("tool_calls")
+        if tool_calls is not None:
+            if role != "assistant" or not isinstance(tool_calls, list):
+                raise ValueError(
+                    f"NINEROUTER_MESSAGES_TOOL_CALLS_INVALID:{index}"
+                )
+            for call in tool_calls:
+                if not isinstance(call, dict):
+                    raise ValueError(
+                        f"NINEROUTER_MESSAGES_TOOL_CALLS_INVALID:{index}"
+                    )
+
+        normalized.append(message)
+    return normalized
+
+
+def _validate_tools(
+    tools: list[dict[str, Any]] | None,
+) -> list[dict[str, Any]] | None:
+    if tools is None:
+        return None
+    if not isinstance(tools, list) or not tools:
+        raise ValueError("NINEROUTER_TOOLS_INVALID")
+    if len(tools) > 128:
+        raise ValueError("NINEROUTER_TOOLS_TOO_MANY")
+    for item in tools:
+        if not isinstance(item, dict):
+            raise ValueError("NINEROUTER_TOOLS_INVALID")
+    return [dict(item) for item in tools]
+
+
+def execute_9router_messages(
     *,
     authorization: HazewaveAuthorization,
     model_id: str,
-    prompt: str,
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]] | None = None,
+    tool_choice: str | dict[str, Any] | None = None,
     receipt: dict[str, Any] | None = None,
     receipt_path: Path | str = DEFAULT_ADMISSION_RECEIPT_PATH,
     data_classification: str = "PUBLIC",
@@ -503,14 +579,14 @@ def execute_9router_text(
     transport: httpx.BaseTransport | None = None,
     max_fallbacks: int = 3,
 ) -> NineRouterExecutionResult:
-    text = str(prompt or "").strip()
-    if not text:
-        raise ValueError("NINEROUTER_PROMPT_REQUIRED")
+    normalized_messages = _validate_public_text_messages(messages)
+    normalized_tools = _validate_tools(tools)
     if max_tokens < 1 or max_tokens > 4096:
         raise ValueError("NINEROUTER_MAX_TOKENS_OUT_OF_RANGE")
-
     if max_fallbacks < 1 or max_fallbacks > 8:
         raise ValueError("NINEROUTER_MAX_FALLBACKS_OUT_OF_RANGE")
+    if tool_choice is not None and not isinstance(tool_choice, (str, dict)):
+        raise ValueError("NINEROUTER_TOOL_CHOICE_INVALID")
 
     if receipt is None:
         receipt = load_9router_admission_receipt(receipt_path)
@@ -525,7 +601,9 @@ def execute_9router_text(
             now=now,
         )[:max_fallbacks]
         if not candidates:
-            raise NineRouterExecutionError("NINEROUTER_NO_ADMITTED_FREE_MODELS")
+            raise NineRouterExecutionError(
+                "NINEROUTER_NO_ADMITTED_FREE_MODELS"
+            )
     else:
         decision = evaluate_9router_admission(
             authorization=authorization,
@@ -597,19 +675,28 @@ def execute_9router_text(
                 result: NineRouterExecutionResult | None = None
                 last_error: NineRouterExecutionError | None = None
                 attempted_models: list[str] = []
+
                 for candidate_model in candidates:
                     attempted_models.append(candidate_model)
+                    request_body: dict[str, Any] = {
+                        "model": candidate_model,
+                        "messages": normalized_messages,
+                        "max_tokens": max_tokens,
+                        "stream": False,
+                    }
+                    if normalized_tools is not None:
+                        request_body["tools"] = normalized_tools
+                    if tool_choice is not None:
+                        request_body["tool_choice"] = tool_choice
+
                     response = client.post(
                         "/v1/chat/completions",
-                        json={
-                            "model": candidate_model,
-                            "messages": [{"role": "user", "content": text}],
-                            "max_tokens": max_tokens,
-                            "stream": False,
-                        },
+                        json=request_body,
                         headers={
                             "Accept": "application/json",
-                            "User-Agent": "Hazewave/9router-governed-executor",
+                            "User-Agent": (
+                                "Hazewave/9router-governed-executor"
+                            ),
                         },
                     )
                     if response.status_code != 200:
@@ -617,15 +704,14 @@ def execute_9router_text(
                             f"NINEROUTER_COMPLETION_HTTP_{response.status_code}"
                         )
                         last_error = error
-                        if requested_model == "auto" and response.status_code in {
-                            429,
-                            500,
-                            502,
-                            503,
-                            504,
-                        }:
+                        if (
+                            requested_model == "auto"
+                            and response.status_code
+                            in {429, 500, 502, 503, 504}
+                        ):
                             continue
                         raise error
+
                     try:
                         payload = response.json()
                     except ValueError as exc:
@@ -637,13 +723,26 @@ def execute_9router_text(
                             continue
                         raise error from exc
 
-                    content = str(
-                        payload.get("choices", [{}])[0]
-                        .get("message", {})
-                        .get("content", "")
-                        or ""
-                    ).strip()
-                    if not content:
+                    choices = payload.get("choices")
+                    choices = choices if isinstance(choices, list) else []
+                    first_choice = (
+                        choices[0] if choices and isinstance(choices[0], dict)
+                        else {}
+                    )
+                    message = first_choice.get("message")
+                    message = message if isinstance(message, dict) else {}
+                    content = str(message.get("content") or "").strip()
+                    raw_tool_calls = message.get("tool_calls")
+                    tool_calls = (
+                        tuple(
+                            dict(call)
+                            for call in raw_tool_calls
+                            if isinstance(call, dict)
+                        )
+                        if isinstance(raw_tool_calls, list)
+                        else ()
+                    )
+                    if not content and not tool_calls:
                         error = NineRouterExecutionError(
                             "NINEROUTER_COMPLETION_EMPTY"
                         )
@@ -663,12 +762,16 @@ def execute_9router_text(
                         content=content,
                         prompt_tokens=(
                             int(usage["prompt_tokens"])
-                            if isinstance(usage.get("prompt_tokens"), int)
+                            if isinstance(
+                                usage.get("prompt_tokens"), int
+                            )
                             else None
                         ),
                         completion_tokens=(
                             int(usage["completion_tokens"])
-                            if isinstance(usage.get("completion_tokens"), int)
+                            if isinstance(
+                                usage.get("completion_tokens"), int
+                            )
                             else None
                         ),
                         total_tokens=(
@@ -677,10 +780,17 @@ def execute_9router_text(
                             else None
                         ),
                         attempted_models=tuple(attempted_models),
-                        fallback_count=max(0, len(attempted_models) - 1),
-                        selection_mode=("auto" if requested_model == "auto" else "exact"),
+                        fallback_count=max(
+                            0, len(attempted_models) - 1
+                        ),
+                        selection_mode=(
+                            "auto"
+                            if requested_model == "auto"
+                            else "exact"
+                        ),
                         rtk_enabled=True,
                         stream=False,
+                        tool_calls=tool_calls,
                     )
                     break
 
@@ -699,12 +809,14 @@ def execute_9router_text(
                         payload={
                             "requireApiKey": original_require_api_key,
                             "capacityAdapter": original_capacity_adapter,
-                            "outboundProxyEnabled": original_outbound_proxy_enabled,
+                            "outboundProxyEnabled": (
+                                original_outbound_proxy_enabled
+                            ),
                             "rtkEnabled": original_rtk_enabled,
                             "headroomEnabled": original_headroom_enabled,
                         },
                     )
-                except Exception as exc:  # fail closed if the global state cannot be restored
+                except Exception as exc:
                     restore_error = exc
 
             if restore_error is not None:
@@ -717,3 +829,41 @@ def execute_9router_text(
             fcntl.flock(fd, fcntl.LOCK_UN)
         finally:
             os.close(fd)
+
+
+def execute_9router_text(
+    *,
+    authorization: HazewaveAuthorization,
+    model_id: str,
+    prompt: str,
+    receipt: dict[str, Any] | None = None,
+    receipt_path: Path | str = DEFAULT_ADMISSION_RECEIPT_PATH,
+    data_classification: str = "PUBLIC",
+    now: str | datetime | None = None,
+    max_tokens: int = 1024,
+    timeout_seconds: float = 90.0,
+    lock_path: Path | str = DEFAULT_EXECUTION_LOCK_PATH,
+    cli_token: str | None = None,
+    data_dir: Path | str = DEFAULT_9ROUTER_DATA_DIR,
+    transport: httpx.BaseTransport | None = None,
+    max_fallbacks: int = 3,
+) -> NineRouterExecutionResult:
+    text = str(prompt or "").strip()
+    if not text:
+        raise ValueError("NINEROUTER_PROMPT_REQUIRED")
+    return execute_9router_messages(
+        authorization=authorization,
+        model_id=model_id,
+        messages=[{"role": "user", "content": text}],
+        receipt=receipt,
+        receipt_path=receipt_path,
+        data_classification=data_classification,
+        now=now,
+        max_tokens=max_tokens,
+        timeout_seconds=timeout_seconds,
+        lock_path=lock_path,
+        cli_token=cli_token,
+        data_dir=data_dir,
+        transport=transport,
+        max_fallbacks=max_fallbacks,
+    )
