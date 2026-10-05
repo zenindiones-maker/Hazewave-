@@ -36,6 +36,16 @@ DEFAULT_EXECUTION_LOCK_PATH = (
     / "9router"
     / "execution.lock"
 )
+DEFAULT_ROUTE_HEALTH_PATH = (
+    Path.home()
+    / ".local"
+    / "state"
+    / "hazewave"
+    / "providers"
+    / "9router"
+    / "route-health.json"
+)
+
 DEFAULT_9ROUTER_DATA_DIR = (
     Path.home()
     / ".local"
@@ -261,6 +271,128 @@ def evaluate_9router_admission(
     )
 
 
+def _empty_route_health() -> dict[str, Any]:
+    return {
+        "schema": "Hazewave9RouterRouteHealth/v1",
+        "project_id": PROJECT_ID,
+        "authority": AUTHORITY,
+        "models": {},
+    }
+
+
+def load_9router_route_health(
+    path: Path | str = DEFAULT_ROUTE_HEALTH_PATH,
+) -> dict[str, Any]:
+    target = Path(path).expanduser()
+    if not target.is_file():
+        return _empty_route_health()
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return _empty_route_health()
+    if (
+        not isinstance(payload, dict)
+        or payload.get("schema") != "Hazewave9RouterRouteHealth/v1"
+        or payload.get("project_id") != PROJECT_ID
+        or payload.get("authority") != AUTHORITY
+        or not isinstance(payload.get("models"), dict)
+    ):
+        return _empty_route_health()
+    return payload
+
+
+def _write_route_health(
+    store: dict[str, Any],
+    path: Path | str = DEFAULT_ROUTE_HEALTH_PATH,
+) -> None:
+    target = Path(path).expanduser()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.parent.chmod(0o700)
+    tmp = target.with_name(f"{target.name}.tmp.{os.getpid()}")
+    tmp.write_text(
+        json.dumps(store, sort_keys=True, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    tmp.chmod(0o600)
+    os.replace(tmp, target)
+    target.chmod(0o600)
+
+
+def _resolve_now(now: str | datetime | None) -> datetime:
+    if isinstance(now, str):
+        return _parse_time(now)
+    if isinstance(now, datetime):
+        value = now
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+    return datetime.now(timezone.utc)
+
+
+def _record_route_health(
+    *,
+    model_id: str,
+    status: str,
+    transient_failure: bool,
+    success: bool,
+    path: Path | str,
+    now: str | datetime | None,
+) -> None:
+    store = load_9router_route_health(path)
+    models = store.setdefault("models", {})
+    current = _resolve_now(now)
+    existing = models.get(model_id)
+    existing = existing if isinstance(existing, dict) else {}
+
+    if success:
+        row = {
+            "consecutive_transient_failures": 0,
+            "cooldown_until": None,
+            "last_status": "PASS",
+            "updated_at": current.isoformat(),
+        }
+    elif transient_failure:
+        failures = int(existing.get("consecutive_transient_failures") or 0) + 1
+        cooldown_seconds = min(900, 60 * (2 ** (failures - 1)))
+        row = {
+            "consecutive_transient_failures": failures,
+            "cooldown_until": (
+                current + timedelta(seconds=cooldown_seconds)
+            ).isoformat(),
+            "last_status": status,
+            "updated_at": current.isoformat(),
+        }
+    else:
+        row = {
+            **existing,
+            "last_status": status,
+            "updated_at": current.isoformat(),
+        }
+
+    models[model_id] = row
+    _write_route_health(store, path)
+
+
+def _model_in_active_cooldown(
+    route_health: dict[str, Any],
+    model_id: str,
+    *,
+    now: str | datetime | None,
+) -> bool:
+    models = route_health.get("models")
+    models = models if isinstance(models, dict) else {}
+    row = models.get(model_id)
+    if not isinstance(row, dict):
+        return False
+    cooldown = row.get("cooldown_until")
+    if not cooldown:
+        return False
+    try:
+        return _parse_time(str(cooldown)) > _resolve_now(now)
+    except ValueError:
+        return False
+
+
 def _receipt_ranked_models(
     receipt: dict[str, Any],
     *,
@@ -376,6 +508,8 @@ def rank_9router_models(
     authorization: HazewaveAuthorization,
     receipt: dict[str, Any] | None = None,
     receipt_path: Path | str = DEFAULT_ADMISSION_RECEIPT_PATH,
+    route_health: dict[str, Any] | None = None,
+    route_health_path: Path | str = DEFAULT_ROUTE_HEALTH_PATH,
     data_classification: str = "PUBLIC",
     now: str | datetime | None = None,
 ) -> list[str]:
@@ -384,12 +518,21 @@ def rank_9router_models(
     if receipt is None:
         return []
 
+    if route_health is None:
+        route_health = load_9router_route_health(route_health_path)
+
     ranked = _receipt_ranked_models(
         receipt,
         capability_id=authorization.capability_id,
     )
     allowed: list[str] = []
     for model in ranked:
+        if _model_in_active_cooldown(
+            route_health,
+            model,
+            now=now,
+        ):
+            continue
         decision = evaluate_9router_admission(
             authorization=authorization,
             model_id=model,
@@ -576,6 +719,7 @@ def execute_9router_messages(
     lock_path: Path | str = DEFAULT_EXECUTION_LOCK_PATH,
     cli_token: str | None = None,
     data_dir: Path | str = DEFAULT_9ROUTER_DATA_DIR,
+    route_health_path: Path | str = DEFAULT_ROUTE_HEALTH_PATH,
     transport: httpx.BaseTransport | None = None,
     max_fallbacks: int = 3,
 ) -> NineRouterExecutionResult:
@@ -597,6 +741,7 @@ def execute_9router_messages(
             authorization=authorization,
             receipt=receipt,
             receipt_path=receipt_path,
+            route_health_path=route_health_path,
             data_classification=data_classification,
             now=now,
         )[:max_fallbacks]
@@ -704,11 +849,22 @@ def execute_9router_messages(
                             f"NINEROUTER_COMPLETION_HTTP_{response.status_code}"
                         )
                         last_error = error
-                        if (
-                            requested_model == "auto"
-                            and response.status_code
-                            in {429, 500, 502, 503, 504}
-                        ):
+                        transient = response.status_code in {
+                            429,
+                            500,
+                            502,
+                            503,
+                            504,
+                        }
+                        _record_route_health(
+                            model_id=candidate_model,
+                            status=f"HTTP_{response.status_code}",
+                            transient_failure=transient,
+                            success=False,
+                            path=route_health_path,
+                            now=now,
+                        )
+                        if requested_model == "auto" and transient:
                             continue
                         raise error
 
@@ -753,6 +909,15 @@ def execute_9router_messages(
 
                     usage = payload.get("usage")
                     usage = usage if isinstance(usage, dict) else {}
+
+                    _record_route_health(
+                        model_id=candidate_model,
+                        status="PASS",
+                        transient_failure=False,
+                        success=True,
+                        path=route_health_path,
+                        now=now,
+                    )
 
                     result = NineRouterExecutionResult(
                         status="PASS",
@@ -845,6 +1010,7 @@ def execute_9router_text(
     lock_path: Path | str = DEFAULT_EXECUTION_LOCK_PATH,
     cli_token: str | None = None,
     data_dir: Path | str = DEFAULT_9ROUTER_DATA_DIR,
+    route_health_path: Path | str = DEFAULT_ROUTE_HEALTH_PATH,
     transport: httpx.BaseTransport | None = None,
     max_fallbacks: int = 3,
 ) -> NineRouterExecutionResult:
@@ -864,6 +1030,7 @@ def execute_9router_text(
         lock_path=lock_path,
         cli_token=cli_token,
         data_dir=data_dir,
+        route_health_path=route_health_path,
         transport=transport,
         max_fallbacks=max_fallbacks,
     )
