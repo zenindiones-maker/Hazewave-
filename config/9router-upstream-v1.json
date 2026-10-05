@@ -1,0 +1,38 @@
+{
+  "schema": "Hazewave9RouterUpstream/v1",
+  "project_id": "HAZEWAVE",
+  "authority": "NONE",
+  "project_authority": "HAZEWAVE_HARNESS",
+  "repository": "decolua/9router",
+  "repository_url": "https://github.com/decolua/9router",
+  "version": "0.5.95",
+  "commit": "a99cf57239ff778b61e434c2786009d5ed1c412c",
+  "license": "MIT",
+  "install_artifact": "npm:9router@0.5.95",
+  "bind_host": "127.0.0.1",
+  "port": 20128,
+  "api_base_url": "http://127.0.0.1:20128/v1",
+  "dashboard_url": "http://127.0.0.1:20128/dashboard",
+  "update_policy": "PINNED_NO_AUTO_UPDATE",
+  "paid_fallback": "FORBIDDEN",
+  "unknown_cost": "DENY",
+  "execution_policy": "DISCOVERY_ONLY_UNTIL_ROUTE_ADMISSION",
+  "data_policy": "NO_HAZEWAVE_CREDENTIAL_EGRESS",
+  "security_baseline": {
+    "loopback_only": true,
+    "minimum_fixed_version": "0.5.2",
+    "notes": "Pinned version is above known fixed-version floors for the 2026 auth/RCE advisories reviewed during admission. Loopback binding remains mandatory."
+  },
+  "free_route_admission": {
+    "status": "PENDING_RUNTIME_CATALOG_PROOF",
+    "candidate_provider_prefixes": [
+      "oc/"
+    ],
+    "notes": "9Router can expose OpenCode Free/no-auth models, but Hazewave must verify exact runtime model ids and zero-cost status before execution. Kiro/credits/subscription/API-key providers are not admitted by this manifest."
+  },
+  "source_evidence": [
+    "https://github.com/decolua/9router",
+    "https://www.npmjs.com/package/9router",
+    "https://github.com/decolua/9router/security/advisories"
+  ]
+}
