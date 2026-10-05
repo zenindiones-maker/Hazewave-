@@ -3,11 +3,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
+from hazewave.nvidia_optimization import DEEP_MEDIUM, FAST_CODE
+
 from hazewave.nvidia_proof import (
     evaluate_probe_item,
     load_probe_corpus,
     scan_paths_for_secret,
     probe_request_options,
+    resolve_probe_profile,
+    select_probe_items,
     run_nvidia_capability_probes,
 )
 from hazewave.provider_runtime import HazewaveProviderExecutionResult
@@ -457,3 +463,51 @@ def test_code_review_prompts_request_safe_corrected_behavior_explicitly() -> Non
     assert "same route" in by_id["cr-v2-002"]["prompt"].casefold()
     assert "provider/server health" in by_id["cr-v2-004"]["prompt"].casefold()
     assert "boolean" in by_id["cr-v2-005"]["prompt"].casefold()
+
+
+def test_code_review_corpus_complexity_matches_reasoning_need() -> None:
+    root = Path(__file__).resolve().parents[1]
+    corpus = load_probe_corpus(root / "config" / "nvidia-capability-eval-v2.json")
+    by_id = {row["id"]: row for row in corpus["items"]}
+
+    assert by_id["cr-v2-001"]["complexity"] == "MODERATE"
+    assert by_id["cr-v2-005"]["complexity"] == "MODERATE"
+    assert by_id["cr-v2-002"]["complexity"] == "SIMPLE"
+    assert by_id["cr-v2-003"]["complexity"] == "SIMPLE"
+    assert by_id["cr-v2-004"]["complexity"] == "SIMPLE"
+
+    assert resolve_probe_profile(by_id["cr-v2-001"]) == DEEP_MEDIUM
+    assert resolve_probe_profile(by_id["cr-v2-005"]) == DEEP_MEDIUM
+    assert resolve_probe_profile(by_id["cr-v2-003"]) == FAST_CODE
+    assert resolve_probe_profile(by_id["cr-v2-004"]) == FAST_CODE
+
+
+def test_select_probe_items_filters_exact_ids_without_mutating_source() -> None:
+    corpus = {
+        "schema": "HazewaveNvidiaCapabilityEvalCorpus/v2",
+        "items": [
+            {"id": "a", "capability": "reason.general"},
+            {"id": "b", "capability": "code.review"},
+            {"id": "c", "capability": "code.review"},
+        ],
+    }
+    selected = select_probe_items(corpus, ["c", "a"])
+    assert [row["id"] for row in selected["items"]] == ["c", "a"]
+    assert [row["id"] for row in corpus["items"]] == ["a", "b", "c"]
+
+
+def test_select_probe_items_fails_closed_on_missing_or_duplicate_id() -> None:
+    corpus = {"items": [{"id": "a"}, {"id": "b"}]}
+    with pytest.raises(ValueError, match="NVIDIA_PROBE_TASK_ID_NOT_FOUND"):
+        select_probe_items(corpus, ["missing"])
+    with pytest.raises(ValueError, match="NVIDIA_PROBE_TASK_ID_DUPLICATE"):
+        select_probe_items(corpus, ["a", "a"])
+
+
+def test_runtime_cli_filtered_probe_requires_explicit_receipt() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script = (root / "scripts" / "hazewave_nvidia_runtime_proof.py").read_text(
+        encoding="utf-8"
+    )
+    assert '--task-id' in script
+    assert "NVIDIA_FILTERED_PROOF_RECEIPT_REQUIRED" in script

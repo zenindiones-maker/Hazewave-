@@ -589,6 +589,38 @@ def probe_request_options(item: dict[str, Any]) -> dict[str, Any]:
     return options
 
 
+def select_probe_items(
+    corpus: dict[str, Any],
+    task_ids: list[str] | tuple[str, ...],
+) -> dict[str, Any]:
+    requested = [str(value) for value in task_ids]
+    if not requested:
+        return dict(corpus)
+    if len(set(requested)) != len(requested):
+        raise ValueError("NVIDIA_PROBE_TASK_ID_DUPLICATE")
+
+    items = corpus.get("items")
+    items = items if isinstance(items, list) else []
+    by_id = {
+        str(item.get("id")): item
+        for item in items
+        if isinstance(item, dict) and str(item.get("id") or "")
+    }
+    missing = [task_id for task_id in requested if task_id not in by_id]
+    if missing:
+        raise ValueError(
+            "NVIDIA_PROBE_TASK_ID_NOT_FOUND:" + ",".join(sorted(missing))
+        )
+
+    selected = dict(corpus)
+    selected["items"] = [dict(by_id[task_id]) for task_id in requested]
+    selected["selection"] = {
+        "kind": "EXACT_TASK_IDS",
+        "task_ids": requested,
+    }
+    return selected
+
+
 def _corpus_sha256(corpus: dict[str, Any]) -> str:
     serialized = json.dumps(
         corpus,

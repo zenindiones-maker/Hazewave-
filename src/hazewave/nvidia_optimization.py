@@ -118,12 +118,16 @@ def select_nvidia_execution_profile(
     structured_output: bool,
 ) -> str:
     level = str(complexity).upper()
-    if capability_id in {"code.generate", "code.review"} and level in {
+    if capability_id == "code.generate" and level in {
         TRIVIAL,
         SIMPLE,
         MODERATE,
     }:
         return FAST_CODE
+    if capability_id == "code.review" and level in {TRIVIAL, SIMPLE}:
+        return FAST_CODE
+    if capability_id == "code.review" and level == MODERATE:
+        return DEEP_MEDIUM
     if structured_output and level in {TRIVIAL, SIMPLE, MODERATE}:
         return FAST_STRUCTURED
     if level in {TRIVIAL, SIMPLE}:

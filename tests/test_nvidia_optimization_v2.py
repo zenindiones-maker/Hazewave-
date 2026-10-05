@@ -903,3 +903,24 @@ def test_evaluation_states_are_isolated_from_production_learning() -> None:
     assert DEFAULT_NVIDIA_PROOF_LEARNING_PATH != DEFAULT_NVIDIA_BENCHMARK_LEARNING_PATH
     assert "evaluation" in str(DEFAULT_NVIDIA_PROOF_CAPACITY_STATE_PATH)
     assert "evaluation" in str(DEFAULT_NVIDIA_BENCHMARK_CAPACITY_STATE_PATH)
+
+
+def test_moderate_code_review_uses_deep_medium_but_codegen_stays_fast() -> None:
+    assert select_nvidia_execution_profile(
+        capability_id="code.review",
+        complexity=MODERATE,
+        structured_output=True,
+    ) == DEEP_MEDIUM
+    assert select_nvidia_execution_profile(
+        capability_id="code.generate",
+        complexity=MODERATE,
+        structured_output=False,
+    ) == FAST_CODE
+
+
+def test_simple_code_review_stays_fast_code() -> None:
+    assert select_nvidia_execution_profile(
+        capability_id="code.review",
+        complexity=SIMPLE,
+        structured_output=True,
+    ) == FAST_CODE

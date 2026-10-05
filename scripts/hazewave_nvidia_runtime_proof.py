@@ -23,6 +23,7 @@ from hazewave.nvidia_proof import (
     audit_nvidia_secret_boundary,
     load_probe_corpus,
     run_nvidia_capability_probes,
+    select_probe_items,
 )
 from hazewave.provider_fabric import DEFAULT_PROVIDER_LEARNING_PATH
 from hazewave.nvidia_optimization import (
@@ -50,6 +51,12 @@ def main() -> int:
     )
     parser.add_argument("--diagnostic-failures", action="store_true")
     parser.add_argument(
+        "--task-id",
+        action="append",
+        default=[],
+        help="Run only the exact representative task id; repeatable.",
+    )
+    parser.add_argument(
         "--runtime-revision",
         default=os.environ.get("HAZEWAVE_RUNTIME_REVISION", "UNRESOLVED"),
     )
@@ -65,6 +72,24 @@ def main() -> int:
         return 2
     args.runtime_revision = revision
     print("NVIDIA_RUNTIME_REVISION_REQUIRED=PASS")
+
+    if args.task_id and (
+        Path(args.receipt).expanduser()
+        == Path(DEFAULT_NVIDIA_PROOF_RECEIPT).expanduser()
+    ):
+        print("NVIDIA_FILTERED_PROOF_RECEIPT_REQUIRED=FAIL")
+        print("REASON=FILTERED_PROOF_MUST_NOT_OVERWRITE_CANONICAL_RECEIPT")
+        return 2
+
+    corpus = load_probe_corpus(args.corpus)
+    try:
+        corpus = select_probe_items(corpus, args.task_id)
+    except ValueError as exc:
+        print("NVIDIA_PROBE_SELECTION=FAIL")
+        print("ERROR=" + str(exc))
+        return 2
+    print("NVIDIA_PROBE_SELECTION=PASS")
+    print("NVIDIA_PROBE_SELECTED_COUNT=" + str(len(corpus.get("items") or [])))
 
     adapter = NvidiaNIMAdapter(
         secret_path=args.secret_file,
@@ -122,7 +147,7 @@ def main() -> int:
 
     proof = run_nvidia_capability_probes(
         adapter=adapter,
-        corpus=load_probe_corpus(args.corpus),
+        corpus=corpus,
         learning_path=args.learning_state,
         receipt_path=args.receipt,
         diagnostic_sink=(
