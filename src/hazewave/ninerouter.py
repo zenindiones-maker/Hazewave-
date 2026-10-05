@@ -511,6 +511,7 @@ def _receipt_ranked_models(
     *,
     capability_id: str = "reason.general",
     route_health: dict[str, Any] | None = None,
+    now: str | datetime | None = None,
 ) -> list[str]:
     admitted = [
         str(item)
@@ -606,7 +607,7 @@ def _receipt_ranked_models(
                     failure_age_hours = max(
                         0.0,
                         (
-                            _resolve_now(None)
+                            _resolve_now(now)
                             - _parse_time(str(last_failure_at))
                         ).total_seconds()
                         / 3600.0,
@@ -801,6 +802,7 @@ def rank_9router_models(
         receipt,
         capability_id=authorization.capability_id,
         route_health=route_health,
+        now=now,
     )
     allowed: list[str] = []
     for model in ranked:
