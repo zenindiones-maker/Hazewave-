@@ -7,6 +7,7 @@ import httpx
 
 from hazewave.harness import HAZE, HazewaveTask, issue_authorization, route_task
 from hazewave.ninerouter import (
+    build_9router_efficiency_status,
     execute_9router_text,
     load_9router_route_health,
     rank_9router_models,
@@ -260,6 +261,9 @@ def test_efficiency_policy_locks_safe_maximum_surface() -> None:
     assert policy["optimizer"]["receipt_ttl_hours"] == 24
     assert policy["optimizer"]["benchmark_max_models"] == 16
     assert policy["optimizer"]["execution_max_fallbacks"] == 3
+    assert policy["optimizer"]["transient_cooldown"]["base_seconds"] == 60
+    assert policy["optimizer"]["transient_cooldown"]["max_seconds"] == 900
+    assert policy["optimizer"]["transient_cooldown"]["strategy"] == "EXPONENTIAL"
     assert policy["token_efficiency"]["rtk"] == "FORCE_ON_DURING_GOVERNED_EXECUTION"
     assert policy["token_efficiency"]["headroom"] == "OFF_UNTIL_MANAGED_LOCAL_PROOF"
     assert policy["routing"]["combos"] == "FORBIDDEN"
@@ -356,3 +360,36 @@ def test_auto_executor_records_transient_cooldown_and_success_reset(
     assert healthy["cooldown_until"] is None
     assert healthy["last_status"] == "PASS"
     assert health_path.stat().st_mode & 0o777 == 0o600
+
+
+def test_efficiency_status_exposes_active_model_cooldowns() -> None:
+    receipt = _v2_receipt()
+    health = {
+        "schema": "Hazewave9RouterRouteHealth/v1",
+        "project_id": "HAZEWAVE",
+        "authority": "HAZEWAVE_HARNESS",
+        "models": {
+            "oc/mimo-v2.6-flash-free": {
+                "consecutive_transient_failures": 1,
+                "cooldown_until": "2026-10-05T12:31:00+00:00",
+                "last_status": "HTTP_429",
+                "updated_at": "2026-10-05T12:30:00+00:00",
+            }
+        },
+    }
+
+    status = build_9router_efficiency_status(
+        receipt=receipt,
+        route_health=health,
+        now="2026-10-05T12:30:30+00:00",
+    )
+
+    assert status["cooling_model_count"] == 1
+    assert status["cooling_models"] == [
+        {
+            "model": "oc/mimo-v2.6-flash-free",
+            "cooldown_until": "2026-10-05T12:31:00+00:00",
+            "last_status": "HTTP_429",
+            "consecutive_transient_failures": 1,
+        }
+    ]
