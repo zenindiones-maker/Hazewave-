@@ -17,6 +17,7 @@ from hazewave.nvidia import (
     DEFAULT_NVIDIA_SECRET_PATH,
     NvidiaNIMAdapter,
     load_nvidia_api_key,
+    redact_nvidia_secrets,
 )
 from hazewave.provider_fabric import (
     DEFAULT_PROVIDER_LEARNING_PATH,
@@ -293,6 +294,7 @@ def run_nvidia_capability_probes(
     learning_path: Path | str = DEFAULT_PROVIDER_LEARNING_PATH,
     receipt_path: Path | str = DEFAULT_NVIDIA_PROOF_RECEIPT,
     now: str | None = None,
+    diagnostic_sink: Any | None = None,
 ) -> dict[str, Any]:
     results: list[dict[str, Any]] = []
     domain_map = {"HAZE": HAZE, "WAVE": WAVE, "BRIDGE": BRIDGE}
@@ -318,6 +320,19 @@ def run_nvidia_capability_probes(
             **request_options,
         )
         evaluation = evaluate_probe_item(item, raw_result)
+        if not evaluation.semantic_pass and diagnostic_sink is not None:
+            sanitized_content = redact_nvidia_secrets(raw_result.content)
+            diagnostic_sink(
+                {
+                    "capability": capability,
+                    "execution_profile": profile,
+                    "provider_status": raw_result.status,
+                    "finish_reason": raw_result.finish_reason,
+                    "error_class": raw_result.error_class,
+                    "evaluation_reason": evaluation.reason,
+                    "content": str(sanitized_content)[:4000],
+                }
+            )
         final_result = replace(
             raw_result,
             status="PASS" if evaluation.semantic_pass else (
