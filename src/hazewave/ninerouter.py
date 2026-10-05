@@ -144,8 +144,12 @@ def evaluate_9router_admission(
     if not _looks_zero_cost_model(model):
         return _deny("MODEL_NOT_ZERO_COST_ELIGIBLE", model_id=model)
 
+    receipt_schema = receipt.get("schema")
     if (
-        receipt.get("schema") != "Hazewave9RouterFreeAdmissionReceipt/v1"
+        receipt_schema not in {
+            "Hazewave9RouterFreeAdmissionReceipt/v1",
+            "Hazewave9RouterFreeAdmissionReceipt/v2",
+        }
         or receipt.get("project_id") != PROJECT_ID
         or receipt.get("authority") != AUTHORITY
         or receipt.get("gateway") != "9router"
@@ -208,24 +212,45 @@ def evaluate_9router_admission(
     if model not in admitted:
         return _deny("MODEL_NOT_EXECUTION_ADMITTED", model_id=model)
 
-    probe = receipt.get("probe")
-    if not isinstance(probe, dict):
-        return _deny("NINEROUTER_PROBE_RECEIPT_MISSING", model_id=model)
-    if probe.get("status") != "PASS" or probe.get("model") != model:
-        return _deny("NINEROUTER_PROBE_NOT_BOUND_TO_MODEL", model_id=model)
-    if probe.get("semantic_expected") != "HAZEWAVE_OK":
-        return _deny("NINEROUTER_PROBE_SEMANTIC_PROOF_INVALID", model_id=model)
-    if not str(probe.get("response_sha256") or "").strip():
-        return _deny("NINEROUTER_PROBE_RESPONSE_PROOF_MISSING", model_id=model)
+    if receipt_schema == "Hazewave9RouterFreeAdmissionReceipt/v2":
+        optimization_policy = receipt.get("optimization_policy")
+        if not isinstance(optimization_policy, dict):
+            return _deny("NINEROUTER_OPTIMIZATION_POLICY_MISSING", model_id=model)
+        if (
+            optimization_policy.get("stream") is not False
+            or optimization_policy.get("rtk_enabled") is not True
+            or optimization_policy.get("headroom_enabled") is not False
+            or optimization_policy.get("combos_allowed") is not False
+        ):
+            return _deny("NINEROUTER_OPTIMIZATION_POLICY_INVALID", model_id=model)
 
-    attempts = probe.get("attempts")
-    if not isinstance(attempts, list) or not any(
-        isinstance(row, dict)
-        and row.get("model") == model
-        and row.get("status") == "semantic_pass"
-        for row in attempts
-    ):
-        return _deny("NINEROUTER_SEMANTIC_PASS_MISSING", model_id=model)
+        proofs = receipt.get("model_proofs")
+        proof = proofs.get(model) if isinstance(proofs, dict) else None
+        if not isinstance(proof, dict):
+            return _deny("NINEROUTER_MODEL_PROOF_MISSING", model_id=model)
+        if proof.get("status") != "semantic_pass":
+            return _deny("NINEROUTER_SEMANTIC_PASS_MISSING", model_id=model)
+        if not str(proof.get("response_sha256") or "").strip():
+            return _deny("NINEROUTER_PROBE_RESPONSE_PROOF_MISSING", model_id=model)
+    else:
+        probe = receipt.get("probe")
+        if not isinstance(probe, dict):
+            return _deny("NINEROUTER_PROBE_RECEIPT_MISSING", model_id=model)
+        if probe.get("status") != "PASS" or probe.get("model") != model:
+            return _deny("NINEROUTER_PROBE_NOT_BOUND_TO_MODEL", model_id=model)
+        if probe.get("semantic_expected") != "HAZEWAVE_OK":
+            return _deny("NINEROUTER_PROBE_SEMANTIC_PROOF_INVALID", model_id=model)
+        if not str(probe.get("response_sha256") or "").strip():
+            return _deny("NINEROUTER_PROBE_RESPONSE_PROOF_MISSING", model_id=model)
+
+        attempts = probe.get("attempts")
+        if not isinstance(attempts, list) or not any(
+            isinstance(row, dict)
+            and row.get("model") == model
+            and row.get("status") == "semantic_pass"
+            for row in attempts
+        ):
+            return _deny("NINEROUTER_SEMANTIC_PASS_MISSING", model_id=model)
 
     return NineRouterAdmissionDecision(
         allowed=True,
@@ -234,6 +259,63 @@ def evaluate_9router_admission(
         zero_cost_verified=True,
         receipt_path=str(Path(receipt_path).expanduser()),
     )
+
+
+def rank_9router_models(
+    *,
+    authorization: HazewaveAuthorization,
+    receipt: dict[str, Any] | None = None,
+    receipt_path: Path | str = DEFAULT_ADMISSION_RECEIPT_PATH,
+    data_classification: str = "PUBLIC",
+    now: str | datetime | None = None,
+) -> list[str]:
+    if receipt is None:
+        receipt = load_9router_admission_receipt(receipt_path)
+    if receipt is None:
+        return []
+
+    candidates: list[tuple[tuple[int, int, str], str]] = []
+    admitted = [
+        str(item)
+        for item in (receipt.get("execution_admitted_models") or [])
+        if isinstance(item, str)
+    ]
+    proofs = receipt.get("model_proofs")
+    proofs = proofs if isinstance(proofs, dict) else {}
+
+    for model in admitted:
+        decision = evaluate_9router_admission(
+            authorization=authorization,
+            model_id=model,
+            receipt=receipt,
+            receipt_path=receipt_path,
+            data_classification=data_classification,
+            now=now,
+        )
+        if not decision.allowed:
+            continue
+
+        proof = proofs.get(model)
+        proof = proof if isinstance(proof, dict) else {}
+        usage = proof.get("usage")
+        usage = usage if isinstance(usage, dict) else {}
+        total_tokens = usage.get("total_tokens")
+        latency_ms = proof.get("latency_ms")
+
+        token_score = (
+            int(total_tokens)
+            if isinstance(total_tokens, int) and total_tokens >= 0
+            else 1_000_000_000
+        )
+        latency_score = (
+            int(latency_ms)
+            if isinstance(latency_ms, (int, float)) and latency_ms >= 0
+            else 1_000_000_000
+        )
+        candidates.append(((token_score, latency_score, model), model))
+
+    candidates.sort(key=lambda item: item[0])
+    return [model for _, model in candidates]
 
 
 class NineRouterExecutionError(RuntimeError):
@@ -329,6 +411,7 @@ def execute_9router_text(
     cli_token: str | None = None,
     data_dir: Path | str = DEFAULT_9ROUTER_DATA_DIR,
     transport: httpx.BaseTransport | None = None,
+    max_fallbacks: int = 3,
 ) -> NineRouterExecutionResult:
     text = str(prompt or "").strip()
     if not text:
@@ -336,16 +419,35 @@ def execute_9router_text(
     if max_tokens < 1 or max_tokens > 4096:
         raise ValueError("NINEROUTER_MAX_TOKENS_OUT_OF_RANGE")
 
-    decision = evaluate_9router_admission(
-        authorization=authorization,
-        model_id=model_id,
-        receipt=receipt,
-        receipt_path=receipt_path,
-        data_classification=data_classification,
-        now=now,
-    )
-    if not decision.allowed:
-        raise NineRouterExecutionError(decision.reason)
+    if max_fallbacks < 1 or max_fallbacks > 8:
+        raise ValueError("NINEROUTER_MAX_FALLBACKS_OUT_OF_RANGE")
+
+    if receipt is None:
+        receipt = load_9router_admission_receipt(receipt_path)
+
+    requested_model = str(model_id or "").strip()
+    if requested_model == "auto":
+        candidates = rank_9router_models(
+            authorization=authorization,
+            receipt=receipt,
+            receipt_path=receipt_path,
+            data_classification=data_classification,
+            now=now,
+        )[:max_fallbacks]
+        if not candidates:
+            raise NineRouterExecutionError("NINEROUTER_NO_ADMITTED_FREE_MODELS")
+    else:
+        decision = evaluate_9router_admission(
+            authorization=authorization,
+            model_id=requested_model,
+            receipt=receipt,
+            receipt_path=receipt_path,
+            data_classification=data_classification,
+            now=now,
+        )
+        if not decision.allowed:
+            raise NineRouterExecutionError(decision.reason)
+        candidates = [requested_model]
 
     token = cli_token or _derive_cli_token(data_dir)
     target_lock = Path(lock_path).expanduser()
@@ -382,6 +484,8 @@ def execute_9router_text(
             original_outbound_proxy_enabled = settings.get(
                 "outboundProxyEnabled"
             )
+            original_rtk_enabled = settings.get("rtkEnabled")
+            original_headroom_enabled = settings.get("headroomEnabled")
             restore_error: Exception | None = None
 
             try:
@@ -395,69 +499,100 @@ def execute_9router_text(
                             original_capacity_adapter
                         ),
                         "outboundProxyEnabled": False,
+                        "rtkEnabled": True,
+                        "headroomEnabled": False,
                     },
                 )
 
-                response = client.post(
-                    "/v1/chat/completions",
-                    json={
-                        "model": model_id,
-                        "messages": [{"role": "user", "content": text}],
-                        "max_tokens": max_tokens,
-                        "stream": False,
-                    },
-                    headers={
-                        "Accept": "application/json",
-                        "User-Agent": "Hazewave/9router-governed-executor",
-                    },
-                )
-                if response.status_code != 200:
-                    raise NineRouterExecutionError(
-                        f"NINEROUTER_COMPLETION_HTTP_{response.status_code}"
+                result: NineRouterExecutionResult | None = None
+                last_error: NineRouterExecutionError | None = None
+                for candidate_model in candidates:
+                    response = client.post(
+                        "/v1/chat/completions",
+                        json={
+                            "model": candidate_model,
+                            "messages": [{"role": "user", "content": text}],
+                            "max_tokens": max_tokens,
+                            "stream": False,
+                        },
+                        headers={
+                            "Accept": "application/json",
+                            "User-Agent": "Hazewave/9router-governed-executor",
+                        },
                     )
-                try:
-                    payload = response.json()
-                except ValueError as exc:
-                    raise NineRouterExecutionError(
-                        "NINEROUTER_COMPLETION_INVALID_JSON"
-                    ) from exc
+                    if response.status_code != 200:
+                        error = NineRouterExecutionError(
+                            f"NINEROUTER_COMPLETION_HTTP_{response.status_code}"
+                        )
+                        last_error = error
+                        if requested_model == "auto" and response.status_code in {
+                            429,
+                            500,
+                            502,
+                            503,
+                            504,
+                        }:
+                            continue
+                        raise error
+                    try:
+                        payload = response.json()
+                    except ValueError as exc:
+                        error = NineRouterExecutionError(
+                            "NINEROUTER_COMPLETION_INVALID_JSON"
+                        )
+                        last_error = error
+                        if requested_model == "auto":
+                            continue
+                        raise error from exc
 
-                content = str(
-                    payload.get("choices", [{}])[0]
-                    .get("message", {})
-                    .get("content", "")
-                    or ""
-                ).strip()
-                if not content:
-                    raise NineRouterExecutionError(
-                        "NINEROUTER_COMPLETION_EMPTY"
+                    content = str(
+                        payload.get("choices", [{}])[0]
+                        .get("message", {})
+                        .get("content", "")
+                        or ""
+                    ).strip()
+                    if not content:
+                        error = NineRouterExecutionError(
+                            "NINEROUTER_COMPLETION_EMPTY"
+                        )
+                        last_error = error
+                        if requested_model == "auto":
+                            continue
+                        raise error
+
+                    usage = payload.get("usage")
+                    usage = usage if isinstance(usage, dict) else {}
+
+                    result = NineRouterExecutionResult(
+                        status="PASS",
+                        task_id=authorization.task_id,
+                        authorization_id=authorization.authorization_id,
+                        model_id=candidate_model,
+                        content=content,
+                        prompt_tokens=(
+                            int(usage["prompt_tokens"])
+                            if isinstance(usage.get("prompt_tokens"), int)
+                            else None
+                        ),
+                        completion_tokens=(
+                            int(usage["completion_tokens"])
+                            if isinstance(usage.get("completion_tokens"), int)
+                            else None
+                        ),
+                        total_tokens=(
+                            int(usage["total_tokens"])
+                            if isinstance(usage.get("total_tokens"), int)
+                            else None
+                        ),
                     )
+                    break
 
-                usage = payload.get("usage")
-                usage = usage if isinstance(usage, dict) else {}
-
-                result = NineRouterExecutionResult(
-                    status="PASS",
-                    task_id=authorization.task_id,
-                    authorization_id=authorization.authorization_id,
-                    model_id=model_id,
-                    content=content,
-                    prompt_tokens=(
-                        int(usage["prompt_tokens"])
-                        if isinstance(usage.get("prompt_tokens"), int)
-                        else None
-                    ),
-                    completion_tokens=(
-                        int(usage["completion_tokens"])
-                        if isinstance(usage.get("completion_tokens"), int)
-                        else None
-                    ),
-                    total_tokens=(
-                        int(usage["total_tokens"])
-                        if isinstance(usage.get("total_tokens"), int)
-                        else None
-                    ),
-                )
+                if result is None:
+                    if last_error is not None:
+                        raise last_error
+                    raise NineRouterExecutionError(
+                        "NINEROUTER_ALL_ADMITTED_FREE_MODELS_FAILED"
+                    )
             finally:
                 try:
                     _settings_request(
@@ -468,6 +603,8 @@ def execute_9router_text(
                             "requireApiKey": original_require_api_key,
                             "capacityAdapter": original_capacity_adapter,
                             "outboundProxyEnabled": original_outbound_proxy_enabled,
+                            "rtkEnabled": original_rtk_enabled,
+                            "headroomEnabled": original_headroom_enabled,
                         },
                     )
                 except Exception as exc:  # fail closed if the global state cannot be restored
