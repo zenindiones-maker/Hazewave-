@@ -336,6 +336,11 @@ class NineRouterExecutionResult:
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     total_tokens: int | None = None
+    attempted_models: tuple[str, ...] = ()
+    fallback_count: int = 0
+    selection_mode: str = "exact"
+    rtk_enabled: bool = True
+    stream: bool = False
 
 
 def _derive_cli_token(data_dir: Path | str = DEFAULT_9ROUTER_DATA_DIR) -> str:
@@ -506,7 +511,9 @@ def execute_9router_text(
 
                 result: NineRouterExecutionResult | None = None
                 last_error: NineRouterExecutionError | None = None
+                attempted_models: list[str] = []
                 for candidate_model in candidates:
+                    attempted_models.append(candidate_model)
                     response = client.post(
                         "/v1/chat/completions",
                         json={
@@ -584,6 +591,11 @@ def execute_9router_text(
                             if isinstance(usage.get("total_tokens"), int)
                             else None
                         ),
+                        attempted_models=tuple(attempted_models),
+                        fallback_count=max(0, len(attempted_models) - 1),
+                        selection_mode=("auto" if requested_model == "auto" else "exact"),
+                        rtk_enabled=True,
+                        stream=False,
                     )
                     break
 
