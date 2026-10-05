@@ -80,7 +80,8 @@
         401,
         403,
         429
-      ]
+      ],
+      "stop_when_majority_unreachable": true
     },
     "session_affinity": {
       "enabled": true,
