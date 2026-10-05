@@ -24,7 +24,10 @@ from hazewave.nvidia_proof import (
     run_nvidia_capability_probes,
 )
 from hazewave.provider_fabric import DEFAULT_PROVIDER_LEARNING_PATH
-from hazewave.nvidia_optimization import DEFAULT_NVIDIA_OPTIMIZATION_STATE_PATH
+from hazewave.nvidia_optimization import (
+    DEFAULT_NVIDIA_PROOF_CAPACITY_STATE_PATH,
+    DEFAULT_NVIDIA_PROOF_LEARNING_PATH,
+)
 
 
 def main() -> int:
@@ -36,10 +39,13 @@ def main() -> int:
         default=str(ROOT / "config" / "nvidia-capability-eval-v2.json"),
     )
     parser.add_argument("--receipt", default=str(DEFAULT_NVIDIA_PROOF_RECEIPT))
-    parser.add_argument("--learning-state", default=str(DEFAULT_PROVIDER_LEARNING_PATH))
+    parser.add_argument(
+        "--learning-state",
+        default=str(DEFAULT_NVIDIA_PROOF_LEARNING_PATH),
+    )
     parser.add_argument(
         "--optimization-state",
-        default=str(DEFAULT_NVIDIA_OPTIMIZATION_STATE_PATH),
+        default=str(DEFAULT_NVIDIA_PROOF_CAPACITY_STATE_PATH),
     )
     parser.add_argument("--diagnostic-failures", action="store_true")
     args = parser.parse_args()
