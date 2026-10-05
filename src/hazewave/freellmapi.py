@@ -1589,11 +1589,7 @@ class FreeLLMAPIClient:
             },
         }
         try:
-            response = self._client.post(
-                "chat/completions",
-                json=payload,
-                headers=request_headers,
-            )
+            response = self._client.post("chat/completions", json=payload)
             response.raise_for_status()
             raw = response.json()
         except (httpx.HTTPError, ValueError) as exc:
@@ -1688,7 +1684,11 @@ class FreeLLMAPIClient:
             payload["response_format"] = dict(response_format)
 
         try:
-            response = self._client.post("chat/completions", json=payload)
+            response = self._client.post(
+                "chat/completions",
+                json=payload,
+                headers=request_headers,
+            )
             response.raise_for_status()
             raw = response.json()
         except httpx.HTTPStatusError as exc:
