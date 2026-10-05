@@ -51,12 +51,19 @@ _PROFILE_DEFAULTS: dict[str, dict[str, Any]] = {
         "enable_thinking": False,
     },
     DEEP_REASONING: {
-        "max_tokens": 8192,
+        "max_tokens": 4096,
         "temperature": 1.0,
         "top_p": 0.95,
         "enable_thinking": True,
-        "reasoning_budget": 6144,
+        "reasoning_budget": 2048,
     },
+}
+
+_CAPABILITY_MAX_TOKENS = {
+    "reason.general": 1024,
+    "reason.deep": 4096,
+    "code.generate": 1024,
+    "code.review": 2048,
 }
 
 _NVAPI_RE = re.compile(r"nvapi-[A-Za-z0-9._~+\-/=]+", re.IGNORECASE)
@@ -368,8 +375,11 @@ def normalize_nvidia_request(
     ceiling = contract.get("max_output_tokens")
     if not isinstance(ceiling, int) or ceiling < 1:
         ceiling = 16384
+    capability_default = int(
+        _CAPABILITY_MAX_TOKENS.get(capability_id, defaults["max_tokens"])
+    )
     limit = min(
-        int(max_tokens if max_tokens is not None else defaults["max_tokens"]),
+        int(max_tokens if max_tokens is not None else capability_default),
         ceiling,
     )
     if limit < 1 or limit > 16384:
