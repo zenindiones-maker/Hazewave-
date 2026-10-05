@@ -15,6 +15,7 @@ from hazewave.provider_policy import (
     MediaEgressGrant,
     ProviderEligibilityDecision,
     evaluate_provider_eligibility,
+    load_account_attestations,
     load_provider_registry,
 )
 
@@ -63,6 +64,7 @@ class FreeLLMAPIModelCandidate:
     context_window: int | None
     supports_vision: bool
     supports_tools: bool
+    model_key_id: int | None = None
 
     @property
     def qualified_model_id(self) -> str:
@@ -78,6 +80,7 @@ class FreeLLMAPIEmbeddingCandidate:
     dimensions: int
     max_input_tokens: int | None
     priority: int
+    model_key_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -94,6 +97,7 @@ class FreeLLMAPIMediaCandidate:
     display_name: str
     modality: str
     priority: int
+    model_key_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -247,7 +251,8 @@ class FreeLLMAPILocalCatalog:
                       m.speed_rank,
                       m.context_window,
                       m.supports_vision,
-                      m.supports_tools
+                      m.supports_tools,
+                      m.key_id
                     FROM models m
                     WHERE m.enabled = 1
                       AND EXISTS (
@@ -282,6 +287,9 @@ class FreeLLMAPILocalCatalog:
                 ),
                 supports_vision=bool(row["supports_vision"]),
                 supports_tools=bool(row["supports_tools"]),
+                model_key_id=(
+                    int(row["key_id"]) if row["key_id"] is not None else None
+                ),
             )
             for row in rows
         ]
@@ -343,6 +351,9 @@ class FreeLLMAPILocalCatalog:
                                 else None
                             ),
                             priority=int(row["priority"]),
+                            model_key_id=(
+                                int(row["key_id"]) if row["key_id"] is not None else None
+                            ),
                         )
                     )
                 return out
@@ -429,6 +440,7 @@ class FreeLLMAPILocalCatalog:
                             display_name=str(row["display_name"]),
                             modality=str(row["modality"]),
                             priority=int(row["priority"]),
+                            model_key_id=key_id,
                         )
                     )
                 return out
