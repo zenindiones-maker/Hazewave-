@@ -1,0 +1,91 @@
+{
+  "schema": "HazewaveNvidiaCapabilityEvalCorpus/v1",
+  "project_id": "HAZEWAVE",
+  "authority": "HAZEWAVE_HARNESS",
+  "items": [
+    {
+      "id": "nvidia-reason-general-fast-001",
+      "capability": "reason.general",
+      "domain": "HAZE",
+      "execution_profile": "FAST_STRUCTURED",
+      "task_family": "haze.priority.classification",
+      "prompt": "Return JSON only. Rank these engineering priorities from first to last: correctness blocker, latency optimization, formatting cleanup. Use key order with an array of the labels correctness, latency, formatting.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "order": [
+            "correctness",
+            "latency",
+            "formatting"
+          ]
+        }
+      }
+    },
+    {
+      "id": "nvidia-reason-deep-001",
+      "capability": "reason.deep",
+      "domain": "HAZE",
+      "execution_profile": "DEEP_REASONING",
+      "task_family": "haze.provider.failure.analysis",
+      "prompt": "Return JSON only. Classify provider HTTP 429 and HTTP 403 for a governed free-development route, and state whether blind retry storms are acceptable. Keys: 429, 403, retry_storm.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "403": "AUTH_OR_ELIGIBILITY_FAILURE",
+          "429": "RATE_LIMITED",
+          "retry_storm": false
+        }
+      }
+    },
+    {
+      "id": "nvidia-code-generate-fast-001",
+      "capability": "code.generate",
+      "domain": "HAZE",
+      "execution_profile": "FAST_STRUCTURED",
+      "task_family": "haze.python.generate",
+      "prompt": "Write only Python code defining clamp_retry_after(seconds). It must convert seconds with int(), clamp below at 0 using max(), clamp above at 3600 using min(), and return the result.",
+      "evaluation": {
+        "kind": "PYTHON_AST",
+        "function_name": "clamp_retry_after",
+        "required_names": [
+          "min",
+          "max",
+          "int"
+        ],
+        "required_constants": [
+          0,
+          3600
+        ]
+      }
+    },
+    {
+      "id": "nvidia-code-review-fast-001",
+      "capability": "code.review",
+      "domain": "HAZE",
+      "execution_profile": "FAST_STRUCTURED",
+      "task_family": "haze.python.review",
+      "prompt": "Review this retry logic for HTTP 429: `def on_429(limit): return limit + 1`. Explain the defect and the safe correction. Mention how Retry-After should be handled.",
+      "evaluation": {
+        "kind": "KEYWORD_GROUPS",
+        "groups": [
+          [
+            "429",
+            "rate limit",
+            "rate-limit"
+          ],
+          [
+            "decrease",
+            "reduce",
+            "halve",
+            "half"
+          ],
+          [
+            "retry-after",
+            "retry after",
+            "backoff"
+          ]
+        ]
+      }
+    }
+  ]
+}
