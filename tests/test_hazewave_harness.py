@@ -86,3 +86,64 @@ def test_authorization_rejects_capability_escalation() -> None:
             expected_task_id="task-004",
             expected_capability="visual.render",
         )
+
+
+@pytest.mark.parametrize("domain", [HAZE, WAVE, BRIDGE])
+def test_cross_domain_reasoning_capability_preserves_requested_domain(domain: str) -> None:
+    decision = route_task(
+        HazewaveTask(
+            task_id=f"reason-{domain.lower()}",
+            goal="Reason inside the selected Hazewave domain",
+            required_capability="reason.general",
+            requested_domain=domain,
+        )
+    )
+
+    assert decision.selected_domain == domain
+    assert decision.selected_capability == "reason.general"
+
+
+@pytest.mark.parametrize(
+    ("capability", "domain"),
+    [
+        ("reason.deep", HAZE),
+        ("reason.fusion", WAVE),
+        ("code.generate", WAVE),
+        ("code.review", HAZE),
+        ("embedding.create", BRIDGE),
+    ],
+)
+def test_provider_meta_capabilities_are_domain_bound_at_authorization_time(
+    capability: str,
+    domain: str,
+) -> None:
+    authorization = issue_authorization(
+        route_task(
+            HazewaveTask(
+                task_id=f"meta-{capability}-{domain}",
+                goal="Bound provider meta capability",
+                required_capability=capability,
+                requested_domain=domain,
+            )
+        )
+    )
+
+    assert authorization.domain == domain
+    assert authorization.capability_id == capability
+
+
+def test_new_modality_capabilities_remain_domain_specific() -> None:
+    assert classify_capability_domain("audio.transcribe") == HAZE
+    assert classify_capability_domain("visual.analyze") == WAVE
+    assert classify_capability_domain("visual.storyboard") == WAVE
+    assert classify_capability_domain("bridge.semantic_translation") == BRIDGE
+
+    with pytest.raises(PermissionError, match="DOMAIN_CAPABILITY_MISMATCH"):
+        route_task(
+            HazewaveTask(
+                task_id="wrong-transcription-domain",
+                goal="Transcribe audio",
+                required_capability="audio.transcribe",
+                requested_domain=WAVE,
+            )
+        )
