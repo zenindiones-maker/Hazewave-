@@ -57,19 +57,19 @@ def _v2_receipt() -> dict:
         "model_proofs": {
             fast: {
                 "status": "semantic_pass",
-                "latency_ms": 900,
+                "latency_ms": 1500,
                 "usage": {"prompt_tokens": 220, "completion_tokens": 30, "total_tokens": 250},
                 "response_sha256": "fast-proof",
             },
             cheap: {
                 "status": "semantic_pass",
-                "latency_ms": 1100,
+                "latency_ms": 900,
                 "usage": {"prompt_tokens": 210, "completion_tokens": 20, "total_tokens": 230},
                 "response_sha256": "cheap-proof",
             },
             slower: {
                 "status": "semantic_pass",
-                "latency_ms": 1800,
+                "latency_ms": 1100,
                 "usage": {"prompt_tokens": 220, "completion_tokens": 20, "total_tokens": 240},
                 "response_sha256": "slow-proof",
             },
