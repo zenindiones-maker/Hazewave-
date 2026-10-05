@@ -6,6 +6,7 @@ import fcntl
 from hashlib import sha256
 import json
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -337,6 +338,9 @@ def _record_route_health(
     success: bool,
     path: Path | str,
     now: str | datetime | None,
+    latency_ms: int | None = None,
+    total_tokens: int | None = None,
+    reasoning_tokens: int | None = None,
 ) -> None:
     store = load_9router_route_health(path)
     models = store.setdefault("models", {})
@@ -344,17 +348,40 @@ def _record_route_health(
     existing = models.get(model_id)
     existing = existing if isinstance(existing, dict) else {}
 
+    def ewma(previous: Any, observed: int | None) -> int | None:
+        if observed is None or observed < 0:
+            return previous if isinstance(previous, int) else None
+        if not isinstance(previous, int) or previous < 0:
+            return observed
+        return int(round((previous * 0.65) + (observed * 0.35)))
+
     if success:
         row = {
+            **existing,
             "consecutive_transient_failures": 0,
             "cooldown_until": None,
             "last_status": "PASS",
+            "success_count": int(existing.get("success_count") or 0) + 1,
+            "ewma_latency_ms": ewma(
+                existing.get("ewma_latency_ms"),
+                latency_ms,
+            ),
+            "ewma_total_tokens": ewma(
+                existing.get("ewma_total_tokens"),
+                total_tokens,
+            ),
+            "last_reasoning_tokens": (
+                reasoning_tokens
+                if isinstance(reasoning_tokens, int)
+                else existing.get("last_reasoning_tokens")
+            ),
             "updated_at": current.isoformat(),
         }
     elif transient_failure:
         failures = int(existing.get("consecutive_transient_failures") or 0) + 1
         cooldown_seconds = min(900, 60 * (2 ** (failures - 1)))
         row = {
+            **existing,
             "consecutive_transient_failures": failures,
             "cooldown_until": (
                 current + timedelta(seconds=cooldown_seconds)
@@ -397,6 +424,7 @@ def _receipt_ranked_models(
     receipt: dict[str, Any],
     *,
     capability_id: str = "reason.general",
+    route_health: dict[str, Any] | None = None,
 ) -> list[str]:
     admitted = [
         str(item)
@@ -405,31 +433,86 @@ def _receipt_ranked_models(
     ]
     proofs = receipt.get("model_proofs")
     proofs = proofs if isinstance(proofs, dict) else {}
+    health_models = (
+        route_health.get("models")
+        if isinstance(route_health, dict)
+        else {}
+    )
+    health_models = health_models if isinstance(health_models, dict) else {}
 
-    ranked: list[tuple[tuple[int, int, str], str]] = []
+    ranked: list[tuple[tuple[float, ...], str]] = []
     for model in admitted:
         proof = proofs.get(model)
         proof = proof if isinstance(proof, dict) else {}
+        metrics = proof.get("metrics")
+        metrics = metrics if isinstance(metrics, dict) else {}
         usage = proof.get("usage")
         usage = usage if isinstance(usage, dict) else {}
-        total_tokens = usage.get("total_tokens")
-        latency_ms = proof.get("latency_ms")
+
+        total_tokens = metrics.get("median_total_tokens")
+        if not isinstance(total_tokens, int) or total_tokens < 0:
+            total_tokens = usage.get("total_tokens")
+
+        latency_ms = metrics.get("median_latency_ms")
+        if not isinstance(latency_ms, (int, float)) or latency_ms < 0:
+            latency_ms = proof.get("latency_ms")
+
+        success_rate = metrics.get("semantic_success_rate")
+        if not isinstance(success_rate, (int, float)):
+            success_rate = 1.0
+        success_rate = max(0.25, min(1.0, float(success_rate)))
+
+        reasoning_tokens = metrics.get("median_reasoning_tokens")
+        if not isinstance(reasoning_tokens, int):
+            reasoning_tokens = usage.get("reasoning_tokens")
+        reasoning_observed = (
+            proof.get("reasoning_observed") is True
+            or (
+                isinstance(reasoning_tokens, int)
+                and reasoning_tokens > 0
+            )
+        )
+
+        health = health_models.get(model)
+        health = health if isinstance(health, dict) else {}
+        if int(health.get("success_count") or 0) > 0:
+            live_tokens = health.get("ewma_total_tokens")
+            live_latency = health.get("ewma_latency_ms")
+            if isinstance(live_tokens, int) and live_tokens >= 0:
+                total_tokens = live_tokens
+            if isinstance(live_latency, int) and live_latency >= 0:
+                latency_ms = live_latency
+            live_reasoning = health.get("last_reasoning_tokens")
+            if isinstance(live_reasoning, int) and live_reasoning > 0:
+                reasoning_observed = True
+
         token_score = (
-            int(total_tokens)
+            float(total_tokens)
             if isinstance(total_tokens, int) and total_tokens >= 0
-            else 1_000_000_000
+            else 1_000_000_000.0
         )
         latency_score = (
-            int(latency_ms)
+            float(latency_ms)
             if isinstance(latency_ms, (int, float)) and latency_ms >= 0
-            else 1_000_000_000
+            else 1_000_000_000.0
         )
-        reasoning_penalty = 0
+        balanced_score = (
+            token_score * latency_score
+        ) / (success_rate * success_rate)
+
+        reasoning_penalty = 0.0
         if capability_id == "reason.deep":
-            reasoning_penalty = 0 if proof.get("reasoning_observed") is True else 1
+            reasoning_penalty = 0.0 if reasoning_observed else 1.0
+
         ranked.append(
             (
-                (reasoning_penalty, token_score, latency_score, model),
+                (
+                    reasoning_penalty,
+                    balanced_score,
+                    latency_score,
+                    token_score,
+                    model,
+                ),
                 model,
             )
         )
@@ -517,7 +600,10 @@ def build_9router_efficiency_status(
         "age_seconds": age_seconds,
         "catalog_model_count": len(receipt.get("catalog_discovered_models") or []),
         "admitted_model_count": len(receipt.get("execution_admitted_models") or []),
-        "ranked_models": _receipt_ranked_models(receipt),
+        "ranked_models": _receipt_ranked_models(
+            receipt,
+            route_health=route_health,
+        ),
         "selection_policy": policy.get("selection", "EXACT_SINGLE_MODEL"),
         "rtk_enabled": policy.get("rtk_enabled", True),
         "headroom_enabled": policy.get("headroom_enabled", False),
@@ -549,6 +635,7 @@ def rank_9router_models(
     ranked = _receipt_ranked_models(
         receipt,
         capability_id=authorization.capability_id,
+        route_health=route_health,
     )
     allowed: list[str] = []
     for model in ranked:
@@ -589,6 +676,7 @@ class NineRouterExecutionResult:
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     total_tokens: int | None = None
+    reasoning_tokens: int | None = None
     attempted_models: tuple[str, ...] = ()
     fallback_count: int = 0
     selection_mode: str = "exact"
@@ -859,6 +947,7 @@ def execute_9router_messages(
                     if tool_choice is not None:
                         request_body["tool_choice"] = tool_choice
 
+                    request_started = time.monotonic()
                     response = client.post(
                         "/v1/chat/completions",
                         json=request_body,
@@ -868,6 +957,10 @@ def execute_9router_messages(
                                 "Hazewave/9router-governed-executor"
                             ),
                         },
+                    )
+                    latency_ms = max(
+                        0,
+                        int(round((time.monotonic() - request_started) * 1000)),
                     )
                     if response.status_code != 200:
                         error = NineRouterExecutionError(
@@ -934,6 +1027,18 @@ def execute_9router_messages(
 
                     usage = payload.get("usage")
                     usage = usage if isinstance(usage, dict) else {}
+                    details = usage.get("completion_tokens_details")
+                    details = details if isinstance(details, dict) else {}
+                    reasoning_tokens = usage.get("reasoning_tokens")
+                    if not isinstance(reasoning_tokens, int):
+                        reasoning_tokens = details.get("reasoning_tokens")
+                    if not isinstance(reasoning_tokens, int):
+                        reasoning_tokens = None
+                    total_tokens = (
+                        int(usage["total_tokens"])
+                        if isinstance(usage.get("total_tokens"), int)
+                        else None
+                    )
 
                     _record_route_health(
                         model_id=candidate_model,
@@ -942,6 +1047,9 @@ def execute_9router_messages(
                         success=True,
                         path=route_health_path,
                         now=now,
+                        latency_ms=latency_ms,
+                        total_tokens=total_tokens,
+                        reasoning_tokens=reasoning_tokens,
                     )
 
                     result = NineRouterExecutionResult(
@@ -964,11 +1072,8 @@ def execute_9router_messages(
                             )
                             else None
                         ),
-                        total_tokens=(
-                            int(usage["total_tokens"])
-                            if isinstance(usage.get("total_tokens"), int)
-                            else None
-                        ),
+                        total_tokens=total_tokens,
+                        reasoning_tokens=reasoning_tokens,
                         attempted_models=tuple(attempted_models),
                         fallback_count=max(
                             0, len(attempted_models) - 1
