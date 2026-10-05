@@ -5,23 +5,63 @@
   "paid": "DENY",
   "unknown": "DENY",
   "promotional_credit": "DENY_PERMANENT_ZERO_COST_POLICY",
+  "observed_at": "2026-10-05",
   "source": {
     "pricing_url": "https://opencode.ai/docs/zen/",
     "catalog_url": "https://opencode.ai/zen/v1/models",
-    "verification_rule": "Pricing evidence and live compatibility proof are both required; model-name suffix is discovery-only."
+    "verification_rule": "Pricing evidence is independent from catalog discovery. Admission additionally requires live compatibility and capability evidence."
   },
   "verified_free": {
     "big-pickle": {
       "capacity_class": "FREE_UNMETERED_OR_DYNAMIC",
-      "pricing_evidence": "OpenCode Zen pricing/docs free lane",
-      "api_compatibility": "CHAT_COMPLETIONS_PROBE_REQUIRED",
-      "stage": "ZERO_COST_VERIFIED"
+      "native_endpoint_family": "chat/completions",
+      "hazewave_chat_candidate": true
+    },
+    "space-bunny-free": {
+      "capacity_class": "FREE_UNMETERED_OR_DYNAMIC",
+      "native_endpoint_family": "chat/completions",
+      "hazewave_chat_candidate": true
+    },
+    "longcat-2.5-preview-free": {
+      "capacity_class": "FREE_UNMETERED_OR_DYNAMIC",
+      "native_endpoint_family": "chat/completions",
+      "hazewave_chat_candidate": true
+    },
+    "mimo-v2.6-flash-free": {
+      "capacity_class": "FREE_UNMETERED_OR_DYNAMIC",
+      "native_endpoint_family": "chat/completions",
+      "hazewave_chat_candidate": true
+    },
+    "mimo-v2.5-free": {
+      "capacity_class": "FREE_UNMETERED_OR_DYNAMIC",
+      "native_endpoint_family": "chat/completions",
+      "hazewave_chat_candidate": true
+    },
+    "ling-3.0-flash-fin-free": {
+      "capacity_class": "FREE_UNMETERED_OR_DYNAMIC",
+      "native_endpoint_family": "chat/completions",
+      "hazewave_chat_candidate": true
+    },
+    "nemotron-3-ultra-free": {
+      "capacity_class": "FREE_UNMETERED_OR_DYNAMIC",
+      "native_endpoint_family": "chat/completions",
+      "hazewave_chat_candidate": true
+    },
+    "nemotron-3.5-lightning-free": {
+      "capacity_class": "FREE_UNMETERED_OR_DYNAMIC",
+      "native_endpoint_family": "chat/completions",
+      "hazewave_chat_candidate": true
     },
     "muse-spark-1.3-contributor-free": {
       "capacity_class": "FREE_UNMETERED_OR_DYNAMIC",
-      "pricing_evidence": "OpenCode Zen pricing/docs free lane",
-      "api_compatibility": "RESPONSES_STYLE_REQUIRES_CANARY_BEFORE_ADMISSION",
-      "stage": "ZERO_COST_VERIFIED"
+      "native_endpoint_family": "responses",
+      "hazewave_chat_candidate": true,
+      "requires_translation_probe": true
+    },
+    "jev-1.13-free": {
+      "capacity_class": "FREE_UNMETERED_OR_DYNAMIC",
+      "native_endpoint_family": "systemone",
+      "hazewave_chat_candidate": false
     }
   }
 }
