@@ -996,6 +996,7 @@ class NineRouterExecutionResult:
     rtk_enabled: bool = True
     stream: bool = False
     tool_calls: tuple[dict[str, Any], ...] = ()
+    cache_status: str = "CACHE_MISS"
 
 
 def _opaque_session_hint(authorization: HazewaveAuthorization) -> str:
@@ -1204,6 +1205,12 @@ def execute_9router_messages(
     reasoning_requirement: str | None = None,
     requested_reasoning_effort: str | None = None,
     requested_temperature: float | None = None,
+    cache_safe: bool = False,
+    cache_semantic_hash: str | None = None,
+    context_revision: str | None = None,
+    policy_revision: str | None = None,
+    dependency_revision: str | None = None,
+    result_cache_path: Path | str | None = None,
 ) -> NineRouterExecutionResult:
     normalized_messages = _validate_public_text_messages(messages)
     normalized_tools = _validate_tools(tools)
@@ -1242,6 +1249,72 @@ def execute_9router_messages(
             reasoning_requirement=reasoning_requirement,
         )
         capacity_state = load_max_capacity_state(capacity_path)
+
+    cache_contract_complete = all(
+        str(value or "").strip()
+        for value in (
+            cache_semantic_hash,
+            context_revision,
+            policy_revision,
+            dependency_revision,
+        )
+    )
+    if cache_safe and normalized_tools:
+        raise ValueError("CACHE_TOOL_USE_FORBIDDEN")
+    if cache_safe and not cache_contract_complete:
+        raise ValueError("CACHE_REVISION_BINDING_REQUIRED")
+
+    if cache_safe:
+        if not prepared_runtime:
+            raise ValueError("CACHE_REQUIRES_PREPARED_RUNTIME")
+        assert profile is not None
+        from hazewave.ninerouter_capacity import (
+            DEFAULT_RESULT_CACHE_PATH,
+            cache_lookup,
+        )
+        if result_cache_path is None:
+            result_cache_path = DEFAULT_RESULT_CACHE_PATH
+        cached = cache_lookup(
+            path=result_cache_path,
+            semantic_hash=str(cache_semantic_hash),
+            profile=profile,
+            context_revision=str(context_revision),
+            policy_revision=str(policy_revision),
+            dependency_revision=str(dependency_revision),
+            now=now,
+        )
+        if cached is not None:
+            payload = cached.get("payload")
+            payload = payload if isinstance(payload, dict) else {}
+            cached_model = str(payload.get("model_id") or "")
+            decision = evaluate_9router_admission(
+                authorization=authorization,
+                model_id=cached_model,
+                receipt=receipt,
+                receipt_path=receipt_path,
+                data_classification=data_classification,
+                now=now,
+            )
+            if decision.allowed:
+                return NineRouterExecutionResult(
+                    status="PASS",
+                    task_id=authorization.task_id,
+                    authorization_id=authorization.authorization_id,
+                    model_id=cached_model,
+                    content=str(payload.get("content") or ""),
+                    prompt_tokens=payload.get("prompt_tokens"),
+                    completion_tokens=payload.get("completion_tokens"),
+                    total_tokens=payload.get("total_tokens"),
+                    reasoning_tokens=payload.get("reasoning_tokens"),
+                    attempted_models=(),
+                    attempt_trace=(),
+                    fallback_count=0,
+                    selection_mode="cache",
+                    rtk_enabled=True,
+                    stream=False,
+                    tool_calls=(),
+                    cache_status="CACHE_HIT",
+                )
 
     requested_model = str(model_id or "").strip()
     if requested_model == "auto":
@@ -1635,6 +1708,7 @@ def execute_9router_messages(
                         now=now,
                     )
 
+                cache_status = "CACHE_MISS"
                 result = NineRouterExecutionResult(
                     status="PASS",
                     task_id=authorization.task_id,
@@ -1654,7 +1728,29 @@ def execute_9router_messages(
                     rtk_enabled=True,
                     stream=False,
                     tool_calls=tool_calls,
+                    cache_status=cache_status,
                 )
+                if cache_safe:
+                    assert profile is not None
+                    from hazewave.ninerouter_capacity import cache_store
+                    assert result_cache_path is not None
+                    cache_store(
+                        path=result_cache_path,
+                        semantic_hash=str(cache_semantic_hash),
+                        profile=profile,
+                        context_revision=str(context_revision),
+                        policy_revision=str(policy_revision),
+                        dependency_revision=str(dependency_revision),
+                        payload={
+                            "model_id": candidate_model,
+                            "content": content,
+                            "prompt_tokens": prompt_tokens,
+                            "completion_tokens": completion_tokens,
+                            "total_tokens": total_tokens,
+                            "reasoning_tokens": reasoning_tokens,
+                        },
+                        now=now,
+                    )
                 break
             finally:
                 if prepared_runtime and lease_id is not None:
