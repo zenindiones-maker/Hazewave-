@@ -24,7 +24,11 @@ from hazewave.freellmapi import (
     run_live_probe,
 )
 from hazewave.harness import HazewaveTask, issue_authorization, route_task
-from hazewave.ninerouter import NineRouterExecutionError, execute_9router_text
+from hazewave.ninerouter import (
+    NineRouterExecutionError,
+    build_9router_efficiency_status,
+    execute_9router_text,
+)
 from hazewave.provider_policy import (
     DEFAULT_ACCOUNT_ATTESTATION_PATH,
     load_account_attestations,
@@ -195,6 +199,11 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
     )
 
+    ninerouter_status = ninerouter_commands.add_parser(
+        "status",
+        help="Report the current receipt-ranked 9Router efficiency posture.",
+    )
+
     ninerouter_execute = ninerouter_commands.add_parser(
         "execute",
         help="Execute one Harness-authorized PUBLIC text task on an admitted 9Router model.",
@@ -353,6 +362,16 @@ def main() -> int:
             print(f"instrumental={result.instrumental}")
             if result.vocals is not None:
                 print(f"vocals={result.vocals}")
+            return 0
+
+        if args.command == "9router" and args.ninerouter_command == "status":
+            print(
+                json.dumps(
+                    build_9router_efficiency_status(),
+                    sort_keys=True,
+                    ensure_ascii=False,
+                )
+            )
             return 0
 
         if args.command == "9router" and args.ninerouter_command == "execute":
