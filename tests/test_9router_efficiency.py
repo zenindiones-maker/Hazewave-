@@ -263,6 +263,9 @@ def test_optimizer_script_benchmarks_entire_free_catalog() -> None:
     assert "catalog|probe|optimize" in script
     assert '"Hazewave9RouterFreeAdmissionReceipt/v3"' in script
     assert "model_proofs" in script
+    assert "model_lifecycle" in script
+    assert "opencode-zero-cost-registry-v1.json" in script
+    assert "zeroCostVerifiedModelIds" in script
     assert "latency_ms" in script
     assert "total_tokens" in script
     assert "rtkEnabled: true" in script
