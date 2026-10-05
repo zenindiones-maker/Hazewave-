@@ -41,6 +41,8 @@ jobs:
           bash -n scripts/install_hazewave_freellmapi_termux.sh
           bash -n scripts/hazewave_freellmapi_control.sh
           bash -n scripts/install_hazewave_freellmapi_persistence.sh
+          bash -n scripts/install_hazewave_9router_termux.sh
+          bash -n scripts/hazewave_9router_control.sh
 
       - name: Validate repository contracts
         run: python scripts/validate_repository_contracts.py
