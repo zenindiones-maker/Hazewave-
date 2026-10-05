@@ -49,7 +49,7 @@ def test_9router_termux_runtime_is_managed_by_hazewave() -> None:
     assert "9router)" in root_control
 
 
-def test_9router_termux_runtime_reconciles_real_server_pid_without_tray_or_generic_postinstall() -> None:
+def test_9router_termux_runtime_uses_pid_metadata_without_proc_cmdline_dependency() -> None:
     installer = INSTALLER.read_text(encoding="utf-8")
     control = CONTROL.read_text(encoding="utf-8")
 
@@ -58,8 +58,11 @@ def test_9router_termux_runtime_reconciles_real_server_pid_without_tray_or_gener
     assert "trayRuntime" not in installer
 
     assert "setsid" not in control
-    assert "discover_owned_server_pids" in control
-    assert "HAZEWAVE_9ROUTER_PID_RECONCILED" in control
+    assert "/proc/$pid/cmdline" not in control
+    assert "ownership.meta" in control
+    assert "release=" in control
+    assert "port=" in control
+    assert "HAZEWAVE_9ROUTER_OWNERSHIP=PASS" in control
 
 
 def test_9router_sqlite_bootstrap_runs_for_existing_pinned_release() -> None:
