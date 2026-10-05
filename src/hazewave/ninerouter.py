@@ -699,7 +699,7 @@ def _receipt_ranked_models(
                 failure_age_hours = max(
                     0.0,
                     (
-                        _resolve_now(None)
+                        _resolve_now(now)
                         - _parse_time(str(last_failure_at))
                     ).total_seconds()
                     / 3600.0,
@@ -801,6 +801,7 @@ def build_9router_efficiency_status(
     effective_ranked_models = _receipt_ranked_models(
         receipt,
         route_health=route_health,
+        now=current,
     )
 
     health_models = route_health.get("models")
