@@ -180,6 +180,14 @@ def test_auto_executor_falls_back_only_inside_admitted_free_pool(tmp_path: Path)
 
     assert result.model_id == "oc/nemotron-3.5-lightning-free"
     assert result.content == "fallback answer"
+    assert result.selection_mode == "auto"
+    assert result.fallback_count == 1
+    assert result.attempted_models == (
+        "oc/mimo-v2.6-flash-free",
+        "oc/nemotron-3.5-lightning-free",
+    )
+    assert result.rtk_enabled is True
+    assert result.stream is False
     assert attempted == [
         "oc/mimo-v2.6-flash-free",
         "oc/nemotron-3.5-lightning-free",
