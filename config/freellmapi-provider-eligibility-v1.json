@@ -1,0 +1,272 @@
+{
+  "schema": "HazewaveProviderEligibilityRegistry/v1",
+  "project_id": "HAZEWAVE",
+  "authority": "HAZEWAVE_HARNESS",
+  "provider_gateway": "FREELLMAPI",
+  "paid_fallback": "FORBIDDEN",
+  "unknown_cost": "DENY",
+  "signed_catalog_policy": {
+    "signed_catalog": "DISCOVERY_ALLOWED",
+    "unsigned_catalog": "DENY",
+    "catalog_grants_eligibility": false
+  },
+  "default_policy": {
+    "enabled": false,
+    "trust_lane": "QUARANTINED",
+    "monetary_policy": "UNKNOWN_COST",
+    "billing_overflow_policy": "UNKNOWN",
+    "allowed_data_classes": []
+  },
+  "providers": [
+    {
+      "provider": "kilo",
+      "enabled": true,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_VERIFIED",
+      "billing_overflow_policy": "HARD_STOP",
+      "allowed_data_classes": ["PUBLIC"],
+      "allowed_modalities": ["text", "tools"],
+      "allowed_capabilities": ["reason.*", "code.*", "audio.analyze"],
+      "model_patterns": ["*"],
+      "terms_status": "REVIEWED_EXPERIMENTAL",
+      "privacy_status": "PUBLIC_ONLY_PROMPTS_OUTPUTS_MAY_BE_LOGGED_FOR_TRAINING",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://github.com/tashfeenahmed/freellmapi"
+      ],
+      "notes": "Keyless anonymous free route; never eligible for internal or private project data."
+    },
+    {
+      "provider": "pollinations",
+      "enabled": true,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_VERIFIED",
+      "billing_overflow_policy": "HARD_STOP",
+      "allowed_data_classes": ["PUBLIC"],
+      "allowed_modalities": ["image", "video", "speech"],
+      "allowed_capabilities": ["visual.image", "visual.video", "audio.voice"],
+      "model_patterns": ["*"],
+      "terms_status": "REVIEWED_KEYLESS",
+      "privacy_status": "PUBLIC_ONLY",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://github.com/tashfeenahmed/freellmapi"
+      ],
+      "notes": "FreeLLMAPI marks Pollinations as keyless-capable for media; public prompts only."
+    },
+    {
+      "provider": "ovh",
+      "enabled": true,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_VERIFIED",
+      "billing_overflow_policy": "HARD_STOP",
+      "allowed_data_classes": ["PUBLIC"],
+      "allowed_modalities": ["text", "tools"],
+      "allowed_capabilities": ["reason.*", "code.*"],
+      "model_patterns": ["*"],
+      "terms_status": "REVIEWED_KEYLESS",
+      "privacy_status": "PUBLIC_ONLY",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://github.com/tashfeenahmed/freellmapi"
+      ],
+      "notes": "Anonymous FreeLLMAPI-supported tier; public data only."
+    },
+    {
+      "provider": "aihorde",
+      "enabled": true,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_VERIFIED",
+      "billing_overflow_policy": "HARD_STOP",
+      "allowed_data_classes": ["PUBLIC"],
+      "allowed_modalities": ["text"],
+      "allowed_capabilities": ["reason.*"],
+      "model_patterns": ["*"],
+      "terms_status": "REVIEWED_KEYLESS",
+      "privacy_status": "PUBLIC_ONLY_COMMUNITY_INFRASTRUCTURE",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://github.com/tashfeenahmed/freellmapi"
+      ],
+      "notes": "Anonymous community route; public tasks only and low-priority queue is acceptable."
+    },
+    {
+      "provider": "groq",
+      "enabled": true,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_VERIFIED",
+      "billing_overflow_policy": "HARD_STOP",
+      "allowed_data_classes": ["PUBLIC"],
+      "allowed_modalities": ["text", "tools", "transcription"],
+      "allowed_capabilities": ["reason.*", "code.*", "audio.transcribe"],
+      "model_patterns": ["*"],
+      "terms_status": "REVIEWED_FREE_PLAN",
+      "privacy_status": "PUBLIC_ONLY_UNTIL_ZDR_ATTESTED",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://console.groq.com/docs/rate-limits",
+        "https://console.groq.com/docs/your-data"
+      ],
+      "notes": "Free-plan rate caps are suitable for zero-cost use; internal data requires a separate ZDR/account attestation not provided by this registry."
+    },
+    {
+      "provider": "github",
+      "enabled": true,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_VERIFIED",
+      "billing_overflow_policy": "HARD_STOP",
+      "allowed_data_classes": ["PUBLIC"],
+      "allowed_modalities": ["text", "tools", "vision", "embedding"],
+      "allowed_capabilities": ["reason.*", "code.*", "visual.analyze", "embedding.create"],
+      "model_patterns": ["*"],
+      "terms_status": "REVIEWED_EXPERIMENTATION_TIER",
+      "privacy_status": "PUBLIC_ONLY",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://docs.github.com/github-models/prototyping-with-ai-models"
+      ],
+      "notes": "Free API usage is treated as experimentation/prototyping only; no private media."
+    },
+    {
+      "provider": "nvidia",
+      "enabled": true,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_VERIFIED",
+      "billing_overflow_policy": "HARD_STOP",
+      "allowed_data_classes": ["PUBLIC"],
+      "allowed_modalities": ["text", "tools", "vision", "embedding", "image"],
+      "allowed_capabilities": ["reason.*", "code.*", "visual.analyze", "embedding.create", "visual.image"],
+      "model_patterns": ["*"],
+      "terms_status": "REVIEWED_EVALUATION_ONLY",
+      "privacy_status": "PUBLIC_ONLY",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://build.nvidia.com"
+      ],
+      "notes": "Evaluation/development use only; never a publication-critical sole dependency."
+    },
+    {
+      "provider": "openrouter",
+      "enabled": true,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_VERIFIED",
+      "billing_overflow_policy": "HARD_STOP",
+      "allowed_data_classes": ["PUBLIC"],
+      "allowed_modalities": ["text", "tools", "vision", "embedding"],
+      "allowed_capabilities": ["reason.*", "code.*", "visual.analyze", "embedding.create"],
+      "model_patterns": ["*:free", "openrouter/free"],
+      "terms_status": "REVIEWED_FREE_MODEL_ONLY",
+      "privacy_status": "PUBLIC_ONLY_WITHOUT_PROVIDER_DATA_POLICY_ATTESTATION",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://openrouter.ai/docs/faq"
+      ],
+      "notes": "Only explicit zero-priced model ids are eligible; paid OpenRouter model ids are denied."
+    },
+    {
+      "provider": "google",
+      "enabled": false,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP",
+      "billing_overflow_policy": "ACCOUNT_ATTESTATION_REQUIRED",
+      "allowed_data_classes": ["PUBLIC"],
+      "allowed_modalities": ["text", "tools", "vision", "embedding"],
+      "allowed_capabilities": ["reason.*", "code.*", "visual.analyze", "embedding.create"],
+      "model_patterns": ["*"],
+      "terms_status": "REVIEWED_FREE_TIER_WITH_BILLING_BOUNDARY",
+      "privacy_status": "PUBLIC_ONLY_FREE_SERVICE_CONTENT_MAY_BE_USED_TO_IMPROVE_PRODUCTS",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://ai.google.dev/gemini-api/terms",
+        "https://ai.google.dev/gemini-api/docs/pricing"
+      ],
+      "notes": "Enable only after a project/account hard-cap attestation proves provider billing cannot overflow."
+    },
+    {
+      "provider": "cloudflare",
+      "enabled": false,
+      "trust_lane": "REMOTE_INTERNAL_SAFE",
+      "monetary_policy": "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP",
+      "billing_overflow_policy": "ACCOUNT_ATTESTATION_REQUIRED",
+      "allowed_data_classes": ["PUBLIC", "INTERNAL_NON_SECRET"],
+      "allowed_modalities": ["text", "embedding", "image", "speech", "transcription"],
+      "allowed_capabilities": ["reason.*", "embedding.create", "visual.image", "audio.voice", "audio.transcribe"],
+      "model_patterns": ["*"],
+      "terms_status": "REVIEWED",
+      "privacy_status": "NO_TRAINING_WITHOUT_CONSENT",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://developers.cloudflare.com/workers-ai/platform/data-usage/",
+        "https://developers.cloudflare.com/workers-ai/platform/pricing/"
+      ],
+      "notes": "Privacy is suitable for internal non-secret data, but automatic execution remains disabled until the account is attested to fail closed at zero monetary cost."
+    },
+    {
+      "provider": "huggingface",
+      "enabled": false,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP",
+      "billing_overflow_policy": "ACCOUNT_ATTESTATION_REQUIRED",
+      "allowed_data_classes": ["PUBLIC"],
+      "allowed_modalities": ["text", "embedding", "video"],
+      "allowed_capabilities": ["reason.*", "embedding.create", "visual.video"],
+      "model_patterns": ["*"],
+      "terms_status": "REVIEWED_CREDITS_AND_PAYG",
+      "privacy_status": "PUBLIC_ONLY",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://huggingface.co/docs/inference-providers/main/pricing"
+      ],
+      "notes": "Credits/PAYG semantics require an account-level hard-cap attestation before zero-cost automatic routing."
+    },
+    {
+      "provider": "cohere",
+      "enabled": false,
+      "trust_lane": "QUARANTINED",
+      "monetary_policy": "UNKNOWN_COST",
+      "billing_overflow_policy": "UNKNOWN",
+      "allowed_data_classes": [],
+      "allowed_modalities": ["text", "embedding"],
+      "allowed_capabilities": [],
+      "model_patterns": ["*"],
+      "terms_status": "TERMS_NOT_APPROVED_FOR_CURRENT_PERSONAL_USE_CONTEXT",
+      "privacy_status": "QUARANTINED",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://github.com/tashfeenahmed/freellmapi"
+      ],
+      "notes": "Present in upstream catalog but not admitted into automatic Hazewave execution."
+    },
+    {
+      "provider": "custom",
+      "enabled": false,
+      "trust_lane": "QUARANTINED",
+      "monetary_policy": "UNKNOWN_COST",
+      "billing_overflow_policy": "UNKNOWN",
+      "allowed_data_classes": [],
+      "allowed_modalities": ["text", "tools", "vision", "embedding", "image", "speech", "transcription"],
+      "allowed_capabilities": [],
+      "model_patterns": ["*"],
+      "terms_status": "ENDPOINT_SPECIFIC",
+      "privacy_status": "ENDPOINT_SPECIFIC",
+      "requires_endpoint_attestation": true,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://github.com/tashfeenahmed/freellmapi"
+      ],
+      "notes": "Generic custom endpoints are never assumed local/private or zero-cost; a separate endpoint attestation is required."
+    }
+  ]
+}
