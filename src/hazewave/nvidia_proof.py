@@ -270,6 +270,22 @@ def _write_private_json(path: Path, payload: dict[str, Any]) -> None:
     path.chmod(0o600)
 
 
+def probe_request_options(item: dict[str, Any]) -> dict[str, Any]:
+    capability = str(item.get("capability") or "")
+    evaluation = item.get("evaluation")
+    evaluation = evaluation if isinstance(evaluation, dict) else {}
+    options: dict[str, Any] = {}
+    if capability == "reason.deep":
+        options["max_tokens"] = 4096
+    elif capability == "code.review":
+        options["max_tokens"] = 2048
+    elif capability in {"reason.general", "code.generate"}:
+        options["max_tokens"] = 1024
+    if evaluation.get("kind") == "JSON_SUBSET":
+        options["response_format"] = {"type": "json_object"}
+    return options
+
+
 def run_nvidia_capability_probes(
     *,
     adapter: NvidiaNIMAdapter,
@@ -292,12 +308,14 @@ def run_nvidia_capability_probes(
             requested_domain=domain,
         )
         authorization = issue_authorization(route_task(task))
+        request_options = probe_request_options(item)
         raw_result = adapter.execute(
             authorization=authorization,
             model_id=DEFAULT_NVIDIA_MODEL,
             execution_profile=profile,
             messages=[{"role": "user", "content": str(item["prompt"])}],
             now=now,
+            **request_options,
         )
         evaluation = evaluate_probe_item(item, raw_result)
         final_result = replace(
