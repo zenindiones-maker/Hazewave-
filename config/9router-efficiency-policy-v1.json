@@ -43,8 +43,8 @@
       503,
       504
     ],
-    "general_and_code_selection": "LOWEST_TOTAL_TOKENS_THEN_LATENCY",
-    "deep_reasoning_selection": "OBSERVED_REASONING_THEN_LOWEST_TOTAL_TOKENS_THEN_LATENCY",
+    "general_and_code_selection": "BALANCED_TOKEN_LATENCY_PRODUCT",
+    "deep_reasoning_selection": "REASONING_EVIDENCE_THEN_BALANCED_TOKEN_LATENCY_PRODUCT",
     "transient_cooldown": {
       "base_seconds": 60,
       "max_seconds": 900,
@@ -55,6 +55,16 @@
         502,
         503,
         504
+      ]
+    },
+    "benchmark_sample_count": 3,
+    "live_adaptation": {
+      "source": "ROUTE_HEALTH_EWMA",
+      "alpha": 0.35,
+      "metrics": [
+        "latency_ms",
+        "total_tokens",
+        "reasoning_tokens"
       ]
     }
   },
