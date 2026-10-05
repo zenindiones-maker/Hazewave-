@@ -131,33 +131,43 @@
       "provider": "groq",
       "enabled": true,
       "trust_lane": "REMOTE_PUBLIC_FREE",
-      "monetary_policy": "ZERO_COST_VERIFIED",
-      "billing_overflow_policy": "HARD_STOP",
+      "monetary_policy": "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP",
+      "billing_overflow_policy": "ACCOUNT_ATTESTATION_REQUIRED",
       "allowed_data_classes": [
         "PUBLIC"
       ],
       "allowed_modalities": [
         "text",
         "tools",
+        "speech",
         "transcription"
       ],
       "allowed_capabilities": [
         "reason.*",
         "code.*",
+        "audio.voice",
         "audio.transcribe"
       ],
       "model_patterns": [
-        "*"
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "openai/gpt-oss-safeguard-20b",
+        "qwen/qwen3.8-27b",
+        "meta-llama/llama-prompt-guard-2-*",
+        "whisper-large-v3",
+        "whisper-large-v3-turbo",
+        "canopylabs/orpheus-*"
       ],
-      "terms_status": "REVIEWED_FREE_PLAN",
+      "terms_status": "REVIEWED_FREE_PLAN_ACCOUNT_BOUND",
       "privacy_status": "PUBLIC_ONLY_UNTIL_ZDR_ATTESTED",
       "requires_endpoint_attestation": false,
-      "last_reviewed_at": "2026-10-04",
+      "last_reviewed_at": "2026-10-05",
       "source_evidence": [
         "https://console.groq.com/docs/rate-limits",
+        "https://console.groq.com/docs/billing-faqs",
         "https://console.groq.com/docs/your-data"
       ],
-      "notes": "Free-plan rate caps are suitable for zero-cost use; internal data requires a separate ZDR/account attestation not provided by this registry."
+      "notes": "Free Plan has explicit model rate limits and requires an explicit upgrade with a payment method before paid Developer billing. Hazewave still requires a local attestation bound to each FreeLLMAPI key id before execution."
     },
     {
       "provider": "github",
@@ -224,8 +234,8 @@
       "provider": "openrouter",
       "enabled": true,
       "trust_lane": "REMOTE_PUBLIC_FREE",
-      "monetary_policy": "ZERO_COST_VERIFIED",
-      "billing_overflow_policy": "HARD_STOP",
+      "monetary_policy": "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP",
+      "billing_overflow_policy": "ACCOUNT_ATTESTATION_REQUIRED",
       "allowed_data_classes": [
         "PUBLIC"
       ],
@@ -245,14 +255,15 @@
         "*:free",
         "openrouter/free"
       ],
-      "terms_status": "REVIEWED_FREE_MODEL_ONLY",
+      "terms_status": "REVIEWED_FREE_PLAN_ACCOUNT_BOUND",
       "privacy_status": "PUBLIC_ONLY_WITHOUT_PROVIDER_DATA_POLICY_ATTESTATION",
       "requires_endpoint_attestation": false,
-      "last_reviewed_at": "2026-10-04",
+      "last_reviewed_at": "2026-10-05",
       "source_evidence": [
-        "https://openrouter.ai/docs/faq"
+        "https://openrouter.ai/pricing/",
+        "https://openrouter.ai/collections/free-models"
       ],
-      "notes": "Only explicit zero-priced model ids are eligible; paid OpenRouter model ids are denied."
+      "notes": "Only explicit free model ids are eligible, and the Free plan has no payment options. Hazewave requires a local attestation bound to each FreeLLMAPI key id so a paid account key cannot inherit Free-plan eligibility."
     },
     {
       "provider": "google",
@@ -290,7 +301,7 @@
     },
     {
       "provider": "cloudflare",
-      "enabled": false,
+      "enabled": true,
       "trust_lane": "REMOTE_INTERNAL_SAFE",
       "monetary_policy": "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP",
       "billing_overflow_policy": "ACCOUNT_ATTESTATION_REQUIRED",
@@ -300,30 +311,32 @@
       ],
       "allowed_modalities": [
         "text",
+        "tools",
+        "vision",
         "embedding",
         "image",
-        "speech",
         "transcription"
       ],
       "allowed_capabilities": [
         "reason.*",
+        "code.*",
+        "visual.analyze",
         "embedding.create",
         "visual.image",
-        "audio.voice",
         "audio.transcribe"
       ],
       "model_patterns": [
         "*"
       ],
-      "terms_status": "REVIEWED",
+      "terms_status": "REVIEWED_FREE_PLAN_ACCOUNT_BOUND",
       "privacy_status": "NO_TRAINING_WITHOUT_CONSENT",
       "requires_endpoint_attestation": false,
-      "last_reviewed_at": "2026-10-04",
+      "last_reviewed_at": "2026-10-05",
       "source_evidence": [
-        "https://developers.cloudflare.com/workers-ai/platform/data-usage/",
-        "https://developers.cloudflare.com/workers-ai/platform/pricing/"
+        "https://developers.cloudflare.com/workers-ai/platform/pricing/",
+        "https://developers.cloudflare.com/workers-ai/platform/data-usage/"
       ],
-      "notes": "Privacy is suitable for internal non-secret data, but automatic execution remains disabled until the account is attested to fail closed at zero monetary cost."
+      "notes": "Workers Free includes 10,000 Neurons/day and fails rather than billing above the free allocation; some models require Workers Paid and therefore fail on Free. Hazewave requires local attestation of the Workers Free account bound to each FreeLLMAPI key id."
     },
     {
       "provider": "huggingface",
