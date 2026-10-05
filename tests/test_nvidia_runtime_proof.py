@@ -8,6 +8,7 @@ from hazewave.nvidia_proof import (
     load_probe_corpus,
     scan_paths_for_secret,
     probe_request_options,
+    run_nvidia_capability_probes,
 )
 from hazewave.provider_runtime import HazewaveProviderExecutionResult
 
@@ -134,3 +135,52 @@ def test_code_review_probe_requests_2048_tokens_without_json_mode() -> None:
     options = probe_request_options(item)
     assert options["max_tokens"] == 2048
     assert "response_format" not in options
+
+
+def test_failed_probe_diagnostics_are_sanitized_and_never_persist_raw_content(
+    tmp_path: Path,
+) -> None:
+    class StubAdapter:
+        def execute(self, **kwargs):
+            return _result(
+                'not json; diagnostic token nvapi-runtime-secret-sentinel'
+            )
+
+    corpus = {
+        "items": [
+            {
+                "id": "diag-1",
+                "capability": "reason.general",
+                "domain": "HAZE",
+                "execution_profile": "FAST_STRUCTURED",
+                "task_family": "diag",
+                "prompt": "return json",
+                "evaluation": {
+                    "kind": "JSON_SUBSET",
+                    "expected": {"ok": True},
+                },
+            }
+        ]
+    }
+    diagnostics = []
+    receipt_path = tmp_path / "proof.json"
+    learning_path = tmp_path / "learning.json"
+
+    proof = run_nvidia_capability_probes(
+        adapter=StubAdapter(),
+        corpus=corpus,
+        learning_path=learning_path,
+        receipt_path=receipt_path,
+        now="2026-10-05T16:00:00+00:00",
+        diagnostic_sink=diagnostics.append,
+    )
+
+    assert proof["all_semantic_pass"] is False
+    assert len(diagnostics) == 1
+    assert diagnostics[0]["evaluation_reason"] == "JSON_INVALID"
+    assert "nvapi-" not in diagnostics[0]["content"]
+    assert "[REDACTED]" in diagnostics[0]["content"]
+
+    persisted = receipt_path.read_text(encoding="utf-8")
+    assert "not json" not in persisted
+    assert "nvapi-runtime-secret-sentinel" not in persisted
