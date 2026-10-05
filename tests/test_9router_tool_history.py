@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 from pathlib import Path
 
 import httpx
@@ -240,3 +241,57 @@ def test_messages_executor_rejects_invalid_or_non_text_public_history(
             transport=transport,
             cli_token="unit-test-token",
         )
+
+
+def test_executor_sends_stable_opaque_session_hint_per_task(tmp_path: Path) -> None:
+    settings = {
+        "requireApiKey": True,
+        "cloudEnabled": False,
+        "tunnelEnabled": False,
+        "tailscaleEnabled": False,
+        "capacityAdapter": {},
+        "outboundProxyEnabled": False,
+        "rtkEnabled": True,
+        "headroomEnabled": False,
+    }
+    observed_sessions: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/settings" and request.method == "GET":
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/api/settings" and request.method == "PATCH":
+            settings.update(json.loads(request.content))
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/v1/chat/completions":
+            observed_sessions.append(request.headers["x-session-id"])
+            return httpx.Response(
+                200,
+                json={
+                    "choices": [{"message": {"content": "ok"}}],
+                    "usage": {
+                        "prompt_tokens": 5,
+                        "completion_tokens": 1,
+                        "total_tokens": 6,
+                    },
+                },
+            )
+        raise AssertionError("unexpected request")
+
+    authorization = _authorization()
+    transport = httpx.MockTransport(handler)
+    for index in range(2):
+        execute_9router_messages(
+            authorization=authorization,
+            model_id="oc/mimo-v2.6-flash-free",
+            messages=[{"role": "user", "content": f"turn {index}"}],
+            receipt=_receipt(),
+            now="2026-10-05T12:30:00+00:00",
+            lock_path=tmp_path / "lock",
+            route_health_path=tmp_path / "health.json",
+            transport=transport,
+            cli_token="unit-test-token",
+        )
+
+    expected = "hz_" + sha256(authorization.task_id.encode("utf-8")).hexdigest()[:32]
+    assert observed_sessions == [expected, expected]
+    assert authorization.task_id not in observed_sessions[0]
