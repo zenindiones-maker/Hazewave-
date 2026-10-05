@@ -55,7 +55,8 @@
         502,
         503,
         504
-      ]
+      ],
+      "retry_after": "HONOR_SECONDS_UP_TO_3600"
     },
     "benchmark_sample_count": 3,
     "live_adaptation": {
@@ -70,7 +71,9 @@
         "alpha": 2,
         "beta": 1
       },
-      "reliability_penalty_power": 2
+      "reliability_penalty_power": 2,
+      "scope": "CAPABILITY_THEN_MODEL",
+      "semantic_failure_scope": "CAPABILITY_ONLY"
     },
     "semantic_admission": {
       "sample_count": 3,
