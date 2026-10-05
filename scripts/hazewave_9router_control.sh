@@ -1,6 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${HAZEWAVE_9ROUTER_ROOT:-$HOME/.local/share/hazewave/providers/9router}"
 CURRENT="$ROOT/current"
 STATE_ROOT="${HAZEWAVE_9ROUTER_STATE_ROOT:-$HOME/.local/state/hazewave/providers/9router}"
@@ -229,11 +230,17 @@ case "${1:-status}" in
   doctor)
     doctor_runtime
     ;;
+  catalog)
+    exec bash "$SCRIPT_DIR/hazewave_9router_free_probe.sh" catalog
+    ;;
+  probe-free)
+    exec bash "$SCRIPT_DIR/hazewave_9router_free_probe.sh" probe
+    ;;
   logs)
     tail -n "${2:-100}" "$LOG_FILE"
     ;;
   *)
-    echo "usage: $0 {install|start|stop|restart|status|doctor|logs [lines]}" >&2
+    echo "usage: $0 {install|start|stop|restart|status|doctor|catalog|probe-free|logs [lines]}" >&2
     exit 2
     ;;
 esac
