@@ -1,0 +1,336 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import httpx
+import pytest
+
+from hazewave.freellmapi import (
+    DEFAULT_BASE_URL,
+    FREELLMAPI_PINNED_REF,
+    FREELLMAPI_REPOSITORY,
+    FreeLLMAPIClient,
+    FreeLLMAPIError,
+)
+from hazewave.harness import HazewaveTask, issue_authorization, route_task
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _authorization():
+    decision = route_task(
+        HazewaveTask(
+            task_id="t-provider-1",
+            goal="analyze non-secret sonic planning context",
+            required_capability="audio.analyze",
+            requested_domain="HAZE",
+        )
+    )
+    return issue_authorization(decision)
+
+
+def _client(handler, *, api_key="freellmapi-test-key") -> FreeLLMAPIClient:
+    client = FreeLLMAPIClient(DEFAULT_BASE_URL, api_key=api_key)
+    client._client.close()
+    client._client = httpx.Client(
+        base_url=DEFAULT_BASE_URL,
+        headers={"Authorization": f"Bearer {api_key}"},
+        transport=httpx.MockTransport(handler),
+    )
+    return client
+
+
+def test_upstream_is_exactly_pinned() -> None:
+    assert FREELLMAPI_REPOSITORY == "https://github.com/tashfeenahmed/freellmapi.git"
+    assert FREELLMAPI_PINNED_REF == "716948f20b12ec1c9b7c6fcebd22a3e7233cda1b"
+
+
+def test_client_rejects_non_loopback_gateway_by_default() -> None:
+    with pytest.raises(FreeLLMAPIError, match="loopback"):
+        FreeLLMAPIClient("https://router.example.com/v1", api_key="x")
+
+
+def test_chat_requires_harness_bound_authorization_and_keeps_router_subordinate() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/chat/completions"
+        assert request.headers["Authorization"] == "Bearer freellmapi-test-key"
+        payload = __import__("json").loads(request.content)
+        assert payload["model"] == "auto"
+        assert payload["messages"] == [{"role": "user", "content": "analyze this structure"}]
+        return httpx.Response(
+            200,
+            headers={"X-Routed-Via": "groq/openai/gpt-oss-20b"},
+            json={
+                "id": "chatcmpl-test",
+                "model": "provider/model-served",
+                "choices": [{"message": {"role": "assistant", "content": "ok"}}],
+                "usage": {"prompt_tokens": 4, "completion_tokens": 1, "total_tokens": 5},
+            },
+        )
+
+    with _client(handler) as client:
+        result = client.chat(
+            messages=[{"role": "user", "content": "analyze this structure"}],
+            authorization=_authorization(),
+            task_id="t-provider-1",
+            capability_id="audio.analyze",
+            data_classification="PUBLIC",
+        )
+
+    assert result.content == "ok"
+    assert result.served_model == "provider/model-served"
+    assert result.authority == "HAZEWAVE_HARNESS"
+    assert result.provider_gateway == "FREELLMAPI"
+    assert result.routed_via == "groq/openai/gpt-oss-20b"
+
+
+def test_private_media_and_credentials_are_fail_closed_before_provider_egress() -> None:
+    called = False
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal called
+        called = True
+        return httpx.Response(500)
+
+    with _client(handler) as client:
+        for classification in ("INTERNAL_NON_SECRET", "PRIVATE_MEDIA", "CREDENTIAL"):
+            with pytest.raises(FreeLLMAPIError, match="DATA_CLASS_NOT_ALLOWED"):
+                client.chat(
+                    messages=[{"role": "user", "content": "do not send"}],
+                    authorization=_authorization(),
+                    task_id="t-provider-1",
+                    capability_id="audio.analyze",
+                    data_classification=classification,
+                )
+
+    assert called is False
+
+
+def test_termux_provider_runtime_is_project_namespaced_pinned_and_loopback_only() -> None:
+    installer = (ROOT / "scripts" / "install_hazewave_freellmapi_termux.sh").read_text(
+        encoding="utf-8"
+    )
+    control = (ROOT / "scripts" / "hazewave_freellmapi_control.sh").read_text(
+        encoding="utf-8"
+    )
+    combined = installer + "\n" + control
+
+    assert "716948f20b12ec1c9b7c6fcebd22a3e7233cda1b" in installer
+    assert ".local/share/hazewave/providers/freellmapi" in combined
+    assert ".local/state/hazewave/providers/freellmapi" in combined
+    assert ".config/hazewave/providers/freellmapi" in combined
+    assert "HOST=127.0.0.1" in control
+    assert "FREELLMAPI_UPDATE_CHECK=off" in control
+    assert "BR-no-GTA" not in combined
+
+
+def test_freellmapi_architecture_and_runbook_are_registered() -> None:
+    import json
+
+    registry = json.loads(
+        (ROOT / "docs" / "DOCUMENTATION_REGISTRY_V2.json").read_text(encoding="utf-8")
+    )
+    paths = {entry["path"] for entry in registry["documents"]}
+    assert "docs/architecture/decisions/ADR-0005-freellmapi-provider-gateway.md" in paths
+    assert "docs/runbooks/FREELLMAPI_PROVIDER_V1.md" in paths
+
+
+def test_live_probe_receipt_is_harness_bound_and_secret_free(monkeypatch: pytest.MonkeyPatch) -> None:
+    from hazewave.freellmapi import (
+        FreeLLMAPICompletionResult,
+        FreeLLMAPILocalCatalog,
+        run_live_probe,
+    )
+
+    catalog = object()
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def governed_chat(self, **kwargs):
+            assert kwargs["catalog"] is catalog
+            assert kwargs["data_classification"] == "PUBLIC"
+            assert kwargs["capability_id"] == "audio.analyze"
+            assert "Synthetic sonic descriptor" in kwargs["messages"][0]["content"]
+            return FreeLLMAPICompletionResult(
+                content="Stable pulse structure.",
+                served_model="test-model",
+                usage={"prompt_tokens": 8, "completion_tokens": 4, "total_tokens": 12, "cost": 0},
+                raw={},
+                routed_via="test-provider/test-model",
+                receipt={
+                    "schema": "HazewaveProviderExecutionReceipt/v1",
+                    "provider": "test-provider",
+                    "requested_model": "test-provider:test-model",
+                    "trust_lane": "REMOTE_PUBLIC_FREE",
+                    "zero_cost_verified": True,
+                },
+            )
+
+    monkeypatch.setattr("hazewave.freellmapi.FreeLLMAPIClient", FakeClient)
+    receipt = run_live_probe(
+        api_key="freellmapi-secret-value",
+        task_id="hazewave-provider-proof-test",
+        catalog=catalog,
+    )
+
+    assert receipt["schema"] == "HazewaveProviderProbeReceipt/v2"
+    assert receipt["status"] == "PASS"
+    assert receipt["authority"] == "HAZEWAVE_HARNESS"
+    assert receipt["capability_id"] == "audio.analyze"
+    assert receipt["data_classification"] == "PUBLIC"
+    assert receipt["provider_gateway"] == "FREELLMAPI"
+    assert receipt["provider"] == "test-provider"
+    assert receipt["requested_model"] == "test-provider:test-model"
+    assert receipt["routed_via"] == "test-provider/test-model"
+    assert receipt["served_model"] == "test-model"
+    assert receipt["zero_cost_verified"] is True
+    assert len(receipt["content_sha256"]) == 64
+    assert "freellmapi-secret-value" not in __import__("json").dumps(receipt)
+
+def test_freellmapi_persistence_is_singleton_boot_managed_and_pid_bound() -> None:
+    control = (ROOT / "scripts" / "hazewave_freellmapi_control.sh").read_text(
+        encoding="utf-8"
+    )
+    persistence = (
+        ROOT / "scripts" / "install_hazewave_freellmapi_persistence.sh"
+    ).read_text(encoding="utf-8")
+
+    assert "server/dist/index.js" in control
+    assert "nohup npm run start -w server" not in control
+    assert "managed_pid_alive" in control
+    assert "owned_runtime_pid" in control
+    assert "CONTROL_LOCK_DIR" in control
+    assert ".termux/boot" in persistence
+    assert "hazewave-freellmapi.sh" in persistence
+    assert "supervisor.lock" in persistence
+    assert "termux-wake-lock" in persistence
+    assert "bash \"$CONTROL\" restart" in persistence
+
+
+def test_models_available_only_queries_router_readiness() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/models"
+        assert request.url.params.get("available") == "true"
+        return httpx.Response(
+            200,
+            json={
+                "data": [
+                    {"id": "auto", "object": "model", "available": True},
+                    {"id": "provider/model", "object": "model", "available": True},
+                ]
+            },
+        )
+
+    with _client(handler) as client:
+        models = client.models(available_only=True)
+
+    assert [row["id"] for row in models] == ["auto", "provider/model"]
+
+
+def test_live_probe_fails_closed_when_governed_zero_cost_pool_is_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from hazewave.freellmapi import run_live_probe
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            self.governed_chat_called = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def governed_chat(self, **kwargs):
+            self.governed_chat_called = True
+            raise FreeLLMAPIError("FREELLMAPI_ZERO_COST_POOL_UNAVAILABLE")
+
+    fake = FakeClient()
+    monkeypatch.setattr("hazewave.freellmapi.FreeLLMAPIClient", lambda *a, **k: fake)
+
+    with pytest.raises(FreeLLMAPIError, match="FREELLMAPI_ZERO_COST_POOL_UNAVAILABLE"):
+        run_live_probe(
+            api_key="freellmapi-secret-value",
+            task_id="hazewave-provider-proof-no-route",
+            catalog=object(),
+        )
+
+    assert fake.governed_chat_called is True
+
+def test_http_status_error_exposes_safe_status_and_provider_code_without_secret() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            503,
+            json={
+                "error": {
+                    "message": "No usable provider key configured",
+                    "type": "provider_error",
+                    "code": "no_providers_configured",
+                }
+            },
+        )
+
+    with _client(handler, api_key="freellmapi-secret-value") as client:
+        with pytest.raises(FreeLLMAPIError) as exc:
+            client.chat(
+                messages=[{"role": "user", "content": "synthetic text"}],
+                authorization=_authorization(),
+                task_id="t-provider-1",
+                capability_id="audio.analyze",
+                data_classification="PUBLIC",
+            )
+
+    message = str(exc.value)
+    assert "HTTP_503" in message
+    assert "no_providers_configured" in message
+    assert "freellmapi-secret-value" not in message
+
+
+def test_freellmapi_control_can_migrate_legacy_npm_wrapped_runtime() -> None:
+    control = (ROOT / "scripts" / "hazewave_freellmapi_control.sh").read_text(
+        encoding="utf-8"
+    )
+    persistence = (
+        ROOT / "scripts" / "install_hazewave_freellmapi_persistence.sh"
+    ).read_text(encoding="utf-8")
+
+    assert "owned_runtime_pid" in control
+    assert "/proc/$pid/cwd" in control
+    assert "npm run start -w server" in control
+    assert "node dist/index.js" in control
+    assert "node server/dist/index.js" in control
+    assert "stop_owned_runtime_processes" in control
+    assert 'bash "$CONTROL" restart' in persistence
+    assert 'test "$healthy" -eq 1' in control
+
+
+def test_auto_routing_is_public_only() -> None:
+    called = False
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal called
+        called = True
+        return httpx.Response(500)
+
+    with _client(handler) as client:
+        with pytest.raises(FreeLLMAPIError, match="DATA_CLASS_NOT_ALLOWED"):
+            client.chat(
+                messages=[{"role": "user", "content": "internal project text"}],
+                authorization=_authorization(),
+                task_id="t-provider-1",
+                capability_id="audio.analyze",
+                data_classification="INTERNAL_NON_SECRET",
+                model="auto",
+            )
+
+    assert called is False

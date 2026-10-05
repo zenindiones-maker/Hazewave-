@@ -1,0 +1,7 @@
+{
+  "schema": "ProjectProfile/v1",
+  "status": "SUPERSEDED",
+  "project_id": "HAZEWAVE",
+  "superseded_by": "config/project-profile-v2.json",
+  "note": "Retained only as an explicit migration marker. Do not bind new tasks to this profile."
+}

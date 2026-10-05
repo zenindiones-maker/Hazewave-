@@ -1,0 +1,351 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hazewave.local/schemas/project-profile-v2.schema.json",
+  "title": "Hazewave ProjectProfile v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "profile_id",
+    "profile_version",
+    "status",
+    "project_id",
+    "repository",
+    "canonical_branch",
+    "active_development_ref",
+    "project_purpose",
+    "architecture_authority",
+    "portfolio_authority",
+    "domains",
+    "allowed_capability_classes",
+    "forbidden_actions",
+    "data_classification",
+    "runtime_model",
+    "development_model",
+    "documentation_model",
+    "freshness_policy",
+    "supersedes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "ProjectProfile/v2"
+    },
+    "profile_id": {
+      "const": "hazewave-project-profile"
+    },
+    "profile_version": {
+      "const": 2
+    },
+    "status": {
+      "enum": [
+        "DEVELOPMENT_ACCEPTED",
+        "CANONICAL",
+        "SUPERSEDED"
+      ]
+    },
+    "project_id": {
+      "const": "HAZEWAVE"
+    },
+    "repository": {
+      "type": "string",
+      "minLength": 1
+    },
+    "canonical_branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "active_development_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "project_purpose": {
+      "type": "string",
+      "minLength": 20
+    },
+    "accepted_by": {
+      "type": "string",
+      "minLength": 1
+    },
+    "accepted_on": {
+      "type": "string",
+      "format": "date"
+    },
+    "architecture_authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_id",
+        "authority_kind",
+        "normative_refs",
+        "scope"
+      ],
+      "properties": {
+        "authority_id": {
+          "const": "hazewave_harness"
+        },
+        "authority_kind": {
+          "const": "PROJECT_CONTROL_PLANE"
+        },
+        "normative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "binding_policy"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "binding_policy": {
+                "const": "SAME_REPOSITORY_REVISION"
+              }
+            }
+          }
+        },
+        "scope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "task_domain_routing",
+              "capability_authorization",
+              "project_local_execution_policy"
+            ]
+          }
+        }
+      }
+    },
+    "portfolio_authority": {
+      "const": "NONE"
+    },
+    "domains": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "properties": {
+        "HAZE": {
+          "$ref": "#/$defs/domain"
+        },
+        "WAVE": {
+          "$ref": "#/$defs/domain"
+        },
+        "BRIDGE": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "responsibility",
+            "contract"
+          ],
+          "properties": {
+            "responsibility": {
+              "const": "haze_to_wave_translation"
+            },
+            "contract": {
+              "const": "HAZE_STATE -> WAVE_STATE"
+            }
+          }
+        }
+      }
+    },
+    "allowed_capability_classes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "AUDIO",
+          "VISUAL",
+          "HAZE_WAVE_BRIDGE",
+          "ARCHITECTURE_REVIEW",
+          "UPSTREAM_RESEARCH",
+          "INCIDENT_ANALYSIS",
+          "CANDIDATE_REVIEW"
+        ]
+      }
+    },
+    "forbidden_actions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "CROSS_PROJECT_SECRET_READ",
+          "CROSS_PROJECT_STATE_WRITE",
+          "SELF_EXPAND_AUTHORITY",
+          "UNAUTHORIZED_CANONICAL_WRITE",
+          "UNAUTHORIZED_PUBLICATION",
+          "UNAUTHORIZED_PRIVATE_MEDIA_ACCESS",
+          "SELF_APPROVAL_WHEN_INDEPENDENCE_REQUIRED"
+        ]
+      }
+    },
+    "data_classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classes",
+        "external_bot_max_class",
+        "private_media_requires_explicit_project_scoped_authorization"
+      ],
+      "properties": {
+        "classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 4,
+          "items": {
+            "enum": [
+              "PUBLIC",
+              "INTERNAL_NON_SECRET",
+              "PRIVATE_MEDIA",
+              "CREDENTIAL"
+            ]
+          }
+        },
+        "external_bot_max_class": {
+          "const": "INTERNAL_NON_SECRET"
+        },
+        "private_media_requires_explicit_project_scoped_authorization": {
+          "const": true
+        }
+      }
+    },
+    "runtime_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "development_checkout_is_runtime",
+        "immutable_release_required_for_termux",
+        "state_namespace",
+        "config_namespace",
+        "deploy_namespace"
+      ],
+      "properties": {
+        "development_checkout_is_runtime": {
+          "const": false
+        },
+        "immutable_release_required_for_termux": {
+          "const": true
+        },
+        "state_namespace": {
+          "const": "hazewave"
+        },
+        "config_namespace": {
+          "const": "hazewave"
+        },
+        "deploy_namespace": {
+          "const": "hazewave"
+        }
+      }
+    },
+    "development_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_write_requires_explicit_authorization",
+        "candidate_before_promotion",
+        "tests_before_promotion"
+      ],
+      "properties": {
+        "canonical_write_requires_explicit_authorization": {
+          "const": true
+        },
+        "candidate_before_promotion": {
+          "const": true
+        },
+        "tests_before_promotion": {
+          "const": true
+        }
+      }
+    },
+    "documentation_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registry_ref",
+        "governance_ref"
+      ],
+      "properties": {
+        "registry_ref": {
+          "const": "docs/DOCUMENTATION_REGISTRY_V2.json"
+        },
+        "governance_ref": {
+          "const": "docs/architecture/DOCUMENTATION_GOVERNANCE_V1.md"
+        }
+      }
+    },
+    "freshness_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "material_change_requires_revalidation",
+        "relevant_paths",
+        "accepted_unmaterialized_ttl_days"
+      ],
+      "properties": {
+        "material_change_requires_revalidation": {
+          "const": true
+        },
+        "relevant_paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "accepted_unmaterialized_ttl_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30
+        }
+      }
+    },
+    "supersedes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "$defs": {
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "responsibility",
+        "includes"
+      ],
+      "properties": {
+        "responsibility": {
+          "enum": [
+            "sound",
+            "image"
+          ]
+        },
+        "includes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

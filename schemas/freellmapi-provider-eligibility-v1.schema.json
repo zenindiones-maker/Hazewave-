@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hazewave.local/schemas/freellmapi-provider-eligibility-v1.schema.json",
+  "title": "HazewaveProviderEligibilityRegistry/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "project_id",
+    "authority",
+    "provider_gateway",
+    "paid_fallback",
+    "unknown_cost",
+    "default_policy",
+    "providers"
+  ],
+  "properties": {
+    "schema": {"const": "HazewaveProviderEligibilityRegistry/v1"},
+    "project_id": {"const": "HAZEWAVE"},
+    "authority": {"const": "HAZEWAVE_HARNESS"},
+    "provider_gateway": {"const": "FREELLMAPI"},
+    "paid_fallback": {"const": "FORBIDDEN"},
+    "unknown_cost": {"const": "DENY"},
+    "signed_catalog_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signed_catalog", "unsigned_catalog", "catalog_grants_eligibility"],
+      "properties": {
+        "signed_catalog": {"enum": ["DISCOVERY_ALLOWED"]},
+        "unsigned_catalog": {"enum": ["DENY"]},
+        "catalog_grants_eligibility": {"const": false}
+      }
+    },
+    "default_policy": {"$ref": "#/$defs/defaultPolicy"},
+    "providers": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/providerPolicy"}
+    }
+  },
+  "$defs": {
+    "trustLane": {
+      "enum": ["LOCAL_PRIVATE", "REMOTE_INTERNAL_SAFE", "REMOTE_PUBLIC_FREE", "QUARANTINED"]
+    },
+    "monetaryPolicy": {
+      "enum": [
+        "ZERO_COST_VERIFIED",
+        "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP",
+        "UNKNOWN_COST",
+        "PAID"
+      ]
+    },
+    "billingOverflowPolicy": {
+      "enum": ["HARD_STOP", "ACCOUNT_ATTESTATION_REQUIRED", "UNKNOWN", "PAID_OVERFLOW"]
+    },
+    "dataClass": {
+      "enum": ["PUBLIC", "INTERNAL_NON_SECRET", "PRIVATE_MEDIA", "CREDENTIAL"]
+    },
+    "modality": {
+      "enum": ["text", "vision", "embedding", "image", "video", "speech", "transcription", "tools"]
+    },
+    "defaultPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "trust_lane",
+        "monetary_policy",
+        "billing_overflow_policy",
+        "allowed_data_classes"
+      ],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "trust_lane": {"$ref": "#/$defs/trustLane"},
+        "monetary_policy": {"$ref": "#/$defs/monetaryPolicy"},
+        "billing_overflow_policy": {"$ref": "#/$defs/billingOverflowPolicy"},
+        "allowed_data_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/dataClass"}
+        }
+      }
+    },
+    "providerPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "enabled",
+        "trust_lane",
+        "monetary_policy",
+        "billing_overflow_policy",
+        "allowed_data_classes",
+        "allowed_modalities",
+        "allowed_capabilities",
+        "model_patterns",
+        "terms_status",
+        "privacy_status",
+        "requires_endpoint_attestation",
+        "last_reviewed_at",
+        "source_evidence"
+      ],
+      "properties": {
+        "provider": {"type": "string", "minLength": 1},
+        "enabled": {"type": "boolean"},
+        "trust_lane": {"$ref": "#/$defs/trustLane"},
+        "monetary_policy": {"$ref": "#/$defs/monetaryPolicy"},
+        "billing_overflow_policy": {"$ref": "#/$defs/billingOverflowPolicy"},
+        "allowed_data_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/dataClass"}
+        },
+        "allowed_modalities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/modality"}
+        },
+        "allowed_capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "model_patterns": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "terms_status": {"type": "string", "minLength": 1},
+        "privacy_status": {"type": "string", "minLength": 1},
+        "requires_endpoint_attestation": {"type": "boolean"},
+        "last_reviewed_at": {"type": "string", "minLength": 10},
+        "source_evidence": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "notes": {"type": "string"}
+      }
+    }
+  }
+}

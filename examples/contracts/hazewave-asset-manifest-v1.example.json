@@ -1,0 +1,50 @@
+{
+  "schema": "HazewaveAssetManifest/v1",
+  "asset_id": "asset-demo-0001",
+  "asset_type": "AUDIO",
+  "project_id": "HAZEWAVE",
+  "work_id": "DEMO",
+  "sources": [
+    {
+      "ref": "source/demo-input.wav",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "role": "SOURCE_AUDIO"
+    }
+  ],
+  "human_contributors": [],
+  "ai_models": [],
+  "tools": [
+    {
+      "name": "hazewave",
+      "version": "0.2.0"
+    }
+  ],
+  "operations": [
+    {
+      "operation_id": "op-001",
+      "type": "audio-analysis",
+      "performed_by": "hazewave",
+      "input_refs": [
+        "source/demo-input.wav"
+      ],
+      "output_refs": [
+        "artifact/demo-analysis.json"
+      ]
+    }
+  ],
+  "rights_refs": [],
+  "consent_refs": [],
+  "artifact": {
+    "locator": "artifact/demo-analysis.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "mime_type": "application/json"
+  },
+  "provenance_graph_ref": null,
+  "content_credentials_ref": null,
+  "human_approval": {
+    "status": "PENDING",
+    "approved_by": null,
+    "approved_at": null
+  },
+  "publication_status": "DRAFT"
+}

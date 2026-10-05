@@ -1,0 +1,139 @@
+{
+  "schema": "ProjectProfile/v2",
+  "profile_id": "hazewave-project-profile",
+  "profile_version": 2,
+  "status": "DEVELOPMENT_ACCEPTED",
+  "project_id": "HAZEWAVE",
+  "repository": "zenindiones-maker/Hazewave-",
+  "canonical_branch": "main",
+  "active_development_ref": "work/wave-living-resonance-v1",
+  "project_purpose": "HAZE owns sound and music. WAVE owns image and visual media. BRIDGE translates structured sonic state into visual state without collapsing the two domains.",
+  "accepted_by": "HUMAN_OWNER",
+  "accepted_on": "2026-10-04",
+  "architecture_authority": {
+    "authority_id": "hazewave_harness",
+    "authority_kind": "PROJECT_CONTROL_PLANE",
+    "normative_refs": [
+      {
+        "path": "AGENTS.md",
+        "binding_policy": "SAME_REPOSITORY_REVISION"
+      },
+      {
+        "path": "config/project-profile-v2.json",
+        "binding_policy": "SAME_REPOSITORY_REVISION"
+      }
+    ],
+    "scope": [
+      "task_domain_routing",
+      "capability_authorization",
+      "project_local_execution_policy"
+    ]
+  },
+  "portfolio_authority": "NONE",
+  "domains": {
+    "HAZE": {
+      "responsibility": "sound",
+      "includes": [
+        "music",
+        "voice",
+        "audio",
+        "rhythm",
+        "timbre",
+        "composition",
+        "synthesis",
+        "sound design",
+        "mixing",
+        "mastering",
+        "audio analysis",
+        "sonic memory"
+      ]
+    },
+    "WAVE": {
+      "responsibility": "image",
+      "includes": [
+        "photos",
+        "sites",
+        "video",
+        "images",
+        "animation",
+        "visual design",
+        "generative visuals",
+        "interactive visual media",
+        "publishing",
+        "editorial design"
+      ]
+    },
+    "BRIDGE": {
+      "responsibility": "haze_to_wave_translation",
+      "contract": "HAZE_STATE -> WAVE_STATE"
+    }
+  },
+  "allowed_capability_classes": [
+    "AUDIO",
+    "VISUAL",
+    "HAZE_WAVE_BRIDGE",
+    "ARCHITECTURE_REVIEW",
+    "UPSTREAM_RESEARCH",
+    "INCIDENT_ANALYSIS",
+    "CANDIDATE_REVIEW"
+  ],
+  "forbidden_actions": [
+    "CROSS_PROJECT_SECRET_READ",
+    "CROSS_PROJECT_STATE_WRITE",
+    "SELF_EXPAND_AUTHORITY",
+    "UNAUTHORIZED_CANONICAL_WRITE",
+    "UNAUTHORIZED_PUBLICATION",
+    "UNAUTHORIZED_PRIVATE_MEDIA_ACCESS",
+    "SELF_APPROVAL_WHEN_INDEPENDENCE_REQUIRED"
+  ],
+  "data_classification": {
+    "classes": [
+      "PUBLIC",
+      "INTERNAL_NON_SECRET",
+      "PRIVATE_MEDIA",
+      "CREDENTIAL"
+    ],
+    "external_bot_max_class": "INTERNAL_NON_SECRET",
+    "private_media_requires_explicit_project_scoped_authorization": true
+  },
+  "runtime_model": {
+    "development_checkout_is_runtime": false,
+    "immutable_release_required_for_termux": true,
+    "state_namespace": "hazewave",
+    "config_namespace": "hazewave",
+    "deploy_namespace": "hazewave"
+  },
+  "development_model": {
+    "canonical_write_requires_explicit_authorization": true,
+    "candidate_before_promotion": true,
+    "tests_before_promotion": true
+  },
+  "documentation_model": {
+    "registry_ref": "docs/DOCUMENTATION_REGISTRY_V2.json",
+    "governance_ref": "docs/architecture/DOCUMENTATION_GOVERNANCE_V1.md"
+  },
+  "freshness_policy": {
+    "material_change_requires_revalidation": true,
+    "relevant_paths": [
+      "AGENTS.md",
+      "config/",
+      "canon/",
+      "schemas/",
+      "src/hazewave/harness.py",
+      "docs/architecture/",
+      "docs/reference/",
+      "docs/runbooks/",
+      "scripts/",
+      "src/hazewave/telegram_gateway.py",
+      "src/hazewave/freellmapi.py",
+      "scripts/install_hazewave_freellmapi_termux.sh",
+      "scripts/hazewave_freellmapi_control.sh",
+      "docs/architecture/decisions/ADR-0005-freellmapi-provider-gateway.md",
+      "docs/runbooks/FREELLMAPI_PROVIDER_V1.md"
+    ],
+    "accepted_unmaterialized_ttl_days": 7
+  },
+  "supersedes": [
+    "config/project-profile-v1.json"
+  ]
+}

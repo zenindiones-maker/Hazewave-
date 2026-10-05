@@ -10,6 +10,10 @@ permissions:
 
 jobs:
   test:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.14"]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -19,13 +23,30 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install package and test dependencies
         run: python -m pip install -e ".[dev]"
 
       - name: Compile package
         run: python -m compileall -q src
+
+      - name: Validate shell syntax
+        run: |
+          bash -n scripts/install_hazewave_termux_runtime.sh
+          bash -n scripts/hazewave_termux_control.sh
+          bash -n scripts/configure_hazewave_telegram.sh
+          bash -n scripts/hazewave_telegram_control.sh
+          bash -n scripts/install_hazewave_telegram_persistence.sh
+          bash -n scripts/install_hazewave_freellmapi_termux.sh
+          bash -n scripts/hazewave_freellmapi_control.sh
+          bash -n scripts/install_hazewave_freellmapi_persistence.sh
+          bash -n scripts/install_hazewave_9router_termux.sh
+          bash -n scripts/hazewave_9router_control.sh
+          bash -n scripts/hazewave_9router_free_probe.sh
+
+      - name: Validate repository contracts
+        run: python scripts/validate_repository_contracts.py
 
       - name: Run tests
         run: pytest

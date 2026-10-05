@@ -1,0 +1,141 @@
+{
+  "schema": "HazewaveDomainModel/v4",
+  "project": "HAZEWAVE",
+  "principle": "HAZE creates the signal. WAVE gives it form. HAZEWAVE is where they become one.",
+  "domains": {
+    "HAZE": {
+      "meaning": "sound",
+      "public_identity": "HAZE Studio",
+      "responsibility": "Music, audio, voice, rhythm, timbre, composition, synthesis, analysis, sound design and sonic memory.",
+      "current_capabilities": [
+        "ACE-Step 1.5 music generation",
+        "Demucs/HTDemucs stem separation",
+        "reference-audio generation",
+        "cover/remix workflows"
+      ],
+      "target_studio_capabilities": [
+        "composition",
+        "arrangement",
+        "AI-assisted instrumental production",
+        "human vocal production",
+        "artist-authorized RVC/voice conversion",
+        "sound design",
+        "editing",
+        "mixing",
+        "mastering",
+        "soundtrack production",
+        "motif DNA",
+        "audio feature extraction",
+        "audio companions",
+        "audiobook production",
+        "historical listening demonstrations"
+      ]
+    },
+    "WAVE": {
+      "meaning": "image",
+      "public_identity": "WAVE Studio",
+      "responsibility": "Story, image, animation, film, photography, publishing, editorial design, writing systems, motion, light, geometry, simulation, interaction and visual memory.",
+      "foundation": "Living Resonance Engine",
+      "target_studio_capabilities": [
+        "screenwriting",
+        "world building",
+        "character design",
+        "storyboarding",
+        "animatics",
+        "2D/2.5D/3D animation",
+        "generative motion",
+        "film/video",
+        "photography",
+        "compositing",
+        "interactive websites",
+        "visual identity",
+        "publishing",
+        "editorial development",
+        "research visualization",
+        "book design",
+        "typography/layout",
+        "print/ebook production"
+      ],
+      "runtime_direction": [
+        "WebGPU compute first",
+        "WebGL2 fallback",
+        "Three.js WebGPURenderer",
+        "TSL/WGSL shaders",
+        "adaptive quality"
+      ]
+    }
+  },
+  "bridge": {
+    "name": "Hazewave Translation Layer",
+    "contract": "HAZE_STATE -> WAVE_STATE",
+    "rule": "Visual behavior responds to structured sonic meaning, not only amplitude.",
+    "examples": [
+      "motif identity -> recurring visual topology",
+      "vocal roughness -> material erosion",
+      "section change -> topology transition",
+      "artist identity -> persistent material signature"
+    ]
+  },
+  "brand_platform": {
+    "role": "Canonical public home for the Hazewave brand, artists, music, films, photos, projects, original works, downloads and merchandise.",
+    "requirements": [
+      "persistent music player",
+      "shared WAVE visual engine",
+      "artists",
+      "music/releases",
+      "films/videos",
+      "photos",
+      "projects",
+      "original works",
+      "free direct music downloads",
+      "merchandise shop",
+      "manifesto/archive"
+    ],
+    "invariant": "WEBSITE_VISUAL_ENGINE == MUSIC_VISUAL_ENGINE"
+  },
+  "first_canonical_work": {
+    "id": "NEANDERCAUS",
+    "format": "interactive animated series",
+    "role": "First original animated series produced by HAZE Studio + WAVE Studio.",
+    "story": "A global, era-by-era history of humanity's relationship with sound from deep prehistory to generative AI.",
+    "scope": "Multiple world regions must be researched within the relevant eras; the series must not use a single Western progress narrative.",
+    "spoken_dialogue": "NONE",
+    "narrative_voice": "Music is dialogue.",
+    "vocal_identity": {
+      "single_human_identity": true,
+      "origin": "Brazilian human performer",
+      "persistent_across_series": true,
+      "generic_fallback": "FORBIDDEN",
+      "voice_conversion": "AUTHORIZED_RVC_ONLY"
+    },
+    "soundtrack_pipeline": "Full HAZE production: research-informed composition, AI-assisted instrumentals, the same Brazilian human vocal identity, authorized RVC where used, sound design, editing, mixing and mastering.",
+    "visual_pipeline": "Full WAVE production: research, writing, world/character design, storyboard, animatic, animation, generative visuals, compositing and interactive presentation.",
+    "truth_classes": [
+      "VERIFIED",
+      "PROBABLE",
+      "DISPUTED",
+      "SPECULATIVE_CANON"
+    ],
+    "status": "CONCEPT_DEFINITION"
+  },
+  "rights": {
+    "voice_conversion": "Only with explicit authorization from the artist/rights holder.",
+    "provenance": "Preserve source performer, consent/authorization, model/version and final approved usage."
+  },
+  "status": {
+    "haze": "ACTIVE_FOUNDATION_EXISTS",
+    "wave": "STUDIO_CONCEPT_AND_ENGINE_FOUNDATION",
+    "brand_site": "CONCEPT_DEFINED",
+    "neandercaus": "GLOBAL_SOUND_HISTORY_SERIES_CANON_DEFINED",
+    "books": "HAZEWAVE_BOOKS_CONCEPT_DEFINED"
+  },
+  "publishing": {
+    "public_identity": "HAZEWAVE BOOKS",
+    "editorial_owner": "WAVE Studio",
+    "sonic_owner": "HAZE Studio",
+    "first_collection": "NEANDERCAUS LIBRARY",
+    "role": "Educational publishing system covering the global history and influence of sound from deep prehistory to generative AI.",
+    "narrative_device": "Readers are transported into each era as contemporary people obsessed with music; immersive prose is separated from factual evidence.",
+    "status": "CONCEPT_FOUNDATION"
+  }
+}

@@ -1,0 +1,426 @@
+{
+  "schema": "HazewaveProviderEligibilityRegistry/v1",
+  "project_id": "HAZEWAVE",
+  "authority": "HAZEWAVE_HARNESS",
+  "provider_gateway": "FREELLMAPI",
+  "paid_fallback": "FORBIDDEN",
+  "unknown_cost": "DENY",
+  "signed_catalog_policy": {
+    "signed_catalog": "DISCOVERY_ALLOWED",
+    "unsigned_catalog": "DENY",
+    "catalog_grants_eligibility": false
+  },
+  "default_policy": {
+    "enabled": false,
+    "trust_lane": "QUARANTINED",
+    "monetary_policy": "UNKNOWN_COST",
+    "billing_overflow_policy": "UNKNOWN",
+    "allowed_data_classes": []
+  },
+  "providers": [
+    {
+      "provider": "kilo",
+      "enabled": true,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_VERIFIED",
+      "billing_overflow_policy": "HARD_STOP",
+      "allowed_data_classes": [
+        "PUBLIC"
+      ],
+      "allowed_modalities": [
+        "text",
+        "tools"
+      ],
+      "allowed_capabilities": [
+        "reason.*",
+        "code.*",
+        "audio.analyze"
+      ],
+      "model_patterns": [
+        "*:free",
+        "kilo-auto/free"
+      ],
+      "terms_status": "REVIEWED_EXPERIMENTAL",
+      "privacy_status": "PUBLIC_ONLY_PROMPTS_OUTPUTS_MAY_BE_LOGGED_FOR_TRAINING",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-05",
+      "source_evidence": [
+        "https://kilo.ai/landing/free-models",
+        "https://kilo.ai/docs/gateway/authentication",
+        "https://kilo.ai/docs/gateway/usage-and-billing"
+      ],
+      "notes": "Only Kilo model ids explicitly carrying :free or the kilo-auto/free tier are eligible. Anonymous free-model requests are rate-limited by IP; paid Kilo routes are excluded by model pattern."
+    },
+    {
+      "provider": "pollinations",
+      "enabled": false,
+      "trust_lane": "QUARANTINED",
+      "monetary_policy": "UNKNOWN_COST",
+      "billing_overflow_policy": "UNKNOWN",
+      "allowed_data_classes": [],
+      "allowed_modalities": [
+        "image",
+        "video",
+        "speech"
+      ],
+      "allowed_capabilities": [],
+      "model_patterns": [
+        "*"
+      ],
+      "terms_status": "REVIEWED_KEY_REQUIRED_MODEL_PRICING",
+      "privacy_status": "QUARANTINED_PENDING_MODEL_LEVEL_ZERO_COST_ATTESTATION",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-05",
+      "source_evidence": [
+        "https://gen.pollinations.ai/docs"
+      ],
+      "notes": "Current Pollinations generation requires authentication and public models may be zero-priced or priced in Pollen. Provider presence alone does not prove zero-cost execution, so automatic media execution is disabled until per-model price evidence is enforced."
+    },
+    {
+      "provider": "ovh",
+      "enabled": false,
+      "trust_lane": "QUARANTINED",
+      "monetary_policy": "UNKNOWN_COST",
+      "billing_overflow_policy": "UNKNOWN",
+      "allowed_data_classes": [],
+      "allowed_modalities": [
+        "text",
+        "tools"
+      ],
+      "allowed_capabilities": [],
+      "model_patterns": [
+        "*"
+      ],
+      "terms_status": "REVIEWED_MIXED_PRICING_NOT_ADMITTED",
+      "privacy_status": "QUARANTINED_PENDING_MODEL_LEVEL_ZERO_COST_ATTESTATION",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-05",
+      "source_evidence": [
+        "https://www.ovhcloud.com/en/public-cloud/prices/"
+      ],
+      "notes": "Official OVH AI Endpoints pricing lists monetary prices for most general/vision models currently discovered by FreeLLMAPI. Automatic Hazewave execution is disabled until exact model-level zero-cost evidence is enforced."
+    },
+    {
+      "provider": "aihorde",
+      "enabled": true,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_VERIFIED",
+      "billing_overflow_policy": "HARD_STOP",
+      "allowed_data_classes": [
+        "PUBLIC"
+      ],
+      "allowed_modalities": [
+        "text"
+      ],
+      "allowed_capabilities": [
+        "reason.*"
+      ],
+      "model_patterns": [
+        "*"
+      ],
+      "terms_status": "REVIEWED_KEYLESS",
+      "privacy_status": "PUBLIC_ONLY_COMMUNITY_INFRASTRUCTURE",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://github.com/tashfeenahmed/freellmapi"
+      ],
+      "notes": "Anonymous community route; public tasks only and low-priority queue is acceptable."
+    },
+    {
+      "provider": "groq",
+      "enabled": true,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP",
+      "billing_overflow_policy": "ACCOUNT_ATTESTATION_REQUIRED",
+      "allowed_data_classes": [
+        "PUBLIC"
+      ],
+      "allowed_modalities": [
+        "text",
+        "tools",
+        "speech",
+        "transcription"
+      ],
+      "allowed_capabilities": [
+        "reason.*",
+        "code.*",
+        "audio.voice",
+        "audio.transcribe"
+      ],
+      "model_patterns": [
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "openai/gpt-oss-safeguard-20b",
+        "qwen/qwen3.8-27b",
+        "meta-llama/llama-prompt-guard-2-*",
+        "whisper-large-v3",
+        "whisper-large-v3-turbo",
+        "canopylabs/orpheus-*"
+      ],
+      "terms_status": "REVIEWED_FREE_PLAN_ACCOUNT_BOUND",
+      "privacy_status": "PUBLIC_ONLY_UNTIL_ZDR_ATTESTED",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-05",
+      "source_evidence": [
+        "https://console.groq.com/docs/rate-limits",
+        "https://console.groq.com/docs/billing-faqs",
+        "https://console.groq.com/docs/your-data"
+      ],
+      "notes": "Free Plan has explicit model rate limits and requires an explicit upgrade with a payment method before paid Developer billing. Hazewave still requires a local attestation bound to each FreeLLMAPI key id before execution."
+    },
+    {
+      "provider": "github",
+      "enabled": false,
+      "trust_lane": "QUARANTINED",
+      "monetary_policy": "UNKNOWN_COST",
+      "billing_overflow_policy": "UNKNOWN",
+      "allowed_data_classes": [],
+      "allowed_modalities": [
+        "text",
+        "tools",
+        "vision",
+        "embedding"
+      ],
+      "allowed_capabilities": [],
+      "model_patterns": [
+        "*"
+      ],
+      "terms_status": "SERVICE_RETIRED",
+      "privacy_status": "QUARANTINED_SERVICE_RETIRED",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-05",
+      "source_evidence": [
+        "https://docs.github.com/en/github-models"
+      ],
+      "notes": "GitHub Models was fully retired on 2026-07-30. Stale catalog rows must never become executable."
+    },
+    {
+      "provider": "nvidia",
+      "enabled": true,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_VERIFIED",
+      "billing_overflow_policy": "HARD_STOP",
+      "allowed_data_classes": [
+        "PUBLIC"
+      ],
+      "allowed_modalities": [
+        "text",
+        "tools",
+        "vision",
+        "embedding",
+        "image"
+      ],
+      "allowed_capabilities": [
+        "reason.*",
+        "code.*",
+        "visual.analyze",
+        "embedding.create",
+        "visual.image"
+      ],
+      "model_patterns": [
+        "*"
+      ],
+      "terms_status": "REVIEWED_EVALUATION_ONLY",
+      "privacy_status": "PUBLIC_ONLY",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://build.nvidia.com"
+      ],
+      "notes": "Evaluation/development use only; never a publication-critical sole dependency."
+    },
+    {
+      "provider": "openrouter",
+      "enabled": true,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP",
+      "billing_overflow_policy": "ACCOUNT_ATTESTATION_REQUIRED",
+      "allowed_data_classes": [
+        "PUBLIC"
+      ],
+      "allowed_modalities": [
+        "text",
+        "tools",
+        "vision",
+        "embedding"
+      ],
+      "allowed_capabilities": [
+        "reason.*",
+        "code.*",
+        "visual.analyze",
+        "embedding.create"
+      ],
+      "model_patterns": [
+        "*:free",
+        "openrouter/free"
+      ],
+      "terms_status": "REVIEWED_FREE_PLAN_ACCOUNT_BOUND",
+      "privacy_status": "PUBLIC_ONLY_WITHOUT_PROVIDER_DATA_POLICY_ATTESTATION",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-05",
+      "source_evidence": [
+        "https://openrouter.ai/pricing/",
+        "https://openrouter.ai/collections/free-models"
+      ],
+      "notes": "Only explicit free model ids are eligible, and the Free plan has no payment options. Hazewave requires a local attestation bound to each FreeLLMAPI key id so a paid account key cannot inherit Free-plan eligibility."
+    },
+    {
+      "provider": "google",
+      "enabled": false,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP",
+      "billing_overflow_policy": "ACCOUNT_ATTESTATION_REQUIRED",
+      "allowed_data_classes": [
+        "PUBLIC"
+      ],
+      "allowed_modalities": [
+        "text",
+        "tools",
+        "vision",
+        "embedding"
+      ],
+      "allowed_capabilities": [
+        "reason.*",
+        "code.*",
+        "visual.analyze",
+        "embedding.create"
+      ],
+      "model_patterns": [
+        "*"
+      ],
+      "terms_status": "REVIEWED_FREE_TIER_WITH_BILLING_BOUNDARY",
+      "privacy_status": "PUBLIC_ONLY_FREE_SERVICE_CONTENT_MAY_BE_USED_TO_IMPROVE_PRODUCTS",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://ai.google.dev/gemini-api/terms",
+        "https://ai.google.dev/gemini-api/docs/pricing"
+      ],
+      "notes": "Enable only after a project/account hard-cap attestation proves provider billing cannot overflow."
+    },
+    {
+      "provider": "cloudflare",
+      "enabled": true,
+      "trust_lane": "REMOTE_INTERNAL_SAFE",
+      "monetary_policy": "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP",
+      "billing_overflow_policy": "ACCOUNT_ATTESTATION_REQUIRED",
+      "allowed_data_classes": [
+        "PUBLIC",
+        "INTERNAL_NON_SECRET"
+      ],
+      "allowed_modalities": [
+        "text",
+        "tools",
+        "vision",
+        "embedding",
+        "image",
+        "transcription"
+      ],
+      "allowed_capabilities": [
+        "reason.*",
+        "code.*",
+        "visual.analyze",
+        "embedding.create",
+        "visual.image",
+        "audio.transcribe"
+      ],
+      "model_patterns": [
+        "*"
+      ],
+      "terms_status": "REVIEWED_FREE_PLAN_ACCOUNT_BOUND",
+      "privacy_status": "NO_TRAINING_WITHOUT_CONSENT",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-05",
+      "source_evidence": [
+        "https://developers.cloudflare.com/workers-ai/platform/pricing/",
+        "https://developers.cloudflare.com/workers-ai/platform/data-usage/"
+      ],
+      "notes": "Workers Free includes 10,000 Neurons/day and fails rather than billing above the free allocation; some models require Workers Paid and therefore fail on Free. Hazewave requires local attestation of the Workers Free account bound to each FreeLLMAPI key id."
+    },
+    {
+      "provider": "huggingface",
+      "enabled": false,
+      "trust_lane": "REMOTE_PUBLIC_FREE",
+      "monetary_policy": "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP",
+      "billing_overflow_policy": "ACCOUNT_ATTESTATION_REQUIRED",
+      "allowed_data_classes": [
+        "PUBLIC"
+      ],
+      "allowed_modalities": [
+        "text",
+        "embedding",
+        "video"
+      ],
+      "allowed_capabilities": [
+        "reason.*",
+        "embedding.create",
+        "visual.video"
+      ],
+      "model_patterns": [
+        "*"
+      ],
+      "terms_status": "REVIEWED_CREDITS_AND_PAYG",
+      "privacy_status": "PUBLIC_ONLY",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://huggingface.co/docs/inference-providers/main/pricing"
+      ],
+      "notes": "Credits/PAYG semantics require an account-level hard-cap attestation before zero-cost automatic routing."
+    },
+    {
+      "provider": "cohere",
+      "enabled": false,
+      "trust_lane": "QUARANTINED",
+      "monetary_policy": "UNKNOWN_COST",
+      "billing_overflow_policy": "UNKNOWN",
+      "allowed_data_classes": [],
+      "allowed_modalities": [
+        "text",
+        "embedding"
+      ],
+      "allowed_capabilities": [],
+      "model_patterns": [
+        "*"
+      ],
+      "terms_status": "TERMS_NOT_APPROVED_FOR_CURRENT_PERSONAL_USE_CONTEXT",
+      "privacy_status": "QUARANTINED",
+      "requires_endpoint_attestation": false,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://github.com/tashfeenahmed/freellmapi"
+      ],
+      "notes": "Present in upstream catalog but not admitted into automatic Hazewave execution."
+    },
+    {
+      "provider": "custom",
+      "enabled": false,
+      "trust_lane": "QUARANTINED",
+      "monetary_policy": "UNKNOWN_COST",
+      "billing_overflow_policy": "UNKNOWN",
+      "allowed_data_classes": [],
+      "allowed_modalities": [
+        "text",
+        "tools",
+        "vision",
+        "embedding",
+        "image",
+        "speech",
+        "transcription"
+      ],
+      "allowed_capabilities": [],
+      "model_patterns": [
+        "*"
+      ],
+      "terms_status": "ENDPOINT_SPECIFIC",
+      "privacy_status": "ENDPOINT_SPECIFIC",
+      "requires_endpoint_attestation": true,
+      "last_reviewed_at": "2026-10-04",
+      "source_evidence": [
+        "https://github.com/tashfeenahmed/freellmapi"
+      ],
+      "notes": "Generic custom endpoints are never assumed local/private or zero-cost; a separate endpoint attestation is required."
+    }
+  ]
+}

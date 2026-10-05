@@ -1,0 +1,312 @@
+{
+  "schema": "HazewaveDocumentationRegistry/v2",
+  "project_id": "HAZEWAVE",
+  "scope": "GOVERNANCE_AND_SYSTEM_DOCUMENTS",
+  "documents": [
+    {
+      "id": "agents-root",
+      "path": "AGENTS.md",
+      "type": "AGENT_CONTRACT",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "repository"
+      ],
+      "description": "Operational contract for agents working in the Hazewave repository."
+    },
+    {
+      "id": "project-profile-v2",
+      "path": "config/project-profile-v2.json",
+      "type": "PROJECT_PROFILE",
+      "authority": "NORMATIVE",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "governance",
+        "runtime",
+        "agents"
+      ],
+      "description": "Machine-readable project authority, domain, safety and runtime profile."
+    },
+    {
+      "id": "project-profile-v1",
+      "path": "config/project-profile-v1.json",
+      "type": "PROJECT_PROFILE",
+      "authority": "NORMATIVE",
+      "status": "SUPERSEDED",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "migration-history"
+      ],
+      "description": "Superseded ProjectProfile migration marker retained for explicit version transition."
+    },
+    {
+      "id": "domain-canon-v1",
+      "path": "canon/hazewave-domain-v1.json",
+      "type": "CANON",
+      "authority": "CANONICAL",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE",
+        "NEANDERCAUS"
+      ],
+      "description": "Creative and domain identity model for HAZE, WAVE and their translation boundary."
+    },
+    {
+      "id": "doc-governance-v1",
+      "path": "docs/architecture/DOCUMENTATION_GOVERNANCE_V1.md",
+      "type": "REFERENCE",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "documentation",
+        "agents"
+      ],
+      "description": "Defines document classes, authority, lifecycle, precedence and drift handling."
+    },
+    {
+      "id": "adr-0001",
+      "path": "docs/architecture/decisions/ADR-0001-haze-wave-domain-boundary.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "description": "Records the separate HAZE and WAVE domains and the typed bridge between them."
+    },
+    {
+      "id": "adr-0002",
+      "path": "docs/architecture/decisions/ADR-0002-hazewave-harness.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "harness",
+        "agents"
+      ],
+      "description": "Records the project-local Hazewave Harness authority and capability-first routing model."
+    },
+    {
+      "id": "adr-0003",
+      "path": "docs/architecture/decisions/ADR-0003-immutable-termux-runtime.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "termux",
+        "runtime"
+      ],
+      "description": "Records immutable SHA-addressed Termux releases and separation from development checkout."
+    },
+    {
+      "id": "state-contracts-v1",
+      "path": "docs/reference/HAZE_WAVE_STATE_CONTRACTS_V1.md",
+      "type": "REFERENCE",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "BRIDGE",
+      "applies_to": [
+        "HAZE_STATE",
+        "WAVE_STATE"
+      ],
+      "description": "Human-readable reference for the machine-validated HAZE and WAVE state contracts."
+    },
+    {
+      "id": "harness-reference-v1",
+      "path": "docs/reference/HAZEWAVE_HARNESS_V1.md",
+      "type": "REFERENCE",
+      "authority": "OPERATIONAL",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "harness"
+      ],
+      "description": "Technical reference for current Hazewave Harness authority and capability surface."
+    },
+    {
+      "id": "termux-runbook-v1",
+      "path": "docs/runbooks/TERMUX_RUNTIME_V1.md",
+      "type": "RUNBOOK",
+      "authority": "OPERATIONAL",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "termux",
+        "runtime"
+      ],
+      "description": "Operational procedures for installing, checking and synchronizing the Hazewave Termux runtime."
+    },
+    {
+      "id": "living-resonance-v1",
+      "path": "docs/wave/WAVE_LIVING_RESONANCE_ENGINE_V1.md",
+      "type": "EXPLANATION",
+      "authority": "EXPLANATORY",
+      "status": "DEVELOPMENT",
+      "owner": "WAVE",
+      "applies_to": [
+        "WAVE",
+        "BRIDGE"
+      ],
+      "description": "Design explanation and target architecture for the Living Resonance Engine."
+    },
+    {
+      "id": "neandercaus-foundation",
+      "path": "apps/neandercaus/README.md",
+      "type": "PROJECT_SPEC",
+      "authority": "CANONICAL",
+      "status": "DEVELOPMENT",
+      "owner": "NEANDERCAUS",
+      "applies_to": [
+        "NEANDERCAUS"
+      ],
+      "description": "Foundation and creative production constraints for the NEANDERCAUS series."
+    },
+    {
+      "id": "academic-master-spec-v1",
+      "path": "docs/publishing/academic/HAZEWAVE_ACADEMIC_LIBRARY_MASTER_SPEC_V1.md",
+      "type": "PUBLISHING_STANDARD",
+      "authority": "NORMATIVE",
+      "status": "DEVELOPMENT",
+      "owner": "PUBLISHING",
+      "applies_to": [
+        "HAZEWAVE_BOOKS",
+        "ACADEMIC_LIBRARY"
+      ],
+      "description": "Master scholarly and editorial requirements for the Hazewave Academic Library."
+    },
+    {
+      "id": "adr-0004-hazewave-telegram-runtime",
+      "path": "docs/architecture/decisions/ADR-0004-hazewave-telegram-runtime-isolation.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "telegram",
+        "runtime",
+        "termux"
+      ],
+      "description": "Records dedicated Hazewave Telegram bot identity, immutable runtime execution, local credential storage and pairing boundaries."
+    },
+    {
+      "id": "telegram-runtime-runbook-v1",
+      "path": "docs/runbooks/TELEGRAM_RUNTIME_V1.md",
+      "type": "RUNBOOK",
+      "authority": "OPERATIONAL",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "telegram",
+        "runtime",
+        "termux"
+      ],
+      "description": "Operational procedure for configuring, pairing, starting and validating the dedicated Hazewave Telegram runtime."
+    },
+    {
+      "id": "adr-0005-freellmapi-provider-gateway",
+      "path": "docs/architecture/decisions/ADR-0005-freellmapi-provider-gateway.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "SUPERSEDED",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "providers",
+        "runtime",
+        "harness",
+        "termux"
+      ],
+      "description": "Historical baseline for the pinned, loopback-only FreeLLMAPI gateway; provider eligibility and governed routing are superseded by ADR-0006."
+    },
+    {
+      "id": "freellmapi-provider-runbook-v1",
+      "path": "docs/runbooks/FREELLMAPI_PROVIDER_V1.md",
+      "type": "RUNBOOK",
+      "authority": "OPERATIONAL",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "providers",
+        "runtime",
+        "termux"
+      ],
+      "description": "Operational procedure for installing, configuring, starting and validating the Hazewave-scoped FreeLLMAPI provider runtime."
+    },
+    {
+      "id": "freellmapi-a15-runtime-proof-2026-10-04",
+      "path": "docs/reference/FREELLMAPI_A15_RUNTIME_PROOF_2026-10-04.md",
+      "type": "REFERENCE",
+      "authority": "EXPLANATORY",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "providers",
+        "runtime",
+        "termux",
+        "evidence"
+      ],
+      "description": "Observed A15 runtime proof closing crash-safe FreeLLMAPI persistence and real Android cold-boot recovery for Hazewave runtime e100c63e2d3ab60ad0b7718647a93b7e80c19099."
+    },
+    {
+      "id": "adr-0006-governed-zero-cost-provider-fabric",
+      "path": "docs/architecture/decisions/ADR-0006-governed-zero-cost-provider-fabric.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "providers",
+        "harness",
+        "security",
+        "runtime",
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "description": "Records the Hazewave-governed zero-cost provider fabric, provider trust lanes, fail-closed cost policy and provider-qualified routing."
+    },
+    {
+      "id": "governed-free-fabric-design-v1",
+      "path": "docs/specs/2026-10-04-hazewave-governed-free-fabric-design.md",
+      "type": "EXPLANATION",
+      "authority": "EXPLANATORY",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "providers",
+        "harness",
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "description": "Approved design for expanding FreeLLMAPI capabilities under Hazewave-owned cost, privacy, rights and authority gates."
+    },
+    {
+      "id": "hazewave-free-fabric-v1",
+      "path": "docs/reference/HAZEWAVE_FREE_FABRIC_V1.md",
+      "type": "REFERENCE",
+      "authority": "OPERATIONAL",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "providers",
+        "harness",
+        "HAZE",
+        "WAVE",
+        "BRIDGE",
+        "runtime"
+      ],
+      "description": "Operational reference for the Hazewave-governed zero-cost FreeLLMAPI fabric, supported surfaces, MCP restrictions, data boundaries and runtime adoption gates."
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "schema": "Hazewave9RouterEfficiencyPolicy/v1",
+  "project_id": "HAZEWAVE",
+  "authority": "HAZEWAVE_HARNESS",
+  "gateway": "9router",
+  "gateway_authority": "NONE",
+  "pinned_upstream": {
+    "repository": "decolua/9router",
+    "version": "0.5.95",
+    "commit": "a99cf57239ff778b61e434c2786009d5ed1c412c"
+  },
+  "security": {
+    "minimum_fixed_version": "0.5.8",
+    "bind": "127.0.0.1:20128",
+    "external_exposure": "FORBIDDEN",
+    "cloud": "FORBIDDEN",
+    "tunnel": "FORBIDDEN",
+    "tailscale": "FORBIDDEN",
+    "updater": "OFF"
+  },
+  "zero_cost": {
+    "provider": "opencode",
+    "provider_alias": "oc",
+    "catalog": "https://opencode.ai/zen/v1/models",
+    "allowed_rule": "id.endswith(-free) OR id==big-pickle",
+    "denylist": [
+      "deepseek-v4-flash-free"
+    ],
+    "catalog_is_discovery_only": true,
+    "semantic_probe_required": true,
+    "paid_fallback": "FORBIDDEN",
+    "unknown_cost": "DENY"
+  },
+  "optimizer": {
+    "receipt_ttl_hours": 24,
+    "benchmark_max_models": 16,
+    "probe_max_tokens": 256,
+    "execution_max_fallbacks": 3,
+    "transient_fallback_http_statuses": [
+      429,
+      500,
+      502,
+      503,
+      504
+    ],
+    "general_and_code_selection": "BALANCED_TOKEN_LATENCY_PRODUCT",
+    "deep_reasoning_selection": "REASONING_EVIDENCE_THEN_BALANCED_TOKEN_LATENCY_PRODUCT",
+    "transient_cooldown": {
+      "base_seconds": 60,
+      "max_seconds": 900,
+      "strategy": "EXPONENTIAL",
+      "statuses": [
+        429,
+        500,
+        502,
+        503,
+        504
+      ],
+      "retry_after": "HONOR_SECONDS_UP_TO_3600"
+    },
+    "benchmark_sample_count": 3,
+    "live_adaptation": {
+      "source": "ROUTE_HEALTH_EWMA",
+      "alpha": 0.35,
+      "metrics": [
+        "latency_ms",
+        "total_tokens",
+        "reasoning_tokens"
+      ],
+      "reliability_prior": {
+        "alpha": 2,
+        "beta": 1
+      },
+      "reliability_penalty_power": 2,
+      "scope": "CAPABILITY_THEN_MODEL",
+      "semantic_failure_scope": "CAPABILITY_ONLY"
+    },
+    "semantic_admission": {
+      "sample_count": 3,
+      "minimum_semantic_successes": 2,
+      "early_stop_statuses": [
+        400,
+        401,
+        403,
+        429
+      ],
+      "stop_when_majority_unreachable": true
+    },
+    "session_affinity": {
+      "enabled": true,
+      "scope": "TASK",
+      "downstream_header": "x-session-id",
+      "identity": "SHA256_TASK_ID_32",
+      "raw_task_id_egress": false
+    }
+  },
+  "token_efficiency": {
+    "rtk": "FORCE_ON_DURING_GOVERNED_EXECUTION",
+    "headroom": "OFF_UNTIL_MANAGED_LOCAL_PROOF",
+    "stream": false,
+    "usage_accounting": "NON_STREAM_JSON_REQUIRED"
+  },
+  "routing": {
+    "owner": "HAZEWAVE_HARNESS",
+    "task_aware_selection": "HAZEWAVE_OWNED",
+    "free_pool_fallback": "HAZEWAVE_OWNED",
+    "combos": "FORBIDDEN",
+    "capacity_adapters": "FORBIDDEN",
+    "paid_tiers": "FORBIDDEN",
+    "cheap_tiers": "FORBIDDEN",
+    "outbound_proxy": "FORBIDDEN",
+    "unknown_cost": "DENY"
+  },
+  "upstream_features": {
+    "use_now": [
+      "OpenCode Free no-auth dynamic catalog",
+      "RTK tool-result compression",
+      "OpenAI-compatible non-stream completion",
+      "9Router local token usage response",
+      "9Router request translation and provider executor"
+    ],
+    "conditional": [
+      "Headroom only after managed-local deployment and benchmark proof",
+      "Account-bound free-tier providers only after Hazewave attestation",
+      "Local/self-hosted media providers only after runtime and data-policy proof",
+      "Kiro only after explicit credit/account policy admission"
+    ],
+    "blocked": [
+      "9Router combo routing",
+      "9Router paid/subscription/cheap fallback tiers",
+      "MiMo Free ended channel",
+      "deprecated iFlow/Qwen Code/Gemini CLI free lanes",
+      "remote exposure features"
+    ]
+  },
+  "evidence": [
+    "https://github.com/decolua/9router",
+    "https://github.com/decolua/9router/security/advisories",
+    "https://github.com/decolua/9router/issues/2855",
+    "https://github.com/decolua/9router/issues/2996",
+    "https://github.com/decolua/9router/issues/3017"
+  ]
+}
