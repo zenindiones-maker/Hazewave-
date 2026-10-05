@@ -440,6 +440,7 @@ def _record_route_health(
                 current + timedelta(seconds=cooldown_seconds)
             ).isoformat(),
             "last_status": status,
+            "last_failure_at": current.isoformat(),
             "updated_at": current.isoformat(),
         }
     else:
@@ -449,6 +450,7 @@ def _record_route_health(
             "success_count": int(existing.get("success_count") or 0),
             "failure_count": int(existing.get("failure_count") or 0) + 1,
             "last_status": status,
+            "last_failure_at": current.isoformat(),
             "updated_at": current.isoformat(),
         }
 
@@ -591,9 +593,59 @@ def _receipt_ranked_models(
         failure_count = int(health.get("failure_count") or 0)
         if attempt_count <= 0 and (success_count > 0 or failure_count > 0):
             attempt_count = success_count + failure_count
+
+        reliability = 1.0
         if attempt_count > 0:
-            reliability = (success_count + 2.0) / (attempt_count + 3.0)
-            balanced_score = balanced_score / max(0.25, reliability) ** 2
+            observed_reliability = (
+                (success_count + 2.0) / (attempt_count + 3.0)
+            )
+            failure_age_decay = 1.0
+            last_failure_at = health.get("last_failure_at")
+            if last_failure_at:
+                try:
+                    failure_age_hours = max(
+                        0.0,
+                        (
+                            _resolve_now(None)
+                            - _parse_time(str(last_failure_at))
+                        ).total_seconds()
+                        / 3600.0,
+                    )
+                    failure_age_decay = 2.0 ** (
+                        -failure_age_hours / 6.0
+                    )
+                except ValueError:
+                    failure_age_decay = 1.0
+
+            if health.get("last_status") == "PASS":
+                failure_age_decay = min(failure_age_decay, 0.35)
+
+            reliability = 1.0 - (
+                (1.0 - observed_reliability) * failure_age_decay
+            )
+            balanced_score = (
+                balanced_score
+                / max(0.25, reliability) ** 2
+            )
+
+        recent_failure_penalty = 1.0
+        last_failure_at = health.get("last_failure_at")
+        if last_failure_at and health.get("last_status") != "PASS":
+            try:
+                failure_age_hours = max(
+                    0.0,
+                    (
+                        _resolve_now(None)
+                        - _parse_time(str(last_failure_at))
+                    ).total_seconds()
+                    / 3600.0,
+                )
+                recent_failure_penalty = 1.0 + (
+                    4.0 * (2.0 ** (-failure_age_hours / 2.0))
+                )
+            except ValueError:
+                recent_failure_penalty = 2.0
+            balanced_score *= recent_failure_penalty
 
         reasoning_penalty = 0.0
         if capability_id == "reason.deep":
