@@ -65,7 +65,29 @@
         "latency_ms",
         "total_tokens",
         "reasoning_tokens"
+      ],
+      "reliability_prior": {
+        "alpha": 2,
+        "beta": 1
+      },
+      "reliability_penalty_power": 2
+    },
+    "semantic_admission": {
+      "sample_count": 3,
+      "minimum_semantic_successes": 2,
+      "early_stop_statuses": [
+        400,
+        401,
+        403,
+        429
       ]
+    },
+    "session_affinity": {
+      "enabled": true,
+      "scope": "TASK",
+      "downstream_header": "x-session-id",
+      "identity": "SHA256_TASK_ID_32",
+      "raw_task_id_egress": false
     }
   },
   "token_efficiency": {
