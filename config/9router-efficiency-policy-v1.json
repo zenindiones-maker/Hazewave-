@@ -44,7 +44,19 @@
       504
     ],
     "general_and_code_selection": "LOWEST_TOTAL_TOKENS_THEN_LATENCY",
-    "deep_reasoning_selection": "OBSERVED_REASONING_THEN_LOWEST_TOTAL_TOKENS_THEN_LATENCY"
+    "deep_reasoning_selection": "OBSERVED_REASONING_THEN_LOWEST_TOTAL_TOKENS_THEN_LATENCY",
+    "transient_cooldown": {
+      "base_seconds": 60,
+      "max_seconds": 900,
+      "strategy": "EXPONENTIAL",
+      "statuses": [
+        429,
+        500,
+        502,
+        503,
+        504
+      ]
+    }
   },
   "token_efficiency": {
     "rtk": "FORCE_ON_DURING_GOVERNED_EXECUTION",
