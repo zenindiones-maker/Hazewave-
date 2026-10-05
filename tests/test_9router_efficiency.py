@@ -8,6 +8,7 @@ import httpx
 from hazewave.harness import HAZE, HazewaveTask, issue_authorization, route_task
 from hazewave.ninerouter import (
     build_9router_efficiency_status,
+    evaluate_9router_admission,
     execute_9router_text,
     load_9router_route_health,
     rank_9router_models,
@@ -691,3 +692,28 @@ def test_optimizer_stops_when_two_of_three_admission_is_unreachable() -> None:
 
     assert "semanticSuccesses + remainingSamples < MIN_SEMANTIC_SUCCESSES" in script
     assert "ADMISSION_UNREACHABLE" in script
+
+
+def test_v2_receipt_rejects_model_without_majority_semantic_proof() -> None:
+    receipt = _v2_receipt()
+    model = "oc/mimo-v2.6-flash-free"
+    receipt["model_proofs"][model]["metrics"] = {
+        "sample_count": 3,
+        "semantic_success_count": 1,
+        "semantic_success_rate": 1 / 3,
+        "median_latency_ms": 1000,
+        "median_total_tokens": 100,
+        "efficiency_score": 100000,
+    }
+    receipt["model_proofs"][model]["status"] = "semantic_pass"
+
+    decision = evaluate_9router_admission(
+        authorization=_authorization(),
+        model_id=model,
+        receipt=receipt,
+        data_classification="PUBLIC",
+        now="2026-10-05T12:30:00+00:00",
+    )
+
+    assert decision.allowed is False
+    assert decision.reason == "NINEROUTER_SEMANTIC_MAJORITY_PROOF_MISSING"
