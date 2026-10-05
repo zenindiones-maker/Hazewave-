@@ -703,6 +703,11 @@ class NineRouterExecutionResult:
     tool_calls: tuple[dict[str, Any], ...] = ()
 
 
+def _opaque_session_hint(authorization: HazewaveAuthorization) -> str:
+    digest = sha256(authorization.task_id.encode("utf-8")).hexdigest()[:32]
+    return f"hz_{digest}"
+
+
 def _derive_cli_token(data_dir: Path | str = DEFAULT_9ROUTER_DATA_DIR) -> str:
     root = Path(data_dir).expanduser()
     machine_file = root / "machine-id"
@@ -974,6 +979,9 @@ def execute_9router_messages(
                             "Accept": "application/json",
                             "User-Agent": (
                                 "Hazewave/9router-governed-executor"
+                            ),
+                            "x-session-id": _opaque_session_hint(
+                                authorization
                             ),
                         },
                     )
