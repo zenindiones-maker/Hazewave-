@@ -5,13 +5,22 @@ from datetime import datetime, timezone
 from fnmatch import fnmatchcase
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 
 DEFAULT_REGISTRY_PATH = (
     Path(__file__).resolve().parents[2]
     / "config"
     / "freellmapi-provider-eligibility-v1.json"
+)
+
+DEFAULT_ACCOUNT_ATTESTATION_PATH = (
+    Path.home()
+    / ".config"
+    / "hazewave"
+    / "providers"
+    / "freellmapi"
+    / "account-attestations.json"
 )
 
 
@@ -38,6 +47,7 @@ class ProviderEligibilityDecision:
     trust_lane: str
     zero_cost_verified: bool
     media_egress_grant_id: str | None = None
+    account_attestation_ids: tuple[str, ...] = ()
 
 
 def load_provider_registry(path: str | Path | None = None) -> dict[str, Any]:
@@ -55,6 +65,35 @@ def load_provider_registry(path: str | Path | None = None) -> dict[str, Any]:
         raise ValueError("HAZEWAVE_PROVIDER_REGISTRY_PAID_FALLBACK_INVALID")
     if payload.get("unknown_cost") != "DENY":
         raise ValueError("HAZEWAVE_PROVIDER_REGISTRY_UNKNOWN_COST_INVALID")
+    return payload
+
+
+def _empty_account_attestation_store() -> dict[str, Any]:
+    return {
+        "schema": "HazewaveProviderAccountAttestationStore/v1",
+        "project_id": "HAZEWAVE",
+        "authority": "HAZEWAVE_HARNESS",
+        "provider_gateway": "FREELLMAPI",
+        "attestations": [],
+    }
+
+
+def load_account_attestations(path: str | Path | None = None) -> dict[str, Any]:
+    store_path = Path(path).expanduser() if path is not None else DEFAULT_ACCOUNT_ATTESTATION_PATH
+    if not store_path.is_file():
+        return _empty_account_attestation_store()
+
+    payload = json.loads(store_path.read_text(encoding="utf-8"))
+    if payload.get("schema") != "HazewaveProviderAccountAttestationStore/v1":
+        raise ValueError("HAZEWAVE_ACCOUNT_ATTESTATION_SCHEMA_INVALID")
+    if payload.get("project_id") != "HAZEWAVE":
+        raise ValueError("HAZEWAVE_ACCOUNT_ATTESTATION_PROJECT_INVALID")
+    if payload.get("authority") != "HAZEWAVE_HARNESS":
+        raise ValueError("HAZEWAVE_ACCOUNT_ATTESTATION_AUTHORITY_INVALID")
+    if payload.get("provider_gateway") != "FREELLMAPI":
+        raise ValueError("HAZEWAVE_ACCOUNT_ATTESTATION_GATEWAY_INVALID")
+    if not isinstance(payload.get("attestations"), list):
+        raise ValueError("HAZEWAVE_ACCOUNT_ATTESTATION_ROWS_INVALID")
     return payload
 
 
@@ -125,6 +164,61 @@ def _grant_matches(
     )
 
 
+def _account_attestation_ids(
+    *,
+    provider: str,
+    credential_ids: Iterable[int] | None,
+    attestations: dict[str, Any] | None,
+    now: str | None,
+) -> tuple[tuple[str, ...] | None, str | None]:
+    ids = tuple(sorted({int(value) for value in (credential_ids or ()) if int(value) > 0}))
+    if not ids:
+        return None, "ACCOUNT_ATTESTATION_REQUIRED"
+
+    store = attestations if attestations is not None else load_account_attestations()
+    rows = [
+        dict(row)
+        for row in (store.get("attestations") or [])
+        if isinstance(row, dict)
+        and str(row.get("provider") or "").strip().casefold() == provider.casefold()
+    ]
+    by_credential = {
+        int(row["credential_id"]): row
+        for row in rows
+        if isinstance(row.get("credential_id"), int)
+    }
+
+    matched = [by_credential[key_id] for key_id in ids if key_id in by_credential]
+    if not matched:
+        return None, "ACCOUNT_ATTESTATION_REQUIRED"
+    if len(matched) != len(ids):
+        return None, "ACCOUNT_ATTESTATION_INCOMPLETE"
+
+    current = _parse_time(now) if now is not None else datetime.now(timezone.utc)
+    attestation_ids: list[str] = []
+    for row in matched:
+        if str(row.get("account_tier") or "").upper() != "FREE":
+            return None, "ACCOUNT_TIER_NOT_FREE"
+        if row.get("paid_billing_enabled") is not False:
+            return None, "PAID_BILLING_ENABLED"
+        if row.get("billing_overflow_policy") != "HARD_STOP":
+            return None, "ACCOUNT_ATTESTATION_NOT_FAIL_CLOSED"
+
+        issued = _parse_time(str(row.get("issued_at") or ""))
+        expires = _parse_time(str(row.get("expires_at") or ""))
+        if issued > current:
+            return None, "ACCOUNT_ATTESTATION_NOT_YET_VALID"
+        if expires <= current:
+            return None, "ACCOUNT_ATTESTATION_EXPIRED"
+
+        attestation_id = str(row.get("attestation_id") or "").strip()
+        if not attestation_id:
+            return None, "ACCOUNT_ATTESTATION_INVALID"
+        attestation_ids.append(attestation_id)
+
+    return tuple(sorted(attestation_ids)), None
+
+
 def evaluate_provider_eligibility(
     *,
     provider: str,
@@ -138,6 +232,8 @@ def evaluate_provider_eligibility(
     authorization_id: str | None = None,
     asset_digest: str | None = None,
     endpoint_attested: bool = False,
+    credential_ids: Iterable[int] | None = None,
+    attestations: dict[str, Any] | None = None,
     now: str | None = None,
 ) -> ProviderEligibilityDecision:
     policy_registry = registry if registry is not None else load_provider_registry()
@@ -182,22 +278,6 @@ def evaluate_provider_eligibility(
             trust_lane=trust_lane,
         )
 
-    if entry.get("monetary_policy") != "ZERO_COST_VERIFIED":
-        return _deny(
-            reason="ZERO_COST_NOT_VERIFIED",
-            provider=provider_name,
-            model_id=model,
-            trust_lane=trust_lane,
-        )
-
-    if entry.get("billing_overflow_policy") != "HARD_STOP":
-        return _deny(
-            reason="BILLING_OVERFLOW_NOT_FAIL_CLOSED",
-            provider=provider_name,
-            model_id=model,
-            trust_lane=trust_lane,
-        )
-
     allowed_classes = [str(v).upper() for v in entry.get("allowed_data_classes") or []]
     if classification not in allowed_classes:
         return _deny(
@@ -226,6 +306,44 @@ def evaluate_provider_eligibility(
     if not _matches(list(entry.get("model_patterns") or []), model):
         return _deny(
             reason="MODEL_NOT_ZERO_COST_ELIGIBLE",
+            provider=provider_name,
+            model_id=model,
+            trust_lane=trust_lane,
+        )
+
+    monetary_policy = str(entry.get("monetary_policy") or "")
+    billing_policy = str(entry.get("billing_overflow_policy") or "")
+    account_ids: tuple[str, ...] = ()
+
+    if monetary_policy == "ZERO_COST_VERIFIED":
+        if billing_policy != "HARD_STOP":
+            return _deny(
+                reason="BILLING_OVERFLOW_NOT_FAIL_CLOSED",
+                provider=provider_name,
+                model_id=model,
+                trust_lane=trust_lane,
+            )
+    elif (
+        monetary_policy == "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP"
+        and billing_policy == "ACCOUNT_ATTESTATION_REQUIRED"
+    ):
+        resolved_ids, reason = _account_attestation_ids(
+            provider=provider_name,
+            credential_ids=credential_ids,
+            attestations=attestations,
+            now=now,
+        )
+        if reason is not None:
+            return _deny(
+                reason=reason,
+                provider=provider_name,
+                model_id=model,
+                trust_lane=trust_lane,
+            )
+        account_ids = resolved_ids or ()
+    else:
+        return _deny(
+            reason="ZERO_COST_NOT_VERIFIED",
             provider=provider_name,
             model_id=model,
             trust_lane=trust_lane,
@@ -273,4 +391,5 @@ def evaluate_provider_eligibility(
         trust_lane=trust_lane,
         zero_cost_verified=True,
         media_egress_grant_id=grant_id,
+        account_attestation_ids=account_ids,
     )
