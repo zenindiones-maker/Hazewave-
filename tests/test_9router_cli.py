@@ -115,3 +115,79 @@ def test_cli_prints_9router_efficiency_status(monkeypatch, capsys) -> None:
     payload = json.loads(out.splitlines()[-1])
     assert payload["schema"] == "Hazewave9RouterEfficiencyStatus/v1"
     assert payload["admitted_model_count"] == 3
+
+
+def test_cli_accepts_messages_file_instead_of_prompt(tmp_path) -> None:
+    from hazewave.cli import build_parser
+
+    messages_file = tmp_path / "messages.json"
+    messages_file.write_text(
+        json.dumps([{"role": "user", "content": "hello"}]),
+        encoding="utf-8",
+    )
+
+    args = build_parser().parse_args(
+        ["9router", "execute", "--messages-file", str(messages_file)]
+    )
+
+    assert args.prompt is None
+    assert args.messages_file == str(messages_file)
+
+
+def test_cli_routes_messages_file_through_governed_messages_executor(
+    monkeypatch,
+    capsys,
+    tmp_path,
+) -> None:
+    import hazewave.cli as cli
+
+    messages = [
+        {"role": "user", "content": "inspect"},
+        {"role": "tool", "tool_call_id": "c1", "content": "public output"},
+    ]
+    messages_file = tmp_path / "messages.json"
+    messages_file.write_text(json.dumps(messages), encoding="utf-8")
+
+    captured = {}
+
+    def fake_execute_messages(**kwargs):
+        captured.update(kwargs)
+        authorization = kwargs["authorization"]
+        return NineRouterExecutionResult(
+            status="PASS",
+            task_id=authorization.task_id,
+            authorization_id=authorization.authorization_id,
+            model_id="oc/mimo-v2.6-flash-free",
+            content="done",
+            prompt_tokens=20,
+            completion_tokens=2,
+            total_tokens=22,
+        )
+
+    monkeypatch.setattr(
+        cli,
+        "execute_9router_messages",
+        fake_execute_messages,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "hazewave",
+            "9router",
+            "execute",
+            "--messages-file",
+            str(messages_file),
+            "--task-id",
+            "tool-cli-1",
+            "--capability",
+            "code.review",
+        ],
+    )
+
+    rc = cli.main()
+
+    assert rc == 0
+    assert captured["messages"] == messages
+    assert captured["authorization"].authority == "HAZEWAVE_HARNESS"
+    assert captured["data_classification"] == "PUBLIC"
