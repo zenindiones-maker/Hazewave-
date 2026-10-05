@@ -120,6 +120,8 @@ def test_executor_requires_harness_admission_before_http(tmp_path: Path) -> None
             now="2026-10-05T12:00:00+00:00",
             lock_path=tmp_path / "lock",
             transport=transport,
+        cli_token="unit-test-token",
+            cli_token="unit-test-token",
         )
 
     assert patches == []
@@ -137,6 +139,8 @@ def test_executor_refuses_any_external_exposure(tmp_path: Path) -> None:
             now="2026-10-05T12:00:00+00:00",
             lock_path=tmp_path / "lock",
             transport=transport,
+        cli_token="unit-test-token",
+            cli_token="unit-test-token",
         )
 
     assert settings["requireApiKey"] is True
@@ -154,6 +158,7 @@ def test_executor_temporarily_opens_loopback_api_and_restores_setting(tmp_path: 
         now="2026-10-05T12:00:00+00:00",
         lock_path=tmp_path / "lock",
         transport=transport,
+        cli_token="unit-test-token",
     )
 
     assert result.status == "PASS"
@@ -199,6 +204,7 @@ def test_executor_restores_setting_when_completion_fails(tmp_path: Path) -> None
             now="2026-10-05T12:00:00+00:00",
             lock_path=tmp_path / "lock",
             transport=httpx.MockTransport(handler),
+            cli_token="unit-test-token",
         )
 
     assert settings["requireApiKey"] is True
@@ -217,6 +223,8 @@ def test_executor_rejects_empty_prompt_before_mutation(tmp_path: Path) -> None:
             now="2026-10-05T12:00:00+00:00",
             lock_path=tmp_path / "lock",
             transport=transport,
+        cli_token="unit-test-token",
+            cli_token="unit-test-token",
         )
 
     assert patches == []
