@@ -35,12 +35,12 @@
 - Consumes: ProjectProfile/v2 data classes and Harness authority.
 - Produces: `HazewaveProviderEligibilityRegistry/v1` validated at repository gate.
 
-- [ ] Add failing tests that require a registered, schema-valid eligibility registry and ADR-0006 registration.
-- [ ] Run `pytest -q tests/test_freellmapi_governed_fabric.py tests/test_documentation_governance_v2.py`; expect missing artifacts/registry assertions.
-- [ ] Add schema, initial conservative registry and repository validation.
-- [ ] Re-run focused tests; expect pass.
-- [ ] Run `python scripts/validate_repository_contracts.py`; expect `HAZEWAVE_REPOSITORY_CONTRACTS=PASS`.
-- [ ] Commit the passing governance contract.
+- [x] Add failing tests that require a registered, schema-valid eligibility registry and ADR-0006 registration.
+- [x] Run `pytest -q tests/test_freellmapi_governed_fabric.py tests/test_documentation_governance_v2.py`; expect missing artifacts/registry assertions.
+- [x] Add schema, initial conservative registry and repository validation.
+- [x] Re-run focused tests; expect pass.
+- [x] Run `python scripts/validate_repository_contracts.py`; expect `HAZEWAVE_REPOSITORY_CONTRACTS=PASS`.
+- [x] Commit the passing governance contract.
 
 ### Task 2: Pure zero-cost eligibility engine
 
@@ -52,12 +52,12 @@
 - Consumes: registry entry, capability, modality, data classification and optional MediaEgressGrant.
 - Produces: `ProviderEligibilityDecision` with `ALLOW` or stable denial reason.
 
-- [ ] Add failing tests for unknown provider, paid/unknown cost, credential egress, internal/public lane boundaries and private-media grant mismatch.
-- [ ] Run focused test; expect import/missing behavior failures.
-- [ ] Implement trust lanes, cost states, grant validation and deterministic decision reasons.
-- [ ] Re-run focused tests; expect pass.
-- [ ] Run `pytest -q tests/test_hazewave_harness.py tests/test_freellmapi_integration.py tests/test_freellmapi_governed_fabric.py`.
-- [ ] Commit the policy engine.
+- [x] Add failing tests for unknown provider, paid/unknown cost, credential egress, internal/public lane boundaries and private-media grant mismatch.
+- [x] Run focused test; expect import/missing behavior failures.
+- [x] Implement trust lanes, cost states, grant validation and deterministic decision reasons.
+- [x] Re-run focused tests; expect pass.
+- [x] Run `pytest -q tests/test_hazewave_harness.py tests/test_freellmapi_integration.py tests/test_freellmapi_governed_fabric.py`.
+- [x] Commit the policy engine.
 
 ### Task 3: Governed model discovery and provider-qualified chat
 
@@ -70,12 +70,12 @@
 - Consumes: `GET /v1/models?execution_status=ready`, registry/policy decision and Harness authorization.
 - Produces: explicit `platform:model_id` request plus `HazewaveProviderExecutionReceipt/v1`.
 
-- [ ] Add failing tests proving unrestricted `auto` is rejected for governed calls, a provider-qualified id is emitted, unreviewed routes are skipped and receipts omit secrets.
-- [ ] Run focused tests and record relevant failure.
-- [ ] Implement ready-model normalization, policy filtering, deterministic model selection and governed chat execution.
-- [ ] Re-run focused tests; expect pass.
-- [ ] Run existing FreeLLMAPI integration and persistence tests.
-- [ ] Commit governed chat/discovery.
+- [x] Add failing tests proving unrestricted `auto` is rejected for governed calls, a provider-qualified id is emitted, unreviewed routes are skipped and receipts omit secrets.
+- [x] Run focused tests and record relevant failure.
+- [x] Implement ready-model normalization, policy filtering, deterministic model selection and governed chat execution.
+- [x] Re-run focused tests; expect pass.
+- [x] Run existing FreeLLMAPI integration and persistence tests.
+- [x] Commit governed chat/discovery.
 
 ### Task 4: Reasoning, tools, Fusion and embeddings
 
@@ -91,12 +91,12 @@
 - Tool requests remain proposals; execution requires separate Harness authorization.
 - Embedding receipts bind family and dimensions; cross-family failover is rejected.
 
-- [ ] Add failing capability/domain and provider-surface tests.
-- [ ] Implement minimal Harness mappings and generic JSON/binary request helpers under the common policy gate.
-- [ ] Add Fusion quota-cost metadata and explicit capability requirement.
-- [ ] Add embeddings family/dimension validation.
-- [ ] Run affected Harness/FreeLLMAPI tests.
-- [ ] Commit the reasoning/knowledge surfaces.
+- [x] Add failing capability/domain and provider-surface tests.
+- [x] Implement minimal Harness mappings and generic JSON/binary request helpers under the common policy gate.
+- [x] Add Fusion quota-cost metadata and explicit capability requirement.
+- [x] Add embeddings family/dimension validation.
+- [x] Run affected Harness/FreeLLMAPI tests.
+- [x] Commit the reasoning/knowledge surfaces.
 
 ### Task 5: Governed multimodal surfaces
 
@@ -110,12 +110,12 @@
 - PRIVATE_MEDIA requires `HazewaveMediaEgressGrant/v1`; PUBLIC media may use approved public-free lanes.
 - Generated media results carry provider/model/content digest provenance.
 
-- [ ] Add failing tests for media egress, grant binding, binary response handling and no remote private-media default.
-- [ ] Implement the minimum multimodal methods under the shared eligibility engine.
-- [ ] Add bounded CLI inventory/probe commands without exposing keys.
-- [ ] Run focused tests.
-- [ ] Run full `pytest`.
-- [ ] Commit multimodal surfaces.
+- [x] Add failing tests for media egress, grant binding, binary response handling and no remote private-media default.
+- [x] Implement the minimum multimodal methods under the shared eligibility engine.
+- [x] Add bounded CLI inventory/probe commands without exposing keys.
+- [x] Run focused tests.
+- [x] Run full `pytest`.
+- [x] Commit multimodal surfaces.
 
 ### Task 6: Runtime and documentation closure
 
@@ -129,13 +129,19 @@
 - Runtime doctor reports policy/zero-cost fabric status without reading secrets.
 - Runtime probe emits secret-free execution receipts.
 
-- [ ] Add/extend contract tests for runtime diagnostics and documentation registration.
-- [ ] Run `python -m compileall -q src`.
-- [ ] Run `python scripts/validate_repository_contracts.py`.
-- [ ] Run `pytest` and require zero failures on Python 3.12/3.14 CI.
+- [x] Add/extend contract tests for runtime diagnostics and documentation registration.
+- [x] Run `python -m compileall -q src`.
+- [x] Run `python scripts/validate_repository_contracts.py`.
+- [x] Run `pytest` and require zero failures on Python 3.12/3.14 CI.
 - [ ] Sync immutable Termux release and perform bounded A15 probes on available zero-cost surfaces; do not fabricate unavailable provider evidence.
-- [ ] Preserve the existing cold-boot/persistence proof and report any capability that remains unavailable because no eligible free provider/key is configured.
+- [x] Preserve the existing cold-boot/persistence proof and report any capability that remains unavailable because no eligible free provider/key is configured.
 
 ## Externally observable decisions
 
 The specification settles the policy decisions required for implementation: unknown cost is denied, paid fallback is forbidden, unrestricted `auto` is forbidden for governed calls, private-media remote egress requires a scoped grant, and unavailable free capability is reported rather than silently widened. There are no unresolved product decisions blocking implementation.
+
+## Current implementation checkpoint
+
+Repository implementation through Gemini/Ollama compatibility, read-only MCP observability, operational CLI, governed multimodal surfaces and crash-safe runtime diagnostics is complete on the active development branch.
+
+The remaining unchecked rollout item is intentionally runtime-only: immutable sync to the A15 and bounded live probes for the new source revision. The historical cold-boot persistence proof remains valid only for its recorded runtime SHA and is not reused as proof for this new release.
