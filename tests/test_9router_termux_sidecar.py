@@ -28,7 +28,7 @@ def test_9router_upstream_is_exact_pinned_and_subordinate() -> None:
     assert payload["paid_fallback"] == "FORBIDDEN"
     assert payload["unknown_cost"] == "DENY"
     assert payload["execution_policy"] == "DISCOVERY_ONLY_UNTIL_ROUTE_ADMISSION"
-    assert payload["security_baseline"]["minimum_fixed_version"] == "0.5.2"
+    assert payload["security_baseline"]["minimum_fixed_version"] == "0.5.8"
     assert payload["security_baseline"]["loopback_only"] is True
 
 
