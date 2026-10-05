@@ -574,3 +574,110 @@ def test_optimizer_stops_hammering_nonrecoverable_or_rate_limited_models() -> No
     assert '"http_403"' in script
     assert '"http_429"' in script
     assert "break;" in script
+
+
+def test_ranker_penalizes_live_failure_reliability_after_cooldown_expires() -> None:
+    receipt = _v2_receipt()
+    receipt["model_proofs"]["oc/mimo-v2.6-flash-free"]["latency_ms"] = 800
+    receipt["model_proofs"]["oc/mimo-v2.6-flash-free"]["usage"]["total_tokens"] = 100
+    receipt["model_proofs"]["oc/space-bunny-free"]["latency_ms"] = 1000
+    receipt["model_proofs"]["oc/space-bunny-free"]["usage"]["total_tokens"] = 120
+
+    health = {
+        "schema": "Hazewave9RouterRouteHealth/v1",
+        "project_id": "HAZEWAVE",
+        "authority": "HAZEWAVE_HARNESS",
+        "models": {
+            "oc/mimo-v2.6-flash-free": {
+                "attempt_count": 1,
+                "success_count": 0,
+                "failure_count": 1,
+                "consecutive_transient_failures": 1,
+                "cooldown_until": "2026-10-05T12:29:00+00:00",
+                "last_status": "HTTP_503",
+            },
+            "oc/space-bunny-free": {
+                "attempt_count": 1,
+                "success_count": 1,
+                "failure_count": 0,
+                "consecutive_transient_failures": 0,
+                "cooldown_until": None,
+                "last_status": "PASS",
+                "ewma_latency_ms": 1000,
+                "ewma_total_tokens": 120,
+            },
+        },
+    }
+
+    ranked = rank_9router_models(
+        authorization=_authorization(),
+        receipt=receipt,
+        route_health=health,
+        data_classification="PUBLIC",
+        now="2026-10-05T12:30:00+00:00",
+    )
+
+    assert ranked[0] == "oc/space-bunny-free"
+
+
+def test_auto_executor_emits_attempt_trace_with_fallback_reason(tmp_path: Path) -> None:
+    settings = {
+        "requireApiKey": True,
+        "cloudEnabled": False,
+        "tunnelEnabled": False,
+        "tailscaleEnabled": False,
+        "capacityAdapter": {},
+        "outboundProxyEnabled": False,
+        "rtkEnabled": True,
+        "headroomEnabled": False,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/settings" and request.method == "GET":
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/api/settings" and request.method == "PATCH":
+            settings.update(json.loads(request.content))
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/v1/chat/completions":
+            model = json.loads(request.content)["model"]
+            if model == "oc/mimo-v2.6-flash-free":
+                return httpx.Response(503, json={"error": {"message": "temporary"}})
+            return httpx.Response(
+                200,
+                json={
+                    "choices": [{"message": {"content": "ok"}}],
+                    "usage": {
+                        "prompt_tokens": 10,
+                        "completion_tokens": 2,
+                        "total_tokens": 12,
+                    },
+                },
+            )
+        raise AssertionError("unexpected request")
+
+    receipt = _v2_receipt()
+    receipt["model_proofs"]["oc/mimo-v2.6-flash-free"]["latency_ms"] = 800
+    receipt["model_proofs"]["oc/mimo-v2.6-flash-free"]["usage"]["total_tokens"] = 100
+    receipt["model_proofs"]["oc/nemotron-3.5-lightning-free"]["latency_ms"] = 900
+    receipt["model_proofs"]["oc/nemotron-3.5-lightning-free"]["usage"]["total_tokens"] = 110
+    receipt["model_proofs"]["oc/space-bunny-free"]["latency_ms"] = 5000
+    receipt["model_proofs"]["oc/space-bunny-free"]["usage"]["total_tokens"] = 500
+
+    result = execute_9router_text(
+        authorization=_authorization(),
+        model_id="auto",
+        prompt="hello",
+        receipt=receipt,
+        now="2026-10-05T12:30:00+00:00",
+        lock_path=tmp_path / "lock",
+        route_health_path=tmp_path / "health.json",
+        transport=httpx.MockTransport(handler),
+        cli_token="unit-test-token",
+        max_fallbacks=3,
+    )
+
+    assert result.attempt_trace[0]["model"] == "oc/mimo-v2.6-flash-free"
+    assert result.attempt_trace[0]["status"] == "HTTP_503"
+    assert result.attempt_trace[1]["model"] == "oc/nemotron-3.5-lightning-free"
+    assert result.attempt_trace[1]["status"] == "PASS"
+    assert result.attempt_trace[1]["total_tokens"] == 12
