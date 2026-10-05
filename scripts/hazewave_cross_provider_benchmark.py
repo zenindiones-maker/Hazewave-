@@ -26,7 +26,13 @@ from hazewave.nvidia import (
     DEFAULT_NVIDIA_SECRET_PATH,
     NvidiaNIMAdapter,
 )
-from hazewave.nvidia_proof import evaluate_probe_item, load_probe_corpus
+from hazewave.nvidia_proof import (
+    evaluate_probe_item,
+    load_probe_corpus,
+    probe_request_options,
+    resolve_probe_profile,
+)
+from hazewave.nvidia_optimization import DEFAULT_NVIDIA_OPTIMIZATION_STATE_PATH
 from hazewave.provider_benchmark import summarize_cross_provider_rows
 from hazewave.provider_fabric import (
     DEFAULT_PROVIDER_LEARNING_PATH,
@@ -67,6 +73,8 @@ def _finalize(item: dict, result: HazewaveProviderExecutionResult) -> HazewavePr
 def _row(item: dict, result: HazewaveProviderExecutionResult) -> dict:
     return {
         "capability": item["capability"],
+        "task_family": item.get("task_family", "generic"),
+        "complexity": item.get("complexity", "UNSPECIFIED"),
         "provider": result.provider,
         "model_id": result.model_id,
         "profile": result.execution_profile,
@@ -89,11 +97,15 @@ def main() -> int:
     parser.add_argument("--9router-receipt", default=str(DEFAULT_ADMISSION_RECEIPT_PATH))
     parser.add_argument(
         "--corpus",
-        default=str(ROOT / "config" / "nvidia-capability-eval-v1.json"),
+        default=str(ROOT / "config" / "nvidia-capability-eval-v2.json"),
     )
     parser.add_argument(
         "--learning-state",
         default=str(DEFAULT_PROVIDER_LEARNING_PATH),
+    )
+    parser.add_argument(
+        "--optimization-state",
+        default=str(DEFAULT_NVIDIA_OPTIMIZATION_STATE_PATH),
     )
     parser.add_argument(
         "--receipt",
@@ -110,6 +122,7 @@ def main() -> int:
     nvidia = NvidiaNIMAdapter(
         secret_path=args.secret_file,
         receipt_path=args.nvidia_admission,
+        optimization_state_path=args.optimization_state,
     )
     router_receipt = load_9router_admission_receipt(args.__dict__["9router_receipt"])
     if router_receipt is None:
@@ -182,6 +195,9 @@ def main() -> int:
                 execution_profile="DEFAULT",
                 capability_id=authorization.capability_id,
                 cost_class="ZERO_COST_VERIFIED",
+                task_family=str(item.get("task_family") or "generic"),
+                complexity=str(item.get("complexity") or "UNSPECIFIED"),
+                reasoning_budget=0,
             )
             record_provider_result(
                 path=args.learning_state,
@@ -191,19 +207,27 @@ def main() -> int:
             )
             rows.append(_row(item, router_final))
 
+            nvidia_profile = resolve_probe_profile(item)
+            nvidia_options = probe_request_options(item)
             nvidia_raw = nvidia.execute(
                 authorization=authorization,
                 model_id=DEFAULT_NVIDIA_MODEL,
-                execution_profile=str(item["execution_profile"]),
+                execution_profile=nvidia_profile,
                 messages=[{"role": "user", "content": str(item["prompt"])}],
+                **nvidia_options,
             )
             nvidia_final = _finalize(item, nvidia_raw)
             nvidia_route = ProviderRoute(
                 provider="nvidia",
                 model_id=DEFAULT_NVIDIA_MODEL,
-                execution_profile=str(item["execution_profile"]),
+                execution_profile=nvidia_profile,
                 capability_id=authorization.capability_id,
                 cost_class=nvidia_final.cost_class,
+                task_family=str(item.get("task_family") or "generic"),
+                complexity=str(item.get("complexity") or "UNSPECIFIED"),
+                reasoning_budget=int(
+                    nvidia_options.get("reasoning_budget") or 0
+                ),
             )
             record_provider_result(
                 path=args.learning_state,
@@ -215,7 +239,7 @@ def main() -> int:
 
     summary = summarize_cross_provider_rows(rows)
     receipt = {
-        "schema": "HazewaveCrossProviderBenchmarkReceipt/v1",
+        "schema": "HazewaveCrossProviderBenchmarkReceipt/v2",
         "project_id": "HAZEWAVE",
         "authority": "HAZEWAVE_HARNESS",
         "samples_per_route": args.samples,
@@ -237,9 +261,11 @@ def main() -> int:
                 f"TOKENS_PER_SUCCESS={route['tokens_per_successful_task']:.2f} "
                 f"REASONING_TOKENS_PER_SUCCESS={route['reasoning_tokens_per_success']:.2f} "
                 f"EMPTY_RATE={route['empty_rate']:.4f} "
-                f"RATE_LIMIT_RATE={route['rate_limit_rate']:.4f}"
+                f"RATE_LIMIT_RATE={route['rate_limit_rate']:.4f} "
+                f"USEFUL_WORK_SCORE={route['useful_work_score']:.6f}"
             )
     print(f"CROSS_PROVIDER_BENCHMARK_RECEIPT={Path(args.receipt).expanduser()}")
+    nvidia.close()
     return 0
 
 
