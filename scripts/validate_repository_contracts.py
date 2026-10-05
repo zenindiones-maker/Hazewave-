@@ -261,6 +261,54 @@ def validate_freellmapi_provider_contract() -> None:
                 )
 
 
+def validate_9router_sidecar_contract() -> None:
+    required_files = (
+        "config/9router-upstream-v1.json",
+        "scripts/install_hazewave_9router_termux.sh",
+        "scripts/hazewave_9router_control.sh",
+    )
+    for relative in required_files:
+        if not (ROOT / relative).is_file():
+            raise FileNotFoundError(f"HAZEWAVE_9ROUTER_MISSING:{relative}")
+
+    manifest = load_json("config/9router-upstream-v1.json")
+    if manifest.get("authority") != "NONE":
+        raise ValueError("HAZEWAVE_9ROUTER_AUTHORITY_MUST_BE_NONE")
+    if manifest.get("project_authority") != "HAZEWAVE_HARNESS":
+        raise ValueError("HAZEWAVE_9ROUTER_PROJECT_AUTHORITY_INVALID")
+    if manifest.get("repository") != "decolua/9router":
+        raise ValueError("HAZEWAVE_9ROUTER_REPOSITORY_INVALID")
+    if manifest.get("version") != "0.5.95":
+        raise ValueError("HAZEWAVE_9ROUTER_VERSION_INVALID")
+    if manifest.get("commit") != "a99cf57239ff778b61e434c2786009d5ed1c412c":
+        raise ValueError("HAZEWAVE_9ROUTER_COMMIT_INVALID")
+    if manifest.get("bind_host") != "127.0.0.1":
+        raise ValueError("HAZEWAVE_9ROUTER_MUST_BIND_LOOPBACK")
+    if manifest.get("paid_fallback") != "FORBIDDEN":
+        raise ValueError("HAZEWAVE_9ROUTER_PAID_FALLBACK_MUST_BE_FORBIDDEN")
+    if manifest.get("unknown_cost") != "DENY":
+        raise ValueError("HAZEWAVE_9ROUTER_UNKNOWN_COST_MUST_DENY")
+    if manifest.get("execution_policy") != "DISCOVERY_ONLY_UNTIL_ROUTE_ADMISSION":
+        raise ValueError("HAZEWAVE_9ROUTER_EXECUTION_POLICY_INVALID")
+
+    combined = "\n".join(
+        (ROOT / relative).read_text(encoding="utf-8")
+        for relative in required_files[1:]
+    )
+    for required in (
+        "9router@0.5.95",
+        "a99cf57239ff778b61e434c2786009d5ed1c412c",
+        "127.0.0.1",
+        "20128",
+        "--skip-update",
+        "HAZEWAVE_9ROUTER_AUTHORITY=NONE",
+        "HAZEWAVE_9ROUTER_PAID_FALLBACK=FORBIDDEN",
+        "DISCOVERY_ONLY_UNTIL_ROUTE_ADMISSION",
+    ):
+        if required not in combined:
+            raise ValueError(f"HAZEWAVE_9ROUTER_CONTRACT_MISSING:{required}")
+
+
 def validate_profile_migration() -> None:
     old = load_json("config/project-profile-v1.json")
     if old.get("status") != "SUPERSEDED":
@@ -277,6 +325,7 @@ def main() -> int:
     validate_project_isolation()
     validate_telegram_runtime_contract()
     validate_freellmapi_provider_contract()
+    validate_9router_sidecar_contract()
     validate_profile_migration()
     print(f"HAZEWAVE_JSON_SCHEMA_ENGINE=jsonschema/{version('jsonschema')}")
     print("HAZEWAVE_SCHEMA_PORTABLE_SUBSET=PASS")
@@ -286,6 +335,7 @@ def main() -> int:
     print("HAZEWAVE_PROJECT_ISOLATION=PASS")
     print("HAZEWAVE_TELEGRAM_RUNTIME_ISOLATION=PASS")
     print("HAZEWAVE_FREELLMAPI_PROVIDER_CONTRACT=PASS")
+    print("HAZEWAVE_9ROUTER_SIDECAR_CONTRACT=PASS")
     print("HAZEWAVE_PROJECT_PROFILE_MIGRATION=PASS")
     print("HAZEWAVE_REPOSITORY_CONTRACTS=PASS")
     return 0
