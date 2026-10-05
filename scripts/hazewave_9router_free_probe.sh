@@ -30,6 +30,15 @@ test -f "$CONTROL" || {
 # Fail closed unless the exact managed loopback sidecar is healthy.
 bash "$CONTROL" doctor >/dev/null
 
+AUTH_STATE="$(bash "$CONTROL" ensure-auth)"
+printf '%s\n' "$AUTH_STATE"
+
+if printf '%s\n' "$AUTH_STATE" | grep -qx 'HAZEWAVE_9ROUTER_CLI_AUTH_CREATED=1'; then
+  echo "HAZEWAVE_9ROUTER_CLI_AUTH_RESTART=REQUIRED"
+  bash "$CONTROL" restart >/dev/null
+  bash "$CONTROL" doctor >/dev/null
+fi
+
 RELEASE="$(readlink -f "$CURRENT")"
 test -f "$RELEASE/UPSTREAM_COMMIT"
 UPSTREAM_COMMIT="$(cat "$RELEASE/UPSTREAM_COMMIT")"
