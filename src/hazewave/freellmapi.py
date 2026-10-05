@@ -427,6 +427,10 @@ class FreeLLMAPILocalCatalog:
                     modality="embedding",
                     data_classification=data_classification,
                     registry=policy_registry,
+                    credential_ids=self.routing_key_ids(
+                        member.provider,
+                        model_key_id=member.model_key_id,
+                    ),
                 )
                 for member in members
             ]
@@ -522,6 +526,10 @@ class FreeLLMAPILocalCatalog:
                 modality=modality,
                 data_classification=data_classification,
                 registry=policy_registry,
+                credential_ids=self.routing_key_ids(
+                    candidate.provider,
+                    model_key_id=candidate.model_key_id,
+                ),
                 media_grant=media_grant,
                 task_id=task_id,
                 authorization_id=authorization_id,
@@ -713,6 +721,10 @@ class FreeLLMAPIClient:
                     modality="text",
                     data_classification=classification,
                     registry=policy_registry,
+                    credential_ids=source.routing_key_ids(
+                        candidate.provider,
+                        model_key_id=candidate.model_key_id,
+                    ),
                     media_grant=media_grant,
                     task_id=task_id,
                     authorization_id=authorization.authorization_id,
@@ -852,6 +864,10 @@ class FreeLLMAPIClient:
                 modality=modality,
                 data_classification=data_classification,
                 registry=policy_registry,
+                credential_ids=source.routing_key_ids(
+                    candidate.provider,
+                    model_key_id=candidate.model_key_id,
+                ),
                 media_grant=media_grant,
                 task_id=task_id,
                 authorization_id=authorization_id,
@@ -1503,6 +1519,10 @@ class FreeLLMAPIClient:
             modality="embedding",
             data_classification=data_classification,
             registry=registry if registry is not None else load_provider_registry(),
+            credential_ids=source.routing_key_ids(
+                member.provider,
+                model_key_id=member.model_key_id,
+            ),
         )
         receipt = self._receipt_base(
             authorization=authorization,
@@ -1815,6 +1835,10 @@ class FreeLLMAPIClient:
                 modality="text",
                 data_classification=data_classification,
                 registry=policy_registry,
+                credential_ids=source.routing_key_ids(
+                    candidate.provider,
+                    model_key_id=candidate.model_key_id,
+                ),
             )
             if decision.allowed and candidate.provider not in seen_providers:
                 eligible.append((candidate, decision))
@@ -2060,6 +2084,10 @@ def _eligible_text_model_ids(
             modality=modality,
             data_classification=data_classification,
             registry=registry,
+            credential_ids=source.routing_key_ids(
+                candidate.provider,
+                model_key_id=candidate.model_key_id,
+            ),
         )
         if decision.allowed:
             rows.append(candidate.qualified_model_id)
