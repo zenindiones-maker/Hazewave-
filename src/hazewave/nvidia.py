@@ -410,6 +410,7 @@ def normalize_nvidia_request(
     sampling_policy: str = "PROVIDER_DEFAULT",
     seed: int | None = None,
     reasoning_budget: int | None = None,
+    enable_thinking_override: bool | None = None,
     compatibility: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     profile = str(execution_profile).upper()
@@ -445,7 +446,11 @@ def normalize_nvidia_request(
         "max_tokens": limit,
         "stream": False,
         "chat_template_kwargs": {
-            "enable_thinking": bool(defaults["enable_thinking"])
+            "enable_thinking": (
+                bool(enable_thinking_override)
+                if enable_thinking_override is not None
+                else bool(defaults["enable_thinking"])
+            )
         },
     }
     policy = str(sampling_policy or "PROVIDER_DEFAULT").upper()
@@ -478,8 +483,11 @@ def normalize_nvidia_request(
             raise NvidiaProviderError("NVIDIA_SEED_OUT_OF_RANGE")
         payload["seed"] = seed_value
 
+    thinking_enabled = bool(
+        payload["chat_template_kwargs"]["enable_thinking"]
+    )
     if (
-        bool(defaults.get("enable_thinking"))
+        thinking_enabled
         and contract.get("reasoning_budget_supported") is not False
     ):
         budget = int(
@@ -708,6 +716,7 @@ class NvidiaNIMAdapter:
         sampling_policy: str = "PROVIDER_DEFAULT",
         seed: int | None = None,
         reasoning_budget: int | None = None,
+        enable_thinking_override: bool | None = None,
     ) -> HazewaveProviderExecutionResult:
         decision = evaluate_nvidia_admission(
             authorization=authorization,
@@ -740,6 +749,7 @@ class NvidiaNIMAdapter:
             sampling_policy=sampling_policy,
             seed=seed,
             reasoning_budget=reasoning_budget,
+            enable_thinking_override=enable_thinking_override,
             compatibility=compatibility,
         )
         lease_id: str | None = None
@@ -991,7 +1001,10 @@ class NvidiaNIMAdapter:
                     total_tokens=total_tokens,
                 )
 
-        if self.optimization_state_path is not None:
+        if (
+            self.optimization_state_path is not None
+            and semantic_validator is not None
+        ):
             update_nvidia_concurrency(
                 path=self.optimization_state_path,
                 model_id=model_id,
@@ -1017,5 +1030,7 @@ class NvidiaNIMAdapter:
             http_status=200,
             retry_after_seconds=None,
             cost_class=FREE_DEVELOPMENT_ENDPOINT,
-            semantic_pass=True,
+            semantic_pass=(
+                True if semantic_validator is not None else None
+            ),
         )
