@@ -1,0 +1,50 @@
+{
+  "schema": "HazewaveNvidiaProviderAdmission/v1",
+  "project_id": "HAZEWAVE",
+  "authority": "HAZEWAVE_HARNESS",
+  "provider": "nvidia",
+  "provider_authority": "NONE",
+  "base_url": "https://integrate.api.nvidia.com/v1",
+  "endpoint_family": "chat/completions",
+  "cost_class": "FREE_DEVELOPMENT_ENDPOINT",
+  "paid_fallback": "FORBIDDEN",
+  "unknown_cost": "DENY",
+  "development_endpoint_allowed": true,
+  "known_billing_status": "NO_KNOWN_CHARGE_FOR_PROTOTYPE_FREE_ENDPOINT",
+  "billing_semantics": "TRIAL_PROTOTYPE_ENDPOINT_REQUIRES_PERIODIC_READMISSION",
+  "allowed_data_classes": [
+    "PUBLIC"
+  ],
+  "admitted_models": [
+    "nvidia/nemotron-3.5-lightning-30b-a3b"
+  ],
+  "profiles": [
+    "FAST_STRUCTURED",
+    "DEEP_REASONING"
+  ],
+  "model_contracts": {
+    "nvidia/nemotron-3.5-lightning-30b-a3b": {
+      "chat_completions_supported": true,
+      "stream_supported": true,
+      "stream_enabled_by_hazewave": false,
+      "tool_support": false,
+      "tool_support_status": "PROBE_REQUIRED_BEFORE_ENABLE",
+      "response_format_support": false,
+      "response_format_status": "PROBE_REQUIRED_BEFORE_ENABLE",
+      "temperature_supported": true,
+      "top_p_supported": true,
+      "max_output_tokens": 16384,
+      "chat_template_kwargs_supported": true,
+      "enable_thinking_supported": true,
+      "reasoning_budget_supported": true,
+      "context_length": 1000000
+    }
+  },
+  "observed_at": "2026-10-05T12:00:00+00:00",
+  "expires_at": "2026-10-12T12:00:00+00:00",
+  "source_evidence": [
+    "https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b",
+    "https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b/modelcard"
+  ],
+  "notes": "Development/trial free endpoint only. Not FREE_FOREVER. Any stale/changed billing status requires readmission."
+}
