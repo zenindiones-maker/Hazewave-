@@ -28,6 +28,7 @@ from hazewave.nvidia import (
     probe_hosted_guided_json,
 )
 from hazewave.nvidia_experiments import (
+    build_model_access_canary_request,
     compare_parameter_ab,
     select_minimum_reasoning_budget,
     select_sustainable_concurrency,
@@ -364,19 +365,7 @@ def run_model_canary(args) -> int:
             try:
                 response = client.post(
                     "/chat/completions",
-                    json={
-                        "model": model,
-                        "messages": [
-                            {
-                                "role": "user",
-                                "content": "Respond exactly HAZEWAVE_NVIDIA_CANARY_OK",
-                            }
-                        ],
-                        "max_tokens": 64,
-                        "stream": False,
-                        "temperature": 0.0,
-                        "chat_template_kwargs": {"enable_thinking": False},
-                    },
+                    json=build_model_access_canary_request(model),
                     headers={
                         "Authorization": f"Bearer {api_key}",
                         "Accept": "application/json",
