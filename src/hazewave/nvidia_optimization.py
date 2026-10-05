@@ -31,6 +31,27 @@ DEFAULT_NVIDIA_OPTIMIZATION_STATE_PATH = (
     / "nvidia"
     / "optimization-v2.json"
 )
+DEFAULT_NVIDIA_EVALUATION_ROOT = (
+    Path.home()
+    / ".local"
+    / "state"
+    / "hazewave"
+    / "providers"
+    / "nvidia"
+    / "evaluation"
+)
+DEFAULT_NVIDIA_PROOF_CAPACITY_STATE_PATH = (
+    DEFAULT_NVIDIA_EVALUATION_ROOT / "runtime-proof-capacity-v2.json"
+)
+DEFAULT_NVIDIA_BENCHMARK_CAPACITY_STATE_PATH = (
+    DEFAULT_NVIDIA_EVALUATION_ROOT / "cross-provider-benchmark-capacity-v2.json"
+)
+DEFAULT_NVIDIA_PROOF_LEARNING_PATH = (
+    DEFAULT_NVIDIA_EVALUATION_ROOT / "runtime-proof-learning-v2.json"
+)
+DEFAULT_NVIDIA_BENCHMARK_LEARNING_PATH = (
+    DEFAULT_NVIDIA_EVALUATION_ROOT / "cross-provider-benchmark-learning-v2.json"
+)
 
 _SCHEMA = "HazewaveNvidiaOptimizationState/v2"
 
