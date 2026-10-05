@@ -345,6 +345,8 @@ def validate_9router_sidecar_contract() -> None:
     if (
         live_adaptation.get("source") != "ROUTE_HEALTH_EWMA"
         or live_adaptation.get("alpha") != 0.35
+        or live_adaptation.get("scope") != "CAPABILITY_THEN_MODEL"
+        or live_adaptation.get("semantic_failure_scope") != "CAPABILITY_ONLY"
     ):
         raise ValueError("HAZEWAVE_9ROUTER_LIVE_ADAPTATION_INVALID")
     semantic_admission = optimizer.get("semantic_admission") or {}
