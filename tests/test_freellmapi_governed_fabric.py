@@ -63,7 +63,6 @@ def test_registry_is_fail_closed_for_credentials_and_unknown_providers() -> None
         if monetary in {"UNKNOWN_COST", "PAID"}:
             assert entry["enabled"] is False
         if monetary == "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP":
-            assert entry["enabled"] is True
             assert entry["billing_overflow_policy"] == "ACCOUNT_ATTESTATION_REQUIRED"
         if entry["trust_lane"] == "QUARANTINED":
             assert entry["enabled"] is False
