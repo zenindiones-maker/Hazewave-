@@ -442,10 +442,14 @@ def build_9router_efficiency_status(
     *,
     receipt: dict[str, Any] | None = None,
     receipt_path: Path | str = DEFAULT_ADMISSION_RECEIPT_PATH,
+    route_health: dict[str, Any] | None = None,
+    route_health_path: Path | str = DEFAULT_ROUTE_HEALTH_PATH,
     now: str | datetime | None = None,
 ) -> dict[str, Any]:
     if receipt is None:
         receipt = load_9router_admission_receipt(receipt_path)
+    if route_health is None:
+        route_health = load_9router_route_health(route_health_path)
 
     base = {
         "schema": "Hazewave9RouterEfficiencyStatus/v1",
@@ -487,6 +491,25 @@ def build_9router_efficiency_status(
     policy = receipt.get("optimization_policy")
     policy = policy if isinstance(policy, dict) else {}
 
+    health_models = route_health.get("models")
+    health_models = health_models if isinstance(health_models, dict) else {}
+    cooling_models = []
+    for model, row in sorted(health_models.items()):
+        if not isinstance(row, dict):
+            continue
+        if not _model_in_active_cooldown(route_health, model, now=current):
+            continue
+        cooling_models.append(
+            {
+                "model": model,
+                "cooldown_until": row.get("cooldown_until"),
+                "last_status": row.get("last_status"),
+                "consecutive_transient_failures": int(
+                    row.get("consecutive_transient_failures") or 0
+                ),
+            }
+        )
+
     return {
         **base,
         "receipt_schema": receipt.get("schema"),
@@ -500,6 +523,8 @@ def build_9router_efficiency_status(
         "headroom_enabled": policy.get("headroom_enabled", False),
         "combos_allowed": policy.get("combos_allowed", False),
         "stream": policy.get("stream", False),
+        "cooling_model_count": len(cooling_models),
+        "cooling_models": cooling_models,
     }
 
 
