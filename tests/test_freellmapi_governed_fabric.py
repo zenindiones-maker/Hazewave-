@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
+from hazewave.harness import HazewaveTask, issue_authorization, route_task
+
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = ROOT / "config" / "freellmapi-provider-eligibility-v1.json"
 SCHEMA_PATH = ROOT / "schemas" / "freellmapi-provider-eligibility-v1.schema.json"
