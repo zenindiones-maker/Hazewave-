@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from fnmatch import fnmatchcase
 import json
 import os
@@ -135,6 +135,8 @@ def write_account_attestation(
     expires = _parse_time(expires_at)
     if expires <= issued:
         raise ValueError("HAZEWAVE_ACCOUNT_ATTESTATION_EXPIRY_INVALID")
+    if expires - issued > timedelta(days=31):
+        raise ValueError("HAZEWAVE_ACCOUNT_ATTESTATION_TTL_TOO_LONG")
 
     record = {
         "attestation_id": (
