@@ -32,7 +32,10 @@ from hazewave.nvidia_proof import (
     probe_request_options,
     resolve_probe_profile,
 )
-from hazewave.nvidia_optimization import DEFAULT_NVIDIA_OPTIMIZATION_STATE_PATH
+from hazewave.nvidia_optimization import (
+    DEFAULT_NVIDIA_BENCHMARK_CAPACITY_STATE_PATH,
+    DEFAULT_NVIDIA_BENCHMARK_LEARNING_PATH,
+)
 from hazewave.provider_benchmark import summarize_cross_provider_rows
 from hazewave.provider_fabric import (
     DEFAULT_PROVIDER_LEARNING_PATH,
@@ -101,11 +104,11 @@ def main() -> int:
     )
     parser.add_argument(
         "--learning-state",
-        default=str(DEFAULT_PROVIDER_LEARNING_PATH),
+        default=str(DEFAULT_NVIDIA_BENCHMARK_LEARNING_PATH),
     )
     parser.add_argument(
         "--optimization-state",
-        default=str(DEFAULT_NVIDIA_OPTIMIZATION_STATE_PATH),
+        default=str(DEFAULT_NVIDIA_BENCHMARK_CAPACITY_STATE_PATH),
     )
     parser.add_argument(
         "--receipt",
