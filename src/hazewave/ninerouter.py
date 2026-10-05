@@ -386,9 +386,11 @@ def _record_route_health(
     success: bool,
     path: Path | str,
     now: str | datetime | None,
+    capability_id: str | None = None,
     latency_ms: int | None = None,
     total_tokens: int | None = None,
     reasoning_tokens: int | None = None,
+    retry_after_seconds: int | None = None,
 ) -> None:
     store = load_9router_route_health(path)
     models = store.setdefault("models", {})
@@ -403,58 +405,106 @@ def _record_route_health(
             return observed
         return int(round((previous * 0.65) + (observed * 0.35)))
 
-    if success:
-        row = {
-            **existing,
-            "consecutive_transient_failures": 0,
-            "cooldown_until": None,
-            "last_status": "PASS",
-            "attempt_count": int(existing.get("attempt_count") or 0) + 1,
-            "success_count": int(existing.get("success_count") or 0) + 1,
-            "failure_count": int(existing.get("failure_count") or 0),
-            "ewma_latency_ms": ewma(
-                existing.get("ewma_latency_ms"),
-                latency_ms,
-            ),
-            "ewma_total_tokens": ewma(
-                existing.get("ewma_total_tokens"),
-                total_tokens,
-            ),
-            "last_reasoning_tokens": (
-                reasoning_tokens
-                if isinstance(reasoning_tokens, int)
-                else existing.get("last_reasoning_tokens")
-            ),
-            "updated_at": current.isoformat(),
-        }
-    elif transient_failure:
-        failures = int(existing.get("consecutive_transient_failures") or 0) + 1
-        cooldown_seconds = min(900, 60 * (2 ** (failures - 1)))
-        row = {
-            **existing,
-            "attempt_count": int(existing.get("attempt_count") or 0) + 1,
-            "success_count": int(existing.get("success_count") or 0),
-            "failure_count": int(existing.get("failure_count") or 0) + 1,
-            "consecutive_transient_failures": failures,
-            "cooldown_until": (
-                current + timedelta(seconds=cooldown_seconds)
-            ).isoformat(),
-            "last_status": status,
-            "last_failure_at": current.isoformat(),
-            "updated_at": current.isoformat(),
-        }
-    else:
-        row = {
-            **existing,
-            "attempt_count": int(existing.get("attempt_count") or 0) + 1,
-            "success_count": int(existing.get("success_count") or 0),
-            "failure_count": int(existing.get("failure_count") or 0) + 1,
-            "last_status": status,
-            "last_failure_at": current.isoformat(),
-            "updated_at": current.isoformat(),
-        }
+    def update_row(
+        current_row: dict[str, Any],
+        *,
+        apply_semantic_failure: bool,
+    ) -> dict[str, Any]:
+        row = dict(current_row)
+        if success:
+            row.update(
+                {
+                    "consecutive_transient_failures": 0,
+                    "cooldown_until": None,
+                    "retry_after_seconds": None,
+                    "last_status": "PASS",
+                    "attempt_count": int(row.get("attempt_count") or 0) + 1,
+                    "success_count": int(row.get("success_count") or 0) + 1,
+                    "failure_count": int(row.get("failure_count") or 0),
+                    "ewma_latency_ms": ewma(
+                        row.get("ewma_latency_ms"),
+                        latency_ms,
+                    ),
+                    "ewma_total_tokens": ewma(
+                        row.get("ewma_total_tokens"),
+                        total_tokens,
+                    ),
+                    "last_reasoning_tokens": (
+                        reasoning_tokens
+                        if isinstance(reasoning_tokens, int)
+                        else row.get("last_reasoning_tokens")
+                    ),
+                    "updated_at": current.isoformat(),
+                }
+            )
+            return row
 
-    models[model_id] = row
+        if transient_failure:
+            failures = int(row.get("consecutive_transient_failures") or 0) + 1
+            exponential_seconds = min(900, 60 * (2 ** (failures - 1)))
+            provider_seconds = (
+                min(3600, retry_after_seconds)
+                if isinstance(retry_after_seconds, int)
+                and retry_after_seconds > 0
+                else 0
+            )
+            cooldown_seconds = max(exponential_seconds, provider_seconds)
+            row.update(
+                {
+                    "attempt_count": int(row.get("attempt_count") or 0) + 1,
+                    "success_count": int(row.get("success_count") or 0),
+                    "failure_count": int(row.get("failure_count") or 0) + 1,
+                    "consecutive_transient_failures": failures,
+                    "cooldown_until": (
+                        current + timedelta(seconds=cooldown_seconds)
+                    ).isoformat(),
+                    "retry_after_seconds": (
+                        provider_seconds if provider_seconds > 0 else None
+                    ),
+                    "last_status": status,
+                    "last_failure_at": current.isoformat(),
+                    "updated_at": current.isoformat(),
+                }
+            )
+            return row
+
+        if apply_semantic_failure:
+            row.update(
+                {
+                    "attempt_count": int(row.get("attempt_count") or 0) + 1,
+                    "success_count": int(row.get("success_count") or 0),
+                    "failure_count": int(row.get("failure_count") or 0) + 1,
+                    "last_status": status,
+                    "last_failure_at": current.isoformat(),
+                    "updated_at": current.isoformat(),
+                }
+            )
+        return row
+
+    # Global health tracks availability and successful runtime efficiency.
+    # Semantic/content failures are capability-scoped so a model that is poor
+    # at one task class does not contaminate every other capability.
+    global_row = update_row(
+        existing,
+        apply_semantic_failure=False,
+    )
+
+    if capability_id:
+        capabilities = global_row.get("capabilities")
+        capabilities = (
+            dict(capabilities) if isinstance(capabilities, dict) else {}
+        )
+        scoped_existing = capabilities.get(capability_id)
+        scoped_existing = (
+            scoped_existing if isinstance(scoped_existing, dict) else {}
+        )
+        capabilities[capability_id] = update_row(
+            scoped_existing,
+            apply_semantic_failure=True,
+        )
+        global_row["capabilities"] = capabilities
+
+    models[model_id] = global_row
     _write_route_health(store, path)
 
 
@@ -562,8 +612,21 @@ def _receipt_ranked_models(
             )
         )
 
-        health = health_models.get(model)
-        health = health if isinstance(health, dict) else {}
+        global_health = health_models.get(model)
+        global_health = (
+            global_health if isinstance(global_health, dict) else {}
+        )
+        capabilities = global_health.get("capabilities")
+        capabilities = capabilities if isinstance(capabilities, dict) else {}
+        scoped_health = capabilities.get(capability_id)
+        scoped_health = (
+            scoped_health if isinstance(scoped_health, dict) else {}
+        )
+        health = (
+            scoped_health
+            if int(scoped_health.get("attempt_count") or 0) > 0
+            else global_health
+        )
         if int(health.get("success_count") or 0) > 0:
             live_tokens = health.get("ewma_total_tokens")
             live_latency = health.get("ewma_latency_ms")
@@ -1158,6 +1221,15 @@ def execute_9router_messages(
                             503,
                             504,
                         }
+                        retry_after_seconds = None
+                        if response.status_code == 429:
+                            retry_after_raw = response.headers.get("Retry-After")
+                            try:
+                                retry_after_seconds = int(
+                                    str(retry_after_raw).strip()
+                                )
+                            except (TypeError, ValueError):
+                                retry_after_seconds = None
                         _record_route_health(
                             model_id=candidate_model,
                             status=f"HTTP_{response.status_code}",
@@ -1165,6 +1237,8 @@ def execute_9router_messages(
                             success=False,
                             path=route_health_path,
                             now=now,
+                            capability_id=authorization.capability_id,
+                            retry_after_seconds=retry_after_seconds,
                         )
                         if requested_model == "auto" and transient:
                             continue
@@ -1187,6 +1261,7 @@ def execute_9router_messages(
                             success=False,
                             path=route_health_path,
                             now=now,
+                            capability_id=authorization.capability_id,
                         )
                         error = NineRouterExecutionError(
                             "NINEROUTER_COMPLETION_INVALID_JSON"
@@ -1230,6 +1305,7 @@ def execute_9router_messages(
                             success=False,
                             path=route_health_path,
                             now=now,
+                            capability_id=authorization.capability_id,
                         )
                         error = NineRouterExecutionError(
                             "NINEROUTER_COMPLETION_EMPTY"
@@ -1271,6 +1347,7 @@ def execute_9router_messages(
                         success=True,
                         path=route_health_path,
                         now=now,
+                        capability_id=authorization.capability_id,
                         latency_ms=latency_ms,
                         total_tokens=total_tokens,
                         reasoning_tokens=reasoning_tokens,
