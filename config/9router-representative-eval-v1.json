@@ -1,0 +1,129 @@
+{
+  "schema": "Hazewave9RouterRepresentativeEvalCorpus/v1",
+  "project_id": "HAZEWAVE",
+  "authority": "HAZEWAVE_HARNESS",
+  "purpose": "Quality-aware routing evaluation. Transport smoke prompts are explicitly non-authoritative for quality_score.",
+  "items": [
+    {
+      "id": "rg-001",
+      "capability": "reason.general",
+      "task_family": "haze.general.compare",
+      "prompt": "Compare two release strategies for a local audio runtime and identify the safer one under rollback constraints.",
+      "evaluation": {
+        "kind": "RUBRIC",
+        "criteria": [
+          "constraint fidelity",
+          "causal reasoning",
+          "actionability"
+        ],
+        "min_score": 0.75
+      }
+    },
+    {
+      "id": "rg-002",
+      "capability": "reason.general",
+      "task_family": "wave.general.plan",
+      "prompt": "Prioritize three engineering tasks when one blocks correctness, one improves latency, and one only improves formatting. Explain the ordering.",
+      "evaluation": {
+        "kind": "RUBRIC",
+        "criteria": [
+          "correct prioritization",
+          "justification",
+          "no cosmetic-first bias"
+        ],
+        "min_score": 0.75
+      }
+    },
+    {
+      "id": "rd-001",
+      "capability": "reason.deep",
+      "task_family": "haze.failure.analysis",
+      "prompt": "A provider returns intermittent 429, occasional 503, and one EMPTY response. Separate the causal classes and propose bounded recovery without retry storms.",
+      "evaluation": {
+        "kind": "RUBRIC",
+        "criteria": [
+          "failure taxonomy",
+          "bounded recovery",
+          "rate-limit semantics"
+        ],
+        "min_score": 0.8
+      }
+    },
+    {
+      "id": "rd-002",
+      "capability": "reason.deep",
+      "task_family": "wave.architecture.review",
+      "prompt": "A shared global settings object is mutated around every provider request. Analyze the concurrency hazard and propose a design that preserves settings safety while allowing parallel calls.",
+      "evaluation": {
+        "kind": "RUBRIC",
+        "criteria": [
+          "TOCTOU recognition",
+          "locking semantics",
+          "parallelism safety"
+        ],
+        "min_score": 0.8
+      }
+    },
+    {
+      "id": "cg-001",
+      "capability": "code.generate",
+      "task_family": "wave.python.generate",
+      "prompt": "Write a Python function that computes exponential cooldown capped at 900 seconds and honors a larger Retry-After up to 3600 seconds.",
+      "evaluation": {
+        "kind": "UNIT_TEST",
+        "criteria": [
+          "correct formula",
+          "cap handling",
+          "Retry-After handling"
+        ],
+        "min_score": 1
+      }
+    },
+    {
+      "id": "cg-002",
+      "capability": "code.generate",
+      "task_family": "haze.python.generate",
+      "prompt": "Write a pure Python function that returns a deterministic semantic cache key from task hash, context revision, capability, policy revision, and dependency revision.",
+      "evaluation": {
+        "kind": "UNIT_TEST",
+        "criteria": [
+          "deterministic",
+          "all revisions bound",
+          "stable serialization"
+        ],
+        "min_score": 1
+      }
+    },
+    {
+      "id": "cr-001",
+      "capability": "code.review",
+      "task_family": "wave.python.review",
+      "prompt": "Review code that increments concurrency after every success and never decreases it after 429. Identify the defect and specify the minimal safe correction.",
+      "evaluation": {
+        "kind": "RUBRIC",
+        "criteria": [
+          "AIMD defect found",
+          "decrease behavior",
+          "retry-storm risk"
+        ],
+        "min_score": 0.85
+      }
+    },
+    {
+      "id": "cr-002",
+      "capability": "code.review",
+      "task_family": "haze.security.review",
+      "prompt": "Review a cache implementation keyed only by prompt text. Identify stale-result and cross-policy reuse risks and specify required key dimensions.",
+      "evaluation": {
+        "kind": "RUBRIC",
+        "criteria": [
+          "context revision",
+          "policy revision",
+          "dependency revision",
+          "semantic hash"
+        ],
+        "min_score": 0.85
+      }
+    }
+  ]
+}
