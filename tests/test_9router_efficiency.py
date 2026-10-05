@@ -313,6 +313,15 @@ def test_efficiency_policy_locks_safe_maximum_surface() -> None:
     assert policy["optimizer"]["transient_cooldown"]["base_seconds"] == 60
     assert policy["optimizer"]["transient_cooldown"]["max_seconds"] == 900
     assert policy["optimizer"]["transient_cooldown"]["strategy"] == "EXPONENTIAL"
+    assert (
+        policy["optimizer"]["transient_cooldown"]["retry_after"]
+        == "HONOR_SECONDS_UP_TO_3600"
+    )
+    assert policy["optimizer"]["live_adaptation"]["scope"] == "CAPABILITY_THEN_MODEL"
+    assert (
+        policy["optimizer"]["live_adaptation"]["semantic_failure_scope"]
+        == "CAPABILITY_ONLY"
+    )
     assert policy["token_efficiency"]["rtk"] == "FORCE_ON_DURING_GOVERNED_EXECUTION"
     assert policy["token_efficiency"]["headroom"] == "OFF_UNTIL_MANAGED_LOCAL_PROOF"
     assert policy["routing"]["combos"] == "FORBIDDEN"
@@ -1136,3 +1145,26 @@ def test_429_retry_after_header_extends_cooldown(tmp_path: Path) -> None:
     row = health["models"]["oc/mimo-v2.6-flash-free"]
     assert row["cooldown_until"] == "2026-10-05T12:32:00+00:00"
     assert row["retry_after_seconds"] == 120
+
+
+def test_efficiency_status_exposes_rankings_by_capability() -> None:
+    receipt = _v2_receipt()
+    status = build_9router_efficiency_status(
+        receipt=receipt,
+        route_health={
+            "schema": "Hazewave9RouterRouteHealth/v1",
+            "project_id": "HAZEWAVE",
+            "authority": "HAZEWAVE_HARNESS",
+            "models": {},
+        },
+        now="2026-10-05T12:30:00+00:00",
+    )
+
+    assert set(status["ranked_models_by_capability"]) == {
+        "reason.general",
+        "reason.deep",
+        "code.generate",
+        "code.review",
+    }
+    assert status["ranked_models_by_capability"]["reason.general"]
+    assert status["ranked_models_by_capability"]["reason.deep"]
