@@ -17,6 +17,16 @@ from hazewave.provider_runtime import (
     FREE_DEVELOPMENT_ENDPOINT,
     HazewaveProviderExecutionResult,
 )
+from hazewave.nvidia_optimization import (
+    FAST_CODE,
+    DEEP_MEDIUM,
+    DEEP_HARD,
+    DEFAULT_NVIDIA_OPTIMIZATION_STATE_PATH,
+    acquire_nvidia_capacity,
+    evaluate_model_lifecycle,
+    release_nvidia_capacity,
+    update_nvidia_concurrency,
+)
 
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 DEFAULT_NVIDIA_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b"
@@ -30,6 +40,8 @@ DEFAULT_NVIDIA_ADMISSION_PATH = (
 )
 
 FAST_STRUCTURED = "FAST_STRUCTURED"
+# Legacy profile kept for durable receipt compatibility. New routing should use
+# DEEP_MEDIUM/DEEP_HARD selected from task complexity instead.
 DEEP_REASONING = "DEEP_REASONING"
 
 _ALLOWED_CAPABILITIES = frozenset(
@@ -37,7 +49,14 @@ _ALLOWED_CAPABILITIES = frozenset(
 )
 _PROFILE_CAPABILITIES = {
     FAST_STRUCTURED: frozenset(
-        {"reason.general", "code.generate", "code.review"}
+        {"reason.general", "reason.deep", "code.generate", "code.review"}
+    ),
+    FAST_CODE: frozenset({"code.generate", "code.review"}),
+    DEEP_MEDIUM: frozenset(
+        {"reason.general", "reason.deep", "code.generate", "code.review"}
+    ),
+    DEEP_HARD: frozenset(
+        {"reason.general", "reason.deep", "code.generate", "code.review"}
     ),
     DEEP_REASONING: frozenset(
         {"reason.deep", "reason.general", "code.generate", "code.review"}
@@ -46,14 +65,24 @@ _PROFILE_CAPABILITIES = {
 _PROFILE_DEFAULTS: dict[str, dict[str, Any]] = {
     FAST_STRUCTURED: {
         "max_tokens": 1024,
-        "temperature": 0.2,
-        "top_p": 0.95,
         "enable_thinking": False,
+    },
+    FAST_CODE: {
+        "max_tokens": 2048,
+        "enable_thinking": False,
+    },
+    DEEP_MEDIUM: {
+        "max_tokens": 4096,
+        "enable_thinking": True,
+        "reasoning_budget": 512,
+    },
+    DEEP_HARD: {
+        "max_tokens": 8192,
+        "enable_thinking": True,
+        "reasoning_budget": 2048,
     },
     DEEP_REASONING: {
         "max_tokens": 4096,
-        "temperature": 1.0,
-        "top_p": 0.95,
         "enable_thinking": True,
         "reasoning_budget": 2048,
     },
@@ -86,6 +115,15 @@ class NvidiaAdmissionDecision:
     provider_authority: str = "NONE"
     schema: str = "HazewaveNvidiaAdmissionDecision/v1"
 
+
+
+@dataclass(frozen=True)
+class GuidedJsonCanaryResult:
+    status: str
+    http_status: int | None
+    schema_valid: bool
+    error_class: str | None = None
+    schema: str = "HazewaveNvidiaGuidedJsonCanaryResult/v1"
 
 def _parse_time(value: str | datetime) -> datetime:
     if isinstance(value, datetime):
@@ -292,6 +330,15 @@ def evaluate_nvidia_admission(
             execution_profile=profile,
             cost_class=cost_class,
         )
+    if isinstance(receipt.get("model_lifecycle"), dict):
+        lifecycle_decision = evaluate_model_lifecycle(receipt, model)
+        if not lifecycle_decision.allowed:
+            return _deny(
+                lifecycle_decision.reason,
+                model_id=model,
+                execution_profile=profile,
+                cost_class=cost_class,
+            )
     if profile not in {
         str(value) for value in (receipt.get("profiles") or [])
     }:
@@ -360,6 +407,9 @@ def normalize_nvidia_request(
     max_tokens: int | None = None,
     temperature: float | None = None,
     top_p: float | None = None,
+    sampling_policy: str = "PROVIDER_DEFAULT",
+    seed: int | None = None,
+    reasoning_budget: int | None = None,
     compatibility: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     profile = str(execution_profile).upper()
@@ -398,17 +448,50 @@ def normalize_nvidia_request(
             "enable_thinking": bool(defaults["enable_thinking"])
         },
     }
-    if contract.get("temperature_supported") is not False:
-        payload["temperature"] = float(
-            temperature if temperature is not None else defaults["temperature"]
+    policy = str(sampling_policy or "PROVIDER_DEFAULT").upper()
+    temperature_supported = contract.get("temperature_supported") is not False
+    top_p_supported = contract.get("top_p_supported") is not False
+    if policy == "DETERMINISTIC_STRUCTURED":
+        if temperature_supported:
+            payload["temperature"] = 0.0
+    elif policy == "CREATIVE":
+        if temperature_supported:
+            payload["temperature"] = float(
+                temperature if temperature is not None else 0.7
+            )
+    elif policy == "TOP_P_EXPERIMENT":
+        if top_p_supported:
+            payload["top_p"] = float(top_p if top_p is not None else 0.95)
+    elif policy != "PROVIDER_DEFAULT":
+        raise NvidiaProviderError("NVIDIA_SAMPLING_POLICY_INVALID")
+
+    if "temperature" in payload and "top_p" in payload:
+        raise NvidiaProviderError(
+            "NVIDIA_SAMPLING_PARAMETERS_MUTUALLY_EXCLUSIVE"
         )
-    if contract.get("top_p_supported") is not False:
-        payload["top_p"] = float(top_p if top_p is not None else defaults["top_p"])
-    if profile == DEEP_REASONING and contract.get("reasoning_budget_supported") is not False:
-        reasoning_budget = int(defaults["reasoning_budget"])
-        if reasoning_budget >= limit:
-            reasoning_budget = max(1, limit - 1)
-        payload["reasoning_budget"] = reasoning_budget
+
+    if seed is not None:
+        if contract.get("seed_supported") is False:
+            raise NvidiaProviderError("NVIDIA_SEED_NOT_ADMITTED")
+        seed_value = int(seed)
+        if seed_value < 0 or seed_value > 18446744073709552000:
+            raise NvidiaProviderError("NVIDIA_SEED_OUT_OF_RANGE")
+        payload["seed"] = seed_value
+
+    if (
+        bool(defaults.get("enable_thinking"))
+        and contract.get("reasoning_budget_supported") is not False
+    ):
+        budget = int(
+            reasoning_budget
+            if reasoning_budget is not None
+            else defaults.get("reasoning_budget", 0)
+        )
+        if budget < 0 or budget > 32768:
+            raise NvidiaProviderError("NVIDIA_REASONING_BUDGET_OUT_OF_RANGE")
+        if budget >= limit:
+            budget = max(1, limit - 1)
+        payload["reasoning_budget"] = budget
     if tools:
         payload["tools"] = [dict(tool) for tool in tools]
         if tool_choice is not None:
@@ -466,6 +549,94 @@ def _error_result(
     )
 
 
+def probe_hosted_guided_json(
+    *,
+    secret_path: Path | str = DEFAULT_NVIDIA_SECRET_PATH,
+    model_id: str = DEFAULT_NVIDIA_MODEL,
+    transport: httpx.BaseTransport | None = None,
+    timeout_seconds: float = 30.0,
+) -> GuidedJsonCanaryResult:
+    api_key = load_nvidia_api_key(secret_path)
+    schema = {
+        "type": "object",
+        "properties": {"ok": {"type": "boolean"}},
+        "required": ["ok"],
+        "additionalProperties": False,
+    }
+    body = {
+        "model": model_id,
+        "messages": [
+            {
+                "role": "user",
+                "content": "Return JSON with ok=true.",
+            }
+        ],
+        "max_tokens": 64,
+        "stream": False,
+        "temperature": 0.0,
+        "chat_template_kwargs": {"enable_thinking": False},
+        "guided_json": schema,
+    }
+    try:
+        with httpx.Client(
+            base_url=NVIDIA_BASE_URL,
+            timeout=float(timeout_seconds),
+            transport=transport,
+        ) as client:
+            response = client.post(
+                "/chat/completions",
+                json=body,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "User-Agent": "Hazewave/NVIDIA-guided-json-canary",
+                },
+            )
+    except httpx.TimeoutException:
+        return GuidedJsonCanaryResult(
+            "FAILED", None, False, "PROVIDER_TIMEOUT"
+        )
+    except httpx.HTTPError:
+        return GuidedJsonCanaryResult(
+            "FAILED", None, False, "PROVIDER_TRANSPORT_FAILURE"
+        )
+
+    if response.status_code in {400, 404, 422}:
+        return GuidedJsonCanaryResult(
+            "UNSUPPORTED",
+            response.status_code,
+            False,
+            "GUIDED_JSON_UNSUPPORTED",
+        )
+    if response.status_code != 200:
+        return GuidedJsonCanaryResult(
+            "FAILED",
+            response.status_code,
+            False,
+            "PROVIDER_HTTP_FAILURE",
+        )
+    try:
+        payload = response.json()
+        content = payload["choices"][0]["message"]["content"]
+        decoded = json.loads(str(content))
+    except (KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError):
+        return GuidedJsonCanaryResult(
+            "FAILED", 200, False, "GUIDED_JSON_INVALID_RESPONSE"
+        )
+    valid = (
+        isinstance(decoded, dict)
+        and decoded.get("ok") is True
+        and set(decoded) == {"ok"}
+    )
+    return GuidedJsonCanaryResult(
+        "SUPPORTED" if valid else "FAILED",
+        200,
+        valid,
+        None if valid else "GUIDED_JSON_SCHEMA_MISMATCH",
+    )
+
+
 class NvidiaNIMAdapter:
     def __init__(
         self,
@@ -476,6 +647,9 @@ class NvidiaNIMAdapter:
         base_url: str = NVIDIA_BASE_URL,
         timeout_seconds: float = 90.0,
         transport: httpx.BaseTransport | None = None,
+        max_connections: int = 8,
+        max_keepalive_connections: int = 4,
+        optimization_state_path: Path | str | None = None,
     ) -> None:
         if base_url.rstrip("/") != NVIDIA_BASE_URL:
             raise NvidiaProviderError("NVIDIA_BASE_URL_NOT_PINNED")
@@ -484,6 +658,36 @@ class NvidiaNIMAdapter:
         self.receipt_path = Path(receipt_path)
         self.timeout_seconds = float(timeout_seconds)
         self.transport = transport
+        self.optimization_state_path = (
+            Path(optimization_state_path).expanduser()
+            if optimization_state_path is not None
+            else None
+        )
+        self._client = httpx.Client(
+            base_url=NVIDIA_BASE_URL,
+            timeout=self.timeout_seconds,
+            transport=self.transport,
+            limits=httpx.Limits(
+                max_connections=max(1, int(max_connections)),
+                max_keepalive_connections=max(
+                    1, min(int(max_keepalive_connections), int(max_connections))
+                ),
+                keepalive_expiry=30.0,
+            ),
+        )
+
+    @property
+    def client_identity(self) -> int:
+        return id(self._client)
+
+    def close(self) -> None:
+        self._client.close()
+
+    def __enter__(self) -> "NvidiaNIMAdapter":
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+        self.close()
 
     def execute(
         self,
@@ -501,6 +705,9 @@ class NvidiaNIMAdapter:
         max_tokens: int | None = None,
         temperature: float | None = None,
         top_p: float | None = None,
+        sampling_policy: str = "PROVIDER_DEFAULT",
+        seed: int | None = None,
+        reasoning_budget: int | None = None,
     ) -> HazewaveProviderExecutionResult:
         decision = evaluate_nvidia_admission(
             authorization=authorization,
@@ -530,16 +737,40 @@ class NvidiaNIMAdapter:
             max_tokens=max_tokens,
             temperature=temperature,
             top_p=top_p,
+            sampling_policy=sampling_policy,
+            seed=seed,
+            reasoning_budget=reasoning_budget,
             compatibility=compatibility,
         )
+        lease_id: str | None = None
+        if self.optimization_state_path is not None:
+            try:
+                lease_id = acquire_nvidia_capacity(
+                    path=self.optimization_state_path,
+                    model_id=model_id,
+                    now=now,
+                    lease_ttl_seconds=max(30, int(self.timeout_seconds) + 30),
+                )
+            except RuntimeError as exc:
+                error_class = (
+                    "PROVIDER_CAPACITY_COOLDOWN"
+                    if "COOLDOWN" in str(exc)
+                    else "PROVIDER_CAPACITY_BUSY"
+                )
+                return _error_result(
+                    authorization=authorization,
+                    model_id=model_id,
+                    execution_profile=execution_profile,
+                    error_class=error_class,
+                    latency_ms=0,
+                    http_status=None,
+                    retry_after_seconds=None,
+                )
+
         started = time.monotonic()
         try:
-            with httpx.Client(
-                base_url=NVIDIA_BASE_URL,
-                timeout=self.timeout_seconds,
-                transport=self.transport,
-            ) as client:
-                response = client.post(
+            try:
+                response = self._client.post(
                     "/chat/completions",
                     json=request_body,
                     headers={
@@ -549,10 +780,24 @@ class NvidiaNIMAdapter:
                         "User-Agent": "Hazewave/NVIDIA-NIM-governed-adapter",
                     },
                 )
+            finally:
+                if lease_id is not None and self.optimization_state_path is not None:
+                    release_nvidia_capacity(
+                        path=self.optimization_state_path,
+                        lease_id=lease_id,
+                    )
         except httpx.TimeoutException:
             latency_ms = max(
                 0, int(round((time.monotonic() - started) * 1000))
             )
+            if self.optimization_state_path is not None:
+                update_nvidia_concurrency(
+                    path=self.optimization_state_path,
+                    model_id=model_id,
+                    outcome="PROVIDER_TIMEOUT",
+                    latency_ms=latency_ms,
+                    now=now,
+                )
             return _error_result(
                 authorization=authorization,
                 model_id=model_id,
@@ -588,6 +833,20 @@ class NvidiaNIMAdapter:
                 error_class = "PROVIDER_SERVER_FAILURE"
             else:
                 error_class = "PROVIDER_HTTP_FAILURE"
+            retry_after = _retry_after_seconds(response)
+            if self.optimization_state_path is not None and error_class in {
+                "AUTH_OR_ELIGIBILITY_FAILURE",
+                "RATE_LIMITED",
+                "PROVIDER_SERVER_FAILURE",
+            }:
+                update_nvidia_concurrency(
+                    path=self.optimization_state_path,
+                    model_id=model_id,
+                    outcome=error_class,
+                    retry_after_seconds=retry_after,
+                    latency_ms=latency_ms,
+                    now=now,
+                )
             return _error_result(
                 authorization=authorization,
                 model_id=model_id,
@@ -595,7 +854,7 @@ class NvidiaNIMAdapter:
                 error_class=error_class,
                 latency_ms=latency_ms,
                 http_status=response.status_code,
-                retry_after_seconds=_retry_after_seconds(response),
+                retry_after_seconds=retry_after,
             )
 
         try:
@@ -732,6 +991,14 @@ class NvidiaNIMAdapter:
                     total_tokens=total_tokens,
                 )
 
+        if self.optimization_state_path is not None:
+            update_nvidia_concurrency(
+                path=self.optimization_state_path,
+                model_id=model_id,
+                outcome="PASS",
+                latency_ms=latency_ms,
+                now=now,
+            )
         return HazewaveProviderExecutionResult(
             provider="nvidia",
             model_id=model_id,
