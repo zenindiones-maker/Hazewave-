@@ -917,3 +917,222 @@ def test_transient_failure_health_records_failure_timestamp(tmp_path: Path) -> N
     health = load_9router_route_health(health_path)
     row = health["models"]["oc/mimo-v2.6-flash-free"]
     assert row["last_failure_at"] == "2026-10-05T12:30:00+00:00"
+
+
+def test_ranker_learns_per_capability_without_cross_contaminating_tasks() -> None:
+    receipt = _v2_receipt()
+    health = {
+        "schema": "Hazewave9RouterRouteHealth/v1",
+        "project_id": "HAZEWAVE",
+        "authority": "HAZEWAVE_HARNESS",
+        "models": {
+            "oc/fledge-alpha-free": {
+                "attempt_count": 2,
+                "success_count": 1,
+                "failure_count": 1,
+                "ewma_latency_ms": 4000,
+                "ewma_total_tokens": 400,
+                "last_status": "EMPTY",
+                "capabilities": {
+                    "code.review": {
+                        "attempt_count": 5,
+                        "success_count": 5,
+                        "failure_count": 0,
+                        "ewma_latency_ms": 450,
+                        "ewma_total_tokens": 70,
+                        "last_status": "PASS",
+                    },
+                    "reason.general": {
+                        "attempt_count": 2,
+                        "success_count": 1,
+                        "failure_count": 1,
+                        "ewma_latency_ms": 4000,
+                        "ewma_total_tokens": 400,
+                        "last_status": "EMPTY",
+                    },
+                },
+            }
+        },
+    }
+    receipt["model_proofs"]["oc/fledge-alpha-free"] = {
+        "status": "semantic_pass",
+        "latency_ms": 1800,
+        "usage": {"total_tokens": 240},
+        "response_sha256": "fledge-proof",
+    }
+    receipt["catalog_discovered_models"].append("oc/fledge-alpha-free")
+    receipt["execution_admitted_models"].append("oc/fledge-alpha-free")
+
+    code_ranked = rank_9router_models(
+        authorization=_authorization("code.review"),
+        receipt=receipt,
+        route_health=health,
+        data_classification="PUBLIC",
+        now="2026-10-05T12:30:00+00:00",
+    )
+    general_ranked = rank_9router_models(
+        authorization=_authorization("reason.general"),
+        receipt=receipt,
+        route_health=health,
+        data_classification="PUBLIC",
+        now="2026-10-05T12:30:00+00:00",
+    )
+
+    assert code_ranked[0] == "oc/fledge-alpha-free"
+    assert general_ranked[0] != "oc/fledge-alpha-free"
+
+
+def test_execution_records_capability_scoped_runtime_learning(tmp_path: Path) -> None:
+    receipt = _v2_receipt()
+    settings = {
+        "requireApiKey": True,
+        "cloudEnabled": False,
+        "tunnelEnabled": False,
+        "tailscaleEnabled": False,
+        "capacityAdapter": {},
+        "outboundProxyEnabled": False,
+        "rtkEnabled": True,
+        "headroomEnabled": False,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/settings" and request.method == "GET":
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/api/settings" and request.method == "PATCH":
+            settings.update(json.loads(request.content))
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/v1/chat/completions":
+            return httpx.Response(
+                200,
+                json={
+                    "choices": [{"message": {"content": "review result"}}],
+                    "usage": {
+                        "prompt_tokens": 30,
+                        "completion_tokens": 10,
+                        "total_tokens": 40,
+                    },
+                },
+            )
+        raise AssertionError("unexpected request")
+
+    health_path = tmp_path / "route-health.json"
+    execute_9router_text(
+        authorization=_authorization("code.review"),
+        model_id="oc/mimo-v2.6-flash-free",
+        prompt="review this public code",
+        receipt=receipt,
+        now="2026-10-05T12:30:00+00:00",
+        lock_path=tmp_path / "lock",
+        route_health_path=health_path,
+        transport=httpx.MockTransport(handler),
+        cli_token="unit-test-token",
+    )
+
+    health = load_9router_route_health(health_path)
+    row = health["models"]["oc/mimo-v2.6-flash-free"]
+    scoped = row["capabilities"]["code.review"]
+
+    assert scoped["attempt_count"] == 1
+    assert scoped["success_count"] == 1
+    assert scoped["failure_count"] == 0
+    assert scoped["ewma_total_tokens"] == 40
+    assert scoped["last_status"] == "PASS"
+
+
+def test_semantic_empty_failure_is_capability_scoped_not_global_reliability(
+    tmp_path: Path,
+) -> None:
+    receipt = _v2_receipt()
+    settings = {
+        "requireApiKey": True,
+        "cloudEnabled": False,
+        "tunnelEnabled": False,
+        "tailscaleEnabled": False,
+        "capacityAdapter": {},
+        "outboundProxyEnabled": False,
+        "rtkEnabled": True,
+        "headroomEnabled": False,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/settings" and request.method == "GET":
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/api/settings" and request.method == "PATCH":
+            settings.update(json.loads(request.content))
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/v1/chat/completions":
+            return httpx.Response(
+                200,
+                json={"choices": [{"message": {"content": ""}}]},
+            )
+        raise AssertionError("unexpected request")
+
+    health_path = tmp_path / "route-health.json"
+    with pytest.raises(Exception):
+        execute_9router_text(
+            authorization=_authorization("reason.general"),
+            model_id="oc/mimo-v2.6-flash-free",
+            prompt="hello",
+            receipt=receipt,
+            now="2026-10-05T12:30:00+00:00",
+            lock_path=tmp_path / "lock",
+            route_health_path=health_path,
+            transport=httpx.MockTransport(handler),
+            cli_token="unit-test-token",
+        )
+
+    health = load_9router_route_health(health_path)
+    row = health["models"]["oc/mimo-v2.6-flash-free"]
+    scoped = row["capabilities"]["reason.general"]
+
+    assert scoped["failure_count"] == 1
+    assert scoped["last_status"] == "EMPTY"
+    assert row.get("failure_count", 0) == 0
+    assert row.get("last_failure_at") is None
+
+
+def test_429_retry_after_header_extends_cooldown(tmp_path: Path) -> None:
+    receipt = _v2_receipt()
+    settings = {
+        "requireApiKey": True,
+        "cloudEnabled": False,
+        "tunnelEnabled": False,
+        "tailscaleEnabled": False,
+        "capacityAdapter": {},
+        "outboundProxyEnabled": False,
+        "rtkEnabled": True,
+        "headroomEnabled": False,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/settings" and request.method == "GET":
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/api/settings" and request.method == "PATCH":
+            settings.update(json.loads(request.content))
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/v1/chat/completions":
+            return httpx.Response(
+                429,
+                headers={"Retry-After": "120"},
+                json={"error": {"message": "rate limited"}},
+            )
+        raise AssertionError("unexpected request")
+
+    health_path = tmp_path / "route-health.json"
+    with pytest.raises(Exception):
+        execute_9router_text(
+            authorization=_authorization(),
+            model_id="oc/mimo-v2.6-flash-free",
+            prompt="hello",
+            receipt=receipt,
+            now="2026-10-05T12:30:00+00:00",
+            lock_path=tmp_path / "lock",
+            route_health_path=health_path,
+            transport=httpx.MockTransport(handler),
+            cli_token="unit-test-token",
+        )
+
+    health = load_9router_route_health(health_path)
+    row = health["models"]["oc/mimo-v2.6-flash-free"]
+    assert row["cooldown_until"] == "2026-10-05T12:32:00+00:00"
+    assert row["retry_after_seconds"] == 120
