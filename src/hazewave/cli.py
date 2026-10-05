@@ -27,6 +27,7 @@ from hazewave.harness import HazewaveTask, issue_authorization, route_task
 from hazewave.ninerouter import (
     NineRouterExecutionError,
     build_9router_efficiency_status,
+    execute_9router_messages,
     execute_9router_text,
 )
 from hazewave.provider_policy import (
@@ -208,7 +209,17 @@ def build_parser() -> argparse.ArgumentParser:
         "execute",
         help="Execute one Harness-authorized PUBLIC text task on an admitted 9Router model.",
     )
-    ninerouter_execute.add_argument("--prompt", required=True)
+    ninerouter_input = ninerouter_execute.add_mutually_exclusive_group(
+        required=True
+    )
+    ninerouter_input.add_argument("--prompt")
+    ninerouter_input.add_argument(
+        "--messages-file",
+        help=(
+            "JSON array of PUBLIC text-only chat/tool-history messages. "
+            "Tool results remain subject to the governed RTK boundary."
+        ),
+    )
     ninerouter_execute.add_argument(
         "--model",
         default="auto",
@@ -375,23 +386,64 @@ def main() -> int:
             return 0
 
         if args.command == "9router" and args.ninerouter_command == "execute":
+            messages = None
+            if args.messages_file:
+                messages_path = Path(args.messages_file).expanduser()
+                if not messages_path.is_file():
+                    raise ValueError("NINEROUTER_MESSAGES_FILE_MISSING")
+                try:
+                    messages = json.loads(
+                        messages_path.read_text(encoding="utf-8")
+                    )
+                except json.JSONDecodeError as exc:
+                    raise ValueError(
+                        "NINEROUTER_MESSAGES_FILE_INVALID_JSON"
+                    ) from exc
+                if not isinstance(messages, list):
+                    raise ValueError(
+                        "NINEROUTER_MESSAGES_FILE_MUST_BE_ARRAY"
+                    )
+
+            goal = (
+                args.prompt
+                if args.prompt is not None
+                else "Execute governed PUBLIC tool-history through 9Router"
+            )
             task = HazewaveTask(
                 task_id=args.task_id,
-                goal=args.prompt,
+                goal=goal,
                 required_capability=args.capability,
                 requested_domain=args.domain,
             )
             authorization = issue_authorization(route_task(task))
-            result = execute_9router_text(
-                authorization=authorization,
-                model_id=args.model,
-                prompt=args.prompt,
-                data_classification=args.data_classification,
-                max_tokens=args.max_tokens,
-                max_fallbacks=args.max_fallbacks,
-            )
+
+            if messages is not None:
+                result = execute_9router_messages(
+                    authorization=authorization,
+                    model_id=args.model,
+                    messages=messages,
+                    data_classification=args.data_classification,
+                    max_tokens=args.max_tokens,
+                    max_fallbacks=args.max_fallbacks,
+                )
+            else:
+                result = execute_9router_text(
+                    authorization=authorization,
+                    model_id=args.model,
+                    prompt=args.prompt,
+                    data_classification=args.data_classification,
+                    max_tokens=args.max_tokens,
+                    max_fallbacks=args.max_fallbacks,
+                )
+
             print("HAZEWAVE_9ROUTER_EXECUTION=PASS")
-            print(json.dumps(asdict(result), sort_keys=True, ensure_ascii=False))
+            print(
+                json.dumps(
+                    asdict(result),
+                    sort_keys=True,
+                    ensure_ascii=False,
+                )
+            )
             return 0
 
         if args.command == "acestep" and args.ace_command == "install":
