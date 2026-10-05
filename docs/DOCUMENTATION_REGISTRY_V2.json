@@ -255,7 +255,7 @@
         "termux",
         "evidence"
       ],
-      "description": "Observed A15 runtime proof for the Hazewave-scoped FreeLLMAPI gateway, including exact runtime/provider SHAs, persistence installation state, live Harness-to-provider receipt, and remaining reboot-verification boundary."
+      "description": "Observed A15 runtime proof closing crash-safe FreeLLMAPI persistence and real Android cold-boot recovery for Hazewave runtime e100c63e2d3ab60ad0b7718647a93b7e80c19099."
     },
     {
       "id": "adr-0006-governed-zero-cost-provider-fabric",
@@ -290,6 +290,23 @@
         "BRIDGE"
       ],
       "description": "Approved design for expanding FreeLLMAPI capabilities under Hazewave-owned cost, privacy, rights and authority gates."
+    },
+    {
+      "id": "hazewave-free-fabric-v1",
+      "path": "docs/reference/HAZEWAVE_FREE_FABRIC_V1.md",
+      "type": "REFERENCE",
+      "authority": "OPERATIONAL",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "providers",
+        "harness",
+        "HAZE",
+        "WAVE",
+        "BRIDGE",
+        "runtime"
+      ],
+      "description": "Operational reference for the Hazewave-governed zero-cost FreeLLMAPI fabric, supported surfaces, MCP restrictions, data boundaries and runtime adoption gates."
     }
   ]
 }
