@@ -34,3 +34,26 @@ def test_cross_provider_summary_reports_required_efficiency_metrics() -> None:
     assert metrics["tokens_per_successful_task"] == pytest.approx(220/2)
     assert metrics["rate_limit_rate"] == pytest.approx(1/3)
     assert metrics["reasoning_tokens_per_success"] == pytest.approx(5/2)
+
+
+def test_benchmark_adds_task_family_rankings_without_global_winner() -> None:
+    rows = [
+        {"capability":"code.review","task_family":"review.aimd","provider":"nvidia","model_id":"nvidia/model","profile":"FAST_CODE","semantic_pass":True,"quality_score":1.0,"latency_ms":800,"total_tokens":100,"reasoning_tokens":0,"fallback_count":0,"error_class":None},
+        {"capability":"code.review","task_family":"review.aimd","provider":"9router","model_id":"oc/model","profile":"DEFAULT","semantic_pass":True,"quality_score":0.8,"latency_ms":400,"total_tokens":80,"reasoning_tokens":0,"fallback_count":0,"error_class":None},
+        {"capability":"code.review","task_family":"review.cache","provider":"nvidia","model_id":"nvidia/model","profile":"FAST_CODE","semantic_pass":True,"quality_score":0.7,"latency_ms":700,"total_tokens":100,"reasoning_tokens":0,"fallback_count":0,"error_class":None},
+        {"capability":"code.review","task_family":"review.cache","provider":"9router","model_id":"oc/model","profile":"DEFAULT","semantic_pass":True,"quality_score":1.0,"latency_ms":500,"total_tokens":90,"reasoning_tokens":0,"fallback_count":0,"error_class":None},
+    ]
+    summary = summarize_cross_provider_rows(rows)
+    assert summary["task_families"]["code.review"]["review.aimd"]["ranking"][0]["provider"] == "nvidia"
+    assert summary["task_families"]["code.review"]["review.cache"]["ranking"][0]["provider"] == "9router"
+    assert "global_winner" not in summary
+
+
+def test_useful_work_score_penalizes_tokens_latency_and_fallback_after_quality() -> None:
+    rows = [
+        {"capability":"reason.general","task_family":"a","provider":"nvidia","model_id":"nvidia/efficient","profile":"FAST_STRUCTURED","semantic_pass":True,"quality_score":1.0,"latency_ms":500,"total_tokens":80,"reasoning_tokens":0,"fallback_count":0,"error_class":None},
+        {"capability":"reason.general","task_family":"a","provider":"nvidia","model_id":"nvidia/wasteful","profile":"FAST_STRUCTURED","semantic_pass":True,"quality_score":1.0,"latency_ms":5000,"total_tokens":2000,"reasoning_tokens":0,"fallback_count":1,"error_class":None},
+    ]
+    ranking = summarize_cross_provider_rows(rows)["capabilities"]["reason.general"]["ranking"]
+    assert ranking[0]["model_id"] == "nvidia/efficient"
+    assert ranking[0]["useful_work_score"] > ranking[1]["useful_work_score"]
