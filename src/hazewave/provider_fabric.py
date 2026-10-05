@@ -33,6 +33,20 @@ class ProviderRoute:
     execution_profile: str
     capability_id: str
     cost_class: str
+    task_family: str = "generic"
+    complexity: str = "UNSPECIFIED"
+    reasoning_budget: int = 0
+
+    @property
+    def legacy_route_key(self) -> str:
+        return "|".join(
+            (
+                self.provider,
+                self.model_id,
+                self.execution_profile,
+                self.capability_id,
+            )
+        )
 
     @property
     def route_key(self) -> str:
@@ -42,6 +56,9 @@ class ProviderRoute:
                 self.model_id,
                 self.execution_profile,
                 self.capability_id,
+                self.task_family,
+                self.complexity,
+                str(max(0, int(self.reasoning_budget))),
             )
         )
 
@@ -148,6 +165,12 @@ def _route_row(
     route: ProviderRoute,
 ) -> dict[str, Any]:
     routes = state.setdefault("routes", {})
+    if route.route_key not in routes and route.legacy_route_key in routes:
+        migrated = dict(routes.pop(route.legacy_route_key))
+        migrated["task_family"] = route.task_family
+        migrated["complexity"] = route.complexity
+        migrated["reasoning_budget"] = max(0, int(route.reasoning_budget))
+        routes[route.route_key] = migrated
     row = routes.setdefault(
         route.route_key,
         {
@@ -156,6 +179,9 @@ def _route_row(
             "execution_profile": route.execution_profile,
             "capability_id": route.capability_id,
             "cost_class": route.cost_class,
+            "task_family": route.task_family,
+            "complexity": route.complexity,
+            "reasoning_budget": max(0, int(route.reasoning_budget)),
             "attempt_count": 0,
             "pass_count": 0,
             "semantic_failure_count": 0,
@@ -353,6 +379,8 @@ def rank_provider_routes(
         if provider_row and _cooling(provider_row, now):
             continue
         row = rows.get(route.route_key)
+        if not isinstance(row, dict):
+            row = rows.get(route.legacy_route_key)
         row = row if isinstance(row, dict) else {}
         if row and _cooling(row, now):
             continue
@@ -424,12 +452,19 @@ def build_cross_provider_routes(
     ninerouter_models: list[str],
     nvidia_receipt: dict[str, Any] | None,
     now: str | datetime | None = None,
+    task_family: str = "generic",
+    complexity: str | None = None,
+    structured_output: bool = False,
 ) -> list[ProviderRoute]:
     from hazewave.nvidia import (
         DEFAULT_NVIDIA_MODEL,
         DEEP_REASONING,
         FAST_STRUCTURED,
         evaluate_nvidia_admission,
+    )
+    from hazewave.nvidia_optimization import (
+        reasoning_budget_for_complexity,
+        select_nvidia_execution_profile,
     )
 
     validate_authorization(
@@ -450,14 +485,32 @@ def build_cross_provider_routes(
                 execution_profile="DEFAULT",
                 capability_id=authorization.capability_id,
                 cost_class="ZERO_COST_VERIFIED",
+                task_family=task_family,
+                complexity=str(complexity or "UNSPECIFIED"),
+                reasoning_budget=0,
             )
         )
 
-    profile = (
-        DEEP_REASONING
-        if authorization.capability_id == "reason.deep"
-        else FAST_STRUCTURED
-    )
+    if complexity is None:
+        profile = (
+            DEEP_REASONING
+            if authorization.capability_id == "reason.deep"
+            else FAST_STRUCTURED
+        )
+        reasoning_budget = 0
+        route_complexity = "UNSPECIFIED"
+    else:
+        route_complexity = str(complexity).upper()
+        profile = select_nvidia_execution_profile(
+            capability_id=authorization.capability_id,
+            complexity=route_complexity,
+            structured_output=structured_output,
+        )
+        reasoning_budget = (
+            0
+            if profile in {FAST_STRUCTURED, "FAST_CODE"}
+            else reasoning_budget_for_complexity(route_complexity)
+        )
     if isinstance(nvidia_receipt, dict):
         decision = evaluate_nvidia_admission(
             authorization=authorization,
@@ -475,6 +528,9 @@ def build_cross_provider_routes(
                     execution_profile=profile,
                     capability_id=authorization.capability_id,
                     cost_class=decision.cost_class,
+                    task_family=task_family,
+                    complexity=route_complexity,
+                    reasoning_budget=reasoning_budget,
                 )
             )
     return routes
