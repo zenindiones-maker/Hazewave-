@@ -6,7 +6,11 @@ from pathlib import Path
 import httpx
 
 from hazewave.harness import HAZE, HazewaveTask, issue_authorization, route_task
-from hazewave.ninerouter import execute_9router_text, rank_9router_models
+from hazewave.ninerouter import (
+    execute_9router_text,
+    load_9router_route_health,
+    rank_9router_models,
+)
 
 
 def _authorization(capability: str = "reason.general"):
@@ -262,3 +266,93 @@ def test_efficiency_policy_locks_safe_maximum_surface() -> None:
     assert policy["routing"]["capacity_adapters"] == "FORBIDDEN"
     assert policy["routing"]["paid_tiers"] == "FORBIDDEN"
     assert policy["routing"]["unknown_cost"] == "DENY"
+
+
+def test_ranker_skips_model_in_active_transient_cooldown() -> None:
+    health = {
+        "schema": "Hazewave9RouterRouteHealth/v1",
+        "project_id": "HAZEWAVE",
+        "authority": "HAZEWAVE_HARNESS",
+        "models": {
+            "oc/mimo-v2.6-flash-free": {
+                "consecutive_transient_failures": 2,
+                "cooldown_until": "2026-10-05T12:40:00+00:00",
+                "last_status": "HTTP_429",
+            }
+        },
+    }
+
+    ranked = rank_9router_models(
+        authorization=_authorization(),
+        receipt=_v2_receipt(),
+        route_health=health,
+        data_classification="PUBLIC",
+        now="2026-10-05T12:30:00+00:00",
+    )
+
+    assert ranked == [
+        "oc/nemotron-3.5-lightning-free",
+        "oc/space-bunny-free",
+    ]
+
+
+def test_auto_executor_records_transient_cooldown_and_success_reset(
+    tmp_path: Path,
+) -> None:
+    receipt = _v2_receipt()
+    settings = {
+        "requireApiKey": True,
+        "cloudEnabled": False,
+        "tunnelEnabled": False,
+        "tailscaleEnabled": False,
+        "capacityAdapter": {},
+        "outboundProxyEnabled": False,
+        "rtkEnabled": True,
+        "headroomEnabled": False,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/settings" and request.method == "GET":
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/api/settings" and request.method == "PATCH":
+            settings.update(json.loads(request.content))
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/v1/chat/completions":
+            body = json.loads(request.content)
+            if body["model"] == "oc/mimo-v2.6-flash-free":
+                return httpx.Response(429, json={"error": {"message": "rate limited"}})
+            return httpx.Response(
+                200,
+                json={
+                    "choices": [{"message": {"content": "healthy fallback"}}],
+                    "usage": {"prompt_tokens": 10, "completion_tokens": 2, "total_tokens": 12},
+                },
+            )
+        raise AssertionError("unexpected request")
+
+    health_path = tmp_path / "route-health.json"
+    result = execute_9router_text(
+        authorization=_authorization(),
+        model_id="auto",
+        prompt="hello",
+        receipt=receipt,
+        now="2026-10-05T12:30:00+00:00",
+        lock_path=tmp_path / "lock",
+        route_health_path=health_path,
+        transport=httpx.MockTransport(handler),
+        cli_token="unit-test-token",
+    )
+
+    assert result.model_id == "oc/nemotron-3.5-lightning-free"
+
+    health = load_9router_route_health(health_path)
+    failed = health["models"]["oc/mimo-v2.6-flash-free"]
+    healthy = health["models"]["oc/nemotron-3.5-lightning-free"]
+
+    assert failed["consecutive_transient_failures"] == 1
+    assert failed["cooldown_until"] == "2026-10-05T12:31:00+00:00"
+    assert failed["last_status"] == "HTTP_429"
+    assert healthy["consecutive_transient_failures"] == 0
+    assert healthy["cooldown_until"] is None
+    assert healthy["last_status"] == "PASS"
+    assert health_path.stat().st_mode & 0o777 == 0o600
