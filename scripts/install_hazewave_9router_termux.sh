@@ -2,6 +2,7 @@
 set -euo pipefail
 
 VERSION="0.5.95"
+PACKAGE_SPEC="9router@0.5.95"
 UPSTREAM_REPO="decolua/9router"
 UPSTREAM_COMMIT="a99cf57239ff778b61e434c2786009d5ed1c412c"
 
@@ -35,7 +36,7 @@ if [ ! -d "$RELEASE_DIR" ]; then
   rm -rf "$TMP"
   mkdir -p "$TMP"
 
-  HOME="$RUNTIME_HOME" npm install     --prefix "$TMP"     --no-audit     --no-fund     --save-exact     "9router@$VERSION"
+  HOME="$RUNTIME_HOME" npm install     --prefix "$TMP"     --no-audit     --no-fund     --save-exact     "$PACKAGE_SPEC"
 
   INSTALLED_VERSION="$(
     node -p "require('$TMP/node_modules/9router/package.json').version"
