@@ -157,6 +157,7 @@ def test_ranker_keeps_v1_receipts_compatible() -> None:
     ranked = rank_9router_models(
         authorization=_authorization(),
         receipt=receipt,
+        route_health={"models": {}},
         data_classification="PUBLIC",
         now="2026-10-05T12:30:00+00:00",
     )
@@ -218,6 +219,7 @@ def test_auto_executor_falls_back_only_inside_admitted_free_pool(tmp_path: Path)
         lock_path=tmp_path / "lock",
         transport=httpx.MockTransport(handler),
         cli_token="unit-test-token",
+        route_health_path=tmp_path / "route-health.json",
         max_fallbacks=3,
     )
 
@@ -259,7 +261,7 @@ def test_optimizer_script_benchmarks_entire_free_catalog() -> None:
     )
 
     assert "catalog|probe|optimize" in script
-    assert '"Hazewave9RouterFreeAdmissionReceipt/v2"' in script
+    assert '"Hazewave9RouterFreeAdmissionReceipt/v3"' in script
     assert "model_proofs" in script
     assert "latency_ms" in script
     assert "total_tokens" in script
