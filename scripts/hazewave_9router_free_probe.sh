@@ -75,10 +75,12 @@ const KNOWN_FREE = new Set(["big-pickle"]);
 const PREFERRED_PROBE_MODELS = [
   "mimo-v2.6-flash-free",
   "nemotron-3.5-lightning-free",
+  "space-bunny-free",
   "muse-spark-1.3-contributor-free",
   "mimo-v2.5-free",
   "big-pickle",
 ];
+const MAX_PROBE_ATTEMPTS = 3;
 
 function isFreeModel(id) {
   return (
@@ -188,12 +190,13 @@ async function main() {
     throw new Error("external_exposure_enabled");
   }
 
-  const selected =
-    PREFERRED_PROBE_MODELS.find((id) => freeModels.includes(id)) ||
-    freeModels[0];
+  const candidates = [
+    ...PREFERRED_PROBE_MODELS.filter((id) => freeModels.includes(id)),
+    ...freeModels.filter((id) => !PREFERRED_PROBE_MODELS.includes(id)),
+  ].filter(isFreeModel).slice(0, MAX_PROBE_ATTEMPTS);
 
-  if (!isFreeModel(selected)) {
-    throw new Error("selected_model_not_free");
+  if (!candidates.length) {
+    throw new Error("no_free_probe_candidates");
   }
 
   const originalRequireApiKey = original.requireApiKey;
@@ -203,8 +206,10 @@ async function main() {
   const safeCapacityAdapter = capacityAdaptersDisabled(originalCapacityAdapter);
 
   let restoreError = null;
-  let probeSucceeded = false;
+  let admittedModel = null;
   let responseFingerprint = null;
+  let connectivityProved = false;
+  const attempts = [];
 
   try {
     await settingsRequest("PATCH", {
@@ -213,63 +218,127 @@ async function main() {
       outboundProxyEnabled: false,
     });
 
-    const body = {
-      model: `oc/${selected}`,
-      messages: [
-        {
-          role: "user",
-          content: "Reply with exactly HAZEWAVE_OK",
-        },
-      ],
-      max_tokens: 12,
-      temperature: 0,
-      stream: false,
-    };
+    for (let index = 0; index < candidates.length; index += 1) {
+      const selected = candidates[index];
+      const qualifiedModel = `oc/${selected}`;
+      const body = {
+        model: qualifiedModel,
+        messages: [
+          {
+            role: "user",
+            content: "Reply with exactly HAZEWAVE_OK",
+          },
+        ],
+        max_tokens: 128,
+        temperature: 0,
+        stream: false,
+      };
 
-    const response = await fetch(`${LOCAL_BASE}/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "User-Agent": "Hazewave/9router-free-probe",
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(60000),
-    });
+      let response;
+      let responseText = "";
+      try {
+        response = await fetch(`${LOCAL_BASE}/v1/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "Hazewave/9router-free-probe",
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(60000),
+        });
+        responseText = await response.text();
+      } catch (error) {
+        attempts.push({ model: qualifiedModel, status: "transport_error" });
+        console.log(
+          `HAZEWAVE_9ROUTER_FREE_ATTEMPT=${index + 1}/${candidates.length} MODEL=${qualifiedModel} RESULT=transport_error`
+        );
+        continue;
+      }
 
-    const responseText = await response.text();
-    if (!response.ok) {
-      throw new Error(
-        `probe_http_${response.status}:${responseText.slice(0, 240)}`
+      if (!response.ok) {
+        attempts.push({
+          model: qualifiedModel,
+          status: `http_${response.status}`,
+        });
+        console.log(
+          `HAZEWAVE_9ROUTER_FREE_ATTEMPT=${index + 1}/${candidates.length} MODEL=${qualifiedModel} RESULT=HTTP_${response.status}`
+        );
+        continue;
+      }
+
+      connectivityProved = true;
+
+      let payload;
+      try {
+        payload = JSON.parse(responseText);
+      } catch {
+        attempts.push({ model: qualifiedModel, status: "invalid_json" });
+        console.log(
+          `HAZEWAVE_9ROUTER_FREE_ATTEMPT=${index + 1}/${candidates.length} MODEL=${qualifiedModel} RESULT=invalid_json`
+        );
+        continue;
+      }
+
+      const firstChoice = payload?.choices?.[0] || {};
+      const message = firstChoice?.message || {};
+      const content =
+        message?.content ??
+        firstChoice?.text ??
+        payload?.output_text ??
+        "";
+      const reasoning =
+        message?.reasoning ??
+        message?.reasoning_content ??
+        message?.thinking ??
+        message?.thinking_content ??
+        "";
+      const finishReason = firstChoice?.finish_reason ?? null;
+
+      if (
+        finishReason === "length" &&
+        !String(content || "").trim() &&
+        String(reasoning || "").trim()
+      ) {
+        attempts.push({
+          model: qualifiedModel,
+          status: "reasoning_only_length",
+        });
+        console.log("HAZEWAVE_9ROUTER_FREE_CONNECTIVITY=PASS");
+        console.log(
+          `HAZEWAVE_9ROUTER_FREE_ATTEMPT=${index + 1}/${candidates.length} MODEL=${qualifiedModel} RESULT=reasoning_only_length`
+        );
+        continue;
+      }
+
+      if (!String(content || "").trim()) {
+        attempts.push({ model: qualifiedModel, status: "empty_content" });
+        console.log(
+          `HAZEWAVE_9ROUTER_FREE_ATTEMPT=${index + 1}/${candidates.length} MODEL=${qualifiedModel} RESULT=empty_content`
+        );
+        continue;
+      }
+
+      if (!String(content).includes("HAZEWAVE_OK")) {
+        attempts.push({ model: qualifiedModel, status: "semantic_mismatch" });
+        console.log(
+          `HAZEWAVE_9ROUTER_FREE_ATTEMPT=${index + 1}/${candidates.length} MODEL=${qualifiedModel} RESULT=semantic_mismatch`
+        );
+        continue;
+      }
+
+      responseFingerprint = crypto
+        .createHash("sha256")
+        .update(String(content))
+        .digest("hex");
+      admittedModel = qualifiedModel;
+      attempts.push({ model: qualifiedModel, status: "semantic_pass" });
+      console.log("HAZEWAVE_9ROUTER_FREE_CONNECTIVITY=PASS");
+      console.log(
+        `HAZEWAVE_9ROUTER_FREE_ATTEMPT=${index + 1}/${candidates.length} MODEL=${qualifiedModel} RESULT=semantic_pass`
       );
+      break;
     }
-
-    let payload;
-    try {
-      payload = JSON.parse(responseText);
-    } catch {
-      throw new Error("probe_response_not_json");
-    }
-
-    const content =
-      payload?.choices?.[0]?.message?.content ??
-      payload?.choices?.[0]?.text ??
-      payload?.output_text ??
-      "";
-
-    if (typeof content !== "string" || !content.trim()) {
-      throw new Error("probe_empty_response");
-    }
-    if (!content.includes("HAZEWAVE_OK")) {
-      throw new Error("probe_semantic_mismatch");
-    }
-
-    responseFingerprint = crypto
-      .createHash("sha256")
-      .update(content)
-      .digest("hex");
-
-    probeSucceeded = true;
   } finally {
     try {
       await settingsRequest("PATCH", {
@@ -285,8 +354,11 @@ async function main() {
   if (restoreError) {
     throw new Error(`settings_restore_failed:${restoreError}`);
   }
-  if (!probeSucceeded) {
-    throw new Error("probe_did_not_complete");
+  if (!connectivityProved) {
+    throw new Error("free_connectivity_not_proved");
+  }
+  if (!admittedModel) {
+    throw new Error("semantic_mismatch_all_free_candidates");
   }
 
   const receipt = {
@@ -311,10 +383,12 @@ async function main() {
     catalog_source: CATALOG_URL,
     catalog_sha256: catalogHash(qualified),
     catalog_discovered_models: qualified,
-    execution_admitted_models: [`oc/${selected}`],
+    execution_admitted_models: [admittedModel],
     probe: {
-      model: `oc/${selected}`,
-      max_tokens: 12,
+      model: admittedModel,
+      max_tokens: 128,
+      max_attempts: MAX_PROBE_ATTEMPTS,
+      attempts,
       semantic_expected: "HAZEWAVE_OK",
       response_sha256: responseFingerprint,
       status: "PASS",
