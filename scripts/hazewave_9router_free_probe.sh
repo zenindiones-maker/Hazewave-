@@ -38,6 +38,7 @@ mkdir -p "$STATE_ROOT"
 chmod 700 "$STATE_ROOT"
 
 HOME="$RUNTIME_HOME" \
+DATA_DIR="$RUNTIME_HOME/.9router" \
 HAZEWAVE_9ROUTER_MODE="$MODE" \
 HAZEWAVE_9ROUTER_RELEASE="$RELEASE" \
 HAZEWAVE_9ROUTER_STATE_ROOT="$STATE_ROOT" \
@@ -53,8 +54,10 @@ const stateRoot = process.env.HAZEWAVE_9ROUTER_STATE_ROOT;
 const receiptPath = process.env.HAZEWAVE_9ROUTER_RECEIPT;
 const upstreamCommit = process.env.HAZEWAVE_9ROUTER_UPSTREAM_COMMIT;
 
-const cliClientPath = release + "/node_modules/9router/src/cli/api/client.js";
-const api = require(cliClientPath);
+const DATA_DIR = process.env.DATA_DIR || (process.env.HOME + "/.9router");
+const MACHINE_ID_FILE = DATA_DIR + "/machine-id";
+const CLI_SECRET_FILE = DATA_DIR + "/auth/cli-secret";
+const CLI_TOKEN_SALT = "9r-cli-auth";
 
 const CATALOG_URL = "https://opencode.ai/zen/v1/models";
 const LOCAL_BASE = "http://127.0.0.1:20128";
@@ -100,6 +103,41 @@ async function fetchFreeCatalog() {
   return models;
 }
 
+function readCliToken() {
+  const raw = fs.readFileSync(MACHINE_ID_FILE, "utf8").trim();
+  const secret = fs.readFileSync(CLI_SECRET_FILE, "utf8").trim();
+  if (!raw || !secret) throw new Error("cli_token_material_missing");
+  return crypto
+    .createHash("sha256")
+    .update(raw + CLI_TOKEN_SALT + secret)
+    .digest("hex")
+    .substring(0, 16);
+}
+
+async function settingsRequest(method, body = undefined) {
+  const token = readCliToken();
+  const response = await fetch(LOCAL_BASE + "/api/settings", {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "x-9r-cli-token": token,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(15000),
+  });
+  const text = await response.text();
+  let payload = {};
+  try {
+    payload = text ? JSON.parse(text) : {};
+  } catch {
+    payload = {};
+  }
+  if (!response.ok) {
+    throw new Error(`settings_${method.toLowerCase()}_http_${response.status}:${payload.error || text.slice(0, 160)}`);
+  }
+  return payload;
+}
+
 function capacityAdaptersDisabled(original) {
   const source = original && typeof original === "object" ? original : {};
   const out = {};
@@ -130,11 +168,7 @@ async function main() {
 
   if (mode === "catalog") return;
 
-  const settingsResult = await api.getSettings();
-  if (!settingsResult.success) {
-    throw new Error(`settings_read_failed:${settingsResult.error || "unknown"}`);
-  }
-  const original = settingsResult.data || {};
+  const original = await settingsRequest("GET");
 
   // API-key bypass is allowed only for a non-exposed local sidecar.
   if (
@@ -164,14 +198,11 @@ async function main() {
   let responseFingerprint = null;
 
   try {
-    const patched = await api.updateSettings({
+    await settingsRequest("PATCH", {
       requireApiKey: false,
       capacityAdapter: safeCapacityAdapter,
       outboundProxyEnabled: false,
     });
-    if (!patched.success) {
-      throw new Error(`settings_patch_failed:${patched.error || "unknown"}`);
-    }
 
     const body = {
       model: `oc/${selected}`,
@@ -231,17 +262,14 @@ async function main() {
 
     probeSucceeded = true;
   } finally {
-    const restored = await api.updateSettings({
-      requireApiKey: originalRequireApiKey,
-      capacityAdapter: originalCapacityAdapter,
-      outboundProxyEnabled: originalOutboundProxyEnabled,
-    }).catch((error) => ({
-      success: false,
-      error: error?.message || String(error),
-    }));
-
-    if (!restored?.success) {
-      restoreError = restored?.error || "unknown";
+    try {
+      await settingsRequest("PATCH", {
+        requireApiKey: originalRequireApiKey,
+        capacityAdapter: originalCapacityAdapter,
+        outboundProxyEnabled: originalOutboundProxyEnabled,
+      });
+    } catch (error) {
+      restoreError = error?.message || String(error);
     }
   }
 
