@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import httpx
+import pytest
 
 from hazewave.harness import HAZE, HazewaveTask, issue_authorization, route_task
 from hazewave.ninerouter import (
