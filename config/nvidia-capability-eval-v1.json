@@ -11,14 +11,12 @@
       "task_family": "haze.priority.classification",
       "prompt": "Return JSON only. Rank these engineering priorities from first to last: correctness blocker, latency optimization, formatting cleanup. Use key order with an array of the labels correctness, latency, formatting.",
       "evaluation": {
-        "kind": "JSON_SUBSET",
-        "expected": {
-          "order": [
-            "correctness",
-            "latency",
-            "formatting"
-          ]
-        }
+        "kind": "RANKING_EQUIVALENT",
+        "labels": [
+          "correctness",
+          "latency",
+          "formatting"
+        ]
       }
     },
     {
@@ -29,11 +27,33 @@
       "task_family": "haze.provider.failure.analysis",
       "prompt": "Return JSON only. Classify provider HTTP 429 and HTTP 403 for a governed free-development route, and state whether blind retry storms are acceptable. Keys: 429, 403, retry_storm.",
       "evaluation": {
-        "kind": "JSON_SUBSET",
-        "expected": {
-          "403": "AUTH_OR_ELIGIBILITY_FAILURE",
-          "429": "RATE_LIMITED",
-          "retry_storm": false
+        "kind": "JSON_FIELD_SEMANTICS",
+        "fields": {
+          "429": {
+            "keyword_groups": [
+              [
+                "rate limit",
+                "rate-limit",
+                "rate limiting",
+                "throttle"
+              ]
+            ]
+          },
+          "403": {
+            "keyword_groups": [
+              [
+                "access denied",
+                "permission",
+                "credential",
+                "eligibility",
+                "authorization",
+                "governance"
+              ]
+            ]
+          },
+          "retry_storm": {
+            "equals": false
+          }
         }
       }
     },
@@ -64,27 +84,14 @@
       "domain": "HAZE",
       "execution_profile": "FAST_STRUCTURED",
       "task_family": "haze.python.review",
-      "prompt": "Review this retry logic for HTTP 429: `def on_429(limit): return limit + 1`. In at most 120 words, explain the defect, the safe concurrency correction, and how Retry-After should be handled.",
+      "prompt": "Return JSON only. Review this retry logic for HTTP 429: `def on_429(limit): return limit + 1`. Return exactly these keys: concurrency_action, retry_after, blind_increase. concurrency_action must be one of INCREASE, DECREASE, KEEP; retry_after must be HONOR or IGNORE; blind_increase must be true or false. Choose the safe behavior for a governed provider route.",
       "evaluation": {
-        "kind": "KEYWORD_GROUPS",
-        "groups": [
-          [
-            "429",
-            "rate limit",
-            "rate-limit"
-          ],
-          [
-            "decrease",
-            "reduce",
-            "halve",
-            "half"
-          ],
-          [
-            "retry-after",
-            "retry after",
-            "backoff"
-          ]
-        ]
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "concurrency_action": "DECREASE",
+          "retry_after": "HONOR",
+          "blind_increase": false
+        }
       }
     }
   ]
