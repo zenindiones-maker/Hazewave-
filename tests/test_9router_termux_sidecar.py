@@ -93,3 +93,15 @@ def test_9router_free_probe_is_bounded_reversible_and_free_only() -> None:
     control = CONTROL.read_text(encoding="utf-8")
     assert "probe-free)" in control
     assert "catalog)" in control
+
+
+def test_9router_free_probe_derives_cli_token_from_server_owned_files() -> None:
+    probe = (ROOT / "scripts" / "hazewave_9router_free_probe.sh").read_text(encoding="utf-8")
+    control = CONTROL.read_text(encoding="utf-8")
+
+    assert "machine-id" in probe
+    assert "auth/cli-secret" in probe
+    assert "9r-cli-auth" in probe
+    assert "x-9r-cli-token" in probe
+    assert "src/cli/api/client.js" not in probe
+    assert 'DATA_DIR="$RUNTIME_HOME/.9router"' in control
