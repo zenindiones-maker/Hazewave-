@@ -210,3 +210,120 @@ def test_registry_marks_account_bounded_providers_as_conditional_not_uncondition
         assert row["enabled"] is True
         assert row["monetary_policy"] == "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP"
         assert row["billing_overflow_policy"] == "ACCOUNT_ATTESTATION_REQUIRED"
+
+
+def test_cli_exposes_account_attestation_status_and_write_commands() -> None:
+    from hazewave.cli import build_parser
+
+    status = build_parser().parse_args(["freellmapi", "attest", "status"])
+    assert status.freellmapi_command == "attest"
+    assert status.attest_command == "status"
+
+    write = build_parser().parse_args(
+        [
+            "freellmapi",
+            "attest",
+            "write",
+            "--provider",
+            "groq",
+            "--credential-id",
+            "7",
+            "--expires-at",
+            "2026-11-05T00:00:00+00:00",
+            "--source-evidence",
+            "https://console.groq.com/docs/billing-faqs",
+            "--confirm-free-tier",
+            "--confirm-no-paid-billing",
+        ]
+    )
+    assert write.attest_command == "write"
+    assert write.provider == "groq"
+    assert write.credential_id == 7
+    assert write.confirm_free_tier is True
+    assert write.confirm_no_paid_billing is True
+
+
+def test_write_account_attestation_is_atomic_owner_only_and_upserts(tmp_path: Path) -> None:
+    from hazewave.provider_policy import write_account_attestation
+
+    path = tmp_path / "account-attestations.json"
+    record = write_account_attestation(
+        provider="groq",
+        credential_id=7,
+        expires_at="2026-11-05T00:00:00+00:00",
+        source_evidence=["https://console.groq.com/docs/billing-faqs"],
+        path=path,
+        now="2026-10-05T12:00:00+00:00",
+    )
+    replacement = write_account_attestation(
+        provider="groq",
+        credential_id=7,
+        expires_at="2026-12-05T00:00:00+00:00",
+        source_evidence=["https://console.groq.com/docs/rate-limits"],
+        path=path,
+        now="2026-10-05T13:00:00+00:00",
+    )
+
+    assert record["provider"] == "groq"
+    assert replacement["credential_id"] == 7
+    store = load_account_attestations(path)
+    assert len(store["attestations"]) == 1
+    assert store["attestations"][0]["expires_at"] == "2026-12-05T00:00:00+00:00"
+    assert path.stat().st_mode & 0o777 == 0o600
+
+
+def test_write_account_attestation_refuses_non_account_bound_provider(tmp_path: Path) -> None:
+    from hazewave.provider_policy import write_account_attestation
+
+    with pytest.raises(ValueError, match="HAZEWAVE_ACCOUNT_ATTESTATION_PROVIDER_NOT_ACCOUNT_BOUND"):
+        write_account_attestation(
+            provider="kilo",
+            credential_id=1,
+            expires_at="2026-11-05T00:00:00+00:00",
+            source_evidence=["https://kilo.ai/docs/gateway/usage-and-billing"],
+            path=tmp_path / "account-attestations.json",
+            now="2026-10-05T12:00:00+00:00",
+        )
+
+
+def test_catalog_lists_provider_keys_without_exposing_encrypted_material(tmp_path: Path) -> None:
+    from hazewave.freellmapi import FreeLLMAPILocalCatalog
+
+    db = tmp_path / "freellmapi.db"
+    con = sqlite3.connect(db)
+    con.executescript(
+        """
+        CREATE TABLE api_keys (
+          id INTEGER PRIMARY KEY,
+          platform TEXT NOT NULL,
+          label TEXT NOT NULL DEFAULT '',
+          encrypted_key TEXT NOT NULL DEFAULT '',
+          enabled INTEGER NOT NULL DEFAULT 1,
+          status TEXT NOT NULL DEFAULT 'unknown'
+        );
+        INSERT INTO api_keys VALUES(7,'groq','free-main','ciphertext',1,'healthy');
+        INSERT INTO api_keys VALUES(8,'cloudflare','workers-free','ciphertext2',0,'unknown');
+        """
+    )
+    con.commit()
+    con.close()
+
+    rows = FreeLLMAPILocalCatalog(db).provider_keys()
+
+    assert rows == [
+        {
+            "credential_id": 7,
+            "provider": "groq",
+            "label": "free-main",
+            "enabled": True,
+            "status": "healthy",
+        },
+        {
+            "credential_id": 8,
+            "provider": "cloudflare",
+            "label": "workers-free",
+            "enabled": False,
+            "status": "unknown",
+        },
+    ]
+    assert "ciphertext" not in json.dumps(rows)
