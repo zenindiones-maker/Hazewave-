@@ -297,3 +297,251 @@ def test_expired_private_media_grant_is_denied() -> None:
 
     assert decision.allowed is False
     assert decision.reason == "MEDIA_EGRESS_GRANT_EXPIRED"
+
+
+def test_local_catalog_discovers_only_provider_qualified_routable_chat_models(
+    tmp_path: Path,
+) -> None:
+    import sqlite3
+
+    from hazewave.freellmapi import FreeLLMAPILocalCatalog
+
+    db = tmp_path / "freellmapi.db"
+    con = sqlite3.connect(db)
+    con.executescript(
+        """
+        CREATE TABLE api_keys (
+          id INTEGER PRIMARY KEY,
+          platform TEXT NOT NULL,
+          encrypted_key TEXT,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          status TEXT NOT NULL DEFAULT 'unknown'
+        );
+        CREATE TABLE models (
+          id INTEGER PRIMARY KEY,
+          platform TEXT NOT NULL,
+          model_id TEXT NOT NULL,
+          display_name TEXT NOT NULL,
+          intelligence_rank INTEGER NOT NULL DEFAULT 999,
+          speed_rank INTEGER NOT NULL DEFAULT 999,
+          context_window INTEGER,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          supports_vision INTEGER NOT NULL DEFAULT 0,
+          supports_tools INTEGER NOT NULL DEFAULT 0,
+          key_id INTEGER
+        );
+        """
+    )
+    con.execute(
+        "INSERT INTO api_keys(id, platform, encrypted_key, enabled, status) VALUES(1,'kilo','secret-ciphertext',1,'healthy')"
+    )
+    con.execute(
+        "INSERT INTO api_keys(id, platform, encrypted_key, enabled, status) VALUES(2,'google','another-secret',0,'healthy')"
+    )
+    con.execute(
+        "INSERT INTO models(id, platform, model_id, display_name, intelligence_rank, speed_rank, context_window, enabled, supports_tools) VALUES(1,'kilo','dots-free','Dots Free',10,3,65536,1,1)"
+    )
+    con.execute(
+        "INSERT INTO models(id, platform, model_id, display_name, intelligence_rank, speed_rank, context_window, enabled) VALUES(2,'google','gemini','Gemini',1,1,1000000,1)"
+    )
+    con.execute(
+        "INSERT INTO models(id, platform, model_id, display_name, intelligence_rank, speed_rank, context_window, enabled) VALUES(3,'kilo','disabled','Disabled',1,1,65536,0)"
+    )
+    con.commit()
+    con.close()
+
+    catalog = FreeLLMAPILocalCatalog(db)
+    rows = catalog.chat_candidates()
+
+    assert [row.qualified_model_id for row in rows] == ["kilo:dots-free"]
+    assert rows[0].provider == "kilo"
+    assert rows[0].model_id == "dots-free"
+    assert rows[0].supports_tools is True
+    assert "secret" not in repr(rows[0]).lower()
+
+
+def test_governed_chat_hard_pins_provider_and_emits_zero_cost_receipt(
+    tmp_path: Path,
+) -> None:
+    import sqlite3
+    import httpx
+
+    from hazewave.freellmapi import FreeLLMAPIClient, FreeLLMAPILocalCatalog
+
+    db = tmp_path / "freellmapi.db"
+    con = sqlite3.connect(db)
+    con.executescript(
+        """
+        CREATE TABLE api_keys (
+          id INTEGER PRIMARY KEY,
+          platform TEXT NOT NULL,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          status TEXT NOT NULL DEFAULT 'unknown'
+        );
+        CREATE TABLE models (
+          id INTEGER PRIMARY KEY,
+          platform TEXT NOT NULL,
+          model_id TEXT NOT NULL,
+          display_name TEXT NOT NULL,
+          intelligence_rank INTEGER NOT NULL DEFAULT 999,
+          speed_rank INTEGER NOT NULL DEFAULT 999,
+          context_window INTEGER,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          supports_vision INTEGER NOT NULL DEFAULT 0,
+          supports_tools INTEGER NOT NULL DEFAULT 0,
+          key_id INTEGER
+        );
+        INSERT INTO api_keys(id, platform, enabled, status)
+          VALUES(1,'kilo',1,'healthy');
+        INSERT INTO models(
+          id, platform, model_id, display_name, intelligence_rank, speed_rank,
+          context_window, enabled, supports_tools
+        ) VALUES(1,'kilo','dots-free','Dots Free',10,3,65536,1,1);
+        """
+    )
+    con.close()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/chat/completions"
+        payload = json.loads(request.content)
+        assert payload["model"] == "kilo:dots-free"
+        assert payload["model"] != "auto"
+        return httpx.Response(
+            200,
+            headers={"X-Routed-Via": "kilo/dots-free"},
+            json={
+                "id": "chatcmpl-governed",
+                "model": "dots-free",
+                "choices": [
+                    {"message": {"role": "assistant", "content": "bounded observation"}}
+                ],
+                "usage": {
+                    "prompt_tokens": 3,
+                    "completion_tokens": 2,
+                    "total_tokens": 5,
+                    "cost": 0,
+                },
+            },
+        )
+
+    client = FreeLLMAPIClient("http://127.0.0.1:3001/v1", api_key="router-secret")
+    client._client.close()
+    client._client = httpx.Client(
+        base_url="http://127.0.0.1:3001/v1",
+        headers={"Authorization": "Bearer router-secret"},
+        transport=httpx.MockTransport(handler),
+    )
+
+    decision = route_task(
+        HazewaveTask(
+            task_id="governed-chat-1",
+            goal="analyze public synthetic sonic data",
+            required_capability="audio.analyze",
+            requested_domain="HAZE",
+        )
+    )
+    authorization = issue_authorization(decision)
+
+    with client:
+        result = client.governed_chat(
+            messages=[{"role": "user", "content": "synthetic public descriptor"}],
+            authorization=authorization,
+            task_id="governed-chat-1",
+            capability_id="audio.analyze",
+            data_classification="PUBLIC",
+            catalog=FreeLLMAPILocalCatalog(db),
+        )
+
+    assert result.content == "bounded observation"
+    assert result.receipt["schema"] == "HazewaveProviderExecutionReceipt/v1"
+    assert result.receipt["provider"] == "kilo"
+    assert result.receipt["requested_model"] == "kilo:dots-free"
+    assert result.receipt["zero_cost_verified"] is True
+    assert result.receipt["usage"]["cost"] == 0
+    serialized = json.dumps(result.receipt, sort_keys=True)
+    assert "router-secret" not in serialized
+
+
+def test_governed_chat_rejects_unrestricted_auto_even_for_public_data() -> None:
+    from hazewave.freellmapi import FreeLLMAPIClient, FreeLLMAPIError
+
+    decision = route_task(
+        HazewaveTask(
+            task_id="governed-chat-auto-deny",
+            goal="public task",
+            required_capability="audio.analyze",
+            requested_domain="HAZE",
+        )
+    )
+    authorization = issue_authorization(decision)
+
+    with FreeLLMAPIClient("http://127.0.0.1:3001/v1", api_key="x") as client:
+        with pytest.raises(FreeLLMAPIError, match="UNRESTRICTED_AUTO_FORBIDDEN"):
+            client.governed_chat(
+                messages=[{"role": "user", "content": "public"}],
+                authorization=authorization,
+                task_id="governed-chat-auto-deny",
+                capability_id="audio.analyze",
+                data_classification="PUBLIC",
+                model="auto",
+            )
+
+
+def test_governed_chat_fails_closed_when_zero_cost_pool_has_no_candidate(
+    tmp_path: Path,
+) -> None:
+    import sqlite3
+
+    from hazewave.freellmapi import FreeLLMAPIClient, FreeLLMAPILocalCatalog, FreeLLMAPIError
+
+    db = tmp_path / "freellmapi.db"
+    con = sqlite3.connect(db)
+    con.executescript(
+        """
+        CREATE TABLE api_keys (
+          id INTEGER PRIMARY KEY,
+          platform TEXT NOT NULL,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          status TEXT NOT NULL DEFAULT 'unknown'
+        );
+        CREATE TABLE models (
+          id INTEGER PRIMARY KEY,
+          platform TEXT NOT NULL,
+          model_id TEXT NOT NULL,
+          display_name TEXT NOT NULL,
+          intelligence_rank INTEGER NOT NULL DEFAULT 999,
+          speed_rank INTEGER NOT NULL DEFAULT 999,
+          context_window INTEGER,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          supports_vision INTEGER NOT NULL DEFAULT 0,
+          supports_tools INTEGER NOT NULL DEFAULT 0,
+          key_id INTEGER
+        );
+        INSERT INTO api_keys(id, platform, enabled, status)
+          VALUES(1,'google',1,'healthy');
+        INSERT INTO models(id, platform, model_id, display_name, enabled)
+          VALUES(1,'google','gemini','Gemini',1);
+        """
+    )
+    con.close()
+
+    decision = route_task(
+        HazewaveTask(
+            task_id="governed-chat-empty",
+            goal="public task",
+            required_capability="audio.analyze",
+            requested_domain="HAZE",
+        )
+    )
+    authorization = issue_authorization(decision)
+
+    with FreeLLMAPIClient("http://127.0.0.1:3001/v1", api_key="x") as client:
+        with pytest.raises(FreeLLMAPIError, match="ZERO_COST_POOL_UNAVAILABLE"):
+            client.governed_chat(
+                messages=[{"role": "user", "content": "public"}],
+                authorization=authorization,
+                task_id="governed-chat-empty",
+                capability_id="audio.analyze",
+                data_classification="PUBLIC",
+                catalog=FreeLLMAPILocalCatalog(db),
+            )
