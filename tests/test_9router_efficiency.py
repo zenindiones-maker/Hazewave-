@@ -1,0 +1,219 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import httpx
+
+from hazewave.harness import HAZE, HazewaveTask, issue_authorization, route_task
+from hazewave.ninerouter import execute_9router_text, rank_9router_models
+
+
+def _authorization(capability: str = "reason.general"):
+    return issue_authorization(
+        route_task(
+            HazewaveTask(
+                task_id="efficiency-001",
+                goal="Use the most efficient proven free model",
+                required_capability=capability,
+                requested_domain=HAZE,
+            )
+        )
+    )
+
+
+def _v2_receipt() -> dict:
+    fast = "oc/space-bunny-free"
+    cheap = "oc/mimo-v2.6-flash-free"
+    slower = "oc/nemotron-3.5-lightning-free"
+    return {
+        "schema": "Hazewave9RouterFreeAdmissionReceipt/v2",
+        "project_id": "HAZEWAVE",
+        "authority": "HAZEWAVE_HARNESS",
+        "gateway": "9router",
+        "gateway_authority": "NONE",
+        "upstream_repository": "decolua/9router",
+        "upstream_commit": "a99cf57239ff778b61e434c2786009d5ed1c412c",
+        "endpoint": "http://127.0.0.1:20128",
+        "provider": "opencode",
+        "provider_alias": "oc",
+        "provider_policy": {
+            "has_free": True,
+            "no_auth": True,
+            "paid_fallback": "FORBIDDEN",
+            "unknown_cost": "DENY",
+            "catalog_rule": "id.endswith(-free) OR id==big-pickle",
+            "denylist": ["deepseek-v4-flash-free"],
+        },
+        "catalog_source": "https://opencode.ai/zen/v1/models",
+        "catalog_sha256": "catalog-proof",
+        "catalog_discovered_models": [fast, cheap, slower],
+        "execution_admitted_models": [fast, cheap, slower],
+        "model_proofs": {
+            fast: {
+                "status": "semantic_pass",
+                "latency_ms": 900,
+                "usage": {"prompt_tokens": 220, "completion_tokens": 30, "total_tokens": 250},
+                "response_sha256": "fast-proof",
+            },
+            cheap: {
+                "status": "semantic_pass",
+                "latency_ms": 1100,
+                "usage": {"prompt_tokens": 210, "completion_tokens": 20, "total_tokens": 230},
+                "response_sha256": "cheap-proof",
+            },
+            slower: {
+                "status": "semantic_pass",
+                "latency_ms": 1800,
+                "usage": {"prompt_tokens": 220, "completion_tokens": 20, "total_tokens": 240},
+                "response_sha256": "slow-proof",
+            },
+        },
+        "optimization_policy": {
+            "stream": False,
+            "rtk_enabled": True,
+            "headroom_enabled": False,
+            "combos_allowed": False,
+            "selection": "LOWEST_TOTAL_TOKENS_THEN_LATENCY",
+        },
+        "probe": {
+            "model": cheap,
+            "max_tokens": 128,
+            "max_attempts": 13,
+            "attempts": [{"model": cheap, "status": "semantic_pass"}],
+            "semantic_expected": "HAZEWAVE_OK",
+            "response_sha256": "cheap-proof",
+            "status": "PASS",
+        },
+        "observed_at": "2026-10-05T12:00:00+00:00",
+    }
+
+
+def test_ranker_prefers_lowest_tokens_then_latency() -> None:
+    ranked = rank_9router_models(
+        authorization=_authorization(),
+        receipt=_v2_receipt(),
+        data_classification="PUBLIC",
+        now="2026-10-05T12:30:00+00:00",
+    )
+
+    assert ranked == [
+        "oc/mimo-v2.6-flash-free",
+        "oc/nemotron-3.5-lightning-free",
+        "oc/space-bunny-free",
+    ]
+
+
+def test_ranker_keeps_v1_receipts_compatible() -> None:
+    receipt = _v2_receipt()
+    receipt["schema"] = "Hazewave9RouterFreeAdmissionReceipt/v1"
+    receipt["execution_admitted_models"] = ["oc/mimo-v2.6-flash-free"]
+    receipt.pop("model_proofs")
+    receipt.pop("optimization_policy")
+
+    ranked = rank_9router_models(
+        authorization=_authorization(),
+        receipt=receipt,
+        data_classification="PUBLIC",
+        now="2026-10-05T12:30:00+00:00",
+    )
+
+    assert ranked == ["oc/mimo-v2.6-flash-free"]
+
+
+def test_auto_executor_falls_back_only_inside_admitted_free_pool(tmp_path: Path) -> None:
+    settings = {
+        "requireApiKey": True,
+        "cloudEnabled": False,
+        "tunnelEnabled": False,
+        "tailscaleEnabled": False,
+        "capacityAdapter": {
+            "vision": {"enabled": True, "models": []},
+        },
+        "outboundProxyEnabled": False,
+        "rtkEnabled": False,
+        "headroomEnabled": True,
+    }
+    patches: list[dict] = []
+    attempted: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/settings" and request.method == "GET":
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/api/settings" and request.method == "PATCH":
+            body = json.loads(request.content)
+            patches.append(body)
+            settings.update(body)
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/v1/chat/completions":
+            body = json.loads(request.content)
+            model = body["model"]
+            attempted.append(model)
+            assert body["stream"] is False
+            if model == "oc/mimo-v2.6-flash-free":
+                return httpx.Response(503, json={"error": {"message": "temporary"}})
+            if model == "oc/nemotron-3.5-lightning-free":
+                return httpx.Response(
+                    200,
+                    json={
+                        "choices": [{"message": {"content": "fallback answer"}}],
+                        "usage": {
+                            "prompt_tokens": 10,
+                            "completion_tokens": 3,
+                            "total_tokens": 13,
+                        },
+                    },
+                )
+            raise AssertionError(f"unexpected model {model}")
+
+    result = execute_9router_text(
+        authorization=_authorization(),
+        model_id="auto",
+        prompt="hello",
+        receipt=_v2_receipt(),
+        now="2026-10-05T12:30:00+00:00",
+        lock_path=tmp_path / "lock",
+        transport=httpx.MockTransport(handler),
+        cli_token="unit-test-token",
+        max_fallbacks=3,
+    )
+
+    assert result.model_id == "oc/nemotron-3.5-lightning-free"
+    assert result.content == "fallback answer"
+    assert attempted == [
+        "oc/mimo-v2.6-flash-free",
+        "oc/nemotron-3.5-lightning-free",
+    ]
+
+    opening = patches[0]
+    assert opening["requireApiKey"] is False
+    assert opening["rtkEnabled"] is True
+    assert opening["headroomEnabled"] is False
+    assert opening["outboundProxyEnabled"] is False
+    assert opening["capacityAdapter"]["vision"]["enabled"] is False
+
+    closing = patches[-1]
+    assert closing["requireApiKey"] is True
+    assert closing["rtkEnabled"] is False
+    assert closing["headroomEnabled"] is True
+
+
+def test_optimizer_script_benchmarks_entire_free_catalog() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script = (root / "scripts" / "hazewave_9router_free_probe.sh").read_text(
+        encoding="utf-8"
+    )
+    control = (root / "scripts" / "hazewave_9router_control.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "catalog|probe|optimize" in script
+    assert 'schema: "Hazewave9RouterFreeAdmissionReceipt/v2"' in script
+    assert "model_proofs" in script
+    assert "latency_ms" in script
+    assert "total_tokens" in script
+    assert "rtkEnabled: true" in script
+    assert "headroomEnabled: false" in script
+    assert "combos_allowed: false" in script
+    assert "for (let index = 0; index < candidates.length; index += 1)" in script
+    assert "optimize)" in control
