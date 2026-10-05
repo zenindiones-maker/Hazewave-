@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from fnmatch import fnmatchcase
 import json
+import os
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -95,6 +96,93 @@ def load_account_attestations(path: str | Path | None = None) -> dict[str, Any]:
     if not isinstance(payload.get("attestations"), list):
         raise ValueError("HAZEWAVE_ACCOUNT_ATTESTATION_ROWS_INVALID")
     return payload
+
+
+def write_account_attestation(
+    *,
+    provider: str,
+    credential_id: int,
+    expires_at: str,
+    source_evidence: list[str],
+    path: str | Path | None = None,
+    now: str | None = None,
+) -> dict[str, Any]:
+    """Persist one human-verified free-tier account attestation.
+
+    This function never reads or writes the provider credential itself. The
+    binding is to FreeLLMAPI's local, non-secret api_keys.id only.
+    """
+
+    provider_name = str(provider or "").strip().casefold()
+    key_id = int(credential_id)
+    if key_id <= 0:
+        raise ValueError("HAZEWAVE_ACCOUNT_ATTESTATION_CREDENTIAL_ID_INVALID")
+
+    registry = load_provider_registry()
+    entry = _provider_entry(registry, provider_name)
+    if not (
+        entry.get("enabled") is True
+        and entry.get("monetary_policy") == "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP"
+        and entry.get("billing_overflow_policy") == "ACCOUNT_ATTESTATION_REQUIRED"
+    ):
+        raise ValueError("HAZEWAVE_ACCOUNT_ATTESTATION_PROVIDER_NOT_ACCOUNT_BOUND")
+
+    evidence = [str(value).strip() for value in source_evidence if str(value).strip()]
+    if not evidence:
+        raise ValueError("HAZEWAVE_ACCOUNT_ATTESTATION_EVIDENCE_REQUIRED")
+
+    issued = _parse_time(now) if now is not None else datetime.now(timezone.utc)
+    expires = _parse_time(expires_at)
+    if expires <= issued:
+        raise ValueError("HAZEWAVE_ACCOUNT_ATTESTATION_EXPIRY_INVALID")
+
+    record = {
+        "attestation_id": (
+            f"{provider_name}-key-{key_id}-"
+            f"{issued.strftime('%Y%m%dT%H%M%SZ')}"
+        ),
+        "provider": provider_name,
+        "credential_id": key_id,
+        "account_tier": "FREE",
+        "paid_billing_enabled": False,
+        "billing_overflow_policy": "HARD_STOP",
+        "evidence_method": "HUMAN_VERIFIED_PROVIDER_ACCOUNT",
+        "issued_at": issued.isoformat(),
+        "expires_at": expires.isoformat(),
+        "source_evidence": evidence,
+    }
+
+    store_path = Path(path).expanduser() if path is not None else DEFAULT_ACCOUNT_ATTESTATION_PATH
+    store = load_account_attestations(store_path)
+    rows = [
+        dict(row)
+        for row in (store.get("attestations") or [])
+        if not (
+            isinstance(row, dict)
+            and str(row.get("provider") or "").strip().casefold() == provider_name
+            and row.get("credential_id") == key_id
+        )
+    ]
+    rows.append(record)
+    store["attestations"] = sorted(
+        rows,
+        key=lambda row: (
+            str(row.get("provider") or ""),
+            int(row.get("credential_id") or 0),
+        ),
+    )
+
+    store_path.parent.mkdir(parents=True, exist_ok=True)
+    os.chmod(store_path.parent, 0o700)
+    temp_path = store_path.with_name(f".{store_path.name}.tmp.{os.getpid()}")
+    temp_path.write_text(
+        json.dumps(store, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    os.chmod(temp_path, 0o600)
+    temp_path.replace(store_path)
+    os.chmod(store_path, 0o600)
+    return record
 
 
 def _provider_entry(registry: dict[str, Any], provider: str) -> dict[str, Any]:
