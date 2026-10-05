@@ -275,11 +275,14 @@ case "${1:-status}" in
   probe-free)
     exec bash "$SCRIPT_DIR/hazewave_9router_free_probe.sh" probe
     ;;
+  optimize)
+    exec bash "$SCRIPT_DIR/hazewave_9router_free_probe.sh" optimize
+    ;;
   logs)
     tail -n "${2:-100}" "$LOG_FILE"
     ;;
   *)
-    echo "usage: $0 {install|start|stop|restart|status|doctor|ensure-auth|catalog|probe-free|logs [lines]}" >&2
+    echo "usage: $0 {install|start|stop|restart|status|doctor|ensure-auth|catalog|probe-free|optimize|logs [lines]}" >&2
     exit 2
     ;;
 esac
