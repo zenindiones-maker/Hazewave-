@@ -111,7 +111,7 @@ def _transport(*, exposed: bool = False, completion: str = "answer"):
 def test_executor_requires_harness_admission_before_http(tmp_path: Path) -> None:
     transport, _, patches = _transport()
 
-    with pytest.raises(NineRouterExecutionError, match="MODEL_NOT_EXECUTION_ADMITTED"):
+    with pytest.raises(NineRouterExecutionError, match="MODEL_NOT_IN_PROVEN_CATALOG"):
         execute_9router_text(
             authorization=_authorization(),
             model_id="oc/space-bunny-free",
