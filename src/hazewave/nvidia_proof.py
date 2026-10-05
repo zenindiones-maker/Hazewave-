@@ -170,6 +170,18 @@ def _restricted_python_eval(node: ast.AST, env: dict[str, Any]) -> Any:
     raise ValueError("PYTHON_BEHAVIOR_NODE_FORBIDDEN")
 
 
+def _safe_type_annotation(node: ast.AST | None) -> bool:
+    if node is None:
+        return True
+    if isinstance(node, ast.Name):
+        return node.id in {"int", "float", "bool", "str"}
+    if isinstance(node, ast.Constant):
+        return node.value is None
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+        return _safe_type_annotation(node.left) and _safe_type_annotation(node.right)
+    return False
+
+
 def _evaluate_restricted_python_behavior(
     source: str,
     evaluation: dict[str, Any],
@@ -187,12 +199,23 @@ def _evaluate_restricted_python_behavior(
     if len(functions) != 1:
         return ProbeEvaluation(False, 0.0, "FUNCTION_MISSING")
     function = functions[0]
-    if function.decorator_list or function.returns is not None:
+    if function.decorator_list:
         return ProbeEvaluation(False, 0.0, "PYTHON_BEHAVIOR_FUNCTION_UNSAFE")
+    annotations = [arg.annotation for arg in function.args.args]
+    annotations.append(function.returns)
+    if not all(_safe_type_annotation(annotation) for annotation in annotations):
+        return ProbeEvaluation(False, 0.0, "PYTHON_BEHAVIOR_ANNOTATION_UNSAFE")
     if len(function.body) != 1 or not isinstance(function.body[0], ast.Return):
         return ProbeEvaluation(False, 0.0, "PYTHON_BEHAVIOR_BODY_UNSAFE")
     parameter_names = [arg.arg for arg in function.args.args]
-    if function.args.vararg or function.args.kwarg or function.args.kwonlyargs:
+    if (
+        function.args.posonlyargs
+        or function.args.vararg
+        or function.args.kwarg
+        or function.args.kwonlyargs
+        or function.args.defaults
+        or any(value is not None for value in function.args.kw_defaults)
+    ):
         return ProbeEvaluation(False, 0.0, "PYTHON_BEHAVIOR_SIGNATURE_UNSAFE")
 
     cases = evaluation.get("cases")

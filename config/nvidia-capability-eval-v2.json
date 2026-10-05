@@ -360,7 +360,7 @@
       "task_family": "review.aimd",
       "complexity": "MODERATE",
       "structured_output": true,
-      "prompt": "Return JSON only. The variable current_client_concurrency_limit controls simultaneous client requests. After HTTP 429, code proposes current_client_concurrency_limit += 1. Return concurrency_action INCREASE/KEEP/DECREASE, retry_after HONOR/IGNORE, blind_increase boolean.",
+      "prompt": "Return exactly one JSON object with keys concurrency_action, retry_after, and blind_increase. Review the SAFE CORRECTED BEHAVIOR, not what the buggy code currently does. The variable current_client_concurrency_limit controls simultaneous client requests. The provider returned HTTP 429 and the client uses AIMD-style congestion control. Buggy code proposes current_client_concurrency_limit += 1. concurrency_action must be one of INCREASE, KEEP, DECREASE; retry_after must be HONOR or IGNORE; blind_increase must be boolean.",
       "evaluation": {
         "kind": "JSON_SUBSET",
         "expected": {
@@ -377,7 +377,7 @@
       "task_family": "review.auth",
       "complexity": "SIMPLE",
       "structured_output": true,
-      "prompt": "Return JSON only. Code retries HTTP 403 forever against the same route. Return failure_class and retry_same_route. failure_class must be AUTH_OR_ELIGIBILITY_FAILURE or TRANSIENT_CAPACITY; retry_same_route is boolean.",
+      "prompt": "Return exactly one JSON object with keys failure_class and retry_same_route. Review the SAFE CORRECTED BEHAVIOR, not what the buggy code currently does. HTTP 403 states this account is not eligible for the requested route, while the buggy code retries forever against that same route. failure_class must be AUTH_OR_ELIGIBILITY_FAILURE or TRANSIENT_CAPACITY; retry_same_route must be boolean and describe whether the corrected policy should immediately use the same route again.",
       "evaluation": {
         "kind": "JSON_SUBSET",
         "expected": {
@@ -409,7 +409,7 @@
       "task_family": "review.server",
       "complexity": "MODERATE",
       "structured_output": true,
-      "prompt": "Return JSON only. Code treats HTTP 503 as a model-quality failure and permanently bans the model. Return failure_class and permanent_ban. failure_class must be PROVIDER_SERVER_FAILURE or MODEL_QUALITY_FAILURE.",
+      "prompt": "Return exactly one JSON object with keys failure_class and permanent_ban. Review the SAFE CORRECTED BEHAVIOR, not what the buggy code currently does. The provider returned HTTP 503. The buggy code labels it a model-quality failure and permanently bans the model. Distinguish transient provider/server health from model quality. failure_class must be PROVIDER_SERVER_FAILURE or MODEL_QUALITY_FAILURE; permanent_ban must be boolean.",
       "evaluation": {
         "kind": "JSON_SUBSET",
         "expected": {
@@ -425,7 +425,7 @@
       "task_family": "review.cache",
       "complexity": "MODERATE",
       "structured_output": true,
-      "prompt": "Return JSON only. A result cache key contains prompt text and capability but omits policy_revision and dependency_revision. Return safe_reuse and missing_revision_binding.",
+      "prompt": "Return exactly one JSON object with keys safe_reuse and missing_revision_binding. Review the SAFE CORRECTED BEHAVIOR. A result-cache key includes prompt text and capability but omits policy_revision and dependency_revision. safe_reuse must be boolean. missing_revision_binding must also be boolean and indicate whether required revision bindings are missing from the cache key.",
       "evaluation": {
         "kind": "JSON_SUBSET",
         "expected": {

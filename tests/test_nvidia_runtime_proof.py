@@ -406,3 +406,54 @@ def test_runtime_proof_cli_requires_exact_sha_binding() -> None:
     )
     assert "NVIDIA_RUNTIME_REVISION_REQUIRED" in script
     assert "len(args.runtime_revision) != 40" in script
+
+
+def test_restricted_python_behavior_allows_safe_builtin_union_annotations() -> None:
+    item = {
+        "evaluation": {
+            "kind": "PYTHON_RESTRICTED_BEHAVIOR",
+            "function_name": "clamp_retry_after",
+            "cases": [
+                {"args": [-5], "expected": 0},
+                {"args": [45], "expected": 45},
+                {"args": [5000], "expected": 3600},
+                {"args": [12.5], "expected": 12.5},
+            ],
+        }
+    }
+    result = _result(
+        "def clamp_retry_after(seconds: int | float) -> int | float:\n"
+        "    return max(0, min(seconds, 3600))\n"
+    )
+    assert evaluate_probe_item(item, result).semantic_pass is True
+
+
+def test_restricted_python_behavior_rejects_executable_annotation_expression() -> None:
+    item = {
+        "evaluation": {
+            "kind": "PYTHON_RESTRICTED_BEHAVIOR",
+            "function_name": "clamp_retry_after",
+            "cases": [{"args": [2], "expected": 2}],
+        }
+    }
+    result = _result(
+        "def clamp_retry_after(seconds: dangerous()) -> int:\n"
+        "    return seconds\n"
+    )
+    evaluation = evaluate_probe_item(item, result)
+    assert evaluation.semantic_pass is False
+    assert evaluation.reason == "PYTHON_BEHAVIOR_ANNOTATION_UNSAFE"
+
+
+def test_code_review_prompts_request_safe_corrected_behavior_explicitly() -> None:
+    root = Path(__file__).resolve().parents[1]
+    corpus = load_probe_corpus(root / "config" / "nvidia-capability-eval-v2.json")
+    by_id = {row["id"]: row for row in corpus["items"]}
+    for item_id in ("cr-v2-001", "cr-v2-002", "cr-v2-004", "cr-v2-005"):
+        prompt = by_id[item_id]["prompt"].casefold()
+        assert "safe corrected behavior" in prompt
+
+    assert "aimd" in by_id["cr-v2-001"]["prompt"].casefold()
+    assert "same route" in by_id["cr-v2-002"]["prompt"].casefold()
+    assert "provider/server health" in by_id["cr-v2-004"]["prompt"].casefold()
+    assert "boolean" in by_id["cr-v2-005"]["prompt"].casefold()
