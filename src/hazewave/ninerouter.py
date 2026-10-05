@@ -261,7 +261,11 @@ def evaluate_9router_admission(
     )
 
 
-def _receipt_ranked_models(receipt: dict[str, Any]) -> list[str]:
+def _receipt_ranked_models(
+    receipt: dict[str, Any],
+    *,
+    capability_id: str = "reason.general",
+) -> list[str]:
     admitted = [
         str(item)
         for item in (receipt.get("execution_admitted_models") or [])
@@ -288,7 +292,15 @@ def _receipt_ranked_models(receipt: dict[str, Any]) -> list[str]:
             if isinstance(latency_ms, (int, float)) and latency_ms >= 0
             else 1_000_000_000
         )
-        ranked.append(((token_score, latency_score, model), model))
+        reasoning_penalty = 0
+        if capability_id == "reason.deep":
+            reasoning_penalty = 0 if proof.get("reasoning_observed") is True else 1
+        ranked.append(
+            (
+                (reasoning_penalty, token_score, latency_score, model),
+                model,
+            )
+        )
 
     ranked.sort(key=lambda item: item[0])
     return [model for _, model in ranked]
@@ -372,7 +384,10 @@ def rank_9router_models(
     if receipt is None:
         return []
 
-    ranked = _receipt_ranked_models(receipt)
+    ranked = _receipt_ranked_models(
+        receipt,
+        capability_id=authorization.capability_id,
+    )
     allowed: list[str] = []
     for model in ranked:
         decision = evaluate_9router_admission(
