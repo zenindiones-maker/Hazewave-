@@ -71,12 +71,16 @@ case "${1:-doctor}" in
     release="$(current_release)"
     exec bash "$release/scripts/hazewave_freellmapi_control.sh" "${2:-status}" "${3:-}"
     ;;
+  9router)
+    release="$(current_release)"
+    exec bash "$release/scripts/hazewave_9router_control.sh" "${2:-status}" "${3:-}"
+    ;;
   telegram)
     release="$(current_release)"
     exec bash "$release/scripts/hazewave_telegram_control.sh" "${2:-status}" "${3:-}"
     ;;
   *)
-    echo "usage: $0 {doctor|status|harness|sync|where|freellmapi [command]|telegram [command]}" >&2
+    echo "usage: $0 {doctor|status|harness|sync|where|freellmapi [command]|9router [command]|telegram [command]}" >&2
     exit 2
     ;;
 esac
