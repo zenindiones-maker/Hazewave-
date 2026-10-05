@@ -123,3 +123,16 @@ def test_9router_cli_auth_material_is_preseeded_before_server_and_probe() -> Non
     assert '"$CONTROL" ensure-auth' in probe
     assert '"$CONTROL" restart' in probe
     assert "HAZEWAVE_9ROUTER_CLI_AUTH_CREATED=1" in probe
+
+
+def test_9router_free_probe_separates_connectivity_from_execution_admission() -> None:
+    probe = (ROOT / "scripts" / "hazewave_9router_free_probe.sh").read_text(encoding="utf-8")
+
+    assert "MAX_PROBE_ATTEMPTS = 3" in probe
+    assert "max_tokens: 128" in probe
+    assert "reasoning_content" in probe
+    assert 'finish_reason === "length"' in probe
+    assert "HAZEWAVE_9ROUTER_FREE_CONNECTIVITY=PASS" in probe
+    assert "HAZEWAVE_9ROUTER_FREE_ATTEMPT=" in probe
+    assert "execution_admitted_models" in probe
+    assert "semantic_mismatch" in probe
