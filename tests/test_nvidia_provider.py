@@ -364,3 +364,14 @@ def test_model_compatibility_caps_output_and_strips_unproved_sampling_params() -
     assert payload["reasoning_budget"] < 4096
     assert "temperature" not in payload
     assert "top_p" not in payload
+
+
+def test_secret_loader_accepts_export_prefix(tmp_path: Path) -> None:
+    path = tmp_path / "nvidia.env"
+    path.write_text(
+        'export NVIDIA_API_KEY="nvapi-unit-test-secret"\n',
+        encoding="utf-8",
+    )
+    path.chmod(0o600)
+
+    assert load_nvidia_api_key(path) == "nvapi-unit-test-secret"
