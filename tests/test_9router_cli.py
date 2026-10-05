@@ -15,7 +15,8 @@ def test_cli_parses_governed_9router_execute_defaults() -> None:
 
     assert args.command == "9router"
     assert args.ninerouter_command == "execute"
-    assert args.model == "auto"\n    assert args.max_fallbacks == 3
+    assert args.model == "auto"
+    assert args.max_fallbacks == 3
     assert args.capability == "reason.general"
     assert args.domain == "HAZE"
     assert args.data_classification == "PUBLIC"
