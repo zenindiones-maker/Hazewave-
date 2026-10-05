@@ -256,6 +256,40 @@
         "evidence"
       ],
       "description": "Observed A15 runtime proof for the Hazewave-scoped FreeLLMAPI gateway, including exact runtime/provider SHAs, persistence installation state, live Harness-to-provider receipt, and remaining reboot-verification boundary."
+    },
+    {
+      "id": "adr-0006-governed-zero-cost-provider-fabric",
+      "path": "docs/architecture/decisions/ADR-0006-governed-zero-cost-provider-fabric.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "providers",
+        "harness",
+        "security",
+        "runtime",
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "description": "Records the Hazewave-governed zero-cost provider fabric, provider trust lanes, fail-closed cost policy and provider-qualified routing."
+    },
+    {
+      "id": "governed-free-fabric-design-v1",
+      "path": "docs/specs/2026-10-04-hazewave-governed-free-fabric-design.md",
+      "type": "EXPLANATION",
+      "authority": "EXPLANATORY",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "providers",
+        "harness",
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "description": "Approved design for expanding FreeLLMAPI capabilities under Hazewave-owned cost, privacy, rights and authority gates."
     }
   ]
 }
