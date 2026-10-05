@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 import sys
 
@@ -35,6 +36,7 @@ def main() -> int:
     )
     parser.add_argument("--receipt", default=str(DEFAULT_NVIDIA_PROOF_RECEIPT))
     parser.add_argument("--learning-state", default=str(DEFAULT_PROVIDER_LEARNING_PATH))
+    parser.add_argument("--diagnostic-failures", action="store_true")
     args = parser.parse_args()
 
     adapter = NvidiaNIMAdapter(
@@ -77,11 +79,27 @@ def main() -> int:
     if not smoke.successful:
         return 1
 
+    def emit_diagnostic(row):
+        print(
+            "NVIDIA_CAPABILITY_DIAGNOSTIC "
+            f"CAPABILITY={row['capability']} "
+            f"PROFILE={row['execution_profile']} "
+            f"PROVIDER_STATUS={row['provider_status']} "
+            f"FINISH_REASON={row['finish_reason']} "
+            f"ERROR_CLASS={row['error_class']} "
+            f"EVALUATION_REASON={row['evaluation_reason']} "
+            "CONTENT_JSON="
+            + json.dumps(row["content"], ensure_ascii=False)
+        )
+
     proof = run_nvidia_capability_probes(
         adapter=adapter,
         corpus=load_probe_corpus(args.corpus),
         learning_path=args.learning_state,
         receipt_path=args.receipt,
+        diagnostic_sink=(
+            emit_diagnostic if args.diagnostic_failures else None
+        ),
     )
     for row in proof["results"]:
         print(
