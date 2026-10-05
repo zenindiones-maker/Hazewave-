@@ -89,6 +89,80 @@ def evaluate_probe_item(
     evaluation = evaluation if isinstance(evaluation, dict) else {}
     kind = str(evaluation.get("kind") or "")
 
+    if kind == "RANKING_EQUIVALENT":
+        try:
+            actual = json.loads(result.content)
+        except (TypeError, json.JSONDecodeError):
+            return ProbeEvaluation(False, 0.0, "JSON_INVALID")
+        labels = [str(value) for value in evaluation.get("labels") or []]
+        if not labels:
+            return ProbeEvaluation(False, 0.0, "RANKING_LABELS_INVALID")
+
+        if isinstance(actual, dict) and isinstance(actual.get("order"), list):
+            observed_order = [str(value) for value in actual["order"]]
+        elif isinstance(actual, dict):
+            try:
+                ranks = {label: int(actual[label]) for label in labels}
+            except (KeyError, TypeError, ValueError):
+                return ProbeEvaluation(False, 0.0, "RANKING_SHAPE_INVALID")
+            if sorted(ranks.values()) != list(range(1, len(labels) + 1)):
+                return ProbeEvaluation(False, 0.0, "RANKING_VALUES_INVALID")
+            observed_order = [
+                label for label, _ in sorted(ranks.items(), key=lambda item: item[1])
+            ]
+        else:
+            return ProbeEvaluation(False, 0.0, "RANKING_SHAPE_INVALID")
+
+        passed = observed_order == labels
+        return ProbeEvaluation(
+            passed,
+            1.0 if passed else 0.0,
+            "PASS" if passed else "RANKING_MISMATCH",
+        )
+
+    if kind == "JSON_FIELD_SEMANTICS":
+        try:
+            actual = json.loads(result.content)
+        except (TypeError, json.JSONDecodeError):
+            return ProbeEvaluation(False, 0.0, "JSON_INVALID")
+        if not isinstance(actual, dict):
+            return ProbeEvaluation(False, 0.0, "JSON_OBJECT_REQUIRED")
+
+        fields = evaluation.get("fields")
+        fields = fields if isinstance(fields, dict) else {}
+        if not fields:
+            return ProbeEvaluation(False, 0.0, "JSON_FIELD_SEMANTICS_INVALID")
+
+        checks: list[bool] = []
+        for field, contract in fields.items():
+            if field not in actual or not isinstance(contract, dict):
+                checks.append(False)
+                continue
+            value = actual[field]
+            if "equals" in contract:
+                checks.append(value == contract["equals"])
+                continue
+            groups = contract.get("keyword_groups")
+            groups = groups if isinstance(groups, list) else []
+            if not isinstance(value, str) or not groups:
+                checks.append(False)
+                continue
+            folded = value.casefold()
+            field_pass = all(
+                isinstance(group, list)
+                and any(str(term).casefold() in folded for term in group)
+                for group in groups
+            )
+            checks.append(field_pass)
+
+        passed = bool(checks) and all(checks)
+        score = sum(1 for check in checks if check) / max(1, len(checks))
+        return ProbeEvaluation(
+            passed,
+            score,
+            "PASS" if passed else "JSON_FIELD_SEMANTICS_MISMATCH",
+        )
+
     if kind == "JSON_SUBSET":
         try:
             actual = json.loads(result.content)
