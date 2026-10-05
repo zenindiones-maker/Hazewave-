@@ -64,7 +64,7 @@
       "domain": "HAZE",
       "execution_profile": "FAST_STRUCTURED",
       "task_family": "haze.python.review",
-      "prompt": "Review this retry logic for HTTP 429: `def on_429(limit): return limit + 1`. Explain the defect and the safe correction. Mention how Retry-After should be handled.",
+      "prompt": "Review this retry logic for HTTP 429: `def on_429(limit): return limit + 1`. In at most 120 words, explain the defect, the safe concurrency correction, and how Retry-After should be handled.",
       "evaluation": {
         "kind": "KEYWORD_GROUPS",
         "groups": [
