@@ -80,3 +80,38 @@ def test_cli_executes_only_through_harness_authorization(monkeypatch, capsys) ->
     payload = json.loads(out.splitlines()[-1])
     assert payload["content"] == "governed answer"
     assert payload["zero_cost_verified"] is True
+
+
+def test_cli_parses_9router_efficiency_status() -> None:
+    from hazewave.cli import build_parser
+
+    args = build_parser().parse_args(["9router", "status"])
+
+    assert args.command == "9router"
+    assert args.ninerouter_command == "status"
+
+
+def test_cli_prints_9router_efficiency_status(monkeypatch, capsys) -> None:
+    import hazewave.cli as cli
+
+    monkeypatch.setattr(
+        cli,
+        "build_9router_efficiency_status",
+        lambda: {
+            "schema": "Hazewave9RouterEfficiencyStatus/v1",
+            "project_id": "HAZEWAVE",
+            "authority": "HAZEWAVE_HARNESS",
+            "receipt_present": True,
+            "admitted_model_count": 3,
+            "ranked_models": ["oc/mimo-v2.6-flash-free"],
+        },
+    )
+    monkeypatch.setattr(sys, "argv", ["hazewave", "9router", "status"])
+
+    rc = cli.main()
+    out = capsys.readouterr().out
+
+    assert rc == 0
+    payload = json.loads(out.splitlines()[-1])
+    assert payload["schema"] == "Hazewave9RouterEfficiencyStatus/v1"
+    assert payload["admitted_model_count"] == 3
