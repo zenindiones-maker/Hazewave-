@@ -239,3 +239,26 @@ def test_deep_reasoning_prefers_observed_reasoning_before_token_score() -> None:
     )
 
     assert ranked[0] == "oc/nemotron-3.5-lightning-free"
+
+
+def test_efficiency_policy_locks_safe_maximum_surface() -> None:
+    root = Path(__file__).resolve().parents[1]
+    policy = json.loads(
+        (root / "config" / "9router-efficiency-policy-v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert policy["schema"] == "Hazewave9RouterEfficiencyPolicy/v1"
+    assert policy["authority"] == "HAZEWAVE_HARNESS"
+    assert policy["gateway_authority"] == "NONE"
+    assert policy["security"]["minimum_fixed_version"] == "0.5.8"
+    assert policy["optimizer"]["receipt_ttl_hours"] == 24
+    assert policy["optimizer"]["benchmark_max_models"] == 16
+    assert policy["optimizer"]["execution_max_fallbacks"] == 3
+    assert policy["token_efficiency"]["rtk"] == "FORCE_ON_DURING_GOVERNED_EXECUTION"
+    assert policy["token_efficiency"]["headroom"] == "OFF_UNTIL_MANAGED_LOCAL_PROOF"
+    assert policy["routing"]["combos"] == "FORBIDDEN"
+    assert policy["routing"]["capacity_adapters"] == "FORBIDDEN"
+    assert policy["routing"]["paid_tiers"] == "FORBIDDEN"
+    assert policy["routing"]["unknown_cost"] == "DENY"
