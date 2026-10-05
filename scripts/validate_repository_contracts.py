@@ -244,8 +244,21 @@ def validate_freellmapi_provider_contract() -> None:
     for entry in eligibility.get("providers") or []:
         if "CREDENTIAL" in (entry.get("allowed_data_classes") or []):
             raise ValueError(f"HAZEWAVE_FREE_FABRIC_CREDENTIAL_EGRESS_ALLOWED:{entry.get('provider')}")
-        if entry.get("monetary_policy") != "ZERO_COST_VERIFIED" and entry.get("enabled") is True:
-            raise ValueError(f"HAZEWAVE_FREE_FABRIC_NONZERO_ROUTE_ENABLED:{entry.get('provider')}")
+        if entry.get("enabled") is True:
+            monetary = entry.get("monetary_policy")
+            billing = entry.get("billing_overflow_policy")
+            unconditional = (
+                monetary == "ZERO_COST_VERIFIED"
+                and billing == "HARD_STOP"
+            )
+            account_bound = (
+                monetary == "ZERO_COST_REQUIRES_ACCOUNT_HARD_CAP"
+                and billing == "ACCOUNT_ATTESTATION_REQUIRED"
+            )
+            if not (unconditional or account_bound):
+                raise ValueError(
+                    f"HAZEWAVE_FREE_FABRIC_NONZERO_ROUTE_ENABLED:{entry.get('provider')}"
+                )
 
 
 def validate_profile_migration() -> None:
