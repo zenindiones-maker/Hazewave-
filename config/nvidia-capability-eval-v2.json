@@ -28,14 +28,16 @@
       "task_family": "provider.failure.classification",
       "complexity": "SIMPLE",
       "structured_output": true,
-      "prompt": "Return JSON only with keys class and retry. A provider returned HTTP 403 because the route is not eligible for this account. Choose class AUTH_OR_ELIGIBILITY_FAILURE or TRANSIENT_CAPACITY and retry true/false.",
+      "prompt": "Return exactly one JSON object with exactly two keys: \"class\" and \"retry\". No prose and no additional keys. Scenario: HTTP 403 occurred because this account is not eligible for the requested route. \"class\" must be exactly AUTH_OR_ELIGIBILITY_FAILURE or TRANSIENT_CAPACITY. \"retry\" must be true or false.",
       "evaluation": {
         "kind": "JSON_SUBSET",
         "expected": {
           "class": "AUTH_OR_ELIGIBILITY_FAILURE",
           "retry": false
         }
-      }
+      },
+      "max_tokens": 128,
+      "request_timeout_seconds": 20
     },
     {
       "id": "rg-v2-003",
@@ -76,7 +78,7 @@
       "task_family": "fallback.control",
       "complexity": "MODERATE",
       "structured_output": true,
-      "prompt": "Return JSON only with bounded and revisit. A fallback chain has already attempted route NVIDIA/modelA and then 9router/modelB. Should execution have a bounded maximum attempt count, and may it revisit NVIDIA/modelA in the same task? bounded/revisit are booleans.",
+      "prompt": "Return exactly one JSON object with booleans \"bounded\" and \"revisit\". Execution uses a visited-route set specifically to prevent fallback cycles within the same task. NVIDIA/modelA is already in that visited-route set, followed by 9router/modelB. Decide whether the fallback chain must have a bounded maximum attempt count and whether NVIDIA/modelA may be selected again during this same task.",
       "evaluation": {
         "kind": "JSON_SUBSET",
         "expected": {
@@ -109,7 +111,7 @@
       "task_family": "durable.resume",
       "complexity": "HARD",
       "structured_output": true,
-      "prompt": "Return JSON only with replay_completed, resume_partial, and blind_retry. A durable mission has tasks A=COMPLETED, B=PARTIAL_FAILED after a transient provider outage, C=PENDING. On recovery, decide whether to replay completed A, resume B from durable progress, and blindly retry the whole mission.",
+      "prompt": "Return exactly one JSON object with booleans \"replay_completed\", \"resume_partial\", and \"blind_retry\". A durable mission has A=COMPLETED with its result already committed durably, B=PARTIAL_FAILED with durable partial progress after a transient provider outage, and C=PENDING. A completed committed task must not be invoked again. Decide whether execution should invoke A again, resume B from durable progress, and blindly retry the whole mission.",
       "evaluation": {
         "kind": "JSON_SUBSET",
         "expected": {

@@ -258,3 +258,142 @@ def test_code_review_contract_is_structured_and_requires_concurrency_decrease() 
     }
     options = probe_request_options(item)
     assert options["response_format"] == {"type": "json_object"}
+
+
+def test_runtime_proof_checkpoints_and_resumes_same_runtime_and_corpus(
+    tmp_path: Path,
+) -> None:
+    calls = []
+
+    class StubAdapter:
+        optimization_state_path = None
+
+        def execute(self, **kwargs):
+            prompt = kwargs["messages"][0]["content"]
+            calls.append(prompt)
+            return _result('{"ok":true}')
+
+    corpus = {
+        "schema": "HazewaveNvidiaCapabilityEvalCorpus/v2",
+        "project_id": "HAZEWAVE",
+        "authority": "HAZEWAVE_HARNESS",
+        "items": [
+            {
+                "id": "resume-1",
+                "capability": "reason.general",
+                "domain": "HAZE",
+                "execution_profile": "FAST_STRUCTURED",
+                "task_family": "resume.one",
+                "complexity": "SIMPLE",
+                "structured_output": True,
+                "prompt": "one",
+                "evaluation": {"kind": "JSON_SUBSET", "expected": {"ok": True}},
+            },
+            {
+                "id": "resume-2",
+                "capability": "reason.general",
+                "domain": "HAZE",
+                "execution_profile": "FAST_STRUCTURED",
+                "task_family": "resume.two",
+                "complexity": "SIMPLE",
+                "structured_output": True,
+                "prompt": "two",
+                "evaluation": {"kind": "JSON_SUBSET", "expected": {"ok": True}},
+            },
+        ],
+    }
+    receipt = tmp_path / "proof.json"
+    learning = tmp_path / "learning.json"
+
+    first = run_nvidia_capability_probes(
+        adapter=StubAdapter(),
+        corpus=corpus,
+        learning_path=learning,
+        receipt_path=receipt,
+        runtime_revision="runtime-a",
+        now="2026-10-05T16:00:00+00:00",
+    )
+    assert first["all_semantic_pass"] is True
+    assert first["executed_count"] == 2
+    assert first["resumed_pass_count"] == 0
+    assert calls == ["one", "two"]
+
+    calls.clear()
+    second = run_nvidia_capability_probes(
+        adapter=StubAdapter(),
+        corpus=corpus,
+        learning_path=learning,
+        receipt_path=receipt,
+        runtime_revision="runtime-a",
+        now="2026-10-05T16:01:00+00:00",
+    )
+    assert second["all_semantic_pass"] is True
+    assert second["executed_count"] == 0
+    assert second["resumed_pass_count"] == 2
+    assert calls == []
+
+
+def test_runtime_proof_does_not_resume_across_runtime_revision(tmp_path: Path) -> None:
+    calls = []
+
+    class StubAdapter:
+        optimization_state_path = None
+
+        def execute(self, **kwargs):
+            calls.append(kwargs["messages"][0]["content"])
+            return _result('{"ok":true}')
+
+    corpus = {
+        "schema": "HazewaveNvidiaCapabilityEvalCorpus/v2",
+        "project_id": "HAZEWAVE",
+        "authority": "HAZEWAVE_HARNESS",
+        "items": [{
+            "id": "rev-1",
+            "capability": "reason.general",
+            "domain": "HAZE",
+            "execution_profile": "FAST_STRUCTURED",
+            "task_family": "revision",
+            "complexity": "SIMPLE",
+            "structured_output": True,
+            "prompt": "revision",
+            "evaluation": {"kind": "JSON_SUBSET", "expected": {"ok": True}},
+        }],
+    }
+    receipt = tmp_path / "proof.json"
+    learning = tmp_path / "learning.json"
+
+    run_nvidia_capability_probes(
+        adapter=StubAdapter(),
+        corpus=corpus,
+        learning_path=learning,
+        receipt_path=receipt,
+        runtime_revision="runtime-a",
+    )
+    calls.clear()
+    second = run_nvidia_capability_probes(
+        adapter=StubAdapter(),
+        corpus=corpus,
+        learning_path=learning,
+        receipt_path=receipt,
+        runtime_revision="runtime-b",
+    )
+    assert second["executed_count"] == 1
+    assert second["resumed_pass_count"] == 0
+    assert calls == ["revision"]
+
+
+def test_v2_fast_structured_json_probe_has_short_bounded_output_and_timeout() -> None:
+    root = Path(__file__).resolve().parents[1]
+    corpus = load_probe_corpus(root / "config" / "nvidia-capability-eval-v2.json")
+    item = next(row for row in corpus["items"] if row["id"] == "rg-v2-002")
+    options = probe_request_options(item)
+    assert options["max_tokens"] <= 256
+    assert options["request_timeout_seconds"] <= 20
+
+
+def test_v2_contract_prompts_disambiguate_visited_route_and_durable_completion() -> None:
+    root = Path(__file__).resolve().parents[1]
+    corpus = load_probe_corpus(root / "config" / "nvidia-capability-eval-v2.json")
+    by_id = {row["id"]: row for row in corpus["items"]}
+    assert "visited-route set" in by_id["rg-v2-005"]["prompt"]
+    assert "must not be invoked again" in by_id["rd-v2-002"]["prompt"]

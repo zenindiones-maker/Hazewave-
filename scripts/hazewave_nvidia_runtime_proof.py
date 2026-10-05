@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -48,6 +49,10 @@ def main() -> int:
         default=str(DEFAULT_NVIDIA_PROOF_CAPACITY_STATE_PATH),
     )
     parser.add_argument("--diagnostic-failures", action="store_true")
+    parser.add_argument(
+        "--runtime-revision",
+        default=os.environ.get("HAZEWAVE_RUNTIME_REVISION", "UNRESOLVED"),
+    )
     args = parser.parse_args()
 
     adapter = NvidiaNIMAdapter(
@@ -112,7 +117,11 @@ def main() -> int:
         diagnostic_sink=(
             emit_diagnostic if args.diagnostic_failures else None
         ),
+        runtime_revision=args.runtime_revision,
     )
+    print("NVIDIA_PROOF_RUNTIME_REVISION=" + args.runtime_revision)
+    print("NVIDIA_PROOF_EXECUTED_COUNT=" + str(proof["executed_count"]))
+    print("NVIDIA_PROOF_RESUMED_PASS_COUNT=" + str(proof["resumed_pass_count"]))
     for row in proof["results"]:
         print(
             "NVIDIA_CAPABILITY_PROBE "

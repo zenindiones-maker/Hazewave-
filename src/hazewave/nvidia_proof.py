@@ -528,12 +528,24 @@ def probe_request_options(item: dict[str, Any]) -> dict[str, Any]:
             options["max_tokens"] = int(item.get("max_tokens") or 1024)
     elif profile == DEEP_HARD:
         options["max_tokens"] = int(item.get("max_tokens") or 8192)
+        options["request_timeout_seconds"] = float(
+            item.get("request_timeout_seconds") or 60
+        )
     elif profile == DEEP_MEDIUM:
         options["max_tokens"] = int(item.get("max_tokens") or 4096)
+        options["request_timeout_seconds"] = float(
+            item.get("request_timeout_seconds") or 45
+        )
     elif profile == FAST_CODE:
         options["max_tokens"] = int(item.get("max_tokens") or 2048)
+        options["request_timeout_seconds"] = float(
+            item.get("request_timeout_seconds") or 30
+        )
     else:
-        options["max_tokens"] = int(item.get("max_tokens") or 1024)
+        options["max_tokens"] = int(item.get("max_tokens") or 512)
+        options["request_timeout_seconds"] = float(
+            item.get("request_timeout_seconds") or 20
+        )
 
     if not is_v2 and profile == "DEEP_REASONING":
         budget = 2048
@@ -554,6 +566,79 @@ def probe_request_options(item: dict[str, Any]) -> dict[str, Any]:
     return options
 
 
+def _corpus_sha256(corpus: dict[str, Any]) -> str:
+    serialized = json.dumps(
+        corpus,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _resumable_probe_results(
+    *,
+    receipt_path: Path,
+    corpus_sha256: str,
+    runtime_revision: str,
+) -> dict[str, dict[str, Any]]:
+    if not receipt_path.is_file():
+        return {}
+    try:
+        payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if (
+        payload.get("schema") != "HazewaveNvidiaRuntimeProof/v2"
+        or payload.get("project_id") != "HAZEWAVE"
+        or payload.get("authority") != "HAZEWAVE_HARNESS"
+        or payload.get("model_id") != DEFAULT_NVIDIA_MODEL
+        or payload.get("corpus_sha256") != corpus_sha256
+        or payload.get("runtime_revision") != runtime_revision
+    ):
+        return {}
+    results = payload.get("results")
+    if not isinstance(results, list):
+        return {}
+    return {
+        str(row.get("task_id")): row
+        for row in results
+        if isinstance(row, dict)
+        and row.get("semantic_pass") is True
+        and str(row.get("task_id") or "")
+    }
+
+
+def _runtime_proof_payload(
+    *,
+    results: list[dict[str, Any]],
+    corpus_sha256: str,
+    runtime_revision: str,
+    total_items: int,
+    executed_count: int,
+    resumed_pass_count: int,
+) -> dict[str, Any]:
+    complete = len(results) == total_items
+    return {
+        "schema": "HazewaveNvidiaRuntimeProof/v2",
+        "project_id": "HAZEWAVE",
+        "authority": "HAZEWAVE_HARNESS",
+        "provider": "nvidia",
+        "model_id": DEFAULT_NVIDIA_MODEL,
+        "runtime_revision": runtime_revision,
+        "corpus_sha256": corpus_sha256,
+        "results": results,
+        "completed_item_count": len(results),
+        "total_item_count": total_items,
+        "executed_count": executed_count,
+        "resumed_pass_count": resumed_pass_count,
+        "complete": complete,
+        "all_semantic_pass": complete and bool(results) and all(
+            row.get("semantic_pass") is True for row in results
+        ),
+    }
+
+
 def run_nvidia_capability_probes(
     *,
     adapter: NvidiaNIMAdapter,
@@ -562,11 +647,30 @@ def run_nvidia_capability_probes(
     receipt_path: Path | str = DEFAULT_NVIDIA_PROOF_RECEIPT,
     now: str | None = None,
     diagnostic_sink: Any | None = None,
+    runtime_revision: str | None = None,
 ) -> dict[str, Any]:
+    receipt_target = Path(receipt_path).expanduser()
+    runtime_binding = str(runtime_revision or "UNBOUND")
+    corpus_digest = _corpus_sha256(corpus)
+    items = list(corpus.get("items") or [])
+    prior_passes = _resumable_probe_results(
+        receipt_path=receipt_target,
+        corpus_sha256=corpus_digest,
+        runtime_revision=runtime_binding,
+    )
     results: list[dict[str, Any]] = []
+    executed_count = 0
+    resumed_pass_count = 0
     domain_map = {"HAZE": HAZE, "WAVE": WAVE, "BRIDGE": BRIDGE}
 
-    for item in corpus.get("items") or []:
+    for item in items:
+        task_id = str(item["id"])
+        resumed = prior_passes.get(task_id)
+        if resumed is not None:
+            results.append(resumed)
+            resumed_pass_count += 1
+            continue
+        executed_count += 1
         capability = str(item["capability"])
         profile = resolve_probe_profile(item)
         domain = domain_map[str(item.get("domain") or "HAZE")]
@@ -653,17 +757,23 @@ def run_nvidia_capability_probes(
         ).hexdigest()
         receipt["evaluation_reason"] = evaluation.reason
         results.append(receipt)
+        checkpoint = _runtime_proof_payload(
+            results=results,
+            corpus_sha256=corpus_digest,
+            runtime_revision=runtime_binding,
+            total_items=len(items),
+            executed_count=executed_count,
+            resumed_pass_count=resumed_pass_count,
+        )
+        _write_private_json(receipt_target, checkpoint)
 
-    payload = {
-        "schema": "HazewaveNvidiaRuntimeProof/v1",
-        "project_id": "HAZEWAVE",
-        "authority": "HAZEWAVE_HARNESS",
-        "provider": "nvidia",
-        "model_id": DEFAULT_NVIDIA_MODEL,
-        "results": results,
-        "all_semantic_pass": bool(results) and all(
-            row.get("semantic_pass") is True for row in results
-        ),
-    }
-    _write_private_json(Path(receipt_path).expanduser(), payload)
+    payload = _runtime_proof_payload(
+        results=results,
+        corpus_sha256=corpus_digest,
+        runtime_revision=runtime_binding,
+        total_items=len(items),
+        executed_count=executed_count,
+        resumed_pass_count=resumed_pass_count,
+    )
+    _write_private_json(receipt_target, payload)
     return payload
