@@ -113,9 +113,9 @@ No Termux:
 bash scripts/hazewave_termux_control.sh doctor
 ```
 
-## FreeLLMAPI — provider gateway opcional
+## FreeLLMAPI — Governed Free Fabric
 
-Hazewave integra FreeLLMAPI como **gateway subordinado de inferência**, não como autoridade do projeto.
+Hazewave integra FreeLLMAPI como **gateway subordinado de inferência**, nunca como autoridade do projeto.
 
 Baseline aceito:
 
@@ -124,29 +124,82 @@ Baseline aceito:
 - commit exato: `716948f20b12ec1c9b7c6fcebd22a3e7233cda1b`;
 - endpoint local: `http://127.0.0.1:3001/v1`.
 
-A integração inicial é somente para texto `PUBLIC` ou `INTERNAL_NON_SECRET`. `PRIVATE_MEDIA` e `CREDENTIAL` falham fechado antes de qualquer egress para providers externos.
+A autoridade permanece:
 
-O runtime fica fora do source tree em namespaces próprios do Hazewave:
-
-`~/.local/share/hazewave/providers/freellmapi/`
-
-`~/.local/state/hazewave/providers/freellmapi/`
-
-`~/.config/hazewave/providers/freellmapi/`
-
-Instalação e operação:
-
-```bash
-bash scripts/install_hazewave_freellmapi_termux.sh
-bash scripts/hazewave_freellmapi_control.sh start
-bash scripts/hazewave_freellmapi_control.sh doctor
+```text
+HAZEWAVE_HARNESS=AUTHORITY
+FREELLMAPI=AUTHORITY_NONE
 ```
 
-FreeLLMAPI permanece `authority=NONE`; Hazewave Harness continua sendo a autoridade project-local. O upstream também declara explicitamente que os free tiers são para experimentação/aprendizado, não um substrate de produção estável.
+O Governed Free Fabric adiciona uma camada Hazewave de elegibilidade antes de qualquer egress para provider:
 
-Arquitetura: `docs/architecture/decisions/ADR-0005-freellmapi-provider-gateway.md`
+```text
+Harness authorization
+→ capability/domain
+→ data classification
+→ zero-cost policy
+→ provider trust lane
+→ explicit provider-qualified model
+→ FreeLLMAPI
+```
 
-Runbook: `docs/runbooks/FREELLMAPI_PROVIDER_V1.md`
+Invariantes:
+
+```text
+PAID_FALLBACK=FORBIDDEN
+UNKNOWN_COST=DENY
+CREDENTIAL_EGRESS=DENY
+PRIVATE_MEDIA_DEFAULT_EGRESS=DENY
+UNREVIEWED_PROVIDER=QUARANTINED
+```
+
+Superfícies implementadas, quando existe provider gratuito elegível e configurado:
+
+- chat e streaming;
+- OpenAI Responses;
+- legacy completions;
+- Anthropic Messages;
+- Gemini `/v1beta`;
+- Ollama `/api/chat`;
+- tool-call proposal transport;
+- vision;
+- embeddings;
+- image generation;
+- video generation;
+- TTS;
+- transcription;
+- Fusion governado;
+- cache/compression/session hints;
+- MCP read-only para observabilidade.
+
+Governed calls não usam `model=auto` irrestrito. Hazewave seleciona um provider/model explicitamente elegível e verifica a rota retornada.
+
+O registry de política é:
+
+`config/freellmapi-provider-eligibility-v1.json`
+
+Private media continua local por padrão. Egress remoto exige `HazewaveMediaEgressGrant/v1` bound à task/asset/provider/modality.
+
+Operação:
+
+```bash
+hazewave freellmapi inventory
+hazewave freellmapi eligible
+hazewave freellmapi health
+hazewave freellmapi quota
+hazewave freellmapi probe
+hazewave freellmapi probe-all
+```
+
+`probe-all` é deliberadamente quota-conservador: executa um único live text proof e reporta elegibilidade das demais superfícies sem consumir quotas gratuitas de imagem/vídeo/áudio.
+
+Arquitetura normativa:
+
+- `docs/architecture/decisions/ADR-0006-governed-zero-cost-provider-fabric.md`;
+- `docs/reference/HAZEWAVE_FREE_FABRIC_V1.md`;
+- `docs/runbooks/FREELLMAPI_PROVIDER_V1.md`.
+
+O código upstream continua pinado e application update checking continua desligado. O catálogo assinado do FreeLLMAPI pode ser usado como descoberta, mas **catálogo não concede elegibilidade Hazewave**.
 
 ## ACE-Step 1.5 — geração instrumental
 
