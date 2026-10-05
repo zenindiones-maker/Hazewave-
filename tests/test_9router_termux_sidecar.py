@@ -60,3 +60,13 @@ def test_9router_termux_runtime_reconciles_real_server_pid_without_tray_or_gener
     assert "setsid" not in control
     assert "discover_owned_server_pids" in control
     assert "HAZEWAVE_9ROUTER_PID_RECONCILED" in control
+
+
+def test_9router_sqlite_bootstrap_runs_for_existing_pinned_release() -> None:
+    installer = INSTALLER.read_text(encoding="utf-8")
+
+    assert "bootstrap_sqlite_runtime()" in installer
+    assert installer.index("bootstrap_sqlite_runtime") < installer.rindex("bootstrap_sqlite_runtime")
+    assert installer.rindex("bootstrap_sqlite_runtime") > installer.index(
+        'test -x "$RELEASE_DIR/node_modules/.bin/9router"'
+    )
