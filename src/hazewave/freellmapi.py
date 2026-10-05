@@ -959,7 +959,7 @@ class FreeLLMAPIClient:
 
         try:
             response = self._client.post(
-                f"/v1beta/models/{candidate.qualified_model_id}:generateContent",
+                f"{self.origin}/v1beta/models/{candidate.qualified_model_id}:generateContent",
                 json=payload,
             )
             response.raise_for_status()
@@ -1038,7 +1038,7 @@ class FreeLLMAPIClient:
             payload["format"] = response_format
 
         try:
-            response = self._client.post("/api/chat", json=payload)
+            response = self._client.post(f"{self.origin}/api/chat", json=payload)
             response.raise_for_status()
             raw = response.json()
         except (httpx.HTTPError, ValueError) as exc:
@@ -1104,7 +1104,7 @@ class FreeLLMAPIClient:
             },
         }
         try:
-            response = self._client.post("/mcp", json=payload)
+            response = self._client.post(f"{self.origin}/mcp", json=payload)
             response.raise_for_status()
             raw = response.json()
         except (httpx.HTTPError, ValueError) as exc:
