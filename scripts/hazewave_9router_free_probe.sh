@@ -39,6 +39,7 @@ fi
 
 RELEASE="$(readlink -f "$CURRENT")"
 UPSTREAM_COMMIT="$(cat "$RELEASE/UPSTREAM_COMMIT")"
+ZERO_COST_REGISTRY="$(dirname "$(dirname "$CONTROL")")/config/opencode-zero-cost-registry-v1.json"
 mkdir -p "$STATE_ROOT"
 chmod 700 "$STATE_ROOT"
 
@@ -48,6 +49,7 @@ HAZEWAVE_9ROUTER_MODE="$MODE" \
 HAZEWAVE_9ROUTER_RELEASE="$RELEASE" \
 HAZEWAVE_9ROUTER_RECEIPT="$RECEIPT" \
 HAZEWAVE_9ROUTER_UPSTREAM_COMMIT="$UPSTREAM_COMMIT" \
+HAZEWAVE_9ROUTER_ZERO_COST_REGISTRY="$ZERO_COST_REGISTRY" \
 node <<'NODE'
 const fs = require("fs");
 const crypto = require("crypto");
@@ -55,6 +57,7 @@ const crypto = require("crypto");
 const mode = process.env.HAZEWAVE_9ROUTER_MODE;
 const receiptPath = process.env.HAZEWAVE_9ROUTER_RECEIPT;
 const upstreamCommit = process.env.HAZEWAVE_9ROUTER_UPSTREAM_COMMIT;
+const zeroCostRegistryPath = process.env.HAZEWAVE_9ROUTER_ZERO_COST_REGISTRY;
 const DATA_DIR = process.env.DATA_DIR || (process.env.HOME + "/.9router");
 const MACHINE_ID_FILE = DATA_DIR + "/machine-id";
 const CLI_SECRET_FILE = DATA_DIR + "/auth/cli-secret";
@@ -88,6 +91,38 @@ function isFreeModel(id) {
     typeof id === "string" &&
     !DEAD_FREE.has(id) &&
     (id.endsWith("-free") || KNOWN_FREE.has(id))
+  );
+}
+
+function loadZeroCostRegistry() {
+  if (!zeroCostRegistryPath) throw new Error("zero_cost_registry_path_missing");
+  const payload = JSON.parse(fs.readFileSync(zeroCostRegistryPath, "utf8"));
+  if (
+    payload?.schema !== "HazewaveOpenCodeZeroCostRegistry/v1" ||
+    payload?.project_id !== "HAZEWAVE" ||
+    payload?.authority !== "HAZEWAVE_HARNESS" ||
+    payload?.paid !== "DENY" ||
+    payload?.unknown !== "DENY" ||
+    typeof payload?.verified_free !== "object"
+  ) {
+    throw new Error("zero_cost_registry_invalid");
+  }
+  return payload;
+}
+
+function zeroCostVerifiedModelIds(registry) {
+  const allowedClasses = new Set([
+    "FREE_UNMETERED_OR_DYNAMIC",
+    "FREE_QUOTA",
+  ]);
+  return new Set(
+    Object.entries(registry.verified_free || {})
+      .filter(([, row]) =>
+        row &&
+        allowedClasses.has(String(row.capacity_class || "")) &&
+        row.hazewave_chat_candidate !== false
+      )
+      .map(([id]) => id)
   );
 }
 
@@ -363,12 +398,21 @@ function rankAdmitted(modelProofs) {
 }
 
 async function main() {
+  const zeroCostRegistry = loadZeroCostRegistry();
+  const verifiedFree = zeroCostVerifiedModelIds(zeroCostRegistry);
   const freeModels = await fetchFreeCatalog();
-  const qualified = freeModels.map((id) => `oc/${id}`);
+  const qualified = freeModels.map((id) => "oc/" + id);
+  const verifiedCatalogModels = freeModels.filter((id) => verifiedFree.has(id));
 
   console.log("OPENCODE_FREE_CATALOG=PASS");
-  console.log(`OPENCODE_FREE_MODEL_COUNT=${qualified.length}`);
-  for (const id of qualified) console.log(`MODEL=${id}`);
+  console.log("OPENCODE_FREE_MODEL_COUNT=" + qualified.length);
+  console.log("OPENCODE_ZERO_COST_VERIFIED_MODEL_COUNT=" + verifiedCatalogModels.length);
+  for (const id of qualified) {
+    console.log(
+      "MODEL=" + id + " ZERO_COST_VERIFIED=" +
+      (verifiedFree.has(id.replace(/^oc\//, "")) ? "true" : "false")
+    );
+  }
   if (mode === "catalog") return;
 
   const original = await settingsRequest("GET");
@@ -381,9 +425,12 @@ async function main() {
   }
 
   const ordered = [
-    ...PREFERRED_PROBE_MODELS.filter((id) => freeModels.includes(id)),
-    ...freeModels.filter((id) => !PREFERRED_PROBE_MODELS.includes(id)),
+    ...PREFERRED_PROBE_MODELS.filter((id) => verifiedCatalogModels.includes(id)),
+    ...verifiedCatalogModels.filter((id) => !PREFERRED_PROBE_MODELS.includes(id)),
   ].filter(isFreeModel);
+  if (!ordered.length) {
+    throw new Error("no_zero_cost_verified_models_in_live_catalog");
+  }
   const candidates = mode === "optimize"
     ? ordered.slice(0, OPTIMIZE_MAX_MODELS)
     : ordered.slice(0, MAX_PROBE_ATTEMPTS);
@@ -473,9 +520,35 @@ async function main() {
   const bestModel = admitted[0];
   const bestProof = modelProofs[bestModel];
 
+  const modelLifecycle = {};
+  for (const qualifiedModel of qualified) {
+    const id = qualifiedModel.replace(/^oc\//, "");
+    const registryRow = zeroCostRegistry.verified_free?.[id] || null;
+    const zeroCostVerified = Boolean(registryRow && verifiedFree.has(id));
+    const proof = modelProofs[qualifiedModel];
+    const benchmarked = Boolean(proof && proof.status === "semantic_pass");
+    let stage = "DISCOVERED";
+    if (zeroCostVerified) stage = "ZERO_COST_VERIFIED";
+    if (benchmarked) stage = "CAPABILITY_BENCHMARKED";
+    if (admitted.includes(qualifiedModel)) stage = "ADMITTED";
+    modelLifecycle[qualifiedModel] = {
+      stage,
+      zero_cost_verified: zeroCostVerified,
+      capacity_class: registryRow?.capacity_class || "UNKNOWN",
+      native_endpoint_family: registryRow?.native_endpoint_family || "UNKNOWN",
+      compatibility: benchmarked ? {
+        hazewave_chat_execution_compatible: true,
+        tool_support: true,
+        reasoning_effort_values: [],
+        temperature_supported: false,
+        max_output_tokens: 4096,
+      } : null,
+    };
+  }
+
   const receipt = {
     schema: mode === "optimize"
-      ? "Hazewave9RouterFreeAdmissionReceipt/v2"
+      ? "Hazewave9RouterFreeAdmissionReceipt/v3"
       : "Hazewave9RouterFreeAdmissionReceipt/v1",
     project_id: "HAZEWAVE",
     authority: "HAZEWAVE_HARNESS",
@@ -500,6 +573,12 @@ async function main() {
     execution_admitted_models: mode === "optimize" ? admitted : [bestModel],
     ...(mode === "optimize" ? {
       model_proofs: modelProofs,
+      model_lifecycle: modelLifecycle,
+      zero_cost_registry: {
+        schema: zeroCostRegistry.schema,
+        observed_at: zeroCostRegistry.observed_at || null,
+        pricing_url: zeroCostRegistry.source?.pricing_url || null,
+      },
       optimization_policy: {
         stream: false,
         rtk_enabled: true,
