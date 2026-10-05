@@ -75,6 +75,13 @@ const PREFERRED_PROBE_MODELS = [
 const MAX_PROBE_ATTEMPTS = 3;
 const OPTIMIZE_MAX_MODELS = 16;
 const OPTIMIZE_SAMPLE_COUNT = 3;
+const MIN_SEMANTIC_SUCCESSES = 2;
+const NON_RETRYABLE_SAMPLE_STATUSES = new Set([
+  "http_400",
+  "http_401",
+  "http_403",
+  "http_429",
+]);
 
 function isFreeModel(id) {
   return (
@@ -279,7 +286,8 @@ function median(values) {
 
 function summarizeSamples(samples) {
   const successful = samples.filter((sample) => sample?.status === "semantic_pass");
-  const successRate = samples.length ? successful.length / samples.length : 0;
+  const semanticSuccessCount = successful.length;
+  const successRate = samples.length ? semanticSuccessCount / samples.length : 0;
   const medianLatency = median(successful.map((sample) => sample?.latency_ms));
   const medianPrompt = median(successful.map((sample) => sample?.usage?.prompt_tokens));
   const medianCompletion = median(successful.map((sample) => sample?.usage?.completion_tokens));
@@ -292,12 +300,15 @@ function summarizeSamples(samples) {
           Math.max(0.25, successRate) ** 2
         )
       : null;
-  const representative = successful[0] || samples[0] || {};
+  const semanticAdmissionPassed =
+    mode === "optimize"
+      ? semanticSuccessCount >= MIN_SEMANTIC_SUCCESSES
+      : semanticSuccessCount >= 1;
 
   return {
-    status: successful.length >= Math.ceil(samples.length / 2)
+    status: semanticAdmissionPassed
       ? "semantic_pass"
-      : String(representative?.status || "no_samples"),
+      : "insufficient_semantic_success",
     latency_ms: medianLatency,
     usage: {
       prompt_tokens: medianPrompt,
@@ -316,7 +327,7 @@ function summarizeSamples(samples) {
     benchmark_samples: samples,
     metrics: {
       sample_count: samples.length,
-      semantic_success_count: successful.length,
+      semantic_success_count: semanticSuccessCount,
       semantic_success_rate: successRate,
       median_latency_ms: medianLatency,
       median_prompt_tokens: medianPrompt,
@@ -420,6 +431,12 @@ async function main() {
         );
         if (proof.status === "semantic_pass") {
           console.log("HAZEWAVE_9ROUTER_FREE_CONNECTIVITY=PASS");
+        }
+        if (NON_RETRYABLE_SAMPLE_STATUSES.has(proof.status)) {
+          console.log(
+            `HAZEWAVE_9ROUTER_FREE_EARLY_STOP MODEL=${qualifiedModel} STATUS=${proof.status}`
+          );
+          break;
         }
       }
 
