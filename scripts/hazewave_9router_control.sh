@@ -85,6 +85,40 @@ adopt_legacy_pid_file() {
   echo "HAZEWAVE_9ROUTER_OWNERSHIP=PASS"
 }
 
+ensure_cli_auth_material() {
+  local data_dir auth_dir machine_file secret_file created machine_tmp secret_tmp
+  data_dir="$RUNTIME_HOME/.9router"
+  auth_dir="$data_dir/auth"
+  machine_file="$data_dir/machine-id"
+  secret_file="$auth_dir/cli-secret"
+  created=0
+
+  mkdir -p "$auth_dir"
+  chmod 700 "$data_dir" "$auth_dir"
+
+  if ! test -s "$machine_file"; then
+    machine_tmp="$machine_file.tmp.$"
+    umask 077
+    node -e 'process.stdout.write(require("crypto").randomUUID())' > "$machine_tmp"
+    chmod 600 "$machine_tmp"
+    mv "$machine_tmp" "$machine_file"
+    created=1
+  fi
+
+  if ! test -s "$secret_file"; then
+    secret_tmp="$secret_file.tmp.$"
+    umask 077
+    node -e 'process.stdout.write(require("crypto").randomBytes(32).toString("hex"))' > "$secret_tmp"
+    chmod 600 "$secret_tmp"
+    mv "$secret_tmp" "$secret_file"
+    created=1
+  fi
+
+  chmod 600 "$machine_file" "$secret_file"
+  echo "HAZEWAVE_9ROUTER_CLI_AUTH_MATERIAL=READY"
+  echo "HAZEWAVE_9ROUTER_CLI_AUTH_CREATED=$created"
+}
+
 probe() {
   node - "$PORT" <<'NODE'
 const port = process.argv[2];
@@ -126,6 +160,7 @@ start_runtime() {
   fi
 
   rm -f "$PID_FILE"
+  ensure_cli_auth_material >/dev/null
   entry="$(server_entry)"
   runtime_node_path="$RUNTIME_HOME/.9router/runtime/node_modules"
 
@@ -231,6 +266,9 @@ case "${1:-status}" in
   doctor)
     doctor_runtime
     ;;
+  ensure-auth)
+    ensure_cli_auth_material
+    ;;
   catalog)
     exec bash "$SCRIPT_DIR/hazewave_9router_free_probe.sh" catalog
     ;;
@@ -241,7 +279,7 @@ case "${1:-status}" in
     tail -n "${2:-100}" "$LOG_FILE"
     ;;
   *)
-    echo "usage: $0 {install|start|stop|restart|status|doctor|catalog|probe-free|logs [lines]}" >&2
+    echo "usage: $0 {install|start|stop|restart|status|doctor|ensure-auth|catalog|probe-free|logs [lines]}" >&2
     exit 2
     ;;
 esac
