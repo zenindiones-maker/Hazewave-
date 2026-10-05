@@ -922,6 +922,202 @@ class FreeLLMAPIClient:
             raise FreeLLMAPIError("FREELLMAPI_ZERO_COST_POOL_UNAVAILABLE")
         return eligible[0]
 
+    def governed_gemini_generate_content(
+        self,
+        *,
+        contents: Iterable[dict[str, Any]],
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        catalog: FreeLLMAPILocalCatalog | None = None,
+        registry: dict[str, Any] | None = None,
+        system_instruction: dict[str, Any] | None = None,
+        generation_config: dict[str, Any] | None = None,
+        tools: Iterable[dict[str, Any]] | None = None,
+    ) -> FreeLLMAPIProviderResult:
+        """Use FreeLLMAPI's native Gemini wire without surrendering routing policy."""
+
+        candidate, decision = self._select_compat_candidate(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            catalog=catalog,
+            registry=registry,
+        )
+        rows = list(contents)
+        if not rows:
+            raise FreeLLMAPIError("FREELLMAPI_GEMINI_CONTENTS_REQUIRED")
+        payload: dict[str, Any] = {"contents": rows}
+        if system_instruction is not None:
+            payload["systemInstruction"] = dict(system_instruction)
+        if generation_config is not None:
+            payload["generationConfig"] = dict(generation_config)
+        if tools is not None:
+            payload["tools"] = list(tools)
+
+        try:
+            response = self._client.post(
+                f"/v1beta/models/{candidate.qualified_model_id}:generateContent",
+                json=payload,
+            )
+            response.raise_for_status()
+            raw = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise FreeLLMAPIError(
+                f"FREELLMAPI_GEMINI_REQUEST_FAILED:{type(exc).__name__}"
+            ) from exc
+        if not isinstance(raw, dict):
+            raise FreeLLMAPIError("FREELLMAPI_GEMINI_RESPONSE_INVALID")
+        routed_via = response.headers.get("X-Routed-Via") or None
+        self._assert_routed_provider(routed_via, candidate.provider)
+        receipt = self._receipt_base(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            provider=candidate.provider,
+            requested_model=candidate.qualified_model_id,
+            trust_lane=decision.trust_lane,
+            input_value=payload,
+            output_value=raw,
+        )
+        receipt.update(
+            {
+                "routed_via": routed_via,
+                "wire_surface": "GEMINI_V1BETA",
+                "usage": (
+                    dict(raw.get("usageMetadata") or {})
+                    if isinstance(raw.get("usageMetadata"), dict)
+                    else {}
+                ),
+            }
+        )
+        return FreeLLMAPIProviderResult(
+            raw=raw,
+            content_type=response.headers.get("Content-Type"),
+            receipt=receipt,
+        )
+
+    def governed_ollama_chat(
+        self,
+        *,
+        messages: Iterable[dict[str, Any]],
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        catalog: FreeLLMAPILocalCatalog | None = None,
+        registry: dict[str, Any] | None = None,
+        tools: Iterable[dict[str, Any]] | None = None,
+        options: dict[str, Any] | None = None,
+        response_format: str | dict[str, Any] | None = None,
+    ) -> FreeLLMAPIProviderResult:
+        """Use the Ollama-compatible loopback surface with an explicit eligible model."""
+
+        candidate, decision = self._select_compat_candidate(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            catalog=catalog,
+            registry=registry,
+        )
+        rows = _validate_messages(messages)
+        payload: dict[str, Any] = {
+            "model": candidate.qualified_model_id,
+            "messages": rows,
+            "stream": False,
+        }
+        if tools is not None:
+            payload["tools"] = list(tools)
+        if options is not None:
+            payload["options"] = dict(options)
+        if response_format is not None:
+            payload["format"] = response_format
+
+        try:
+            response = self._client.post("/api/chat", json=payload)
+            response.raise_for_status()
+            raw = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise FreeLLMAPIError(
+                f"FREELLMAPI_OLLAMA_REQUEST_FAILED:{type(exc).__name__}"
+            ) from exc
+        if not isinstance(raw, dict):
+            raise FreeLLMAPIError("FREELLMAPI_OLLAMA_RESPONSE_INVALID")
+        routed_via = response.headers.get("X-Routed-Via") or None
+        self._assert_routed_provider(routed_via, candidate.provider)
+        receipt = self._receipt_base(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            provider=candidate.provider,
+            requested_model=candidate.qualified_model_id,
+            trust_lane=decision.trust_lane,
+            input_value=rows,
+            output_value=raw,
+        )
+        receipt.update({"routed_via": routed_via, "wire_surface": "OLLAMA_API"})
+        return FreeLLMAPIProviderResult(
+            raw=raw,
+            content_type=response.headers.get("Content-Type"),
+            receipt=receipt,
+        )
+
+    def mcp_readonly(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Call only FreeLLMAPI MCP observability tools.
+
+        Inference and state mutation are deliberately excluded: model execution
+        stays behind Hazewave authorization and routing policy, while routing
+        mutations remain project-governed.
+        """
+
+        allowed = frozenset(
+            {
+                "healthcheck",
+                "list_models",
+                "provider_health",
+                "usage_summary",
+                "routing_info",
+                "cache_stats",
+                "compression_stats",
+            }
+        )
+        name = str(tool_name or "").strip()
+        if name not in allowed:
+            raise FreeLLMAPIError("FREELLMAPI_MCP_TOOL_NOT_ALLOWED")
+
+        payload = {
+            "jsonrpc": "2.0",
+            "id": "hazewave-observe-1",
+            "method": "tools/call",
+            "params": {
+                "name": name,
+                "arguments": dict(arguments or {}),
+            },
+        }
+        try:
+            response = self._client.post("/mcp", json=payload)
+            response.raise_for_status()
+            raw = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise FreeLLMAPIError(
+                f"FREELLMAPI_MCP_REQUEST_FAILED:{type(exc).__name__}"
+            ) from exc
+        if not isinstance(raw, dict):
+            raise FreeLLMAPIError("FREELLMAPI_MCP_RESPONSE_INVALID")
+        if isinstance(raw.get("error"), dict):
+            message = str(raw["error"].get("message") or "unknown")
+            raise FreeLLMAPIError(f"FREELLMAPI_MCP_ERROR:{message}")
+        return raw
+
     def governed_responses(
         self,
         *,
