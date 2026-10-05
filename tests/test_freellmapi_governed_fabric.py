@@ -268,12 +268,35 @@ def test_public_keyless_route_is_allowed_when_capability_and_modality_match() ->
 def test_model_pattern_prevents_paid_openrouter_model_from_becoming_eligible() -> None:
     from hazewave.provider_policy import evaluate_provider_eligibility
 
+    attestations = {
+        "schema": "HazewaveProviderAccountAttestationStore/v1",
+        "project_id": "HAZEWAVE",
+        "authority": "HAZEWAVE_HARNESS",
+        "provider_gateway": "FREELLMAPI",
+        "attestations": [
+            {
+                "attestation_id": "openrouter-free-key-7",
+                "provider": "openrouter",
+                "credential_id": 7,
+                "account_tier": "FREE",
+                "paid_billing_enabled": False,
+                "billing_overflow_policy": "HARD_STOP",
+                "evidence_method": "HUMAN_VERIFIED_PROVIDER_ACCOUNT",
+                "issued_at": "2026-10-05T00:00:00+00:00",
+                "expires_at": "2099-01-01T00:00:00+00:00",
+                "source_evidence": ["test://openrouter-free-account"],
+            }
+        ],
+    }
+
     paid = evaluate_provider_eligibility(
         provider="openrouter",
         model_id="anthropic/claude-sonnet",
         capability_id="reason.general",
         modality="text",
         data_classification="PUBLIC",
+        credential_ids=(7,),
+        attestations=attestations,
     )
     free = evaluate_provider_eligibility(
         provider="openrouter",
@@ -281,6 +304,9 @@ def test_model_pattern_prevents_paid_openrouter_model_from_becoming_eligible() -
         capability_id="reason.general",
         modality="text",
         data_classification="PUBLIC",
+        credential_ids=(7,),
+        attestations=attestations,
+        now="2026-10-05T12:00:00+00:00",
     )
 
     assert paid.allowed is False
