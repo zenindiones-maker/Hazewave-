@@ -251,7 +251,7 @@ PYTHONPATH=src python -m hazewave.cli 9router execute \
   --messages-file /path/to/public-messages.json
 ```
 
-O optimizer benchmarka no máximo 16 modelos e admite apenas os que devolverem prova semântica. Para `reason.general` e código, o ranking prioriza **menor total de tokens → menor latência**. Para `reason.deep`, prioriza primeiro **reasoning observado**, depois tokens e latência. Falhas transitórias `429/5xx` entram em cooldown exponencial local (60s até 15min), evitando martelar uma rota degradada.
+O optimizer benchmarka no máximo 16 modelos e admite apenas os que devolverem prova semântica. Para `reason.general` e código, o optimizer usa **3 amostras por modelo**, calcula medianas e ranqueia por **tokens × latência**, penalizado pela taxa de sucesso. Para `reason.deep`, prioriza primeiro **reasoning comprovado** e depois o score balanceado. Execuções reais alimentam EWMA de tokens/latência para o ranking se adaptar ao A15 em uso. Falhas transitórias `429/5xx` entram em cooldown exponencial local (60s até 15min), evitando martelar uma rota degradada.
 
 Catálogo não é autoridade. Receipt presente também não significa receipt válido: freshness, capability, data class, modelo e política zero-cost são revalidados pelo Harness em cada execução.
 
