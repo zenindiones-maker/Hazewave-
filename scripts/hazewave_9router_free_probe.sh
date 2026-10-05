@@ -438,6 +438,19 @@ async function main() {
           );
           break;
         }
+        const semanticSuccesses = samples.filter(
+          (row) => row?.status === "semantic_pass"
+        ).length;
+        const remainingSamples = sampleCount - (sample + 1);
+        if (
+          mode === "optimize" &&
+          semanticSuccesses + remainingSamples < MIN_SEMANTIC_SUCCESSES
+        ) {
+          console.log(
+            `HAZEWAVE_9ROUTER_FREE_EARLY_STOP MODEL=${qualifiedModel} STATUS=ADMISSION_UNREACHABLE`
+          );
+          break;
+        }
       }
 
       const proof = summarizeSamples(samples);
