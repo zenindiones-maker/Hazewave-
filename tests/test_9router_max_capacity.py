@@ -574,3 +574,83 @@ def test_zero_cost_registry_separates_verified_pricing_from_catalog_discovery() 
     assert all(row["capacity_class"] in ("FREE_UNMETERED_OR_DYNAMIC","FREE_QUOTA")
                for row in registry["verified_free"].values())
     assert "muse-spark-1.2-contributor-free" not in registry["verified_free"]
+
+
+def test_executor_result_cache_avoids_second_provider_call_and_binds_revisions(
+    tmp_path: Path,
+) -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        if request.url.path == "/api/settings":
+            return httpx.Response(200, json=_safe_settings())
+        calls += 1
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": "deterministic answer"}}],
+                "usage": {
+                    "prompt_tokens": 40,
+                    "completion_tokens": 4,
+                    "total_tokens": 44,
+                },
+            },
+        )
+
+    common = dict(
+        authorization=_authorization("reason.general"),
+        model_id="auto",
+        messages=[{"role": "user", "content": "Classify A before B"}],
+        receipt=_v3_receipt(),
+        now="2026-10-05T15:30:00+00:00",
+        lock_path=tmp_path / "lock",
+        route_health_path=tmp_path / "route-health.json",
+        transport=httpx.MockTransport(handler),
+        cli_token="unit-test-token",
+        prepared_runtime=True,
+        capacity_state_path=tmp_path / "capacity.json",
+        task_family="haze.deterministic.classification",
+        cache_safe=True,
+        cache_semantic_hash="semantic-v1",
+        context_revision="context-v1",
+        policy_revision="policy-v1",
+        dependency_revision="deps-v1",
+        result_cache_path=tmp_path / "result-cache.json",
+    )
+
+    first = execute_9router_messages(**common)
+    second = execute_9router_messages(**common)
+
+    assert first.cache_status == "CACHE_MISS"
+    assert second.cache_status == "CACHE_HIT"
+    assert second.content == "deterministic answer"
+    assert calls == 1
+
+    changed = dict(common)
+    changed["context_revision"] = "context-v2"
+    third = execute_9router_messages(**changed)
+    assert third.cache_status == "CACHE_MISS"
+    assert calls == 2
+
+
+def test_executor_cache_safe_rejects_tool_tasks(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="CACHE_TOOL_USE_FORBIDDEN"):
+        execute_9router_messages(
+            authorization=_authorization(),
+            model_id="auto",
+            messages=[{"role": "user", "content": "use tool"}],
+            tools=[{"type": "function", "function": {"name": "read_file"}}],
+            receipt=_v3_receipt(),
+            now="2026-10-05T15:30:00+00:00",
+            transport=httpx.MockTransport(lambda r: httpx.Response(500)),
+            cli_token="unit-test-token",
+            prepared_runtime=True,
+            capacity_state_path=tmp_path / "capacity.json",
+            cache_safe=True,
+            cache_semantic_hash="semantic",
+            context_revision="context",
+            policy_revision="policy",
+            dependency_revision="deps",
+            result_cache_path=tmp_path / "cache.json",
+        )
