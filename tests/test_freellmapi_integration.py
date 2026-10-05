@@ -137,49 +137,64 @@ def test_freellmapi_architecture_and_runbook_are_registered() -> None:
 
 
 def test_live_probe_receipt_is_harness_bound_and_secret_free(monkeypatch: pytest.MonkeyPatch) -> None:
-    from hazewave.freellmapi import run_live_probe
+    from hazewave.freellmapi import (
+        FreeLLMAPICompletionResult,
+        FreeLLMAPILocalCatalog,
+        run_live_probe,
+    )
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.path == "/v1/models":
-            assert request.url.params.get("available") == "true"
-            return httpx.Response(
-                200,
-                json={"data": [{"id": "auto", "available": True}]},
+    catalog = object()
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def governed_chat(self, **kwargs):
+            assert kwargs["catalog"] is catalog
+            assert kwargs["data_classification"] == "PUBLIC"
+            assert kwargs["capability_id"] == "audio.analyze"
+            assert "Synthetic sonic descriptor" in kwargs["messages"][0]["content"]
+            return FreeLLMAPICompletionResult(
+                content="Stable pulse structure.",
+                served_model="test-model",
+                usage={"prompt_tokens": 8, "completion_tokens": 4, "total_tokens": 12, "cost": 0},
+                raw={},
+                routed_via="test-provider/test-model",
+                receipt={
+                    "schema": "HazewaveProviderExecutionReceipt/v1",
+                    "provider": "test-provider",
+                    "requested_model": "test-provider:test-model",
+                    "trust_lane": "REMOTE_PUBLIC_FREE",
+                    "zero_cost_verified": True,
+                },
             )
-        assert request.url.path == "/v1/chat/completions"
-        payload = __import__("json").loads(request.content)
-        assert payload["model"] == "auto"
-        assert "Synthetic sonic descriptor" in payload["messages"][0]["content"]
-        return httpx.Response(
-            200,
-            headers={"X-Routed-Via": "test-provider/test-model"},
-            json={
-                "id": "chatcmpl-probe",
-                "model": "test-model",
-                "choices": [{"message": {"role": "assistant", "content": "Stable pulse structure."}}],
-                "usage": {"prompt_tokens": 8, "completion_tokens": 4, "total_tokens": 12},
-            },
-        )
 
-    fake = _client(handler)
-    monkeypatch.setattr("hazewave.freellmapi.FreeLLMAPIClient", lambda *a, **k: fake)
+    monkeypatch.setattr("hazewave.freellmapi.FreeLLMAPIClient", FakeClient)
     receipt = run_live_probe(
         api_key="freellmapi-secret-value",
         task_id="hazewave-provider-proof-test",
+        catalog=catalog,
     )
-    fake.close()
 
-    assert receipt["schema"] == "HazewaveProviderProbeReceipt/v1"
+    assert receipt["schema"] == "HazewaveProviderProbeReceipt/v2"
     assert receipt["status"] == "PASS"
     assert receipt["authority"] == "HAZEWAVE_HARNESS"
     assert receipt["capability_id"] == "audio.analyze"
     assert receipt["data_classification"] == "PUBLIC"
     assert receipt["provider_gateway"] == "FREELLMAPI"
+    assert receipt["provider"] == "test-provider"
+    assert receipt["requested_model"] == "test-provider:test-model"
     assert receipt["routed_via"] == "test-provider/test-model"
     assert receipt["served_model"] == "test-model"
+    assert receipt["zero_cost_verified"] is True
     assert len(receipt["content_sha256"]) == 64
     assert "freellmapi-secret-value" not in __import__("json").dumps(receipt)
-
 
 def test_freellmapi_persistence_is_singleton_boot_managed_and_pid_bound() -> None:
     control = (ROOT / "scripts" / "hazewave_freellmapi_control.sh").read_text(
@@ -221,14 +236,14 @@ def test_models_available_only_queries_router_readiness() -> None:
     assert [row["id"] for row in models] == ["auto", "provider/model"]
 
 
-def test_live_probe_fails_before_chat_when_router_has_no_available_models(
+def test_live_probe_fails_closed_when_governed_zero_cost_pool_is_empty(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from hazewave.freellmapi import run_live_probe
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
-            self.chat_called = False
+            self.governed_chat_called = False
 
         def __enter__(self):
             return self
@@ -236,25 +251,21 @@ def test_live_probe_fails_before_chat_when_router_has_no_available_models(
         def __exit__(self, *args):
             return None
 
-        def models(self, *, available_only: bool = False):
-            assert available_only is True
-            return []
-
-        def chat(self, **kwargs):
-            self.chat_called = True
-            raise AssertionError("chat must not run without an available route")
+        def governed_chat(self, **kwargs):
+            self.governed_chat_called = True
+            raise FreeLLMAPIError("FREELLMAPI_ZERO_COST_POOL_UNAVAILABLE")
 
     fake = FakeClient()
     monkeypatch.setattr("hazewave.freellmapi.FreeLLMAPIClient", lambda *a, **k: fake)
 
-    with pytest.raises(FreeLLMAPIError, match="FREELLMAPI_NO_AVAILABLE_MODELS"):
+    with pytest.raises(FreeLLMAPIError, match="FREELLMAPI_ZERO_COST_POOL_UNAVAILABLE"):
         run_live_probe(
             api_key="freellmapi-secret-value",
             task_id="hazewave-provider-proof-no-route",
+            catalog=object(),
         )
 
-    assert fake.chat_called is False
-
+    assert fake.governed_chat_called is True
 
 def test_http_status_error_exposes_safe_status_and_provider_code_without_secret() -> None:
     def handler(_: httpx.Request) -> httpx.Response:
