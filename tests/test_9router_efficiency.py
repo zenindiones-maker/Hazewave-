@@ -549,3 +549,28 @@ def test_optimizer_uses_repeated_samples_medians_and_reasoning_usage() -> None:
     assert "efficiency_score" in script
     assert "reasoning_tokens" in script
     assert "BALANCED_TOKEN_LATENCY_PRODUCT" in script
+
+
+def test_optimizer_requires_two_of_three_semantic_successes_for_admission() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script = (root / "scripts" / "hazewave_9router_free_probe.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "MIN_SEMANTIC_SUCCESSES = 2" in script
+    assert "semantic_success_count >= MIN_SEMANTIC_SUCCESSES" in script
+    assert "insufficient_semantic_success" in script
+
+
+def test_optimizer_stops_hammering_nonrecoverable_or_rate_limited_models() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script = (root / "scripts" / "hazewave_9router_free_probe.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "NON_RETRYABLE_SAMPLE_STATUSES" in script
+    assert '"http_400"' in script
+    assert '"http_401"' in script
+    assert '"http_403"' in script
+    assert '"http_429"' in script
+    assert "break;" in script
