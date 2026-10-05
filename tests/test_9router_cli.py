@@ -15,7 +15,7 @@ def test_cli_parses_governed_9router_execute_defaults() -> None:
 
     assert args.command == "9router"
     assert args.ninerouter_command == "execute"
-    assert args.model == "oc/mimo-v2.6-flash-free"
+    assert args.model == "auto"\n    assert args.max_fallbacks == 3
     assert args.capability == "reason.general"
     assert args.domain == "HAZE"
     assert args.data_classification == "PUBLIC"
@@ -71,7 +71,7 @@ def test_cli_executes_only_through_harness_authorization(monkeypatch, capsys) ->
         "task_id": "cli-task-1",
         "capability": "reason.general",
         "domain": "HAZE",
-        "model_id": "oc/mimo-v2.6-flash-free",
+        "model_id": "auto",
         "prompt": "hello",
         "classification": "PUBLIC",
     }
