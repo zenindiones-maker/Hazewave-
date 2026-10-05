@@ -201,6 +201,34 @@ Arquitetura normativa:
 
 O código upstream continua pinado e application update checking continua desligado. O catálogo assinado do FreeLLMAPI pode ser usado como descoberta, mas **catálogo não concede elegibilidade Hazewave**.
 
+## 9Router — sidecar local governado
+
+Hazewave também pode instalar o **9Router** como runtime local subordinado para descoberta e futura admissão de rotas gratuitas.
+
+Baseline pinado:
+
+- upstream: `decolua/9router`;
+- version: `0.5.95`;
+- commit: `a99cf57239ff778b61e434c2786009d5ed1c412c`;
+- endpoint local: `http://127.0.0.1:20128/v1`;
+- autoridade: `NONE`;
+- auto-update: desligado;
+- paid fallback: proibido pelo contrato Hazewave;
+- execução: `DISCOVERY_ONLY_UNTIL_ROUTE_ADMISSION`.
+
+Isso significa que instalar o 9Router **não** concede automaticamente permissão para usar providers pagos, créditos promocionais ou qualquer rota apenas porque aparece no catálogo. Hazewave deve provar a rota zero-cost exata antes de admiti-la.
+
+Operação no Termux:
+
+```bash
+bash scripts/hazewave_termux_control.sh 9router install
+bash scripts/hazewave_termux_control.sh 9router start
+bash scripts/hazewave_termux_control.sh 9router doctor
+bash scripts/hazewave_termux_control.sh 9router logs
+```
+
+O processo é sempre iniciado em loopback (`127.0.0.1`) e o pacote npm fica pinado em `9router@0.5.95`.
+
 ## ACE-Step 1.5 — geração instrumental
 
 O Hazewave integra o **ACE-Step 1.5** como engine local para prompt → instrumental, prompt + áudio de referência, e cover/remix de áudio existente.
