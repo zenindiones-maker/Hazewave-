@@ -681,3 +681,13 @@ def test_auto_executor_emits_attempt_trace_with_fallback_reason(tmp_path: Path) 
     assert result.attempt_trace[1]["model"] == "oc/nemotron-3.5-lightning-free"
     assert result.attempt_trace[1]["status"] == "PASS"
     assert result.attempt_trace[1]["total_tokens"] == 12
+
+
+def test_optimizer_stops_when_two_of_three_admission_is_unreachable() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script = (root / "scripts" / "hazewave_9router_free_probe.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "semanticSuccesses + remainingSamples < MIN_SEMANTIC_SUCCESSES" in script
+    assert "ADMISSION_UNREACHABLE" in script
