@@ -375,3 +375,31 @@ def test_secret_loader_accepts_export_prefix(tmp_path: Path) -> None:
     path.chmod(0o600)
 
     assert load_nvidia_api_key(path) == "nvapi-unit-test-secret"
+
+
+def test_code_review_fast_profile_gets_review_budget() -> None:
+    general = normalize_nvidia_request(
+        model_id=MODEL,
+        messages=[{"role": "user", "content": "classify"}],
+        execution_profile=FAST_STRUCTURED,
+        capability_id="reason.general",
+    )
+    review = normalize_nvidia_request(
+        model_id=MODEL,
+        messages=[{"role": "user", "content": "review"}],
+        execution_profile=FAST_STRUCTURED,
+        capability_id="code.review",
+    )
+    assert general["max_tokens"] == 1024
+    assert review["max_tokens"] == 2048
+
+
+def test_deep_profile_uses_tested_nvidia_4096_2048_budget_split() -> None:
+    deep = normalize_nvidia_request(
+        model_id=MODEL,
+        messages=[{"role": "user", "content": "analyze deeply"}],
+        execution_profile=DEEP_REASONING,
+        capability_id="reason.deep",
+    )
+    assert deep["max_tokens"] == 4096
+    assert deep["reasoning_budget"] == 2048
