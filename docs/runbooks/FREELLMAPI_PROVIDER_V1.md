@@ -2,9 +2,15 @@
 
 ## Scope
 
-This runbook installs and operates the Hazewave-scoped FreeLLMAPI provider gateway on Termux.
+This runbook installs and operates the Hazewave-scoped FreeLLMAPI provider gateway on Termux under the Governed Free Fabric policy.
 
 FreeLLMAPI is a subordinate inference gateway only. Hazewave Harness remains the sole project-local routing and authorization authority.
+
+Provider eligibility, data-class policy and zero-cost policy are project-owned and defined by ADR-0006 plus:
+
+- `config/freellmapi-provider-eligibility-v1.json`;
+- `schemas/freellmapi-provider-eligibility-v1.schema.json`;
+- `src/hazewave/provider_policy.py`.
 
 ## Accepted upstream
 
@@ -15,11 +21,13 @@ FreeLLMAPI is a subordinate inference gateway only. Hazewave Harness remains the
 
 Do not replace the exact commit with `main` or `latest`.
 
+Application update checking remains disabled. The upstream signed model catalog is a separate discovery mechanism; catalog membership never grants Hazewave provider eligibility.
+
 ## Requirements
 
 The upstream Termux path requires Android 7+ and Node.js 22.13 or newer. Node 24 LTS is preferred upstream.
 
-Install prerequisites in Termux:
+Install prerequisites:
 
 ```bash
 pkg update
@@ -42,7 +50,7 @@ HAZEWAVE_FREELLMAPI_INSTALL=PASS
 HAZEWAVE_FREELLMAPI_SHA=716948f20b12ec1c9b7c6fcebd22a3e7233cda1b
 ```
 
-The installer creates only project-local provider namespaces:
+Provider namespaces remain project-local:
 
 ```text
 ~/.local/share/hazewave/providers/freellmapi/
@@ -50,50 +58,47 @@ The installer creates only project-local provider namespaces:
 ~/.config/hazewave/providers/freellmapi/
 ```
 
-The encryption key is generated locally with owner-only permissions and is never committed.
+Credentials, database state and generated runtime data do not belong in immutable source releases.
 
-## Start and inspect
+## Security invariants
 
-```bash
-bash scripts/hazewave_freellmapi_control.sh start
-bash scripts/hazewave_freellmapi_control.sh status
-bash scripts/hazewave_freellmapi_control.sh doctor
-```
-
-Expected security assertions include:
+The control doctor must report the governed fabric invariants without printing credentials:
 
 ```text
 HAZEWAVE_FREELLMAPI_LOOPBACK_ONLY=PASS
 HAZEWAVE_FREELLMAPI_UPDATE_CHECK=OFF
 HAZEWAVE_FREELLMAPI_AUTHORITY=NONE
 HAZEWAVE_FREELLMAPI_PROJECT_AUTHORITY=HAZEWAVE_HARNESS
-HAZEWAVE_FREELLMAPI_PRIVATE_MEDIA_EGRESS=FORBIDDEN
+HAZEWAVE_FREE_FABRIC=ENFORCED
+HAZEWAVE_FREE_FABRIC_ZERO_COST_GUARD=ENFORCED
+HAZEWAVE_FREE_FABRIC_PAID_FALLBACK=FORBIDDEN
+HAZEWAVE_FREE_FABRIC_UNKNOWN_COST=DENY
+HAZEWAVE_FREE_FABRIC_PRIVATE_MEDIA_DEFAULT_EGRESS=DENY
+HAZEWAVE_FREE_FABRIC_UNREVIEWED_PROVIDER=QUARANTINED
 ```
 
-The API endpoint is:
+The local API endpoint remains:
 
 `http://127.0.0.1:3001/v1`
 
-Do not expose the gateway directly to the public internet.
+Do not expose it directly to the public internet.
 
 ## First-run provider configuration
 
-Open the FreeLLMAPI dashboard locally and create/configure the local account and upstream provider keys there.
+Provider keys belong to FreeLLMAPI's encrypted local store.
 
-Provider keys belong to FreeLLMAPI's encrypted local store. Do not place raw provider keys in:
+Do not place raw provider keys in:
 
 - the Hazewave repository;
 - Telegram messages;
 - Hazewave logs;
-- shell history where avoidable.
+- screenshots or shell history where avoidable.
 
-After FreeLLMAPI generates its unified API key, store only that local router key in:
+Store only the local unified FreeLLMAPI bearer key at:
 
-```text
-~/.config/hazewave/providers/freellmapi/unified-api-key
-```
+`~/.config/hazewave/providers/freellmapi/unified-api-key`
 
-Then:
+and apply owner-only permissions:
 
 ```bash
 chmod 600 ~/.config/hazewave/providers/freellmapi/unified-api-key
@@ -101,25 +106,195 @@ chmod 600 ~/.config/hazewave/providers/freellmapi/unified-api-key
 
 Do not paste that credential into chat.
 
-## Hazewave client boundary
+## Governed routing
 
-`hazewave.freellmapi.FreeLLMAPIClient` requires:
+For provider execution Hazewave requires:
 
-- a Hazewave Harness authorization bound to the same task;
-- the exact Hazewave capability ID;
-- an allowed data classification;
-- a loopback endpoint by default.
+1. a valid `HazewaveAuthorization`;
+2. capability/domain binding;
+3. data classification;
+4. zero-cost eligibility;
+5. provider trust-lane eligibility;
+6. media egress grant when remote private media is involved.
 
-Initial outbound data policy:
+Unrestricted FreeLLMAPI `model=auto` is not the governed path.
+
+Hazewave selects a provider-qualified route after policy filtering and verifies `X-Routed-Via` against that selected provider.
+
+Unknown providers and unknown-cost routes fail closed.
+
+There is no automatic paid fallback when free quota is exhausted.
+
+## Data classes
 
 ```text
-PUBLIC              ALLOW
-INTERNAL_NON_SECRET DENY
-PRIVATE_MEDIA       DENY
-CREDENTIAL          DENY
+PUBLIC
+  -> reviewed zero-cost remote or local lanes
+
+INTERNAL_NON_SECRET
+  -> LOCAL_PRIVATE or REMOTE_INTERNAL_SAFE only
+
+PRIVATE_MEDIA
+  -> local by default
+  -> remote only with HazewaveMediaEgressGrant/v1
+
+CREDENTIAL
+  -> provider egress forbidden
 ```
 
-The gateway does not gain domain-routing, promotion, publication or canonical-write authority.
+A provider/model appearing in the FreeLLMAPI catalog does not alter these rules.
+
+## Operational inspection
+
+After syncing the immutable Hazewave release:
+
+```bash
+hazewave freellmapi inventory
+hazewave freellmapi eligible
+hazewave freellmapi health
+```
+
+`inventory` is local and secret-free.
+
+`eligible` intersects the local FreeLLMAPI database with Hazewave's provider registry. It does not consume provider quota.
+
+Example for another data class:
+
+```bash
+hazewave freellmapi eligible --data-classification INTERNAL_NON_SECRET
+```
+
+A provider that is available upstream but not Hazewave-eligible is not an execution candidate.
+
+## Live bounded proof
+
+Run:
+
+```bash
+hazewave freellmapi probe
+```
+
+Expected:
+
+```text
+HAZEWAVE_FREELLMAPI_LIVE_PROBE=PASS
+```
+
+The proof:
+
+- uses synthetic PUBLIC content;
+- binds a real Harness authorization;
+- selects a provider-qualified eligible route;
+- refuses unrestricted `auto`;
+- verifies zero-cost policy;
+- records route/model evidence;
+- emits no raw provider key or unified router key.
+
+For a broader but quota-conservative report:
+
+```bash
+hazewave freellmapi probe-all
+```
+
+`probe-all` performs one live text proof and reports the other currently eligible surfaces without calling all of them. This prevents a diagnostic from consuming scarce free image/video/audio quotas.
+
+## Quota and MCP observability
+
+Hazewave's client wrapper permits only these FreeLLMAPI MCP tools:
+
+- `healthcheck`;
+- `list_models`;
+- `provider_health`;
+- `usage_summary`;
+- `routing_info`;
+- `cache_stats`;
+- `compression_stats`.
+
+It deliberately rejects:
+
+- `ask_freellmapi`;
+- `set_routing_strategy`;
+- unknown MCP tools.
+
+Those exclusions prevent provider inference or routing mutation from bypassing the Harness boundary.
+
+When FreeLLMAPI MCP is enabled locally:
+
+```bash
+hazewave freellmapi quota --range 24h
+```
+
+If MCP is disabled, quota/MCP diagnostics may report a local gateway error; this does not make the inference gateway itself offline.
+
+## Supported governed surfaces
+
+The project client implements policy-bound access to:
+
+- OpenAI-compatible chat;
+- streaming chat;
+- Responses;
+- legacy completions;
+- Anthropic Messages;
+- native Gemini `/v1beta`;
+- Ollama `/api/chat`;
+- tool-call proposal transport;
+- vision;
+- embeddings;
+- image generation;
+- video generation;
+- TTS;
+- transcription;
+- Fusion;
+- cache/compression/session/task-type request controls.
+
+A method existing in source does not prove that a live provider for that modality is configured. Runtime availability is reported only from real local inventory/eligibility evidence.
+
+Ollama compatibility also requires the FreeLLMAPI Ollama emulation surface to be enabled locally.
+
+## Embedding rule
+
+Embedding failover may not cross vector families.
+
+Hazewave verifies the family, eligible provider membership and vector dimensions before accepting an embedding result.
+
+## Media rule
+
+Remote generated media remains auxiliary.
+
+FreeLLMAPI-generated images/videos do not become canonical WAVE engine output automatically.
+
+Private-media remote egress requires a scoped grant; PUBLIC media may use approved public-free providers.
+
+## Efficiency controls
+
+Governed calls may request:
+
+- exact-match response cache;
+- prompt compression;
+- task-type routing hint;
+- session id/context continuity.
+
+These options do not widen the eligible provider pool.
+
+Fusion is not the default route because monetary cost may be zero while free-quota cost is high.
+
+## Persistence
+
+Install/update the project-local supervisor and Termux:Boot entry:
+
+```bash
+bash scripts/install_hazewave_freellmapi_persistence.sh
+```
+
+The control and supervisor locks carry owner identity and recover stale state left by abrupt process death/reboot.
+
+Expected:
+
+```text
+HAZEWAVE_FREELLMAPI_PERSISTENCE=PASS
+```
+
+The historical A15 proof has already demonstrated a real Android cold boot for the crash-safe persistence baseline. Any new immutable Hazewave release that changes runtime behavior still requires its own bounded post-sync verification.
 
 ## Stop / restart / logs
 
@@ -131,67 +306,49 @@ bash scripts/hazewave_freellmapi_control.sh logs 100
 
 ## Upgrade policy
 
-Do not run `git pull` inside the active provider release.
+Do not run `git pull` inside an active immutable provider release.
 
-To upgrade:
+To change the FreeLLMAPI upstream pin:
 
-1. review the upstream release and security notes;
-2. update the exact commit pin in Hazewave code, installer, tests and this runbook;
-3. run Hazewave repository validation;
-4. install the new SHA as a new provider release;
-5. verify `doctor`;
-6. switch only after validation.
+1. review upstream code/release/security notes;
+2. update the exact provider SHA in Hazewave;
+3. run repository contracts and tests;
+4. install the new provider release beside the old one;
+5. verify doctor and governed probes;
+6. activate only after validation.
+
+Changing the signed model catalog does not itself change Hazewave provider eligibility.
 
 ## Failure policy
 
-If the gateway is unavailable, Hazewave must report provider unavailability. It must not bypass Harness authorization or silently send private data to another endpoint.
-
-If FreeLLMAPI, an upstream model provider, or a free-tier route changes terms or reliability materially, stop treating that route as eligible until reviewed.
-
-
-## Live Harness-to-provider proof
-
-After the unified API key is stored at:
-
-`~/.config/hazewave/providers/freellmapi/unified-api-key`
-
-run one bounded real provider call through the Hazewave client:
-
-```bash
-PYTHONPATH="$HOME/.local/share/hazewave/deploy/current/src" \
-python -m hazewave.cli freellmapi probe
-```
-
-Expected:
+Legitimate terminal states include:
 
 ```text
-HAZEWAVE_FREELLMAPI_LIVE_PROBE=PASS
+ZERO_COST_POOL_UNAVAILABLE
+ZERO_COST_POOL_EXHAUSTED
+POLICY_DENIED
+PRIVATE_MEDIA_GRANT_REQUIRED
 ```
 
-The JSON receipt contains the Hazewave task and authorization binding, selected HAZE capability, data classification, FreeLLMAPI route/model evidence, response-content digest and token usage. It does not contain the unified API key or raw upstream provider keys.
+Do not convert those states into:
 
-The proof prompt is synthetic, non-user text and is classified `PUBLIC`; it does not upload internal project context, private audio/media, or credentials.
+- paid inference;
+- unreviewed provider fallback;
+- private-data downgrade to PUBLIC;
+- direct agent-to-FreeLLMAPI bypass.
 
-The first observed keyless route in the A15 proof was Kilo. FreeLLMAPI's upstream provider documentation states that Kilo's anonymous free route logs prompts/outputs for training. For that reason Hazewave keeps generic FreeLLMAPI routing public-only until a provider/model eligibility policy has been reviewed and enforced.
+## Repository validation
 
-## Persistence
-
-Install a project-local singleton supervisor and Termux:Boot entry:
+Before runtime adoption:
 
 ```bash
-bash scripts/install_hazewave_freellmapi_persistence.sh
+python -m compileall -q src
+python scripts/validate_repository_contracts.py
+pytest
 ```
 
-The supervisor checks the exact FreeLLMAPI process every 30 seconds and restarts it through the Hazewave control boundary when unavailable. The process is launched directly as:
+Both Python 3.12 and 3.14 CI jobs must be green.
 
-`node server/dist/index.js`
+The implementation reference is:
 
-rather than through an npm wrapper, so the recorded PID can be bound to the actual provider server process.
-
-Expected:
-
-```text
-HAZEWAVE_FREELLMAPI_PERSISTENCE=PASS
-```
-
-Runtime persistence after a real Android reboot remains a runtime-evidence requirement; installation of the boot entry alone is not proof that Android executed it.
+`docs/reference/HAZEWAVE_FREE_FABRIC_V1.md`
