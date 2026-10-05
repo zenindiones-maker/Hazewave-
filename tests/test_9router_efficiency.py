@@ -746,3 +746,173 @@ def test_efficiency_status_filters_legacy_receipt_without_majority_proof() -> No
     assert status["effective_admitted_model_count"] == 2
     assert bad not in status["ranked_models"]
     assert bad in status["majority_invalid_models"]
+
+
+def test_recent_transient_failure_remains_penalized_after_cooldown_expires() -> None:
+    receipt = _v2_receipt()
+    receipt["model_proofs"] = {
+        "oc/longcat-2.5-preview-free": {
+            "status": "semantic_pass",
+            "latency_ms": 2960,
+            "usage": {
+                "prompt_tokens": 20,
+                "completion_tokens": 39,
+                "total_tokens": 59,
+                "reasoning_tokens": 36,
+            },
+            "response_sha256": "longcat-proof",
+        },
+        "oc/space-bunny-free": {
+            "status": "semantic_pass",
+            "latency_ms": 1545,
+            "usage": {
+                "prompt_tokens": 20,
+                "completion_tokens": 167,
+                "total_tokens": 187,
+                "reasoning_tokens": 15,
+            },
+            "response_sha256": "space-proof",
+        },
+    }
+    receipt["catalog_discovered_models"] = list(receipt["model_proofs"])
+    receipt["execution_admitted_models"] = list(receipt["model_proofs"])
+
+    health = {
+        "schema": "Hazewave9RouterRouteHealth/v1",
+        "project_id": "HAZEWAVE",
+        "authority": "HAZEWAVE_HARNESS",
+        "models": {
+            "oc/longcat-2.5-preview-free": {
+                "consecutive_transient_failures": 1,
+                "cooldown_until": "2026-10-05T10:31:00+00:00",
+                "last_status": "HTTP_503",
+                "last_failure_at": "2026-10-05T10:30:00+00:00",
+                "updated_at": "2026-10-05T10:30:00+00:00",
+            }
+        },
+    }
+
+    ranked = rank_9router_models(
+        authorization=_authorization(),
+        receipt=receipt,
+        route_health=health,
+        data_classification="PUBLIC",
+        now="2026-10-05T12:20:00+00:00",
+    )
+
+    assert ranked == [
+        "oc/space-bunny-free",
+        "oc/longcat-2.5-preview-free",
+    ]
+
+
+def test_reliability_penalty_decays_and_success_clears_it() -> None:
+    receipt = _v2_receipt()
+    receipt["model_proofs"] = {
+        "oc/longcat-2.5-preview-free": {
+            "status": "semantic_pass",
+            "latency_ms": 2960,
+            "usage": {"total_tokens": 59},
+            "response_sha256": "longcat-proof",
+        },
+        "oc/space-bunny-free": {
+            "status": "semantic_pass",
+            "latency_ms": 1545,
+            "usage": {"total_tokens": 187},
+            "response_sha256": "space-proof",
+        },
+    }
+    receipt["catalog_discovered_models"] = list(receipt["model_proofs"])
+    receipt["execution_admitted_models"] = list(receipt["model_proofs"])
+
+    old_failure_health = {
+        "schema": "Hazewave9RouterRouteHealth/v1",
+        "project_id": "HAZEWAVE",
+        "authority": "HAZEWAVE_HARNESS",
+        "models": {
+            "oc/longcat-2.5-preview-free": {
+                "consecutive_transient_failures": 1,
+                "cooldown_until": None,
+                "last_status": "HTTP_503",
+                "last_failure_at": "2026-10-04T00:00:00+00:00",
+            }
+        },
+    }
+
+    ranked_after_decay = rank_9router_models(
+        authorization=_authorization(),
+        receipt=receipt,
+        route_health=old_failure_health,
+        data_classification="PUBLIC",
+        now="2026-10-05T12:30:00+00:00",
+    )
+    assert ranked_after_decay[0] == "oc/longcat-2.5-preview-free"
+
+    cleared_health = {
+        "schema": "Hazewave9RouterRouteHealth/v1",
+        "project_id": "HAZEWAVE",
+        "authority": "HAZEWAVE_HARNESS",
+        "models": {
+            "oc/longcat-2.5-preview-free": {
+                "consecutive_transient_failures": 0,
+                "cooldown_until": None,
+                "last_status": "PASS",
+                "success_count": 1,
+                "ewma_latency_ms": 1200,
+                "ewma_total_tokens": 70,
+                "last_failure_at": "2026-10-05T10:30:00+00:00",
+            }
+        },
+    }
+
+    ranked_after_success = rank_9router_models(
+        authorization=_authorization(),
+        receipt=receipt,
+        route_health=cleared_health,
+        data_classification="PUBLIC",
+        now="2026-10-05T12:30:00+00:00",
+    )
+    assert ranked_after_success[0] == "oc/longcat-2.5-preview-free"
+
+
+def test_transient_failure_health_records_failure_timestamp(tmp_path: Path) -> None:
+    receipt = _v2_receipt()
+    settings = {
+        "requireApiKey": True,
+        "cloudEnabled": False,
+        "tunnelEnabled": False,
+        "tailscaleEnabled": False,
+        "capacityAdapter": {},
+        "outboundProxyEnabled": False,
+        "rtkEnabled": True,
+        "headroomEnabled": False,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/settings" and request.method == "GET":
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/api/settings" and request.method == "PATCH":
+            settings.update(json.loads(request.content))
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/v1/chat/completions":
+            return httpx.Response(503, json={"error": {"message": "temporary"}})
+        raise AssertionError("unexpected request")
+
+    health_path = tmp_path / "route-health.json"
+
+    with pytest.raises(Exception):
+        execute_9router_text(
+            authorization=_authorization(),
+            model_id="oc/mimo-v2.6-flash-free",
+            prompt="hello",
+            receipt=receipt,
+            now="2026-10-05T12:30:00+00:00",
+            lock_path=tmp_path / "lock",
+            route_health_path=health_path,
+            transport=httpx.MockTransport(handler),
+            cli_token="unit-test-token",
+        )
+
+    health = load_9router_route_health(health_path)
+    row = health["models"]["oc/mimo-v2.6-flash-free"]
+    assert row["last_failure_at"] == "2026-10-05T12:30:00+00:00"
