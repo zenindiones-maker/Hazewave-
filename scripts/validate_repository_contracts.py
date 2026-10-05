@@ -352,6 +352,7 @@ def validate_9router_sidecar_contract() -> None:
         semantic_admission.get("sample_count") != 3
         or semantic_admission.get("minimum_semantic_successes") != 2
         or semantic_admission.get("early_stop_statuses") != [400, 401, 403, 429]
+        or semantic_admission.get("stop_when_majority_unreachable") is not True
     ):
         raise ValueError("HAZEWAVE_9ROUTER_SEMANTIC_ADMISSION_INVALID")
     live_adaptation = optimizer.get("live_adaptation") or {}
