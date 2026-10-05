@@ -69,6 +69,40 @@ class FreeLLMAPIModelCandidate:
         return f"{self.provider}:{self.model_id}"
 
 
+@dataclass(frozen=True)
+class FreeLLMAPIEmbeddingCandidate:
+    family: str
+    provider: str
+    model_id: str
+    display_name: str
+    dimensions: int
+    max_input_tokens: int | None
+    priority: int
+
+
+@dataclass(frozen=True)
+class FreeLLMAPIEmbeddingFamily:
+    family: str
+    dimensions: int
+    members: tuple[FreeLLMAPIEmbeddingCandidate, ...]
+
+
+@dataclass(frozen=True)
+class FreeLLMAPIMediaCandidate:
+    provider: str
+    model_id: str
+    display_name: str
+    modality: str
+    priority: int
+
+
+@dataclass(frozen=True)
+class FreeLLMAPIProviderResult:
+    raw: Any
+    content_type: str | None
+    receipt: dict[str, Any]
+
+
 class FreeLLMAPILocalCatalog:
     """Read-only view of the managed FreeLLMAPI SQLite model catalog.
 
@@ -139,6 +173,199 @@ class FreeLLMAPILocalCatalog:
             )
             for row in rows
         ]
+
+    @staticmethod
+    def _has_enabled_key(
+        db: sqlite3.Connection, provider: str, key_id: int | None
+    ) -> bool:
+        row = db.execute(
+            """
+            SELECT 1
+            FROM api_keys
+            WHERE platform = ?
+              AND enabled = 1
+              AND (? IS NULL OR id = ?)
+            LIMIT 1
+            """,
+            (provider, key_id, key_id),
+        ).fetchone()
+        return row is not None
+
+    def embedding_candidates(self) -> list[FreeLLMAPIEmbeddingCandidate]:
+        try:
+            with self._connect() as db:
+                rows = db.execute(
+                    """
+                    SELECT
+                      family,
+                      platform,
+                      model_id,
+                      display_name,
+                      dimensions,
+                      max_input_tokens,
+                      priority,
+                      key_id
+                    FROM embedding_models
+                    WHERE enabled = 1
+                    ORDER BY family, priority, id
+                    """
+                ).fetchall()
+                out: list[FreeLLMAPIEmbeddingCandidate] = []
+                for row in rows:
+                    if not self._has_enabled_key(
+                        db,
+                        str(row["platform"]),
+                        int(row["key_id"]) if row["key_id"] is not None else None,
+                    ):
+                        continue
+                    out.append(
+                        FreeLLMAPIEmbeddingCandidate(
+                            family=str(row["family"]),
+                            provider=str(row["platform"]),
+                            model_id=str(row["model_id"]),
+                            display_name=str(row["display_name"]),
+                            dimensions=int(row["dimensions"]),
+                            max_input_tokens=(
+                                int(row["max_input_tokens"])
+                                if row["max_input_tokens"] is not None
+                                else None
+                            ),
+                            priority=int(row["priority"]),
+                        )
+                    )
+                return out
+        except sqlite3.Error as exc:
+            raise FreeLLMAPIError(
+                f"FREELLMAPI_LOCAL_CATALOG_SCHEMA_INVALID:{type(exc).__name__}"
+            ) from exc
+
+    def eligible_embedding_families(
+        self,
+        *,
+        capability_id: str,
+        data_classification: str,
+        registry: dict[str, Any] | None = None,
+    ) -> list[FreeLLMAPIEmbeddingFamily]:
+        policy_registry = registry if registry is not None else load_provider_registry()
+        grouped: dict[str, list[FreeLLMAPIEmbeddingCandidate]] = {}
+        for candidate in self.embedding_candidates():
+            grouped.setdefault(candidate.family, []).append(candidate)
+
+        eligible: list[FreeLLMAPIEmbeddingFamily] = []
+        for family, members in grouped.items():
+            dimensions = {member.dimensions for member in members}
+            if len(dimensions) != 1:
+                continue
+            decisions = [
+                evaluate_provider_eligibility(
+                    provider=member.provider,
+                    model_id=member.model_id,
+                    capability_id=capability_id,
+                    modality="embedding",
+                    data_classification=data_classification,
+                    registry=policy_registry,
+                )
+                for member in members
+            ]
+            # FreeLLMAPI embeddings fail over across every provider serving a
+            # family. One ineligible member therefore makes the whole family
+            # unsafe for a governed request.
+            if not decisions or not all(decision.allowed for decision in decisions):
+                continue
+            ordered = tuple(sorted(members, key=lambda item: (item.priority, item.provider, item.model_id)))
+            eligible.append(
+                FreeLLMAPIEmbeddingFamily(
+                    family=family,
+                    dimensions=next(iter(dimensions)),
+                    members=ordered,
+                )
+            )
+        return sorted(
+            eligible,
+            key=lambda item: (
+                min(member.priority for member in item.members),
+                item.family,
+            ),
+        )
+
+    def media_candidates(self, modality: str) -> list[FreeLLMAPIMediaCandidate]:
+        db_modality = "audio" if modality == "speech" else modality
+        try:
+            with self._connect() as db:
+                rows = db.execute(
+                    """
+                    SELECT platform, model_id, display_name, modality, priority, key_id
+                    FROM media_models
+                    WHERE modality = ? AND enabled = 1
+                    ORDER BY priority, id
+                    """,
+                    (db_modality,),
+                ).fetchall()
+                out: list[FreeLLMAPIMediaCandidate] = []
+                for row in rows:
+                    provider = str(row["platform"])
+                    key_id = int(row["key_id"]) if row["key_id"] is not None else None
+                    routable = provider == "pollinations" or self._has_enabled_key(
+                        db, provider, key_id
+                    )
+                    if not routable:
+                        continue
+                    out.append(
+                        FreeLLMAPIMediaCandidate(
+                            provider=provider,
+                            model_id=str(row["model_id"]),
+                            display_name=str(row["display_name"]),
+                            modality=str(row["modality"]),
+                            priority=int(row["priority"]),
+                        )
+                    )
+                return out
+        except sqlite3.Error as exc:
+            raise FreeLLMAPIError(
+                f"FREELLMAPI_LOCAL_CATALOG_SCHEMA_INVALID:{type(exc).__name__}"
+            ) from exc
+
+    def eligible_media_candidates(
+        self,
+        *,
+        modality: str,
+        capability_id: str,
+        data_classification: str,
+        registry: dict[str, Any] | None = None,
+        media_grant: MediaEgressGrant | None = None,
+        task_id: str | None = None,
+        authorization_id: str | None = None,
+        asset_digest: str | None = None,
+    ) -> list[tuple[FreeLLMAPIMediaCandidate, ProviderEligibilityDecision]]:
+        policy_registry = registry if registry is not None else load_provider_registry()
+        candidates = self.media_candidates(modality)
+
+        counts: dict[str, int] = {}
+        for candidate in candidates:
+            counts[candidate.model_id] = counts.get(candidate.model_id, 0) + 1
+        ambiguous = sorted(model_id for model_id, count in counts.items() if count > 1)
+        if ambiguous:
+            raise FreeLLMAPIError(
+                "FREELLMAPI_AMBIGUOUS_MEDIA_MODEL:" + ",".join(ambiguous)
+            )
+
+        eligible: list[tuple[FreeLLMAPIMediaCandidate, ProviderEligibilityDecision]] = []
+        for candidate in candidates:
+            decision = evaluate_provider_eligibility(
+                provider=candidate.provider,
+                model_id=candidate.model_id,
+                capability_id=capability_id,
+                modality=modality,
+                data_classification=data_classification,
+                registry=policy_registry,
+                media_grant=media_grant,
+                task_id=task_id,
+                authorization_id=authorization_id,
+                asset_digest=asset_digest,
+            )
+            if decision.allowed:
+                eligible.append((candidate, decision))
+        return eligible
 
 
 def _normalized_base_url(value: str, *, allow_remote: bool) -> str:
@@ -253,6 +480,9 @@ class FreeLLMAPIClient:
         max_tokens: int | None = None,
         media_grant: MediaEgressGrant | None = None,
         asset_digest: str | None = None,
+        tools: Iterable[dict[str, Any]] | None = None,
+        tool_choice: Any | None = None,
+        response_format: dict[str, Any] | None = None,
     ) -> FreeLLMAPICompletionResult:
         """Execute a policy-bound chat call with provider-qualified routing.
 
@@ -306,6 +536,8 @@ class FreeLLMAPIClient:
         else:
             source = catalog if catalog is not None else FreeLLMAPILocalCatalog()
             for candidate in source.chat_candidates():
+                if tools is not None and not candidate.supports_tools:
+                    continue
                 decision = evaluate_provider_eligibility(
                     provider=candidate.provider,
                     model_id=candidate.model_id,
@@ -340,6 +572,9 @@ class FreeLLMAPIClient:
                     model=candidate.qualified_model_id,
                     temperature=temperature,
                     max_tokens=max_tokens,
+                    tools=tools,
+                    tool_choice=tool_choice,
+                    response_format=response_format,
                 )
             except FreeLLMAPIError as exc:
                 last_error = exc
@@ -366,6 +601,7 @@ class FreeLLMAPIClient:
                 "input_sha256": sha256(canonical_input).hexdigest(),
                 "output_sha256": sha256(result.content.encode("utf-8")).hexdigest(),
                 "media_egress_grant_id": decision.media_egress_grant_id,
+                "tool_execution_authority": AUTHORITY if tools is not None else None,
             }
             return replace(result, receipt=receipt)
 
@@ -374,6 +610,504 @@ class FreeLLMAPIClient:
                 f"FREELLMAPI_ZERO_COST_POOL_EXHAUSTED:{last_error}"
             ) from last_error
         raise FreeLLMAPIError("FREELLMAPI_ZERO_COST_POOL_EXHAUSTED")
+
+    @staticmethod
+    def _digest_payload(value: Any) -> str:
+        if isinstance(value, bytes):
+            payload = value
+        elif isinstance(value, str):
+            payload = value.encode("utf-8")
+        else:
+            payload = json.dumps(
+                value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+            ).encode("utf-8")
+        return sha256(payload).hexdigest()
+
+    @staticmethod
+    def _receipt_base(
+        *,
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        provider: str,
+        requested_model: str,
+        trust_lane: str,
+        input_value: Any,
+        output_value: Any,
+        media_egress_grant_id: str | None = None,
+    ) -> dict[str, Any]:
+        return {
+            "schema": "HazewaveProviderExecutionReceipt/v1",
+            "status": "PASS",
+            "project_id": "HAZEWAVE",
+            "authority": AUTHORITY,
+            "task_id": str(task_id),
+            "authorization_id": authorization.authorization_id,
+            "capability_id": str(capability_id),
+            "domain": authorization.domain,
+            "data_classification": str(data_classification).upper(),
+            "provider_gateway": "FREELLMAPI",
+            "provider": provider,
+            "requested_model": requested_model,
+            "trust_lane": trust_lane,
+            "zero_cost_verified": True,
+            "input_sha256": FreeLLMAPIClient._digest_payload(input_value),
+            "output_sha256": FreeLLMAPIClient._digest_payload(output_value),
+            "media_egress_grant_id": media_egress_grant_id,
+        }
+
+    def governed_embeddings(
+        self,
+        *,
+        input_texts: str | Iterable[str],
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        catalog: FreeLLMAPILocalCatalog | None = None,
+        registry: dict[str, Any] | None = None,
+        family: str | None = None,
+        dimensions: int | None = None,
+    ) -> FreeLLMAPIProviderResult:
+        validate_authorization(
+            authorization,
+            expected_task_id=str(task_id),
+            expected_capability=str(capability_id),
+        )
+        inputs = [input_texts] if isinstance(input_texts, str) else list(input_texts)
+        if not inputs or any(not isinstance(value, str) or not value for value in inputs):
+            raise FreeLLMAPIError("FREELLMAPI_EMBEDDING_INPUT_REQUIRED")
+        source = catalog if catalog is not None else FreeLLMAPILocalCatalog()
+        families = source.eligible_embedding_families(
+            capability_id=capability_id,
+            data_classification=data_classification,
+            registry=registry,
+        )
+        if family is not None:
+            if str(family).casefold() == "auto":
+                raise FreeLLMAPIError("FREELLMAPI_UNRESTRICTED_AUTO_FORBIDDEN")
+            families = [item for item in families if item.family == str(family)]
+        if not families:
+            raise FreeLLMAPIError("FREELLMAPI_ZERO_COST_EMBEDDING_POOL_UNAVAILABLE")
+        selected = families[0]
+
+        payload: dict[str, Any] = {
+            "model": selected.family,
+            "input": inputs if len(inputs) > 1 else inputs[0],
+        }
+        expected_dimensions = selected.dimensions
+        if dimensions is not None:
+            if int(dimensions) < 1:
+                raise FreeLLMAPIError("FREELLMAPI_EMBEDDING_DIMENSIONS_INVALID")
+            payload["dimensions"] = int(dimensions)
+            expected_dimensions = int(dimensions)
+
+        try:
+            response = self._client.post("embeddings", json=payload)
+            response.raise_for_status()
+            raw = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise FreeLLMAPIError(
+                f"FREELLMAPI_EMBEDDING_REQUEST_FAILED:{type(exc).__name__}"
+            ) from exc
+        if not isinstance(raw, dict):
+            raise FreeLLMAPIError("FREELLMAPI_EMBEDDING_RESPONSE_INVALID")
+        provider = str(raw.get("provider") or "")
+        member = next((item for item in selected.members if item.provider == provider), None)
+        if member is None:
+            raise FreeLLMAPIError("FREELLMAPI_EMBEDDING_PROVIDER_ESCAPED_ELIGIBLE_FAMILY")
+        data = raw.get("data")
+        if not isinstance(data, list) or not data:
+            raise FreeLLMAPIError("FREELLMAPI_EMBEDDING_RESPONSE_MISSING_DATA")
+        for item in data:
+            vector = item.get("embedding") if isinstance(item, dict) else None
+            if not isinstance(vector, list) or len(vector) != expected_dimensions:
+                raise FreeLLMAPIError("FREELLMAPI_EMBEDDING_DIMENSION_MISMATCH")
+        decision = evaluate_provider_eligibility(
+            provider=member.provider,
+            model_id=member.model_id,
+            capability_id=capability_id,
+            modality="embedding",
+            data_classification=data_classification,
+            registry=registry if registry is not None else load_provider_registry(),
+        )
+        receipt = self._receipt_base(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            provider=provider,
+            requested_model=selected.family,
+            trust_lane=decision.trust_lane,
+            input_value=inputs,
+            output_value=raw,
+        )
+        receipt.update(
+            {
+                "embedding_family": selected.family,
+                "dimensions": expected_dimensions,
+                "eligible_providers": [item.provider for item in selected.members],
+                "usage": dict(raw.get("usage") or {}) if isinstance(raw.get("usage"), dict) else {},
+            }
+        )
+        return FreeLLMAPIProviderResult(
+            raw=raw,
+            content_type=response.headers.get("Content-Type"),
+            receipt=receipt,
+        )
+
+    def _select_media_candidate(
+        self,
+        *,
+        modality: str,
+        capability_id: str,
+        data_classification: str,
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        catalog: FreeLLMAPILocalCatalog | None,
+        registry: dict[str, Any] | None,
+        media_grant: MediaEgressGrant | None,
+        asset_digest: str | None,
+    ) -> tuple[FreeLLMAPIMediaCandidate, ProviderEligibilityDecision]:
+        validate_authorization(
+            authorization,
+            expected_task_id=str(task_id),
+            expected_capability=str(capability_id),
+        )
+        source = catalog if catalog is not None else FreeLLMAPILocalCatalog()
+        eligible = source.eligible_media_candidates(
+            modality=modality,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            registry=registry,
+            media_grant=media_grant,
+            task_id=task_id,
+            authorization_id=authorization.authorization_id,
+            asset_digest=asset_digest,
+        )
+        if not eligible:
+            raise FreeLLMAPIError(
+                f"FREELLMAPI_ZERO_COST_{modality.upper()}_POOL_UNAVAILABLE"
+            )
+        return eligible[0]
+
+    def governed_image(
+        self,
+        *,
+        prompt: str,
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        catalog: FreeLLMAPILocalCatalog | None = None,
+        registry: dict[str, Any] | None = None,
+        media_grant: MediaEgressGrant | None = None,
+        asset_digest: str | None = None,
+        size: str | None = None,
+    ) -> FreeLLMAPIProviderResult:
+        candidate, decision = self._select_media_candidate(
+            modality="image",
+            capability_id=capability_id,
+            data_classification=data_classification,
+            authorization=authorization,
+            task_id=task_id,
+            catalog=catalog,
+            registry=registry,
+            media_grant=media_grant,
+            asset_digest=asset_digest,
+        )
+        payload: dict[str, Any] = {"model": candidate.model_id, "prompt": str(prompt)}
+        if size is not None:
+            payload["size"] = str(size)
+        try:
+            response = self._client.post("images/generations", json=payload)
+            response.raise_for_status()
+            raw = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise FreeLLMAPIError(f"FREELLMAPI_IMAGE_REQUEST_FAILED:{type(exc).__name__}") from exc
+        if not isinstance(raw, dict) or str(raw.get("provider") or "") != candidate.provider:
+            raise FreeLLMAPIError("FREELLMAPI_MEDIA_PROVIDER_MISMATCH")
+        receipt = self._receipt_base(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            provider=candidate.provider,
+            requested_model=candidate.model_id,
+            trust_lane=decision.trust_lane,
+            input_value=payload,
+            output_value=raw,
+            media_egress_grant_id=decision.media_egress_grant_id,
+        )
+        return FreeLLMAPIProviderResult(raw=raw, content_type=response.headers.get("Content-Type"), receipt=receipt)
+
+    def governed_video(
+        self,
+        *,
+        prompt: str,
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        catalog: FreeLLMAPILocalCatalog | None = None,
+        registry: dict[str, Any] | None = None,
+        media_grant: MediaEgressGrant | None = None,
+        asset_digest: str | None = None,
+        duration: int | None = None,
+        aspect_ratio: str | None = None,
+    ) -> FreeLLMAPIProviderResult:
+        candidate, decision = self._select_media_candidate(
+            modality="video",
+            capability_id=capability_id,
+            data_classification=data_classification,
+            authorization=authorization,
+            task_id=task_id,
+            catalog=catalog,
+            registry=registry,
+            media_grant=media_grant,
+            asset_digest=asset_digest,
+        )
+        payload: dict[str, Any] = {"model": candidate.model_id, "prompt": str(prompt)}
+        if duration is not None:
+            payload["duration"] = int(duration)
+        if aspect_ratio is not None:
+            payload["aspect_ratio"] = str(aspect_ratio)
+        try:
+            response = self._client.post("videos/generations", json=payload)
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise FreeLLMAPIError(f"FREELLMAPI_VIDEO_REQUEST_FAILED:{type(exc).__name__}") from exc
+        provider = response.headers.get("X-Provider") or ""
+        model = response.headers.get("X-Model") or candidate.model_id
+        if provider != candidate.provider or model != candidate.model_id:
+            raise FreeLLMAPIError("FREELLMAPI_MEDIA_PROVIDER_MISMATCH")
+        raw = response.content
+        receipt = self._receipt_base(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            provider=candidate.provider,
+            requested_model=candidate.model_id,
+            trust_lane=decision.trust_lane,
+            input_value=payload,
+            output_value=raw,
+            media_egress_grant_id=decision.media_egress_grant_id,
+        )
+        return FreeLLMAPIProviderResult(raw=raw, content_type=response.headers.get("Content-Type"), receipt=receipt)
+
+    def governed_speech(
+        self,
+        *,
+        text: str,
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        catalog: FreeLLMAPILocalCatalog | None = None,
+        registry: dict[str, Any] | None = None,
+        media_grant: MediaEgressGrant | None = None,
+        asset_digest: str | None = None,
+        voice: str | None = None,
+        response_format: str | None = None,
+    ) -> FreeLLMAPIProviderResult:
+        candidate, decision = self._select_media_candidate(
+            modality="speech",
+            capability_id=capability_id,
+            data_classification=data_classification,
+            authorization=authorization,
+            task_id=task_id,
+            catalog=catalog,
+            registry=registry,
+            media_grant=media_grant,
+            asset_digest=asset_digest,
+        )
+        payload: dict[str, Any] = {"model": candidate.model_id, "input": str(text)}
+        if voice is not None:
+            payload["voice"] = str(voice)
+        if response_format is not None:
+            payload["response_format"] = str(response_format)
+        try:
+            response = self._client.post("audio/speech", json=payload)
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise FreeLLMAPIError(f"FREELLMAPI_SPEECH_REQUEST_FAILED:{type(exc).__name__}") from exc
+        provider = response.headers.get("X-Provider") or ""
+        if provider != candidate.provider:
+            raise FreeLLMAPIError("FREELLMAPI_MEDIA_PROVIDER_MISMATCH")
+        raw = response.content
+        receipt = self._receipt_base(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            provider=candidate.provider,
+            requested_model=candidate.model_id,
+            trust_lane=decision.trust_lane,
+            input_value=payload,
+            output_value=raw,
+            media_egress_grant_id=decision.media_egress_grant_id,
+        )
+        return FreeLLMAPIProviderResult(raw=raw, content_type=response.headers.get("Content-Type"), receipt=receipt)
+
+    def governed_transcription(
+        self,
+        *,
+        audio_bytes: bytes,
+        filename: str,
+        mime_type: str,
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        catalog: FreeLLMAPILocalCatalog | None = None,
+        registry: dict[str, Any] | None = None,
+        media_grant: MediaEgressGrant | None = None,
+        asset_digest: str | None = None,
+        language: str | None = None,
+    ) -> FreeLLMAPIProviderResult:
+        digest = asset_digest or ("sha256:" + sha256(audio_bytes).hexdigest())
+        candidate, decision = self._select_media_candidate(
+            modality="transcription",
+            capability_id=capability_id,
+            data_classification=data_classification,
+            authorization=authorization,
+            task_id=task_id,
+            catalog=catalog,
+            registry=registry,
+            media_grant=media_grant,
+            asset_digest=digest,
+        )
+        data: dict[str, str] = {"model": candidate.model_id, "response_format": "json"}
+        if language is not None:
+            data["language"] = str(language)
+        files = {"file": (str(filename), bytes(audio_bytes), str(mime_type))}
+        try:
+            response = self._client.post("audio/transcriptions", data=data, files=files)
+            response.raise_for_status()
+            raw = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise FreeLLMAPIError(
+                f"FREELLMAPI_TRANSCRIPTION_REQUEST_FAILED:{type(exc).__name__}"
+            ) from exc
+        provider = response.headers.get("X-Provider") or ""
+        model = response.headers.get("X-Model") or candidate.model_id
+        if provider != candidate.provider or model != candidate.model_id:
+            raise FreeLLMAPIError("FREELLMAPI_MEDIA_PROVIDER_MISMATCH")
+        receipt = self._receipt_base(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            provider=candidate.provider,
+            requested_model=candidate.model_id,
+            trust_lane=decision.trust_lane,
+            input_value=audio_bytes,
+            output_value=raw,
+            media_egress_grant_id=decision.media_egress_grant_id,
+        )
+        receipt["asset_digest"] = digest
+        return FreeLLMAPIProviderResult(raw=raw, content_type=response.headers.get("Content-Type"), receipt=receipt)
+
+    def governed_fusion(
+        self,
+        *,
+        messages: Iterable[dict[str, Any]],
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        catalog: FreeLLMAPILocalCatalog | None = None,
+        registry: dict[str, Any] | None = None,
+        panel_size: int = 4,
+        strategy: str = "synthesize",
+    ) -> FreeLLMAPICompletionResult:
+        validate_authorization(
+            authorization,
+            expected_task_id=str(task_id),
+            expected_capability=str(capability_id),
+        )
+        if capability_id != "reason.fusion":
+            raise FreeLLMAPIError("FREELLMAPI_FUSION_CAPABILITY_REQUIRED")
+        rows = _validate_messages(messages)
+        policy_registry = registry if registry is not None else load_provider_registry()
+        source = catalog if catalog is not None else FreeLLMAPILocalCatalog()
+        eligible: list[tuple[FreeLLMAPIModelCandidate, ProviderEligibilityDecision]] = []
+        seen_providers: set[str] = set()
+        for candidate in source.chat_candidates():
+            decision = evaluate_provider_eligibility(
+                provider=candidate.provider,
+                model_id=candidate.model_id,
+                capability_id=capability_id,
+                modality="text",
+                data_classification=data_classification,
+                registry=policy_registry,
+            )
+            if decision.allowed and candidate.provider not in seen_providers:
+                eligible.append((candidate, decision))
+                seen_providers.add(candidate.provider)
+        wanted = max(2, min(int(panel_size), 8))
+        panel = eligible[:wanted]
+        if len(panel) < 2:
+            raise FreeLLMAPIError("FREELLMAPI_ZERO_COST_FUSION_POOL_UNAVAILABLE")
+        panel_models = [candidate.qualified_model_id for candidate, _ in panel]
+        judge_model = panel_models[0]
+        payload = {
+            "model": "fusion",
+            "messages": rows,
+            "stream": False,
+            "fusion": {
+                "models": panel_models,
+                "judge": judge_model,
+                "strategy": str(strategy),
+                "expose_panel": True,
+            },
+        }
+        try:
+            response = self._client.post("chat/completions", json=payload)
+            response.raise_for_status()
+            raw = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise FreeLLMAPIError(f"FREELLMAPI_FUSION_REQUEST_FAILED:{type(exc).__name__}") from exc
+        if not isinstance(raw, dict):
+            raise FreeLLMAPIError("FREELLMAPI_FUSION_RESPONSE_INVALID")
+        choices = raw.get("choices")
+        if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+            raise FreeLLMAPIError("FREELLMAPI_FUSION_RESPONSE_MISSING_CHOICE")
+        message = choices[0].get("message")
+        if not isinstance(message, dict) or not isinstance(message.get("content"), str):
+            raise FreeLLMAPIError("FREELLMAPI_FUSION_RESPONSE_CONTENT_INVALID")
+        content = str(message["content"])
+        usage = dict(raw.get("usage") or {}) if isinstance(raw.get("usage"), dict) else {}
+        first_decision = panel[0][1]
+        receipt = self._receipt_base(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            provider="FUSION",
+            requested_model="fusion",
+            trust_lane=first_decision.trust_lane,
+            input_value=rows,
+            output_value=content,
+        )
+        receipt.update(
+            {
+                "panel_models": panel_models,
+                "judge_model": judge_model,
+                "quota_cost_class": "HIGH",
+                "usage": usage,
+            }
+        )
+        return FreeLLMAPICompletionResult(
+            content=content,
+            served_model=(str(raw.get("model")) if raw.get("model") is not None else "fusion"),
+            usage=usage,
+            raw=raw,
+            routed_via=response.headers.get("X-Routed-Via") or "fusion",
+            receipt=receipt,
+        )
 
     def chat(
         self,
@@ -386,6 +1120,9 @@ class FreeLLMAPIClient:
         model: str = "auto",
         temperature: float | None = None,
         max_tokens: int | None = None,
+        tools: Iterable[dict[str, Any]] | None = None,
+        tool_choice: Any | None = None,
+        response_format: dict[str, Any] | None = None,
     ) -> FreeLLMAPICompletionResult:
         classification = str(data_classification or "").strip().upper()
         if classification not in _ALLOWED_EGRESS_CLASSES:
@@ -411,6 +1148,15 @@ class FreeLLMAPIClient:
             if int(max_tokens) < 1:
                 raise FreeLLMAPIError("FREELLMAPI_MAX_TOKENS_INVALID")
             payload["max_tokens"] = int(max_tokens)
+        if tools is not None:
+            tool_rows = [dict(item) for item in tools]
+            if not tool_rows:
+                raise FreeLLMAPIError("FREELLMAPI_TOOLS_REQUIRED")
+            payload["tools"] = tool_rows
+        if tool_choice is not None:
+            payload["tool_choice"] = tool_choice
+        if response_format is not None:
+            payload["response_format"] = dict(response_format)
 
         try:
             response = self._client.post("chat/completions", json=payload)
@@ -441,6 +1187,8 @@ class FreeLLMAPIClient:
         if not isinstance(message, dict):
             raise FreeLLMAPIError("FREELLMAPI_RESPONSE_MISSING_MESSAGE")
         content = message.get("content")
+        if content is None and isinstance(message.get("tool_calls"), list) and message["tool_calls"]:
+            content = ""
         if not isinstance(content, str):
             raise FreeLLMAPIError("FREELLMAPI_RESPONSE_CONTENT_INVALID")
         usage = raw.get("usage")
