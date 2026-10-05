@@ -347,6 +347,30 @@ def validate_9router_sidecar_contract() -> None:
         or live_adaptation.get("alpha") != 0.35
     ):
         raise ValueError("HAZEWAVE_9ROUTER_LIVE_ADAPTATION_INVALID")
+    semantic_admission = optimizer.get("semantic_admission") or {}
+    if (
+        semantic_admission.get("sample_count") != 3
+        or semantic_admission.get("minimum_semantic_successes") != 2
+        or semantic_admission.get("early_stop_statuses") != [400, 401, 403, 429]
+    ):
+        raise ValueError("HAZEWAVE_9ROUTER_SEMANTIC_ADMISSION_INVALID")
+    live_adaptation = optimizer.get("live_adaptation") or {}
+    prior = live_adaptation.get("reliability_prior") or {}
+    if (
+        prior.get("alpha") != 2
+        or prior.get("beta") != 1
+        or live_adaptation.get("reliability_penalty_power") != 2
+    ):
+        raise ValueError("HAZEWAVE_9ROUTER_RELIABILITY_POLICY_INVALID")
+    session_affinity = optimizer.get("session_affinity") or {}
+    if (
+        session_affinity.get("enabled") is not True
+        or session_affinity.get("scope") != "TASK"
+        or session_affinity.get("downstream_header") != "x-session-id"
+        or session_affinity.get("identity") != "SHA256_TASK_ID_32"
+        or session_affinity.get("raw_task_id_egress") is not False
+    ):
+        raise ValueError("HAZEWAVE_9ROUTER_SESSION_AFFINITY_INVALID")
     cooldown = optimizer.get("transient_cooldown") or {}
     if (
         cooldown.get("base_seconds") != 60
