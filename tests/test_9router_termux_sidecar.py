@@ -47,3 +47,16 @@ def test_9router_termux_runtime_is_managed_by_hazewave() -> None:
     assert "HAZEWAVE_9ROUTER_AUTHORITY=NONE" in control
     assert "HAZEWAVE_9ROUTER_PAID_FALLBACK=FORBIDDEN" in control
     assert "9router)" in root_control
+
+
+def test_9router_termux_runtime_reconciles_real_server_pid_without_tray_or_generic_postinstall() -> None:
+    installer = INSTALLER.read_text(encoding="utf-8")
+    control = CONTROL.read_text(encoding="utf-8")
+
+    assert "--ignore-scripts" in installer
+    assert "ensureSqliteRuntime" in installer
+    assert "trayRuntime" not in installer
+
+    assert "setsid" not in control
+    assert "discover_owned_server_pids" in control
+    assert "HAZEWAVE_9ROUTER_PID_RECONCILED" in control
