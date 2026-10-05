@@ -203,31 +203,58 @@ O código upstream continua pinado e application update checking continua deslig
 
 ## 9Router — sidecar local governado
 
-Hazewave também pode instalar o **9Router** como runtime local subordinado para descoberta e futura admissão de rotas gratuitas.
+Hazewave usa o **9Router** como gateway local subordinado para uma lane remota de inferência **zero-cost, fail-closed e otimizada pelo próprio Harness**.
 
 Baseline pinado:
 
 - upstream: `decolua/9router`;
 - version: `0.5.95`;
 - commit: `a99cf57239ff778b61e434c2786009d5ed1c412c`;
-- endpoint local: `http://127.0.0.1:20128/v1`;
-- autoridade: `NONE`;
-- auto-update: desligado;
-- paid fallback: proibido pelo contrato Hazewave;
-- execução: `DISCOVERY_ONLY_UNTIL_ROUTE_ADMISSION`.
+- endpoint: `http://127.0.0.1:20128/v1`;
+- autoridade do gateway: `NONE`;
+- autoridade de roteamento: `HAZEWAVE_HARNESS`;
+- auto-update/cloud/tunnel/tailscale: desligados;
+- paid/cheap fallback e custo desconhecido: negados;
+- 9Router Combos e capacity-adapter fallback: proibidos;
+- OpenCode Free: catálogo dinâmico + prova semântica por modelo;
+- receipt de otimização: TTL de 24h;
+- RTK: forçado durante execução governada;
+- Headroom: desligado até existir runtime local gerenciado e benchmark próprio;
+- respostas do executor: non-stream para preservar accounting de tokens.
 
-Isso significa que instalar o 9Router **não** concede automaticamente permissão para usar providers pagos, créditos promocionais ou qualquer rota apenas porque aparece no catálogo. Hazewave deve provar a rota zero-cost exata antes de admiti-la.
-
-Operação no Termux:
+### Operação
 
 ```bash
 bash scripts/hazewave_termux_control.sh 9router install
 bash scripts/hazewave_termux_control.sh 9router start
 bash scripts/hazewave_termux_control.sh 9router doctor
-bash scripts/hazewave_termux_control.sh 9router logs
+
+# Descoberta sem inferência
+bash scripts/hazewave_termux_control.sh 9router catalog
+
+# Benchmark de todo o pool OpenCode Free e geração de receipt v2
+bash scripts/hazewave_termux_control.sh 9router optimize
+
+# Estado do pool, ranking, freshness e cooldowns
+PYTHONPATH=src python -m hazewave.cli 9router status
+
+# Seleção automática do melhor modelo provado + fallback somente no pool Free
+PYTHONPATH=src python -m hazewave.cli 9router execute \
+  --capability reason.general \
+  --domain HAZE \
+  --prompt "Explique o problema."
+
+# Histórico público de agente/tool_result, permitindo ao RTK comprimir contexto
+PYTHONPATH=src python -m hazewave.cli 9router execute \
+  --capability code.review \
+  --domain HAZE \
+  --messages-file /path/to/public-messages.json
 ```
 
-O processo é sempre iniciado em loopback (`127.0.0.1`) e o pacote npm fica pinado em `9router@0.5.95`.
+O optimizer benchmarka no máximo 16 modelos e admite apenas os que devolverem prova semântica. Para `reason.general` e código, o ranking prioriza **menor total de tokens → menor latência**. Para `reason.deep`, prioriza primeiro **reasoning observado**, depois tokens e latência. Falhas transitórias `429/5xx` entram em cooldown exponencial local (60s até 15min), evitando martelar uma rota degradada.
+
+Catálogo não é autoridade. Receipt presente também não significa receipt válido: freshness, capability, data class, modelo e política zero-cost são revalidados pelo Harness em cada execução.
+
 
 ## ACE-Step 1.5 — geração instrumental
 
