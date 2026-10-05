@@ -55,6 +55,17 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    revision = str(args.runtime_revision or "").strip().lower()
+    if (
+        len(args.runtime_revision) != 40
+        or any(ch not in "0123456789abcdef" for ch in revision)
+    ):
+        print("NVIDIA_RUNTIME_REVISION_REQUIRED=FAIL")
+        print("EXPECTED_FORMAT=40_HEX_COMMIT_SHA")
+        return 2
+    args.runtime_revision = revision
+    print("NVIDIA_RUNTIME_REVISION_REQUIRED=PASS")
+
     adapter = NvidiaNIMAdapter(
         secret_path=args.secret_file,
         receipt_path=args.admission,

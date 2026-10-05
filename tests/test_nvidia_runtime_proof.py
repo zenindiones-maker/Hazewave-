@@ -397,3 +397,12 @@ def test_v2_contract_prompts_disambiguate_visited_route_and_durable_completion()
     by_id = {row["id"]: row for row in corpus["items"]}
     assert "visited-route set" in by_id["rg-v2-005"]["prompt"]
     assert "must not be invoked again" in by_id["rd-v2-002"]["prompt"]
+
+
+def test_runtime_proof_cli_requires_exact_sha_binding() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script = (root / "scripts" / "hazewave_nvidia_runtime_proof.py").read_text(
+        encoding="utf-8"
+    )
+    assert "NVIDIA_RUNTIME_REVISION_REQUIRED" in script
+    assert "len(args.runtime_revision) != 40" in script
