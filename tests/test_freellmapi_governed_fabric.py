@@ -67,7 +67,7 @@ def test_registry_is_fail_closed_for_credentials_and_unknown_providers() -> None
 
 @pytest.mark.parametrize(
     "provider",
-    ["kilo", "pollinations", "ovh", "aihorde"],
+    ["kilo", "aihorde"],
 )
 def test_registry_contains_reviewed_keyless_public_free_routes(provider: str) -> None:
     registry = _load(REGISTRY_PATH)
@@ -79,6 +79,80 @@ def test_registry_contains_reviewed_keyless_public_free_routes(provider: str) ->
     assert entry["monetary_policy"] == "ZERO_COST_VERIFIED"
     assert entry["billing_overflow_policy"] == "HARD_STOP"
     assert entry["allowed_data_classes"] == ["PUBLIC"]
+
+
+def test_registry_disables_routes_without_current_zero_cost_execution_proof() -> None:
+    registry = _load(REGISTRY_PATH)
+    by_provider = {entry["provider"]: entry for entry in registry["providers"]}
+
+    for provider in ("ovh", "pollinations", "github"):
+        entry = by_provider[provider]
+        assert entry["enabled"] is False
+        assert entry["monetary_policy"] != "ZERO_COST_VERIFIED"
+        assert entry["allowed_capabilities"] == []
+
+    assert "ovhcloud.com" in " ".join(by_provider["ovh"]["source_evidence"])
+    assert "pollinations.ai" in " ".join(by_provider["pollinations"]["source_evidence"])
+    assert "docs.github.com" in " ".join(by_provider["github"]["source_evidence"])
+
+
+def test_kilo_registry_only_admits_explicit_free_model_ids() -> None:
+    from hazewave.provider_policy import evaluate_provider_eligibility
+
+    registry = _load(REGISTRY_PATH)
+    kilo = next(entry for entry in registry["providers"] if entry["provider"] == "kilo")
+
+    assert set(kilo["model_patterns"]) == {"*:free", "kilo-auto/free"}
+
+    free = evaluate_provider_eligibility(
+        provider="kilo",
+        model_id="nvidia/nemotron-3-ultra-550b-a55b:free",
+        capability_id="reason.general",
+        modality="text",
+        data_classification="PUBLIC",
+        registry=registry,
+    )
+    auto_free = evaluate_provider_eligibility(
+        provider="kilo",
+        model_id="kilo-auto/free",
+        capability_id="reason.general",
+        modality="text",
+        data_classification="PUBLIC",
+        registry=registry,
+    )
+    paid = evaluate_provider_eligibility(
+        provider="kilo",
+        model_id="anthropic/claude-opus-4.7",
+        capability_id="reason.general",
+        modality="text",
+        data_classification="PUBLIC",
+        registry=registry,
+    )
+
+    assert free.allowed is True
+    assert auto_free.allowed is True
+    assert paid.allowed is False
+    assert paid.reason == "MODEL_NOT_ELIGIBLE"
+
+
+def test_stale_or_paid_provider_routes_are_denied_before_egress() -> None:
+    from hazewave.provider_policy import evaluate_provider_eligibility
+
+    cases = [
+        ("ovh", "Qwen3.6-27B", "reason.general", "text"),
+        ("pollinations", "flux", "visual.image", "image"),
+        ("github", "gpt-4o", "reason.general", "text"),
+    ]
+    for provider, model, capability, modality in cases:
+        decision = evaluate_provider_eligibility(
+            provider=provider,
+            model_id=model,
+            capability_id=capability,
+            modality=modality,
+            data_classification="PUBLIC",
+        )
+        assert decision.allowed is False
+        assert decision.reason == "PROVIDER_DISABLED"
 
 
 def test_registry_does_not_treat_generic_custom_endpoint_as_private_safe() -> None:
