@@ -130,6 +130,7 @@ start_runtime() {
   runtime_node_path="$RUNTIME_HOME/.9router/runtime/node_modules"
 
   HOME="$RUNTIME_HOME" \
+  DATA_DIR="$RUNTIME_HOME/.9router" \
   PORT="$PORT" \
   HOSTNAME="$HOST" \
   NODE_PATH="$runtime_node_path" \
