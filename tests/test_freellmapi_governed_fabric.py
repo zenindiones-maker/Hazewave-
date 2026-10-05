@@ -132,7 +132,7 @@ def test_kilo_registry_only_admits_explicit_free_model_ids() -> None:
     assert free.allowed is True
     assert auto_free.allowed is True
     assert paid.allowed is False
-    assert paid.reason == "MODEL_NOT_ELIGIBLE"
+    assert paid.reason == "MODEL_NOT_ZERO_COST_ELIGIBLE"
 
 
 def test_stale_or_paid_provider_routes_are_denied_before_egress() -> None:
@@ -152,7 +152,7 @@ def test_stale_or_paid_provider_routes_are_denied_before_egress() -> None:
             data_classification="PUBLIC",
         )
         assert decision.allowed is False
-        assert decision.reason == "PROVIDER_DISABLED"
+        assert decision.reason == "PROVIDER_QUARANTINED"
 
 
 def test_registry_does_not_treat_generic_custom_endpoint_as_private_safe() -> None:
@@ -253,7 +253,7 @@ def test_public_keyless_route_is_allowed_when_capability_and_modality_match() ->
 
     decision = evaluate_provider_eligibility(
         provider="kilo",
-        model_id="some-free-model",
+        model_id="nvidia/nemotron-3-super-120b-a12b:free",
         capability_id="reason.general",
         modality="text",
         data_classification="PUBLIC",
@@ -472,7 +472,7 @@ def test_governed_chat_hard_pins_provider_and_emits_zero_cost_receipt(
         INSERT INTO models(
           id, platform, model_id, display_name, intelligence_rank, speed_rank,
           context_window, enabled, supports_tools
-        ) VALUES(1,'kilo','dots-free','Dots Free',10,3,65536,1,1);
+        ) VALUES(1,'kilo','dots-studio/dots-3-note-preview:free','Dots Free',10,3,65536,1,1);
         """
     )
     con.close()
@@ -480,14 +480,14 @@ def test_governed_chat_hard_pins_provider_and_emits_zero_cost_receipt(
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/v1/chat/completions"
         payload = json.loads(request.content)
-        assert payload["model"] == "kilo:dots-free"
+        assert payload["model"] == "kilo:dots-studio/dots-3-note-preview:free"
         assert payload["model"] != "auto"
         return httpx.Response(
             200,
-            headers={"X-Routed-Via": "kilo/dots-free"},
+            headers={"X-Routed-Via": "kilo/dots-studio/dots-3-note-preview:free"},
             json={
                 "id": "chatcmpl-governed",
-                "model": "dots-free",
+                "model": "dots-studio/dots-3-note-preview:free",
                 "choices": [
                     {"message": {"role": "assistant", "content": "bounded observation"}}
                 ],
@@ -531,7 +531,10 @@ def test_governed_chat_hard_pins_provider_and_emits_zero_cost_receipt(
     assert result.content == "bounded observation"
     assert result.receipt["schema"] == "HazewaveProviderExecutionReceipt/v1"
     assert result.receipt["provider"] == "kilo"
-    assert result.receipt["requested_model"] == "kilo:dots-free"
+    assert (
+        result.receipt["requested_model"]
+        == "kilo:dots-studio/dots-3-note-preview:free"
+    )
     assert result.receipt["zero_cost_verified"] is True
     assert result.receipt["usage"]["cost"] == 0
     serialized = json.dumps(result.receipt, sort_keys=True)
