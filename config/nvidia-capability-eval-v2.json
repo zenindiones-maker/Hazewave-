@@ -1,0 +1,436 @@
+{
+  "schema": "HazewaveNvidiaCapabilityEvalCorpus/v2",
+  "project_id": "HAZEWAVE",
+  "authority": "HAZEWAVE_HARNESS",
+  "evaluation_seed": 20261005,
+  "items": [
+    {
+      "id": "rg-v2-001",
+      "capability": "reason.general",
+      "domain": "HAZE",
+      "task_family": "priority.classification",
+      "complexity": "SIMPLE",
+      "structured_output": true,
+      "prompt": "Return JSON only. Rank correctness blocker, latency optimization, and formatting cleanup from first to last. Return either {\"order\":[...]} or numeric ranks for keys correctness, latency, formatting.",
+      "evaluation": {
+        "kind": "RANKING_EQUIVALENT",
+        "labels": [
+          "correctness",
+          "latency",
+          "formatting"
+        ]
+      }
+    },
+    {
+      "id": "rg-v2-002",
+      "capability": "reason.general",
+      "domain": "HAZE",
+      "task_family": "provider.failure.classification",
+      "complexity": "SIMPLE",
+      "structured_output": true,
+      "prompt": "Return JSON only with keys class and retry. A provider returned HTTP 403 because the route is not eligible for this account. Choose class AUTH_OR_ELIGIBILITY_FAILURE or TRANSIENT_CAPACITY and retry true/false.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "class": "AUTH_OR_ELIGIBILITY_FAILURE",
+          "retry": false
+        }
+      }
+    },
+    {
+      "id": "rg-v2-003",
+      "capability": "reason.general",
+      "domain": "HAZE",
+      "task_family": "cost.governance",
+      "complexity": "SIMPLE",
+      "structured_output": true,
+      "prompt": "Return JSON only with paid and unknown. Under a zero-cash-cost policy where PAID=DENY and UNKNOWN=DENY, return ALLOW or DENY for each.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "paid": "DENY",
+          "unknown": "DENY"
+        }
+      }
+    },
+    {
+      "id": "rg-v2-004",
+      "capability": "reason.general",
+      "domain": "HAZE",
+      "task_family": "cache.invalidation",
+      "complexity": "MODERATE",
+      "structured_output": true,
+      "prompt": "Return JSON only with reuse and reason. A cached result was created for context revision c1, but the task now uses context revision c2. Should the cached result be reused? reuse must be true/false and reason must be CONTEXT_CHANGED or CONTEXT_SAME.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "reuse": false,
+          "reason": "CONTEXT_CHANGED"
+        }
+      }
+    },
+    {
+      "id": "rg-v2-005",
+      "capability": "reason.general",
+      "domain": "HAZE",
+      "task_family": "fallback.control",
+      "complexity": "MODERATE",
+      "structured_output": true,
+      "prompt": "Return JSON only with bounded and revisit. A fallback chain has already attempted route NVIDIA/modelA and then 9router/modelB. Should execution have a bounded maximum attempt count, and may it revisit NVIDIA/modelA in the same task? bounded/revisit are booleans.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "bounded": true,
+          "revisit": false
+        }
+      }
+    },
+    {
+      "id": "rd-v2-001",
+      "capability": "reason.deep",
+      "domain": "HAZE",
+      "task_family": "architecture.settings.concurrency",
+      "complexity": "HARD",
+      "structured_output": true,
+      "prompt": "Return JSON only with mutation_lock, prepared_lock, and safe. A gateway has process-global settings. Legacy executions mutate settings; prepared executions only read pinned safe settings and then perform concurrent provider calls. Choose mutation_lock EXCLUSIVE or SHARED, prepared_lock EXCLUSIVE or SHARED, and safe true/false for the design that prevents settings mutation racing with prepared calls while allowing prepared calls to overlap.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "mutation_lock": "EXCLUSIVE",
+          "prepared_lock": "SHARED",
+          "safe": true
+        }
+      }
+    },
+    {
+      "id": "rd-v2-002",
+      "capability": "reason.deep",
+      "domain": "HAZE",
+      "task_family": "durable.resume",
+      "complexity": "HARD",
+      "structured_output": true,
+      "prompt": "Return JSON only with replay_completed, resume_partial, and blind_retry. A durable mission has tasks A=COMPLETED, B=PARTIAL_FAILED after a transient provider outage, C=PENDING. On recovery, decide whether to replay completed A, resume B from durable progress, and blindly retry the whole mission.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "replay_completed": false,
+          "resume_partial": true,
+          "blind_retry": false
+        }
+      }
+    },
+    {
+      "id": "rd-v2-003",
+      "capability": "reason.deep",
+      "domain": "HAZE",
+      "task_family": "authority.boundary",
+      "complexity": "HARD",
+      "structured_output": true,
+      "prompt": "Return JSON only with authority and provider_can_route_globally. In an architecture where providers execute only routes authorized by the Harness, which component remains global routing authority? authority must be HAZEWAVE_HARNESS or PROVIDER.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "authority": "HAZEWAVE_HARNESS",
+          "provider_can_route_globally": false
+        }
+      }
+    },
+    {
+      "id": "rd-v2-004",
+      "capability": "reason.deep",
+      "domain": "HAZE",
+      "task_family": "congestion.control",
+      "complexity": "HARD",
+      "structured_output": true,
+      "prompt": "Return JSON only with concurrency_action, retry_after, and budget_action. A provider returns HTTP 429 with Retry-After. The client uses AIMD and the reasoning output before the 429 was semantically good. concurrency_action must be INCREASE/KEEP/DECREASE, retry_after HONOR/IGNORE, budget_action INCREASE/KEEP.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "concurrency_action": "DECREASE",
+          "retry_after": "HONOR",
+          "budget_action": "KEEP"
+        }
+      }
+    },
+    {
+      "id": "rd-v2-005",
+      "capability": "reason.deep",
+      "domain": "HAZE",
+      "task_family": "provider.ranking",
+      "complexity": "HARD",
+      "structured_output": true,
+      "prompt": "Return JSON only with global_winner and ranking_scope. Provider A is best for code.review while provider B is best for reason.deep. Should the system declare one global winner? global_winner is boolean; ranking_scope must be CAPABILITY or GLOBAL.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "global_winner": false,
+          "ranking_scope": "CAPABILITY"
+        }
+      }
+    },
+    {
+      "id": "cg-v2-001",
+      "capability": "code.generate",
+      "domain": "HAZE",
+      "task_family": "python.clamp",
+      "complexity": "SIMPLE",
+      "structured_output": false,
+      "prompt": "Write only Python defining clamp_retry_after(seconds) for seconds: int|float. Clamp below at 0 and above at 3600.",
+      "evaluation": {
+        "kind": "PYTHON_RESTRICTED_BEHAVIOR",
+        "function_name": "clamp_retry_after",
+        "cases": [
+          {
+            "args": [
+              -5
+            ],
+            "expected": 0
+          },
+          {
+            "args": [
+              45
+            ],
+            "expected": 45
+          },
+          {
+            "args": [
+              5000
+            ],
+            "expected": 3600
+          },
+          {
+            "args": [
+              12.5
+            ],
+            "expected": 12.5
+          }
+        ]
+      }
+    },
+    {
+      "id": "cg-v2-002",
+      "capability": "code.generate",
+      "domain": "HAZE",
+      "task_family": "python.aimd",
+      "complexity": "SIMPLE",
+      "structured_output": false,
+      "prompt": "Write only Python defining reduce_concurrency(limit). Return half the integer limit using floor division, but never below 1.",
+      "evaluation": {
+        "kind": "PYTHON_RESTRICTED_BEHAVIOR",
+        "function_name": "reduce_concurrency",
+        "cases": [
+          {
+            "args": [
+              1
+            ],
+            "expected": 1
+          },
+          {
+            "args": [
+              2
+            ],
+            "expected": 1
+          },
+          {
+            "args": [
+              8
+            ],
+            "expected": 4
+          },
+          {
+            "args": [
+              9
+            ],
+            "expected": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "cg-v2-003",
+      "capability": "code.generate",
+      "domain": "HAZE",
+      "task_family": "python.backoff",
+      "complexity": "MODERATE",
+      "structured_output": false,
+      "prompt": "Write only Python defining capped_backoff(base, attempt). Return base * (2 ** attempt), capped at 900.",
+      "evaluation": {
+        "kind": "PYTHON_RESTRICTED_BEHAVIOR",
+        "function_name": "capped_backoff",
+        "cases": [
+          {
+            "args": [
+              10,
+              0
+            ],
+            "expected": 10
+          },
+          {
+            "args": [
+              10,
+              3
+            ],
+            "expected": 80
+          },
+          {
+            "args": [
+              100,
+              4
+            ],
+            "expected": 900
+          }
+        ]
+      }
+    },
+    {
+      "id": "cg-v2-004",
+      "capability": "code.generate",
+      "domain": "HAZE",
+      "task_family": "python.retry-after",
+      "complexity": "SIMPLE",
+      "structured_output": false,
+      "prompt": "Write only Python defining choose_wait(backoff, retry_after). Return the larger of the two numeric wait values.",
+      "evaluation": {
+        "kind": "PYTHON_RESTRICTED_BEHAVIOR",
+        "function_name": "choose_wait",
+        "cases": [
+          {
+            "args": [
+              30,
+              10
+            ],
+            "expected": 30
+          },
+          {
+            "args": [
+              30,
+              90
+            ],
+            "expected": 90
+          },
+          {
+            "args": [
+              0,
+              0
+            ],
+            "expected": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "cg-v2-005",
+      "capability": "code.generate",
+      "domain": "HAZE",
+      "task_family": "python.quality",
+      "complexity": "SIMPLE",
+      "structured_output": false,
+      "prompt": "Write only Python defining clamp_quality(score) for int|float. Clamp to the inclusive interval 0.0 to 1.0.",
+      "evaluation": {
+        "kind": "PYTHON_RESTRICTED_BEHAVIOR",
+        "function_name": "clamp_quality",
+        "cases": [
+          {
+            "args": [
+              -1
+            ],
+            "expected": 0
+          },
+          {
+            "args": [
+              0.4
+            ],
+            "expected": 0.4
+          },
+          {
+            "args": [
+              2
+            ],
+            "expected": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "cr-v2-001",
+      "capability": "code.review",
+      "domain": "HAZE",
+      "task_family": "review.aimd",
+      "complexity": "MODERATE",
+      "structured_output": true,
+      "prompt": "Return JSON only. The variable current_client_concurrency_limit controls simultaneous client requests. After HTTP 429, code proposes current_client_concurrency_limit += 1. Return concurrency_action INCREASE/KEEP/DECREASE, retry_after HONOR/IGNORE, blind_increase boolean.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "concurrency_action": "DECREASE",
+          "retry_after": "HONOR",
+          "blind_increase": false
+        }
+      }
+    },
+    {
+      "id": "cr-v2-002",
+      "capability": "code.review",
+      "domain": "HAZE",
+      "task_family": "review.auth",
+      "complexity": "SIMPLE",
+      "structured_output": true,
+      "prompt": "Return JSON only. Code retries HTTP 403 forever against the same route. Return failure_class and retry_same_route. failure_class must be AUTH_OR_ELIGIBILITY_FAILURE or TRANSIENT_CAPACITY; retry_same_route is boolean.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "failure_class": "AUTH_OR_ELIGIBILITY_FAILURE",
+          "retry_same_route": false
+        }
+      }
+    },
+    {
+      "id": "cr-v2-003",
+      "capability": "code.review",
+      "domain": "HAZE",
+      "task_family": "review.empty",
+      "complexity": "MODERATE",
+      "structured_output": true,
+      "prompt": "Return JSON only. A provider returns HTTP 200, finish_reason=stop, but both semantic content and tool_calls are empty. Return pass and failure_class. failure_class must be EMPTY_SEMANTIC_RESPONSE or RATE_LIMITED.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "pass": false,
+          "failure_class": "EMPTY_SEMANTIC_RESPONSE"
+        }
+      }
+    },
+    {
+      "id": "cr-v2-004",
+      "capability": "code.review",
+      "domain": "HAZE",
+      "task_family": "review.server",
+      "complexity": "MODERATE",
+      "structured_output": true,
+      "prompt": "Return JSON only. Code treats HTTP 503 as a model-quality failure and permanently bans the model. Return failure_class and permanent_ban. failure_class must be PROVIDER_SERVER_FAILURE or MODEL_QUALITY_FAILURE.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "failure_class": "PROVIDER_SERVER_FAILURE",
+          "permanent_ban": false
+        }
+      }
+    },
+    {
+      "id": "cr-v2-005",
+      "capability": "code.review",
+      "domain": "HAZE",
+      "task_family": "review.cache",
+      "complexity": "MODERATE",
+      "structured_output": true,
+      "prompt": "Return JSON only. A result cache key contains prompt text and capability but omits policy_revision and dependency_revision. Return safe_reuse and missing_revision_binding.",
+      "evaluation": {
+        "kind": "JSON_SUBSET",
+        "expected": {
+          "safe_reuse": false,
+          "missing_revision_binding": true
+        }
+      }
+    }
+  ]
+}
