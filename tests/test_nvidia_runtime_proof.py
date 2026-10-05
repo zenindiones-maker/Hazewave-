@@ -7,6 +7,7 @@ from hazewave.nvidia_proof import (
     evaluate_probe_item,
     load_probe_corpus,
     scan_paths_for_secret,
+    probe_request_options,
 )
 from hazewave.provider_runtime import HazewaveProviderExecutionResult
 
@@ -111,3 +112,25 @@ def test_secret_scanner_detects_exact_secret_without_returning_secret(tmp_path: 
     assert result["leak_count"] == 1
     assert result["paths"] == ["leak.json"]
     assert secret not in serialized
+
+
+def test_json_probe_requests_provider_json_mode() -> None:
+    item = {
+        "capability": "reason.deep",
+        "execution_profile": "DEEP_REASONING",
+        "evaluation": {"kind": "JSON_SUBSET", "expected": {"ok": True}},
+    }
+    options = probe_request_options(item)
+    assert options["response_format"] == {"type": "json_object"}
+    assert options["max_tokens"] == 4096
+
+
+def test_code_review_probe_requests_2048_tokens_without_json_mode() -> None:
+    item = {
+        "capability": "code.review",
+        "execution_profile": "FAST_STRUCTURED",
+        "evaluation": {"kind": "KEYWORD_GROUPS", "groups": [["bug"]]},
+    }
+    options = probe_request_options(item)
+    assert options["max_tokens"] == 2048
+    assert "response_format" not in options
