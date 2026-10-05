@@ -327,3 +327,22 @@ def test_catalog_lists_provider_keys_without_exposing_encrypted_material(tmp_pat
         },
     ]
     assert "ciphertext" not in json.dumps(rows)
+
+
+def test_write_account_attestation_rejects_more_than_one_month_of_trust(
+    tmp_path: Path,
+) -> None:
+    from hazewave.provider_policy import write_account_attestation
+
+    with pytest.raises(
+        ValueError,
+        match="HAZEWAVE_ACCOUNT_ATTESTATION_TTL_TOO_LONG",
+    ):
+        write_account_attestation(
+            provider="groq",
+            credential_id=7,
+            expires_at="2027-01-05T12:00:00+00:00",
+            source_evidence=["https://console.groq.com/docs/billing-faqs"],
+            path=tmp_path / "account-attestations.json",
+            now="2026-10-05T12:00:00+00:00",
+        )
