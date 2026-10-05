@@ -136,3 +136,11 @@ def test_9router_free_probe_separates_connectivity_from_execution_admission() ->
     assert "HAZEWAVE_9ROUTER_FREE_ATTEMPT=" in probe
     assert "execution_admitted_models" in probe
     assert "semantic_mismatch" in probe
+
+
+def test_9router_doctor_reports_receipt_presence_without_claiming_validity() -> None:
+    control = CONTROL.read_text(encoding="utf-8")
+
+    assert "free-admission.json" in control
+    assert "RECEIPT_PRESENT_HARNESS_VALIDATION_REQUIRED" in control
+    assert "PENDING_RUNTIME_CATALOG_PROOF" in control
