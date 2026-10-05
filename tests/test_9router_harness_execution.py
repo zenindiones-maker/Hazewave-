@@ -120,7 +120,6 @@ def test_executor_requires_harness_admission_before_http(tmp_path: Path) -> None
             now="2026-10-05T12:00:00+00:00",
             lock_path=tmp_path / "lock",
             transport=transport,
-        cli_token="unit-test-token",
             cli_token="unit-test-token",
         )
 
@@ -139,7 +138,6 @@ def test_executor_refuses_any_external_exposure(tmp_path: Path) -> None:
             now="2026-10-05T12:00:00+00:00",
             lock_path=tmp_path / "lock",
             transport=transport,
-        cli_token="unit-test-token",
             cli_token="unit-test-token",
         )
 
@@ -223,7 +221,6 @@ def test_executor_rejects_empty_prompt_before_mutation(tmp_path: Path) -> None:
             now="2026-10-05T12:00:00+00:00",
             lock_path=tmp_path / "lock",
             transport=transport,
-        cli_token="unit-test-token",
             cli_token="unit-test-token",
         )
 
