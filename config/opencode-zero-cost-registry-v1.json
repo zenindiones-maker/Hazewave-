@@ -1,0 +1,27 @@
+{
+  "schema": "HazewaveOpenCodeZeroCostRegistry/v1",
+  "project_id": "HAZEWAVE",
+  "authority": "HAZEWAVE_HARNESS",
+  "paid": "DENY",
+  "unknown": "DENY",
+  "promotional_credit": "DENY_PERMANENT_ZERO_COST_POLICY",
+  "source": {
+    "pricing_url": "https://opencode.ai/docs/zen/",
+    "catalog_url": "https://opencode.ai/zen/v1/models",
+    "verification_rule": "Pricing evidence and live compatibility proof are both required; model-name suffix is discovery-only."
+  },
+  "verified_free": {
+    "big-pickle": {
+      "capacity_class": "FREE_UNMETERED_OR_DYNAMIC",
+      "pricing_evidence": "OpenCode Zen pricing/docs free lane",
+      "api_compatibility": "CHAT_COMPLETIONS_PROBE_REQUIRED",
+      "stage": "ZERO_COST_VERIFIED"
+    },
+    "muse-spark-1.3-contributor-free": {
+      "capacity_class": "FREE_UNMETERED_OR_DYNAMIC",
+      "pricing_evidence": "OpenCode Zen pricing/docs free lane",
+      "api_compatibility": "RESPONSES_STYLE_REQUIRES_CANARY_BEFORE_ADMISSION",
+      "stage": "ZERO_COST_VERIFIED"
+    }
+  }
+}
