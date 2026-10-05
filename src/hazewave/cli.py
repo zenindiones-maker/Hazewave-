@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import asdict
 from pathlib import Path
 import json
 
@@ -22,6 +23,8 @@ from hazewave.freellmapi import (
     build_free_fabric_inventory,
     run_live_probe,
 )
+from hazewave.harness import HazewaveTask, issue_authorization, route_task
+from hazewave.ninerouter import NineRouterExecutionError, execute_9router_text
 from hazewave.provider_policy import (
     DEFAULT_ACCOUNT_ATTESTATION_PATH,
     load_account_attestations,
@@ -183,6 +186,49 @@ def build_parser() -> argparse.ArgumentParser:
         help="Local attestation store. Default: project-scoped config path.",
     )
 
+    ninerouter = subcommands.add_parser(
+        "9router",
+        help="Execute receipt-bound zero-cost text tasks through the local 9Router sidecar.",
+    )
+    ninerouter_commands = ninerouter.add_subparsers(
+        dest="ninerouter_command",
+        required=True,
+    )
+
+    ninerouter_execute = ninerouter_commands.add_parser(
+        "execute",
+        help="Execute one Harness-authorized PUBLIC text task on an admitted 9Router model.",
+    )
+    ninerouter_execute.add_argument("--prompt", required=True)
+    ninerouter_execute.add_argument(
+        "--model",
+        default="oc/mimo-v2.6-flash-free",
+    )
+    ninerouter_execute.add_argument(
+        "--capability",
+        choices=("reason.general", "reason.deep", "code.generate", "code.review"),
+        default="reason.general",
+    )
+    ninerouter_execute.add_argument(
+        "--domain",
+        choices=("HAZE", "WAVE", "BRIDGE"),
+        default="HAZE",
+    )
+    ninerouter_execute.add_argument(
+        "--data-classification",
+        choices=("PUBLIC",),
+        default="PUBLIC",
+    )
+    ninerouter_execute.add_argument(
+        "--task-id",
+        default="hazewave-9router-cli",
+    )
+    ninerouter_execute.add_argument(
+        "--max-tokens",
+        type=int,
+        default=1024,
+    )
+
     ace = subcommands.add_parser(
         "acestep",
         help="Manage and use the local ACE-Step 1.5 music engine.",
@@ -300,6 +346,25 @@ def main() -> int:
             print(f"instrumental={result.instrumental}")
             if result.vocals is not None:
                 print(f"vocals={result.vocals}")
+            return 0
+
+        if args.command == "9router" and args.ninerouter_command == "execute":
+            task = HazewaveTask(
+                task_id=args.task_id,
+                goal=args.prompt,
+                required_capability=args.capability,
+                requested_domain=args.domain,
+            )
+            authorization = issue_authorization(route_task(task))
+            result = execute_9router_text(
+                authorization=authorization,
+                model_id=args.model,
+                prompt=args.prompt,
+                data_classification=args.data_classification,
+                max_tokens=args.max_tokens,
+            )
+            print("HAZEWAVE_9ROUTER_EXECUTION=PASS")
+            print(json.dumps(asdict(result), sort_keys=True, ensure_ascii=False))
             return 0
 
         if args.command == "acestep" and args.ace_command == "install":
@@ -530,7 +595,14 @@ def main() -> int:
             print(json.dumps(receipt, sort_keys=True, ensure_ascii=False))
             return 0
 
-    except (SeparationError, AceStepError, FreeLLMAPIError, ValueError) as exc:
+    except (
+        SeparationError,
+        AceStepError,
+        FreeLLMAPIError,
+        NineRouterExecutionError,
+        PermissionError,
+        ValueError,
+    ) as exc:
         print(f"error={exc}")
         return 2
 
