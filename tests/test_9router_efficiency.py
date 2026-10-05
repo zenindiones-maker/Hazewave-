@@ -717,3 +717,32 @@ def test_v2_receipt_rejects_model_without_majority_semantic_proof() -> None:
 
     assert decision.allowed is False
     assert decision.reason == "NINEROUTER_SEMANTIC_MAJORITY_PROOF_MISSING"
+
+
+def test_efficiency_status_filters_legacy_receipt_without_majority_proof() -> None:
+    receipt = _v2_receipt()
+    bad = "oc/nemotron-3.5-lightning-free"
+    receipt["model_proofs"][bad]["metrics"] = {
+        "sample_count": 3,
+        "semantic_success_count": 1,
+        "semantic_success_rate": 1 / 3,
+        "median_latency_ms": 1000,
+        "median_total_tokens": 100,
+        "efficiency_score": 100000,
+    }
+
+    status = build_9router_efficiency_status(
+        receipt=receipt,
+        route_health={
+            "schema": "Hazewave9RouterRouteHealth/v1",
+            "project_id": "HAZEWAVE",
+            "authority": "HAZEWAVE_HARNESS",
+            "models": {},
+        },
+        now="2026-10-05T12:30:00+00:00",
+    )
+
+    assert status["receipt_admitted_model_count"] == 3
+    assert status["effective_admitted_model_count"] == 2
+    assert bad not in status["ranked_models"]
+    assert bad in status["majority_invalid_models"]
