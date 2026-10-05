@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from hazewave.harness import HAZE, HazewaveTask, issue_authorization, route_task
+from hazewave.nvidia import (
+    DEFAULT_NVIDIA_ADMISSION_PATH,
+    DEFAULT_NVIDIA_MODEL,
+    DEFAULT_NVIDIA_SECRET_PATH,
+    FAST_STRUCTURED,
+    NvidiaNIMAdapter,
+)
+from hazewave.nvidia_proof import (
+    DEFAULT_NVIDIA_PROOF_RECEIPT,
+    audit_nvidia_secret_boundary,
+    load_probe_corpus,
+    run_nvidia_capability_probes,
+)
+from hazewave.provider_fabric import DEFAULT_PROVIDER_LEARNING_PATH
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--secret-file", default=str(DEFAULT_NVIDIA_SECRET_PATH))
+    parser.add_argument("--admission", default=str(DEFAULT_NVIDIA_ADMISSION_PATH))
+    parser.add_argument(
+        "--corpus",
+        default=str(ROOT / "config" / "nvidia-capability-eval-v1.json"),
+    )
+    parser.add_argument("--receipt", default=str(DEFAULT_NVIDIA_PROOF_RECEIPT))
+    parser.add_argument("--learning-state", default=str(DEFAULT_PROVIDER_LEARNING_PATH))
+    args = parser.parse_args()
+
+    adapter = NvidiaNIMAdapter(
+        secret_path=args.secret_file,
+        receipt_path=args.admission,
+    )
+
+    smoke_task = HazewaveTask(
+        task_id="hazewave-nvidia-strict-smoke",
+        goal="strict NVIDIA transport and semantic contract",
+        required_capability="reason.general",
+        requested_domain=HAZE,
+    )
+    smoke_auth = issue_authorization(route_task(smoke_task))
+    smoke = adapter.execute(
+        authorization=smoke_auth,
+        model_id=DEFAULT_NVIDIA_MODEL,
+        execution_profile=FAST_STRUCTURED,
+        messages=[
+            {
+                "role": "user",
+                "content": "Respond with exactly HAZEWAVE_NVIDIA_OK and nothing else.",
+            }
+        ],
+        semantic_validator=lambda content, tool_calls: (
+            content == "HAZEWAVE_NVIDIA_OK" and not tool_calls
+        ),
+    )
+
+    print("NVIDIA_AUTH=" + ("PASS" if smoke.http_status == 200 else "FAIL"))
+    print("NVIDIA_MODEL_ACCESS=" + ("PASS" if smoke.http_status == 200 else "FAIL"))
+    print(
+        "NVIDIA_SEMANTIC_CONTRACT="
+        + ("PASS" if smoke.semantic_pass is True else "FAIL")
+    )
+    print(
+        "HAZEWAVE_NVIDIA_STRICT_PROBE="
+        + ("PASS" if smoke.status == "PASS" and smoke.semantic_pass else "FAIL")
+    )
+    if not smoke.successful:
+        return 1
+
+    proof = run_nvidia_capability_probes(
+        adapter=adapter,
+        corpus=load_probe_corpus(args.corpus),
+        learning_path=args.learning_state,
+        receipt_path=args.receipt,
+    )
+    for row in proof["results"]:
+        print(
+            "NVIDIA_CAPABILITY_PROBE "
+            f"CAPABILITY={row['capability_id']} "
+            f"PROFILE={row['execution_profile']} "
+            f"STATUS={row['status']} "
+            f"SEMANTIC_PASS={str(row['semantic_pass']).lower()} "
+            f"PROMPT_TOKENS={row['prompt_tokens']} "
+            f"COMPLETION_TOKENS={row['completion_tokens']} "
+            f"REASONING_TOKENS={row['reasoning_tokens']} "
+            f"TOTAL_TOKENS={row['total_tokens']} "
+            f"LATENCY_MS={row['latency_ms']}"
+        )
+
+    audit = audit_nvidia_secret_boundary(
+        repo_root=ROOT,
+        secret_path=args.secret_file,
+    )
+    print("NVIDIA_KEY_IN_GIT=" + audit["NVIDIA_KEY_IN_GIT"])
+    print("NVIDIA_KEY_IN_WORKTREE=" + audit["NVIDIA_KEY_IN_WORKTREE"])
+    print("NVIDIA_KEY_IN_STATE=" + audit["NVIDIA_KEY_IN_STATE"])
+    print(
+        "NVIDIA_SECRET_BOUNDARY="
+        + (
+            "PASS"
+            if audit["NVIDIA_KEY_IN_GIT"] == "PASS"
+            and audit["NVIDIA_KEY_IN_WORKTREE"] == "PASS"
+            and audit["NVIDIA_KEY_IN_STATE"] == "PASS"
+            else "FAIL"
+        )
+    )
+    print(
+        "NVIDIA_CAPABILITY_RUNTIME_PROOF="
+        + ("PASS" if proof["all_semantic_pass"] else "FAIL")
+    )
+    print(f"NVIDIA_PROOF_RECEIPT={Path(args.receipt).expanduser()}")
+    return 0 if proof["all_semantic_pass"] and all(
+        audit[key] == "PASS" for key in ("NVIDIA_KEY_IN_GIT", "NVIDIA_KEY_IN_WORKTREE", "NVIDIA_KEY_IN_STATE")
+    ) else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
