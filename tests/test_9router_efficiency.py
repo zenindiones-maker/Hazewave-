@@ -558,7 +558,7 @@ def test_optimizer_requires_two_of_three_semantic_successes_for_admission() -> N
     )
 
     assert "MIN_SEMANTIC_SUCCESSES = 2" in script
-    assert "semantic_success_count >= MIN_SEMANTIC_SUCCESSES" in script
+    assert "semanticSuccessCount >= MIN_SEMANTIC_SUCCESSES" in script
     assert "insufficient_semantic_success" in script
 
 
