@@ -60,7 +60,8 @@
     "capacity_adapters": "FORBIDDEN",
     "paid_tiers": "FORBIDDEN",
     "cheap_tiers": "FORBIDDEN",
-    "outbound_proxy": "FORBIDDEN"
+    "outbound_proxy": "FORBIDDEN",
+    "unknown_cost": "DENY"
   },
   "upstream_features": {
     "use_now": [
