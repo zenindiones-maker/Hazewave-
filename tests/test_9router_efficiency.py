@@ -1168,3 +1168,46 @@ def test_efficiency_status_exposes_rankings_by_capability() -> None:
     }
     assert status["ranked_models_by_capability"]["reason.general"]
     assert status["ranked_models_by_capability"]["reason.deep"]
+
+
+def test_efficiency_status_uses_supplied_evaluation_time_for_reliability_decay() -> None:
+    receipt = _v2_receipt()
+    receipt["model_proofs"] = {
+        "oc/longcat-2.5-preview-free": {
+            "status": "semantic_pass",
+            "latency_ms": 1000,
+            "usage": {"total_tokens": 100},
+            "response_sha256": "longcat-proof",
+        },
+        "oc/space-bunny-free": {
+            "status": "semantic_pass",
+            "latency_ms": 1200,
+            "usage": {"total_tokens": 100},
+            "response_sha256": "space-proof",
+        },
+    }
+    receipt["catalog_discovered_models"] = list(receipt["model_proofs"])
+    receipt["execution_admitted_models"] = list(receipt["model_proofs"])
+
+    health = {
+        "schema": "Hazewave9RouterRouteHealth/v1",
+        "project_id": "HAZEWAVE",
+        "authority": "HAZEWAVE_HARNESS",
+        "models": {
+            "oc/longcat-2.5-preview-free": {
+                "attempt_count": 1,
+                "success_count": 0,
+                "failure_count": 1,
+                "last_status": "EMPTY",
+                "last_failure_at": "2026-10-05T12:29:00+00:00",
+            }
+        },
+    }
+
+    status = build_9router_efficiency_status(
+        receipt=receipt,
+        route_health=health,
+        now="2026-10-05T12:30:00+00:00",
+    )
+
+    assert status["ranked_models"][0] == "oc/space-bunny-free"
