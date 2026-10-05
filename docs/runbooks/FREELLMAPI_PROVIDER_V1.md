@@ -106,6 +106,92 @@ chmod 600 ~/.config/hazewave/providers/freellmapi/unified-api-key
 
 Do not paste that credential into chat.
 
+## Account-bound Free tiers
+
+Some providers are safe for automatic zero-cost use only when the **exact stored
+FreeLLMAPI credential** is proven to belong to an account that cannot overflow
+into paid billing.
+
+Current account-bound providers include:
+
+- Groq Free;
+- OpenRouter Free;
+- Cloudflare Workers AI Free.
+
+Their registry entries are admitted conditionally. Without a valid local account
+attestation, they remain ineligible even when the provider key exists and passes
+FreeLLMAPI health checks.
+
+The local attestation store is:
+
+`~/.config/hazewave/providers/freellmapi/account-attestations.json`
+
+It is written with mode `0600`. It contains no provider secret. The binding is
+to FreeLLMAPI's local, non-secret `api_keys.id`.
+
+Inspect account-bound keys and current attestations:
+
+```bash
+hazewave freellmapi attest status
+```
+
+The status output never selects or prints encrypted provider-key material.
+
+### Add a provider key safely
+
+Use FreeLLMAPI's hidden interactive key prompt. Do not put provider keys in the
+Hazewave repository, in chat, or on a command line with `--key`.
+
+The upstream CLI requires an authenticated local dashboard session for key
+administration. With that local session already available:
+
+```bash
+npx freellmapi keys add groq
+npx freellmapi keys list
+npx freellmapi keys test groq --id <ID>
+```
+
+For Cloudflare, FreeLLMAPI expects the provider credential format documented by
+its adapter (`account_id:api_token`). Enter it only in the hidden provider-key
+prompt.
+
+`keys list` supplies the non-secret integer ID used by Hazewave attestation.
+
+### Write an attestation
+
+Only after checking the **exact provider account** and confirming:
+
+1. it is currently on the provider's Free plan;
+2. paid billing is not enabled for that account/key;
+3. exceeding the free allowance fails or rate-limits instead of charging;
+
+write the local attestation:
+
+```bash
+hazewave freellmapi attest write \
+  --provider groq \
+  --credential-id <ID> \
+  --expires-at <ISO-8601-WITHIN-31-DAYS> \
+  --source-evidence "https://console.groq.com/docs/billing-faqs" \
+  --source-evidence "https://console.groq.com/docs/rate-limits" \
+  --confirm-free-tier \
+  --confirm-no-paid-billing
+```
+
+Equivalent attestations may be written for `openrouter` and `cloudflare`
+using their current provider documentation as evidence.
+
+Attestations expire and cannot be written for more than 31 days. Revalidation is
+therefore mandatory when provider pricing, plan state or account billing changes.
+
+If a model can route across multiple enabled keys for one provider, **every key
+that FreeLLMAPI may choose must have a current valid attestation**. A partially
+attested key pool fails closed.
+
+Changing the provider account to a paid tier, enabling paid billing, rotating to
+an unattested key, or allowing the attestation to expire makes the route
+ineligible until it is re-attested.
+
 ## Governed routing
 
 For provider execution Hazewave requires:
