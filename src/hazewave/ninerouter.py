@@ -476,6 +476,34 @@ def _model_in_active_cooldown(
         return False
 
 
+def _proof_semantic_majority_valid(proof: dict[str, Any]) -> bool:
+    benchmark_samples = proof.get("benchmark_samples")
+    if isinstance(benchmark_samples, list) and len(benchmark_samples) >= 3:
+        semantic_successes = sum(
+            1
+            for row in benchmark_samples
+            if isinstance(row, dict)
+            and row.get("status") == "semantic_pass"
+        )
+        if semantic_successes < 2:
+            return False
+
+    metrics = proof.get("metrics")
+    if isinstance(metrics, dict):
+        sample_count = metrics.get("sample_count")
+        semantic_success_count = metrics.get("semantic_success_count")
+        if (
+            isinstance(sample_count, int)
+            and sample_count >= 3
+            and (
+                not isinstance(semantic_success_count, int)
+                or semantic_success_count < 2
+            )
+        ):
+            return False
+    return True
+
+
 def _receipt_ranked_models(
     receipt: dict[str, Any],
     *,
@@ -500,6 +528,8 @@ def _receipt_ranked_models(
     for model in admitted:
         proof = proofs.get(model)
         proof = proof if isinstance(proof, dict) else {}
+        if not _proof_semantic_majority_valid(proof):
+            continue
         metrics = proof.get("metrics")
         metrics = metrics if isinstance(metrics, dict) else {}
         usage = proof.get("usage")
@@ -639,6 +669,24 @@ def build_9router_efficiency_status(
     policy = receipt.get("optimization_policy")
     policy = policy if isinstance(policy, dict) else {}
 
+    receipt_admitted = [
+        str(item)
+        for item in (receipt.get("execution_admitted_models") or [])
+        if isinstance(item, str)
+    ]
+    proofs = receipt.get("model_proofs")
+    proofs = proofs if isinstance(proofs, dict) else {}
+    majority_invalid_models = [
+        model
+        for model in receipt_admitted
+        if isinstance(proofs.get(model), dict)
+        and not _proof_semantic_majority_valid(proofs[model])
+    ]
+    effective_ranked_models = _receipt_ranked_models(
+        receipt,
+        route_health=route_health,
+    )
+
     health_models = route_health.get("models")
     health_models = health_models if isinstance(health_models, dict) else {}
     cooling_models = []
@@ -664,11 +712,11 @@ def build_9router_efficiency_status(
         "fresh": fresh,
         "age_seconds": age_seconds,
         "catalog_model_count": len(receipt.get("catalog_discovered_models") or []),
-        "admitted_model_count": len(receipt.get("execution_admitted_models") or []),
-        "ranked_models": _receipt_ranked_models(
-            receipt,
-            route_health=route_health,
-        ),
+        "admitted_model_count": len(effective_ranked_models),
+        "receipt_admitted_model_count": len(receipt_admitted),
+        "effective_admitted_model_count": len(effective_ranked_models),
+        "majority_invalid_models": majority_invalid_models,
+        "ranked_models": effective_ranked_models,
         "selection_policy": policy.get("selection", "EXACT_SINGLE_MODEL"),
         "rtk_enabled": policy.get("rtk_enabled", True),
         "headroom_enabled": policy.get("headroom_enabled", False),
