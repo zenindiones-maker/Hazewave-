@@ -266,6 +266,7 @@ def validate_9router_sidecar_contract() -> None:
         "config/9router-upstream-v1.json",
         "scripts/install_hazewave_9router_termux.sh",
         "scripts/hazewave_9router_control.sh",
+        "scripts/hazewave_9router_free_probe.sh",
     )
     for relative in required_files:
         if not (ROOT / relative).is_file():
@@ -305,6 +306,8 @@ def validate_9router_sidecar_contract() -> None:
         "HAZEWAVE_9ROUTER_AUTHORITY=NONE",
         "HAZEWAVE_9ROUTER_PAID_FALLBACK=FORBIDDEN",
         "DISCOVERY_ONLY_UNTIL_ROUTE_ADMISSION",
+        "opencode.ai/zen/v1/models",
+        "HAZEWAVE_9ROUTER_FREE_PROBE=PASS",
     ):
         if required not in combined:
             raise ValueError(f"HAZEWAVE_9ROUTER_CONTRACT_MISSING:{required}")
