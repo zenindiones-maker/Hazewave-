@@ -105,3 +105,20 @@ def test_9router_free_probe_derives_cli_token_from_server_owned_files() -> None:
     assert "x-9r-cli-token" in probe
     assert "src/cli/api/client.js" not in probe
     assert 'DATA_DIR="$RUNTIME_HOME/.9router"' in control
+
+
+def test_9router_cli_auth_material_is_preseeded_before_server_and_probe() -> None:
+    control = CONTROL.read_text(encoding="utf-8")
+    probe = (ROOT / "scripts" / "hazewave_9router_free_probe.sh").read_text(encoding="utf-8")
+
+    assert "ensure_cli_auth_material()" in control
+    assert "machine-id" in control
+    assert "auth/cli-secret" in control
+    assert "chmod 600" in control
+    assert "HAZEWAVE_9ROUTER_CLI_AUTH_CREATED=" in control
+    assert control.index("ensure_cli_auth_material") < control.index('nohup node "$entry"')
+
+    assert 'ensure-auth)' in control
+    assert '"$CONTROL" ensure-auth' in probe
+    assert '"$CONTROL" restart' in probe
+    assert "HAZEWAVE_9ROUTER_CLI_AUTH_CREATED=1" in probe
