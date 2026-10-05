@@ -36,12 +36,29 @@ if [ ! -d "$RELEASE_DIR" ]; then
   rm -rf "$TMP"
   mkdir -p "$TMP"
 
-  HOME="$RUNTIME_HOME" npm install     --prefix "$TMP"     --no-audit     --no-fund     --save-exact     "$PACKAGE_SPEC"
+  HOME="$RUNTIME_HOME" npm install \
+    --prefix "$TMP" \
+    --no-audit \
+    --no-fund \
+    --ignore-scripts \
+    --save-exact \
+    "$PACKAGE_SPEC"
 
   INSTALLED_VERSION="$(
     node -p "require('$TMP/node_modules/9router/package.json').version"
   )"
   test "$INSTALLED_VERSION" = "$VERSION"
+
+  HOME="$RUNTIME_HOME" node - "$TMP" <<'NODE'
+const root = process.argv[2];
+const { ensureSqliteRuntime } = require(root + "/node_modules/9router/hooks/sqliteRuntime.js");
+const result = ensureSqliteRuntime({ silent: false });
+if (!result || result.sqlJs !== true) {
+  console.error("HAZEWAVE_9ROUTER_INSTALL=FAIL sqlite_runtime_unavailable");
+  process.exit(3);
+}
+console.log("HAZEWAVE_9ROUTER_SQLITE_RUNTIME=PASS");
+NODE
 
   printf '%s\n' "$UPSTREAM_REPO" > "$TMP/UPSTREAM_REPOSITORY"
   printf '%s\n' "$UPSTREAM_COMMIT" > "$TMP/UPSTREAM_COMMIT"
