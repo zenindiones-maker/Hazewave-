@@ -73,3 +73,23 @@ def test_9router_sqlite_bootstrap_runs_for_existing_pinned_release() -> None:
     assert installer.rindex("bootstrap_sqlite_runtime") > installer.index(
         'test -x "$RELEASE_DIR/node_modules/.bin/9router"'
     )
+
+
+def test_9router_free_probe_is_bounded_reversible_and_free_only() -> None:
+    probe = ROOT / "scripts" / "hazewave_9router_free_probe.sh"
+    assert probe.is_file()
+    text = probe.read_text(encoding="utf-8")
+
+    assert "opencode.ai/zen/v1/models" in text
+    assert "big-pickle" in text
+    assert 'endsWith("-free")' in text
+    assert "deepseek-v4-flash-free" in text
+    assert "requireApiKey" in text
+    assert "finally" in text
+    assert "127.0.0.1:20128" in text
+    assert "max_tokens" in text
+    assert "HAZEWAVE_9ROUTER_FREE_PROBE=PASS" in text
+
+    control = CONTROL.read_text(encoding="utf-8")
+    assert "probe-free)" in control
+    assert "catalog)" in control
