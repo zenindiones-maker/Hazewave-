@@ -136,7 +136,10 @@ def load_nvidia_api_key(
         if "=" not in stripped:
             continue
         key, value = stripped.split("=", 1)
-        values[key.strip()] = value.strip().strip('"').strip("'")
+        normalized_key = key.strip()
+        if normalized_key.startswith("export "):
+            normalized_key = normalized_key[7:].strip()
+        values[normalized_key] = value.strip().strip('"').strip("'")
     api_key = values.get("NVIDIA_API_KEY", "")
     if not api_key:
         raise NvidiaProviderError("NVIDIA_API_KEY_MISSING")
