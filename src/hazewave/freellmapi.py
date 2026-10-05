@@ -1731,13 +1731,232 @@ class FreeLLMAPIClient:
 
 
 
+def build_free_fabric_inventory(
+    *,
+    catalog: FreeLLMAPILocalCatalog | None = None,
+) -> dict[str, Any]:
+    """Return a secret-free view of the locally routable FreeLLMAPI surface."""
+
+    source = catalog if catalog is not None else FreeLLMAPILocalCatalog()
+    chat = source.chat_candidates()
+    embeddings = source.embedding_candidates()
+    media: dict[str, list[FreeLLMAPIMediaCandidate]] = {}
+    for modality in ("image", "video", "speech", "transcription"):
+        try:
+            media[modality] = source.media_candidates(modality)
+        except FreeLLMAPIError:
+            media[modality] = []
+
+    providers = sorted(
+        {
+            *(candidate.provider for candidate in chat),
+            *(candidate.provider for candidate in embeddings),
+            *(
+                candidate.provider
+                for candidates in media.values()
+                for candidate in candidates
+            ),
+        }
+    )
+
+    return {
+        "schema": "HazewaveFreeFabricInventory/v1",
+        "project_id": "HAZEWAVE",
+        "authority": AUTHORITY,
+        "provider_gateway": "FREELLMAPI",
+        "provider_gateway_authority": "NONE",
+        "providers": providers,
+        "counts": {
+            "providers_routable": len(providers),
+            "chat_routable": len(chat),
+            "vision_routable": sum(1 for candidate in chat if candidate.supports_vision),
+            "tool_routable": sum(1 for candidate in chat if candidate.supports_tools),
+            "embedding_routable": len(embeddings),
+            "image_routable": len(media["image"]),
+            "video_routable": len(media["video"]),
+            "speech_routable": len(media["speech"]),
+            "transcription_routable": len(media["transcription"]),
+        },
+        "chat_models": [candidate.qualified_model_id for candidate in chat],
+        "embedding_families": sorted({candidate.family for candidate in embeddings}),
+        "media_models": {
+            modality: [
+                f"{candidate.provider}:{candidate.model_id}"
+                for candidate in candidates
+            ]
+            for modality, candidates in media.items()
+        },
+    }
+
+
+def _eligible_text_model_ids(
+    *,
+    source: FreeLLMAPILocalCatalog,
+    registry: dict[str, Any],
+    capability_id: str,
+    data_classification: str,
+    modality: str = "text",
+    require_vision: bool = False,
+    require_tools: bool = False,
+) -> list[str]:
+    rows: list[str] = []
+    for candidate in source.chat_candidates():
+        if require_vision and not candidate.supports_vision:
+            continue
+        if require_tools and not candidate.supports_tools:
+            continue
+        decision = evaluate_provider_eligibility(
+            provider=candidate.provider,
+            model_id=candidate.model_id,
+            capability_id=capability_id,
+            modality=modality,
+            data_classification=data_classification,
+            registry=registry,
+        )
+        if decision.allowed:
+            rows.append(candidate.qualified_model_id)
+    return rows
+
+
+def build_free_fabric_eligibility_report(
+    *,
+    catalog: FreeLLMAPILocalCatalog | None = None,
+    data_classification: str = "PUBLIC",
+    registry: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Intersect live local discovery with Hazewave zero-cost policy.
+
+    Catalog presence never grants authority. Every surfaced route has already
+    passed the project-owned eligibility policy for the requested data class.
+    """
+
+    source = catalog if catalog is not None else FreeLLMAPILocalCatalog()
+    policy_registry = registry if registry is not None else load_provider_registry()
+    classification = str(data_classification or "").strip().upper()
+
+    text_models = _eligible_text_model_ids(
+        source=source,
+        registry=policy_registry,
+        capability_id="reason.general",
+        data_classification=classification,
+    )
+    tool_models = _eligible_text_model_ids(
+        source=source,
+        registry=policy_registry,
+        capability_id="reason.general",
+        data_classification=classification,
+        require_tools=True,
+    )
+    vision_models = _eligible_text_model_ids(
+        source=source,
+        registry=policy_registry,
+        capability_id="visual.analyze",
+        data_classification=classification,
+        modality="vision",
+        require_vision=True,
+    )
+
+    embedding_families = [
+        family.family
+        for family in source.eligible_embedding_families(
+            capability_id="embedding.create",
+            data_classification=classification,
+            registry=policy_registry,
+        )
+    ]
+
+    media_specs = {
+        "image": ("image", "visual.image"),
+        "video": ("video", "visual.video"),
+        "speech": ("speech", "audio.voice"),
+        "transcription": ("transcription", "audio.transcribe"),
+    }
+    media_surfaces: dict[str, dict[str, Any]] = {}
+    for name, (modality, capability) in media_specs.items():
+        try:
+            eligible = source.eligible_media_candidates(
+                modality=modality,
+                capability_id=capability,
+                data_classification=classification,
+                registry=policy_registry,
+            )
+            media_surfaces[name] = {
+                "models": [
+                    f"{candidate.provider}:{candidate.model_id}"
+                    for candidate, _ in eligible
+                ],
+                "status": "AVAILABLE" if eligible else "UNAVAILABLE",
+            }
+        except FreeLLMAPIError as exc:
+            media_surfaces[name] = {
+                "models": [],
+                "status": "DENIED_AMBIGUOUS",
+                "reason": str(exc),
+            }
+
+    fusion_candidates = _eligible_text_model_ids(
+        source=source,
+        registry=policy_registry,
+        capability_id="reason.fusion",
+        data_classification=classification,
+    )
+    fusion_providers = {value.split(":", 1)[0] for value in fusion_candidates}
+
+    return {
+        "schema": "HazewaveFreeFabricEligibilityReport/v1",
+        "project_id": "HAZEWAVE",
+        "authority": AUTHORITY,
+        "provider_gateway": "FREELLMAPI",
+        "provider_gateway_authority": "NONE",
+        "data_classification": classification,
+        "paid_fallback": str(policy_registry.get("paid_fallback") or "FORBIDDEN"),
+        "unknown_cost": str(policy_registry.get("unknown_cost") or "DENY"),
+        "surfaces": {
+            "text": {
+                "models": text_models,
+                "status": "AVAILABLE" if text_models else "UNAVAILABLE",
+            },
+            "tools": {
+                "models": tool_models,
+                "status": "AVAILABLE" if tool_models else "UNAVAILABLE",
+                "execution_authority": AUTHORITY,
+            },
+            "vision": {
+                "models": vision_models,
+                "status": "AVAILABLE" if vision_models else "UNAVAILABLE",
+            },
+            "embeddings": {
+                "families": embedding_families,
+                "status": "AVAILABLE" if embedding_families else "UNAVAILABLE",
+            },
+            "fusion": {
+                "models": fusion_candidates,
+                "status": (
+                    "AVAILABLE"
+                    if len(fusion_providers) >= 2
+                    else "UNAVAILABLE"
+                ),
+                "quota_cost_class": "HIGH",
+            },
+            **media_surfaces,
+            "credential_egress": "DENY",
+            "private_media_default_egress": "DENY",
+        },
+    }
+
+
 def run_live_probe(
     *,
     api_key: str,
     task_id: str = "hazewave-freellmapi-live-proof",
     base_url: str = DEFAULT_BASE_URL,
+    catalog: Any | None = None,
 ) -> dict[str, Any]:
-    """Execute one bounded real provider call and return a secret-free receipt."""
+    """Execute one bounded governed zero-cost provider call.
+
+    The proof uses a provider-qualified route selected only after Hazewave
+    policy evaluation. It never uses unrestricted FreeLLMAPI auto-routing.
+    """
 
     from hazewave.harness import HazewaveTask, issue_authorization, route_task
 
@@ -1747,14 +1966,12 @@ def run_live_probe(
         required_capability="audio.analyze",
         requested_domain="HAZE",
     )
-    decision = route_task(task)
-    authorization = issue_authorization(decision)
+    route = route_task(task)
+    authorization = issue_authorization(route)
+    source = catalog if catalog is not None else FreeLLMAPILocalCatalog()
 
     with FreeLLMAPIClient(base_url, api_key=api_key) as client:
-        available = client.models(available_only=True)
-        if not available:
-            raise FreeLLMAPIError("FREELLMAPI_NO_AVAILABLE_MODELS")
-        result = client.chat(
+        result = client.governed_chat(
             messages=[
                 {
                     "role": "user",
@@ -1768,24 +1985,42 @@ def run_live_probe(
             task_id=task.task_id,
             capability_id=task.required_capability,
             data_classification="PUBLIC",
-            model="auto",
+            catalog=source,
             temperature=0.0,
             max_tokens=64,
+            cache=True,
+            compression="lossless",
+            task_type="chat",
+            session_id=f"hazewave-probe:{task.task_id}",
         )
 
+    execution = dict(result.receipt or {})
+    if execution.get("zero_cost_verified") is not True:
+        raise FreeLLMAPIError("FREELLMAPI_PROBE_ZERO_COST_NOT_VERIFIED")
+
+    usage = dict(result.usage)
+    reported_cost = usage.get("cost")
+    if isinstance(reported_cost, (int, float)) and float(reported_cost) > 0:
+        raise FreeLLMAPIError("FREELLMAPI_PROBE_REPORTED_NONZERO_COST")
+
     return {
-        "schema": "HazewaveProviderProbeReceipt/v1",
+        "schema": "HazewaveProviderProbeReceipt/v2",
         "status": "PASS",
         "project_id": "HAZEWAVE",
         "authority": AUTHORITY,
         "task_id": task.task_id,
         "authorization_id": authorization.authorization_id,
         "capability_id": task.required_capability,
-        "domain": decision.selected_domain,
+        "domain": route.selected_domain,
         "data_classification": "PUBLIC",
         "provider_gateway": result.provider_gateway,
+        "provider": execution.get("provider"),
+        "requested_model": execution.get("requested_model"),
+        "trust_lane": execution.get("trust_lane"),
+        "zero_cost_verified": True,
         "routed_via": result.routed_via,
         "served_model": result.served_model,
         "content_sha256": sha256(result.content.encode("utf-8")).hexdigest(),
-        "usage": result.usage,
+        "usage": usage,
     }
+
