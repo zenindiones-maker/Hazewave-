@@ -261,6 +261,104 @@ def evaluate_9router_admission(
     )
 
 
+def _receipt_ranked_models(receipt: dict[str, Any]) -> list[str]:
+    admitted = [
+        str(item)
+        for item in (receipt.get("execution_admitted_models") or [])
+        if isinstance(item, str)
+    ]
+    proofs = receipt.get("model_proofs")
+    proofs = proofs if isinstance(proofs, dict) else {}
+
+    ranked: list[tuple[tuple[int, int, str], str]] = []
+    for model in admitted:
+        proof = proofs.get(model)
+        proof = proof if isinstance(proof, dict) else {}
+        usage = proof.get("usage")
+        usage = usage if isinstance(usage, dict) else {}
+        total_tokens = usage.get("total_tokens")
+        latency_ms = proof.get("latency_ms")
+        token_score = (
+            int(total_tokens)
+            if isinstance(total_tokens, int) and total_tokens >= 0
+            else 1_000_000_000
+        )
+        latency_score = (
+            int(latency_ms)
+            if isinstance(latency_ms, (int, float)) and latency_ms >= 0
+            else 1_000_000_000
+        )
+        ranked.append(((token_score, latency_score, model), model))
+
+    ranked.sort(key=lambda item: item[0])
+    return [model for _, model in ranked]
+
+
+def build_9router_efficiency_status(
+    *,
+    receipt: dict[str, Any] | None = None,
+    receipt_path: Path | str = DEFAULT_ADMISSION_RECEIPT_PATH,
+    now: str | datetime | None = None,
+) -> dict[str, Any]:
+    if receipt is None:
+        receipt = load_9router_admission_receipt(receipt_path)
+
+    base = {
+        "schema": "Hazewave9RouterEfficiencyStatus/v1",
+        "project_id": PROJECT_ID,
+        "authority": AUTHORITY,
+        "gateway": "9router",
+        "gateway_authority": "NONE",
+        "receipt_path": str(Path(receipt_path).expanduser()),
+        "receipt_present": receipt is not None,
+        "paid_fallback": "FORBIDDEN",
+        "unknown_cost": "DENY",
+    }
+    if receipt is None:
+        return {
+            **base,
+            "fresh": False,
+            "catalog_model_count": 0,
+            "admitted_model_count": 0,
+            "ranked_models": [],
+        }
+
+    current = (
+        _parse_time(now)
+        if isinstance(now, str)
+        else (
+            now.astimezone(timezone.utc)
+            if isinstance(now, datetime)
+            else datetime.now(timezone.utc)
+        )
+    )
+    try:
+        observed = _parse_time(str(receipt["observed_at"]))
+        fresh = current >= observed and current - observed <= MAX_RECEIPT_AGE
+        age_seconds = max(0, int((current - observed).total_seconds()))
+    except (KeyError, TypeError, ValueError):
+        fresh = False
+        age_seconds = None
+
+    policy = receipt.get("optimization_policy")
+    policy = policy if isinstance(policy, dict) else {}
+
+    return {
+        **base,
+        "receipt_schema": receipt.get("schema"),
+        "fresh": fresh,
+        "age_seconds": age_seconds,
+        "catalog_model_count": len(receipt.get("catalog_discovered_models") or []),
+        "admitted_model_count": len(receipt.get("execution_admitted_models") or []),
+        "ranked_models": _receipt_ranked_models(receipt),
+        "selection_policy": policy.get("selection", "EXACT_SINGLE_MODEL"),
+        "rtk_enabled": policy.get("rtk_enabled", True),
+        "headroom_enabled": policy.get("headroom_enabled", False),
+        "combos_allowed": policy.get("combos_allowed", False),
+        "stream": policy.get("stream", False),
+    }
+
+
 def rank_9router_models(
     *,
     authorization: HazewaveAuthorization,
@@ -274,16 +372,9 @@ def rank_9router_models(
     if receipt is None:
         return []
 
-    candidates: list[tuple[tuple[int, int, str], str]] = []
-    admitted = [
-        str(item)
-        for item in (receipt.get("execution_admitted_models") or [])
-        if isinstance(item, str)
-    ]
-    proofs = receipt.get("model_proofs")
-    proofs = proofs if isinstance(proofs, dict) else {}
-
-    for model in admitted:
+    ranked = _receipt_ranked_models(receipt)
+    allowed: list[str] = []
+    for model in ranked:
         decision = evaluate_9router_admission(
             authorization=authorization,
             model_id=model,
@@ -292,30 +383,9 @@ def rank_9router_models(
             data_classification=data_classification,
             now=now,
         )
-        if not decision.allowed:
-            continue
-
-        proof = proofs.get(model)
-        proof = proof if isinstance(proof, dict) else {}
-        usage = proof.get("usage")
-        usage = usage if isinstance(usage, dict) else {}
-        total_tokens = usage.get("total_tokens")
-        latency_ms = proof.get("latency_ms")
-
-        token_score = (
-            int(total_tokens)
-            if isinstance(total_tokens, int) and total_tokens >= 0
-            else 1_000_000_000
-        )
-        latency_score = (
-            int(latency_ms)
-            if isinstance(latency_ms, (int, float)) and latency_ms >= 0
-            else 1_000_000_000
-        )
-        candidates.append(((token_score, latency_score, model), model))
-
-    candidates.sort(key=lambda item: item[0])
-    return [model for _, model in candidates]
+        if decision.allowed:
+            allowed.append(model)
+    return allowed
 
 
 class NineRouterExecutionError(RuntimeError):
