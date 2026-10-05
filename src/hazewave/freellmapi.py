@@ -103,6 +103,118 @@ class FreeLLMAPIProviderResult:
     receipt: dict[str, Any]
 
 
+class FreeLLMAPIStream:
+    """One governed OpenAI-compatible SSE stream.
+
+    The stream emits text deltas. Its secret-free execution receipt becomes
+    available only after the iterator is exhausted successfully.
+    """
+
+    def __init__(
+        self,
+        *,
+        client: httpx.Client,
+        payload: dict[str, Any],
+        headers: dict[str, str],
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        candidate: FreeLLMAPIModelCandidate,
+        decision: ProviderEligibilityDecision,
+        input_value: Any,
+    ) -> None:
+        self._client = client
+        self._payload = payload
+        self._headers = headers
+        self._authorization = authorization
+        self._task_id = task_id
+        self._capability_id = capability_id
+        self._classification = str(data_classification).upper()
+        self._candidate = candidate
+        self._decision = decision
+        self._input_value = input_value
+        self.receipt: dict[str, Any] | None = None
+
+    def __iter__(self):
+        chunks: list[str] = []
+        routed_via: str | None = None
+        served_model: str | None = None
+        try:
+            with self._client.stream(
+                "POST",
+                "chat/completions",
+                json=self._payload,
+                headers=self._headers,
+            ) as response:
+                response.raise_for_status()
+                routed_via = response.headers.get("X-Routed-Via") or None
+                if routed_via and not routed_via.casefold().startswith(
+                    self._candidate.provider.casefold() + "/"
+                ):
+                    raise FreeLLMAPIError("FREELLMAPI_PROVIDER_ROUTE_MISMATCH")
+                for line in response.iter_lines():
+                    if not line or not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        event = json.loads(data)
+                    except ValueError as exc:
+                        raise FreeLLMAPIError("FREELLMAPI_STREAM_EVENT_INVALID") from exc
+                    if not isinstance(event, dict):
+                        continue
+                    if event.get("model") is not None:
+                        served_model = str(event.get("model"))
+                    choices = event.get("choices")
+                    if not isinstance(choices, list) or not choices:
+                        continue
+                    choice = choices[0]
+                    if not isinstance(choice, dict):
+                        continue
+                    delta = choice.get("delta")
+                    if not isinstance(delta, dict):
+                        continue
+                    content = delta.get("content")
+                    if isinstance(content, str) and content:
+                        chunks.append(content)
+                        yield content
+        except httpx.HTTPError as exc:
+            raise FreeLLMAPIError(
+                f"FREELLMAPI_STREAM_REQUEST_FAILED:{type(exc).__name__}"
+            ) from exc
+
+        output = "".join(chunks)
+        self.receipt = {
+            "schema": "HazewaveProviderExecutionReceipt/v1",
+            "status": "PASS",
+            "project_id": "HAZEWAVE",
+            "authority": AUTHORITY,
+            "task_id": self._task_id,
+            "authorization_id": self._authorization.authorization_id,
+            "capability_id": self._capability_id,
+            "domain": self._authorization.domain,
+            "data_classification": self._classification,
+            "provider_gateway": "FREELLMAPI",
+            "provider": self._candidate.provider,
+            "requested_model": self._candidate.qualified_model_id,
+            "served_model": served_model,
+            "routed_via": routed_via,
+            "trust_lane": self._decision.trust_lane,
+            "zero_cost_verified": self._decision.zero_cost_verified,
+            "input_sha256": sha256(
+                json.dumps(
+                    self._input_value,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                ).encode("utf-8")
+            ).hexdigest(),
+            "output_sha256": sha256(output.encode("utf-8")).hexdigest(),
+        }
+
+
 class FreeLLMAPILocalCatalog:
     """Read-only view of the managed FreeLLMAPI SQLite model catalog.
 
@@ -483,6 +595,10 @@ class FreeLLMAPIClient:
         tools: Iterable[dict[str, Any]] | None = None,
         tool_choice: Any | None = None,
         response_format: dict[str, Any] | None = None,
+        cache: bool | None = None,
+        compression: str | None = None,
+        task_type: str | None = None,
+        session_id: str | None = None,
     ) -> FreeLLMAPICompletionResult:
         """Execute a policy-bound chat call with provider-qualified routing.
 
@@ -575,11 +691,18 @@ class FreeLLMAPIClient:
                     tools=tools,
                     tool_choice=tool_choice,
                     response_format=response_format,
+                    request_headers=self._efficiency_headers(
+                        cache=cache,
+                        compression=compression,
+                        task_type=task_type,
+                        session_id=session_id,
+                    ),
                 )
             except FreeLLMAPIError as exc:
                 last_error = exc
                 continue
 
+            self._assert_routed_provider(result.routed_via, candidate.provider)
             receipt = {
                 "schema": "HazewaveProviderExecutionReceipt/v1",
                 "status": "PASS",
@@ -602,6 +725,14 @@ class FreeLLMAPIClient:
                 "output_sha256": sha256(result.content.encode("utf-8")).hexdigest(),
                 "media_egress_grant_id": decision.media_egress_grant_id,
                 "tool_execution_authority": AUTHORITY if tools is not None else None,
+                "cache_requested": cache,
+                "compression_requested": compression,
+                "task_type_requested": task_type,
+                "session_id_sha256": (
+                    sha256(session_id.encode("utf-8")).hexdigest()
+                    if session_id is not None
+                    else None
+                ),
             }
             return replace(result, receipt=receipt)
 
@@ -610,6 +741,399 @@ class FreeLLMAPIClient:
                 f"FREELLMAPI_ZERO_COST_POOL_EXHAUSTED:{last_error}"
             ) from last_error
         raise FreeLLMAPIError("FREELLMAPI_ZERO_COST_POOL_EXHAUSTED")
+
+    @staticmethod
+    def _efficiency_headers(
+        *,
+        cache: bool | None = None,
+        compression: str | None = None,
+        task_type: str | None = None,
+        session_id: str | None = None,
+    ) -> dict[str, str]:
+        headers: dict[str, str] = {}
+        if cache is not None:
+            headers["X-FreeLLM-Cache"] = "on" if cache else "off"
+        if compression is not None:
+            mode = str(compression).strip().lower()
+            if mode not in {"off", "on", "lossless", "standard", "aggressive"}:
+                raise FreeLLMAPIError("FREELLMAPI_COMPRESSION_MODE_INVALID")
+            headers["X-FreeLLM-Compress"] = mode
+        if task_type is not None:
+            kind = str(task_type).strip().lower()
+            if kind not in {"auto", "code", "chat"}:
+                raise FreeLLMAPIError("FREELLMAPI_TASK_TYPE_INVALID")
+            headers["X-FreeLLM-Task-Type"] = kind
+        if session_id is not None:
+            session = str(session_id).strip()
+            if not session or len(session) > 256:
+                raise FreeLLMAPIError("FREELLMAPI_SESSION_ID_INVALID")
+            headers["X-Session-Id"] = session
+        return headers
+
+    def _eligible_text_candidates(
+        self,
+        *,
+        capability_id: str,
+        data_classification: str,
+        catalog: FreeLLMAPILocalCatalog | None,
+        registry: dict[str, Any] | None,
+        require_vision: bool = False,
+        require_tools: bool = False,
+        modality: str = "text",
+        media_grant: MediaEgressGrant | None = None,
+        task_id: str | None = None,
+        authorization_id: str | None = None,
+        asset_digest: str | None = None,
+    ) -> list[tuple[FreeLLMAPIModelCandidate, ProviderEligibilityDecision]]:
+        source = catalog if catalog is not None else FreeLLMAPILocalCatalog()
+        policy_registry = registry if registry is not None else load_provider_registry()
+        eligible: list[tuple[FreeLLMAPIModelCandidate, ProviderEligibilityDecision]] = []
+        for candidate in source.chat_candidates():
+            if require_vision and not candidate.supports_vision:
+                continue
+            if require_tools and not candidate.supports_tools:
+                continue
+            decision = evaluate_provider_eligibility(
+                provider=candidate.provider,
+                model_id=candidate.model_id,
+                capability_id=capability_id,
+                modality=modality,
+                data_classification=data_classification,
+                registry=policy_registry,
+                media_grant=media_grant,
+                task_id=task_id,
+                authorization_id=authorization_id,
+                asset_digest=asset_digest,
+            )
+            if decision.allowed:
+                eligible.append((candidate, decision))
+        return eligible
+
+    @staticmethod
+    def _assert_routed_provider(routed_via: str | None, provider: str) -> None:
+        if routed_via and not routed_via.casefold().startswith(provider.casefold() + "/"):
+            raise FreeLLMAPIError("FREELLMAPI_PROVIDER_ROUTE_MISMATCH")
+
+    def governed_vision(
+        self,
+        *,
+        prompt: str,
+        image_url: str,
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        catalog: FreeLLMAPILocalCatalog | None = None,
+        registry: dict[str, Any] | None = None,
+        media_grant: MediaEgressGrant | None = None,
+        asset_digest: str | None = None,
+    ) -> FreeLLMAPICompletionResult:
+        validate_authorization(
+            authorization,
+            expected_task_id=str(task_id),
+            expected_capability=str(capability_id),
+        )
+        if not str(prompt).strip() or not str(image_url).strip():
+            raise FreeLLMAPIError("FREELLMAPI_VISION_INPUT_REQUIRED")
+        eligible = self._eligible_text_candidates(
+            capability_id=capability_id,
+            data_classification=data_classification,
+            catalog=catalog,
+            registry=registry,
+            require_vision=True,
+            modality="vision",
+            media_grant=media_grant,
+            task_id=task_id,
+            authorization_id=authorization.authorization_id,
+            asset_digest=asset_digest,
+        )
+        if not eligible:
+            raise FreeLLMAPIError("FREELLMAPI_ZERO_COST_VISION_POOL_UNAVAILABLE")
+        candidate, decision = eligible[0]
+        blocks = [
+            {"type": "text", "text": str(prompt)},
+            {"type": "image_url", "image_url": {"url": str(image_url)}},
+        ]
+        payload = {
+            "model": candidate.qualified_model_id,
+            "messages": [{"role": "user", "content": blocks}],
+            "stream": False,
+        }
+        try:
+            response = self._client.post("chat/completions", json=payload)
+            response.raise_for_status()
+            raw = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise FreeLLMAPIError(f"FREELLMAPI_VISION_REQUEST_FAILED:{type(exc).__name__}") from exc
+        if not isinstance(raw, dict):
+            raise FreeLLMAPIError("FREELLMAPI_VISION_RESPONSE_INVALID")
+        choices = raw.get("choices")
+        message = choices[0].get("message") if isinstance(choices, list) and choices and isinstance(choices[0], dict) else None
+        content = message.get("content") if isinstance(message, dict) else None
+        if not isinstance(content, str):
+            raise FreeLLMAPIError("FREELLMAPI_VISION_RESPONSE_CONTENT_INVALID")
+        routed_via = response.headers.get("X-Routed-Via") or None
+        self._assert_routed_provider(routed_via, candidate.provider)
+        usage = dict(raw.get("usage") or {}) if isinstance(raw.get("usage"), dict) else {}
+        receipt = self._receipt_base(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            provider=candidate.provider,
+            requested_model=candidate.qualified_model_id,
+            trust_lane=decision.trust_lane,
+            input_value={"prompt": prompt, "image_ref": asset_digest or image_url},
+            output_value=content,
+            media_egress_grant_id=decision.media_egress_grant_id,
+        )
+        receipt.update({"usage": usage, "routed_via": routed_via})
+        return FreeLLMAPICompletionResult(
+            content=content,
+            served_model=str(raw.get("model")) if raw.get("model") is not None else None,
+            usage=usage,
+            raw=raw,
+            routed_via=routed_via,
+            receipt=receipt,
+        )
+
+    def _select_compat_candidate(
+        self,
+        *,
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        catalog: FreeLLMAPILocalCatalog | None,
+        registry: dict[str, Any] | None,
+    ) -> tuple[FreeLLMAPIModelCandidate, ProviderEligibilityDecision]:
+        validate_authorization(
+            authorization,
+            expected_task_id=str(task_id),
+            expected_capability=str(capability_id),
+        )
+        eligible = self._eligible_text_candidates(
+            capability_id=capability_id,
+            data_classification=data_classification,
+            catalog=catalog,
+            registry=registry,
+        )
+        if not eligible:
+            raise FreeLLMAPIError("FREELLMAPI_ZERO_COST_POOL_UNAVAILABLE")
+        return eligible[0]
+
+    def governed_responses(
+        self,
+        *,
+        input_data: Any,
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        catalog: FreeLLMAPILocalCatalog | None = None,
+        registry: dict[str, Any] | None = None,
+        instructions: str | None = None,
+        max_output_tokens: int | None = None,
+    ) -> FreeLLMAPIProviderResult:
+        candidate, decision = self._select_compat_candidate(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            catalog=catalog,
+            registry=registry,
+        )
+        payload: dict[str, Any] = {
+            "model": candidate.qualified_model_id,
+            "input": input_data,
+            "stream": False,
+        }
+        if instructions is not None:
+            payload["instructions"] = str(instructions)
+        if max_output_tokens is not None:
+            payload["max_output_tokens"] = int(max_output_tokens)
+        try:
+            response = self._client.post("responses", json=payload)
+            response.raise_for_status()
+            raw = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise FreeLLMAPIError(f"FREELLMAPI_RESPONSES_REQUEST_FAILED:{type(exc).__name__}") from exc
+        routed_via = response.headers.get("X-Routed-Via") or None
+        self._assert_routed_provider(routed_via, candidate.provider)
+        receipt = self._receipt_base(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            provider=candidate.provider,
+            requested_model=candidate.qualified_model_id,
+            trust_lane=decision.trust_lane,
+            input_value=input_data,
+            output_value=raw,
+        )
+        receipt["routed_via"] = routed_via
+        return FreeLLMAPIProviderResult(raw=raw, content_type=response.headers.get("Content-Type"), receipt=receipt)
+
+    def governed_completion(
+        self,
+        *,
+        prompt: str,
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        catalog: FreeLLMAPILocalCatalog | None = None,
+        registry: dict[str, Any] | None = None,
+        suffix: str | None = None,
+        max_tokens: int | None = None,
+    ) -> FreeLLMAPIProviderResult:
+        candidate, decision = self._select_compat_candidate(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            catalog=catalog,
+            registry=registry,
+        )
+        payload: dict[str, Any] = {
+            "model": candidate.qualified_model_id,
+            "prompt": str(prompt),
+            "stream": False,
+        }
+        if suffix is not None:
+            payload["suffix"] = str(suffix)
+        if max_tokens is not None:
+            payload["max_tokens"] = int(max_tokens)
+        try:
+            response = self._client.post("completions", json=payload)
+            response.raise_for_status()
+            raw = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise FreeLLMAPIError(f"FREELLMAPI_COMPLETION_REQUEST_FAILED:{type(exc).__name__}") from exc
+        routed_via = response.headers.get("X-Routed-Via") or None
+        self._assert_routed_provider(routed_via, candidate.provider)
+        receipt = self._receipt_base(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            provider=candidate.provider,
+            requested_model=candidate.qualified_model_id,
+            trust_lane=decision.trust_lane,
+            input_value=prompt,
+            output_value=raw,
+        )
+        receipt["routed_via"] = routed_via
+        return FreeLLMAPIProviderResult(raw=raw, content_type=response.headers.get("Content-Type"), receipt=receipt)
+
+    def governed_anthropic_messages(
+        self,
+        *,
+        messages: Iterable[dict[str, Any]],
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        max_tokens: int,
+        catalog: FreeLLMAPILocalCatalog | None = None,
+        registry: dict[str, Any] | None = None,
+        system: str | None = None,
+    ) -> FreeLLMAPIProviderResult:
+        candidate, decision = self._select_compat_candidate(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            catalog=catalog,
+            registry=registry,
+        )
+        rows = _validate_messages(messages)
+        payload: dict[str, Any] = {
+            "model": candidate.qualified_model_id,
+            "messages": rows,
+            "max_tokens": int(max_tokens),
+            "stream": False,
+        }
+        if system is not None:
+            payload["system"] = str(system)
+        headers = {
+            "x-api-key": self.api_key or "",
+            "anthropic-version": "2023-06-01",
+        }
+        try:
+            response = self._client.post("messages", json=payload, headers=headers)
+            response.raise_for_status()
+            raw = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise FreeLLMAPIError(f"FREELLMAPI_ANTHROPIC_REQUEST_FAILED:{type(exc).__name__}") from exc
+        routed_via = response.headers.get("X-Routed-Via") or None
+        self._assert_routed_provider(routed_via, candidate.provider)
+        receipt = self._receipt_base(
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            provider=candidate.provider,
+            requested_model=candidate.qualified_model_id,
+            trust_lane=decision.trust_lane,
+            input_value=rows,
+            output_value=raw,
+        )
+        receipt["routed_via"] = routed_via
+        return FreeLLMAPIProviderResult(raw=raw, content_type=response.headers.get("Content-Type"), receipt=receipt)
+
+    def governed_stream_chat(
+        self,
+        *,
+        messages: Iterable[dict[str, Any]],
+        authorization: HazewaveAuthorization,
+        task_id: str,
+        capability_id: str,
+        data_classification: str,
+        catalog: FreeLLMAPILocalCatalog | None = None,
+        registry: dict[str, Any] | None = None,
+        cache: bool | None = None,
+        compression: str | None = None,
+        task_type: str | None = None,
+        session_id: str | None = None,
+    ) -> FreeLLMAPIStream:
+        validate_authorization(
+            authorization,
+            expected_task_id=str(task_id),
+            expected_capability=str(capability_id),
+        )
+        rows = _validate_messages(messages)
+        eligible = self._eligible_text_candidates(
+            capability_id=capability_id,
+            data_classification=data_classification,
+            catalog=catalog,
+            registry=registry,
+        )
+        if not eligible:
+            raise FreeLLMAPIError("FREELLMAPI_ZERO_COST_POOL_UNAVAILABLE")
+        candidate, decision = eligible[0]
+        payload = {
+            "model": candidate.qualified_model_id,
+            "messages": rows,
+            "stream": True,
+        }
+        return FreeLLMAPIStream(
+            client=self._client,
+            payload=payload,
+            headers=self._efficiency_headers(
+                cache=cache,
+                compression=compression,
+                task_type=task_type,
+                session_id=session_id,
+            ),
+            authorization=authorization,
+            task_id=task_id,
+            capability_id=capability_id,
+            data_classification=data_classification,
+            candidate=candidate,
+            decision=decision,
+            input_value=rows,
+        )
 
     @staticmethod
     def _digest_payload(value: Any) -> str:
@@ -1065,7 +1589,11 @@ class FreeLLMAPIClient:
             },
         }
         try:
-            response = self._client.post("chat/completions", json=payload)
+            response = self._client.post(
+                "chat/completions",
+                json=payload,
+                headers=request_headers,
+            )
             response.raise_for_status()
             raw = response.json()
         except (httpx.HTTPError, ValueError) as exc:
@@ -1123,6 +1651,7 @@ class FreeLLMAPIClient:
         tools: Iterable[dict[str, Any]] | None = None,
         tool_choice: Any | None = None,
         response_format: dict[str, Any] | None = None,
+        request_headers: dict[str, str] | None = None,
     ) -> FreeLLMAPICompletionResult:
         classification = str(data_classification or "").strip().upper()
         if classification not in _ALLOWED_EGRESS_CLASSES:
