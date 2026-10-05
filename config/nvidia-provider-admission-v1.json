@@ -20,6 +20,9 @@
   ],
   "profiles": [
     "FAST_STRUCTURED",
+    "FAST_CODE",
+    "DEEP_MEDIUM",
+    "DEEP_HARD",
     "DEEP_REASONING"
   ],
   "model_contracts": {
@@ -33,11 +36,14 @@
       "response_format_status": "JSON_OBJECT_PROVED_BY_NVIDIA_CHAT_COMPLETIONS_DOCS",
       "temperature_supported": true,
       "top_p_supported": true,
-      "max_output_tokens": 16384,
+      "max_output_tokens": 32768,
       "chat_template_kwargs_supported": true,
       "enable_thinking_supported": true,
       "reasoning_budget_supported": true,
-      "context_length": 1000000
+      "context_length": 1000000,
+      "seed_supported": true,
+      "guided_json_hosted_supported": false,
+      "guided_json_hosted_status": "CANARY_REQUIRED"
     }
   },
   "observed_at": "2026-10-05T12:00:00+00:00",
@@ -46,5 +52,28 @@
     "https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b",
     "https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b/modelcard"
   ],
-  "notes": "Development/trial free endpoint only. Not FREE_FOREVER. Any stale/changed billing status requires readmission."
+  "notes": "Development/trial free endpoint only. Not FREE_FOREVER. Any stale/changed billing status requires readmission.",
+  "model_lifecycle": {
+    "nvidia/nemotron-3.5-lightning-30b-a3b": {
+      "stage": "ADMITTED",
+      "cost_class": "FREE_DEVELOPMENT_ENDPOINT",
+      "free_endpoint_available": true,
+      "observed_at": "2026-10-05",
+      "source": "https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b/build"
+    },
+    "nvidia/nemotron-3-super-120b-a12b": {
+      "stage": "COST_STATUS_VERIFIED",
+      "cost_class": "FREE_DEVELOPMENT_ENDPOINT",
+      "free_endpoint_available": true,
+      "observed_at": "2026-10-05",
+      "source": "https://build.nvidia.com/nvidia/nemotron-3-super-120b-a12b/deploy"
+    },
+    "nvidia/nemotron-3-ultra-550b-a55b": {
+      "stage": "COST_STATUS_VERIFIED",
+      "cost_class": "FREE_DEVELOPMENT_ENDPOINT",
+      "free_endpoint_available": true,
+      "observed_at": "2026-10-05",
+      "source": "https://build.nvidia.com/nvidia/nemotron-3-ultra-550b-a55b/build"
+    }
+  }
 }
