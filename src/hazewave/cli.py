@@ -13,7 +13,14 @@ from hazewave.acestep import (
     install_runtime,
     serve_runtime,
 )
-from hazewave.freellmapi import FreeLLMAPIError, run_live_probe
+from hazewave.freellmapi import (
+    DEFAULT_BASE_URL,
+    FreeLLMAPIClient,
+    FreeLLMAPIError,
+    build_free_fabric_eligibility_report,
+    build_free_fabric_inventory,
+    run_live_probe,
+)
 from hazewave.separation import DEFAULT_MODEL, SeparationError, separate_track
 
 
@@ -58,24 +65,64 @@ def build_parser() -> argparse.ArgumentParser:
     )
     free_commands = free.add_subparsers(dest="freellmapi_command", required=True)
 
+    default_key_file = str(
+        Path.home()
+        / ".config"
+        / "hazewave"
+        / "providers"
+        / "freellmapi"
+        / "unified-api-key"
+    )
+
+    inventory = free_commands.add_parser(
+        "inventory",
+        help="Report the local FreeLLMAPI surface without exposing credentials.",
+    )
+
+    eligible = free_commands.add_parser(
+        "eligible",
+        help="Show the currently eligible zero-cost Hazewave provider surface.",
+    )
+    eligible.add_argument(
+        "--data-classification",
+        choices=("PUBLIC", "INTERNAL_NON_SECRET", "PRIVATE_MEDIA", "CREDENTIAL"),
+        default="PUBLIC",
+    )
+
+    health = free_commands.add_parser(
+        "health",
+        help="Check the local FreeLLMAPI HTTP health boundary.",
+    )
+    health.add_argument("--key-file", default=default_key_file)
+
+    quota = free_commands.add_parser(
+        "quota",
+        help="Read FreeLLMAPI usage/quota observability through read-only MCP.",
+    )
+    quota.add_argument("--key-file", default=default_key_file)
+    quota.add_argument("--range", choices=("24h", "7d", "30d"), default="24h")
+
     probe = free_commands.add_parser(
         "probe",
         help="Run one bounded Harness-authorized live provider proof.",
     )
-    probe.add_argument(
-        "--key-file",
-        default=str(
-            Path.home()
-            / ".config"
-            / "hazewave"
-            / "providers"
-            / "freellmapi"
-            / "unified-api-key"
-        ),
-    )
+    probe.add_argument("--key-file", default=default_key_file)
     probe.add_argument(
         "--task-id",
         default="hazewave-freellmapi-live-proof",
+    )
+
+    probe_all = free_commands.add_parser(
+        "probe-all",
+        help=(
+            "Run one live zero-cost text proof and report the remaining eligible "
+            "surfaces without spending their quotas."
+        ),
+    )
+    probe_all.add_argument("--key-file", default=default_key_file)
+    probe_all.add_argument(
+        "--task-id",
+        default="hazewave-freellmapi-bounded-surface-proof",
     )
 
     ace = subcommands.add_parser(
@@ -246,6 +293,79 @@ def main() -> int:
             print(f"task_id={result.task_id}")
             print(f"mode={result.mode}")
             print(f"output={result.output_path}")
+            return 0
+
+        if args.command == "freellmapi" and args.freellmapi_command == "inventory":
+            print(
+                json.dumps(
+                    build_free_fabric_inventory(),
+                    sort_keys=True,
+                    ensure_ascii=False,
+                )
+            )
+            return 0
+
+        if args.command == "freellmapi" and args.freellmapi_command == "eligible":
+            print(
+                json.dumps(
+                    build_free_fabric_eligibility_report(
+                        data_classification=args.data_classification
+                    ),
+                    sort_keys=True,
+                    ensure_ascii=False,
+                )
+            )
+            return 0
+
+        if args.command == "freellmapi" and args.freellmapi_command == "health":
+            key_path = Path(args.key_file).expanduser()
+            if not key_path.is_file():
+                raise FreeLLMAPIError("FREELLMAPI_UNIFIED_API_KEY_FILE_MISSING")
+            with FreeLLMAPIClient(
+                DEFAULT_BASE_URL,
+                api_key=key_path.read_text(encoding="utf-8").strip(),
+            ) as client:
+                healthy = client.health()
+            print(f"HAZEWAVE_FREELLMAPI_HEALTH={'PASS' if healthy else 'FAIL'}")
+            return 0 if healthy else 3
+
+        if args.command == "freellmapi" and args.freellmapi_command == "quota":
+            key_path = Path(args.key_file).expanduser()
+            if not key_path.is_file():
+                raise FreeLLMAPIError("FREELLMAPI_UNIFIED_API_KEY_FILE_MISSING")
+            with FreeLLMAPIClient(
+                DEFAULT_BASE_URL,
+                api_key=key_path.read_text(encoding="utf-8").strip(),
+            ) as client:
+                result = client.mcp_readonly(
+                    "usage_summary",
+                    {"range": args.range},
+                )
+            print(json.dumps(result, sort_keys=True, ensure_ascii=False))
+            return 0
+
+        if args.command == "freellmapi" and args.freellmapi_command == "probe-all":
+            key_path = Path(args.key_file).expanduser()
+            if not key_path.is_file():
+                raise FreeLLMAPIError("FREELLMAPI_UNIFIED_API_KEY_FILE_MISSING")
+            receipt = run_live_probe(
+                api_key=key_path.read_text(encoding="utf-8").strip(),
+                task_id=args.task_id,
+            )
+            report = {
+                "schema": "HazewaveBoundedSurfaceProbe/v1",
+                "status": "PASS",
+                "live_text_probe": receipt,
+                "eligible_surface": build_free_fabric_eligibility_report(
+                    data_classification="PUBLIC"
+                ),
+                "quota_policy": (
+                    "Only the text route is exercised live; other eligible surfaces "
+                    "are reported without consuming finite free quotas."
+                ),
+            }
+            print("HAZEWAVE_FREELLMAPI_BOUNDED_PROBE_ALL=PASS")
+            print(json.dumps(report, sort_keys=True, ensure_ascii=False))
             return 0
 
         if args.command == "freellmapi" and args.freellmapi_command == "probe":
