@@ -2,171 +2,183 @@
 
 ## Scope
 
-Observed runtime evidence for the Hazewave-scoped FreeLLMAPI provider gateway on the A15 Termux runtime.
+Observed runtime evidence for the Hazewave-scoped FreeLLMAPI provider gateway on the Samsung A15 Termux runtime.
 
-This document records runtime evidence only. It does not grant authority or widen data-egress policy.
+This document is historical runtime evidence. It does not grant authority, widen provider eligibility or prove later source revisions that were not yet synced to the device.
 
-## Hazewave runtime
+## Authority and provider boundary
 
-- project: `HAZEWAVE`
-- authority: `HAZEWAVE_HARNESS`
-- canonical development ref: `work/wave-living-resonance-v1`
-- runtime SHA observed before proof: `24acd736524ac5cd54cb5856b4ebec89cb0091f7`
-- immutable runtime: PASS
-
-## FreeLLMAPI runtime
-
-- upstream exact SHA: `716948f20b12ec1c9b7c6fcebd22a3e7233cda1b`
-- endpoint: `http://127.0.0.1:3001/v1`
-- process identity: `MANAGED_DIRECT_NODE`
-- loopback only: PASS
-- update check: OFF
-- unified key: CONFIGURED
-- FreeLLMAPI authority: NONE
-- Hazewave project authority: HAZEWAVE_HARNESS
-- private-media egress: FORBIDDEN
-
-## Persistence installation evidence
-
-Observed:
-
-- `HAZEWAVE_FREELLMAPI_PERSISTENCE=PASS`
-- Termux:Boot script executable: PASS
-- supervisor process online: PASS
-
-The boot script existing and the supervisor running are not proof that Android has executed the boot path after a real device reboot. Reboot persistence remains unverified until an empirical reboot test is performed.
-
-## Live Harness-to-provider proof
-
-Observed command:
-
-```bash
-PYTHONPATH="$HOME/.local/share/hazewave/deploy/current/src" \
-python -m hazewave.cli freellmapi probe
-```
-
-Observed result:
+Observed throughout the proof:
 
 ```text
-HAZEWAVE_FREELLMAPI_LIVE_PROBE=PASS
+PROJECT_ID=HAZEWAVE
+AUTHORITY=HAZEWAVE_HARNESS
+FREELLMAPI_AUTHORITY=NONE
+FREELLMAPI_ENDPOINT=http://127.0.0.1:3001/v1
+FREELLMAPI_UPSTREAM_SHA=716948f20b12ec1c9b7c6fcebd22a3e7233cda1b
 ```
 
-Receipt:
+The provider runtime remained loopback-only and the unified key remained local/configured without being printed into evidence.
 
-```json
-{
-  "authority": "HAZEWAVE_HARNESS",
-  "authorization_id": "2f0106b11132372e7ab438260923f58156ebda1cf60f2b39c019acf8256352b2",
-  "capability_id": "audio.analyze",
-  "content_sha256": "5bbd29fef683e7588175f4a49a800ca3a339e19642f0be31f1ec9352d7f729ed",
-  "data_classification": "INTERNAL_NON_SECRET",
-  "domain": "HAZE",
-  "project_id": "HAZEWAVE",
-  "provider_gateway": "FREELLMAPI",
-  "routed_via": "kilo/dots-studio/dots-3-note-preview:free",
-  "schema": "HazewaveProviderProbeReceipt/v1",
-  "served_model": "dots-studio/dots-3-note-preview:free",
-  "status": "PASS",
-  "task_id": "hazewave-freellmapi-live-proof",
-  "usage": {
-    "completion_tokens": 64,
-    "cost": 0,
-    "is_byok": false,
-    "prompt_tokens": 44,
-    "total_tokens": 108
-  }
-}
-```
+## Early live provider proof
 
-No raw provider key or FreeLLMAPI unified key is recorded here.
+A bounded Harness-authorized provider call succeeded through Kilo with monetary cost reported as zero.
 
-## Security interpretation
+That early proof originally used `INTERNAL_NON_SECRET`. Subsequent review found that Kilo's anonymous free route can log prompts/outputs for training, so generic FreeLLMAPI egress was tightened to `PUBLIC` before further live proof.
 
-The runtime proof establishes that a bounded Hazewave Harness authorization reached a real upstream provider through FreeLLMAPI and returned provider/model routing evidence.
-
-The observed route was Kilo's anonymous free route. FreeLLMAPI upstream documentation states that Kilo's anonymous free route logs prompts/outputs for training. The proof prompt was synthetic and contained no private media or credentials.
-
-After this proof, Hazewave tightens generic FreeLLMAPI egress to `PUBLIC` only. The receipt above retains the classification that was actually emitted at proof time; it is historical evidence, not the post-proof policy.
-
-Any future use of internal project context requires a separately reviewed provider/model eligibility policy and pre-egress enforcement.
-
-
-## Supervisor auto-recovery proof
-
-Observed after Hazewave runtime advanced to:
-
-`9242f8d70bbbae0e55dca1ec644d687607406cdd`
-
-The managed FreeLLMAPI server process was intentionally terminated and the supervisor was allowed one reconciliation interval.
-
-Observed:
-
-- old managed server PID: `7384`;
-- old process terminated intentionally;
-- wait: 40 seconds;
-- replacement managed server PID: `12654`;
-- replacement PID was live;
-- `HAZEWAVE_FREELLMAPI_AUTO_RECOVERY=PASS`;
-- provider status after recovery: `ONLINE`;
-- process identity after recovery: `MANAGED_DIRECT_NODE`;
-- exact upstream SHA remained `716948f20b12ec1c9b7c6fcebd22a3e7233cda1b`.
-
-This establishes in-session supervisor recovery from managed process death. It does not establish Android reboot persistence.
+The historical receipt is retained as evidence of what actually happened at that time, not as the current policy.
 
 ## Post-policy live proof
 
-After generic FreeLLMAPI egress was tightened to `PUBLIC` only, a second real Harness-to-provider probe was executed.
+After tightening generic egress to `PUBLIC`, the same bounded synthetic connectivity proof passed again.
 
-Observed result:
+Observed:
 
 ```text
 HAZEWAVE_FREELLMAPI_LIVE_PROBE=PASS
+routed_via=kilo/dots-studio/dots-3-note-preview:free
+reported_cost=0
 ```
 
-Receipt summary:
+No private audio/media, project secret or credential was used in that proof.
 
-```json
-{
-  "authority": "HAZEWAVE_HARNESS",
-  "authorization_id": "2f0106b11132372e7ab438260923f58156ebda1cf60f2b39c019acf8256352b2",
-  "capability_id": "audio.analyze",
-  "content_sha256": "384478d9140c931a616f570bd58192584ea3f1ddfe427e0a8b03636f2301dc5c",
-  "data_classification": "PUBLIC",
-  "domain": "HAZE",
-  "project_id": "HAZEWAVE",
-  "provider_gateway": "FREELLMAPI",
-  "routed_via": "kilo/dots-studio/dots-3-note-preview:free",
-  "schema": "HazewaveProviderProbeReceipt/v1",
-  "served_model": "dots-studio/dots-3-note-preview:free",
-  "status": "PASS",
-  "task_id": "hazewave-freellmapi-live-proof",
-  "usage": {
-    "completion_tokens": 64,
-    "cost": 0,
-    "is_byok": false,
-    "prompt_tokens": 44,
-    "total_tokens": 108
-  }
-}
+## Supervisor auto-recovery
+
+At runtime SHA:
+
+`9242f8d70bbbae0e55dca1ec644d687607406cdd`
+
+the managed FreeLLMAPI server was intentionally terminated.
+
+Observed:
+
+- old server PID: `7384`;
+- supervisor remained alive;
+- replacement server PID: `12654`;
+- replacement process identity: `MANAGED_DIRECT_NODE`;
+- exact FreeLLMAPI upstream SHA unchanged;
+- `HAZEWAVE_FREELLMAPI_AUTO_RECOVERY=PASS`.
+
+This proved in-session recovery, but not yet Android reboot persistence.
+
+## Cold-boot incident
+
+The first real Android reboot exposed a persistent-lock defect.
+
+Observed after reboot:
+
+- supervisor process existed;
+- recorded server PID was stale;
+- `control.lock` remained present after the process that owned the critical section no longer existed;
+- supervisor reconciliation repeatedly returned `HAZEWAVE_FREELLMAPI_CONTROL=BUSY`;
+- provider remained `OFFLINE`;
+- live probe failed with connection refused.
+
+The evidence established a causal failure chain:
+
+```text
+server process death
+ -> stale control.lock
+ -> supervisor RECONCILING
+ -> CONTROL=BUSY
+ -> no server restart
+ -> provider OFFLINE
 ```
 
-No raw provider key or FreeLLMAPI unified key is recorded.
+A secondary inconsistent state was also observed during recovery: a live supervisor could become detached from its `supervisor.pid` / lock metadata.
 
-## Remaining persistence boundary
+## Crash-safe persistence fix
 
-The following are now separately proven:
+The Hazewave source was changed so both control and supervisor locks carry owner identity and can safely reclaim stale state after non-graceful process death.
 
-- provider process identity: PASS;
-- exact upstream SHA binding: PASS;
-- loopback-only runtime: PASS;
-- unified key configured: PASS;
-- Harness-authorized real provider call: PASS;
-- generic egress after policy tightening: PUBLIC-only;
-- in-session supervisor recovery after managed process death: PASS;
-- Termux:Boot script installed and executable: PASS.
+The corrected Hazewave runtime release was:
 
-Still not proven:
+`e100c63e2d3ab60ad0b7718647a93b7e80c19099`
 
-- execution of the Termux:Boot path after a real Android device reboot.
+Repository CI for that source revision was GREEN before deployment.
 
-A real reboot remains the only missing runtime evidence for reboot persistence.
+The A15 then materialized that exact immutable release.
+
+Observed immediately after installation:
+
+```text
+DEPLOY_EXACT_HEAD=PASS
+HAZEWAVE_FREELLMAPI_PERSISTENCE=PASS
+SUPERVISOR_LIVENESS=PASS
+SERVER_LIVENESS=PASS
+HAZEWAVE_FREELLMAPI=ONLINE
+HAZEWAVE_FREELLMAPI_LIVE_PROBE=PASS
+CONTROL_LOCK_IDLE=PASS
+SUPERVISOR_LOCK_OWNERSHIP=PASS
+```
+
+Observed process state before final reboot proof:
+
+- supervisor PID: `26952`;
+- server PID: `26783`;
+- supervisor lock owner: `26952`.
+
+## Final real Android cold-boot proof
+
+The A15 was then rebooted again.
+
+No manual FreeLLMAPI `restart`, persistence reinstall, control-lock deletion or boot-script invocation was performed before the proof.
+
+Observed after automatic Termux:Boot recovery:
+
+```text
+SUPERVISOR_PID=23409
+SERVER_PID=24648
+LOCK_OWNER=23409
+
+HAZEWAVE_FREELLMAPI_COLD_BOOT=PASS
+COLD_BOOT_RUNTIME_SHA=PASS
+HAZEWAVE_FREELLMAPI=ONLINE
+HAZEWAVE_FREELLMAPI_PROCESS_IDENTITY=MANAGED_DIRECT_NODE
+CONTROL_LOCK_IDLE=PASS
+SUPERVISOR_LOCK_OWNERSHIP=PASS
+HAZEWAVE_FREELLMAPI_LIVE_PROBE=PASS
+```
+
+Exact runtime SHA after the reboot:
+
+`e100c63e2d3ab60ad0b7718647a93b7e80c19099`
+
+The live proof again routed through the configured zero-dollar Kilo route and reported `cost=0`.
+
+## Persistence conclusion
+
+For runtime SHA `e100c63e2d3ab60ad0b7718647a93b7e80c19099`, the following are empirically proven:
+
+- exact immutable Hazewave release binding: PASS;
+- exact FreeLLMAPI upstream SHA binding: PASS;
+- loopback-only provider runtime: PASS;
+- managed direct Node process identity: PASS;
+- unified key configured locally: PASS;
+- bounded Harness-to-provider live request: PASS;
+- supervisor recovery after process death: PASS;
+- stale control-lock recovery: PASS;
+- supervisor-lock ownership consistency: PASS;
+- Termux:Boot automatic execution after real Android reboot: PASS;
+- provider ONLINE after cold boot: PASS;
+- live provider proof after cold boot: PASS.
+
+Therefore the crash-safe FreeLLMAPI persistence baseline is closed for that release.
+
+## Relationship to Governed Free Fabric
+
+The later Governed Free Fabric expands provider policy and client surfaces beyond this historical runtime SHA.
+
+This proof must not be reused to claim that later source revisions or new modalities are already active on the A15.
+
+For a later Free Fabric release, required runtime adoption is:
+
+1. immutable Hazewave sync to the new exact SHA;
+2. doctor;
+3. inventory/eligibility report;
+4. bounded zero-cost live probe;
+5. modality claims only where a real eligible provider/key is configured.
+
+The implementation reference for the expanded fabric is:
+
+`docs/reference/HAZEWAVE_FREE_FABRIC_V1.md`
