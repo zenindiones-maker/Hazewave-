@@ -74,6 +74,7 @@ const PREFERRED_PROBE_MODELS = [
 ];
 const MAX_PROBE_ATTEMPTS = 3;
 const OPTIMIZE_MAX_MODELS = 16;
+const OPTIMIZE_SAMPLE_COUNT = 3;
 
 function isFreeModel(id) {
   return (
@@ -152,10 +153,21 @@ function catalogHash(models) {
 
 function normalizeUsage(payload) {
   const usage = payload?.usage && typeof payload.usage === "object" ? payload.usage : {};
+  const details =
+    usage?.completion_tokens_details &&
+    typeof usage.completion_tokens_details === "object"
+      ? usage.completion_tokens_details
+      : {};
+  const reasoningTokens = Number.isInteger(usage.reasoning_tokens)
+    ? usage.reasoning_tokens
+    : (Number.isInteger(details.reasoning_tokens)
+        ? details.reasoning_tokens
+        : null);
   return {
     prompt_tokens: Number.isInteger(usage.prompt_tokens) ? usage.prompt_tokens : null,
     completion_tokens: Number.isInteger(usage.completion_tokens) ? usage.completion_tokens : null,
     total_tokens: Number.isInteger(usage.total_tokens) ? usage.total_tokens : null,
+    reasoning_tokens: reasoningTokens,
   };
 }
 
@@ -254,15 +266,85 @@ async function runSemanticProbe(qualifiedModel) {
   };
 }
 
+function median(values) {
+  const numeric = values
+    .filter((value) => Number.isFinite(value))
+    .map((value) => Number(value))
+    .sort((a, b) => a - b);
+  if (!numeric.length) return null;
+  const mid = Math.floor(numeric.length / 2);
+  if (numeric.length % 2) return numeric[mid];
+  return Math.round((numeric[mid - 1] + numeric[mid]) / 2);
+}
+
+function summarizeSamples(samples) {
+  const successful = samples.filter((sample) => sample?.status === "semantic_pass");
+  const successRate = samples.length ? successful.length / samples.length : 0;
+  const medianLatency = median(successful.map((sample) => sample?.latency_ms));
+  const medianPrompt = median(successful.map((sample) => sample?.usage?.prompt_tokens));
+  const medianCompletion = median(successful.map((sample) => sample?.usage?.completion_tokens));
+  const medianTotal = median(successful.map((sample) => sample?.usage?.total_tokens));
+  const medianReasoning = median(successful.map((sample) => sample?.usage?.reasoning_tokens));
+  const efficiencyScore =
+    Number.isFinite(medianLatency) && Number.isFinite(medianTotal)
+      ? Math.round(
+          (medianLatency * medianTotal) /
+          Math.max(0.25, successRate) ** 2
+        )
+      : null;
+  const representative = successful[0] || samples[0] || {};
+
+  return {
+    status: successful.length >= Math.ceil(samples.length / 2)
+      ? "semantic_pass"
+      : String(representative?.status || "no_samples"),
+    latency_ms: medianLatency,
+    usage: {
+      prompt_tokens: medianPrompt,
+      completion_tokens: medianCompletion,
+      total_tokens: medianTotal,
+      reasoning_tokens: medianReasoning,
+    },
+    reasoning_observed: successful.some(
+      (sample) =>
+        sample?.reasoning_observed === true ||
+        (Number.isInteger(sample?.usage?.reasoning_tokens) &&
+          sample.usage.reasoning_tokens > 0)
+    ),
+    response_sha256:
+      successful.find((sample) => sample?.response_sha256)?.response_sha256 || null,
+    benchmark_samples: samples,
+    metrics: {
+      sample_count: samples.length,
+      semantic_success_count: successful.length,
+      semantic_success_rate: successRate,
+      median_latency_ms: medianLatency,
+      median_prompt_tokens: medianPrompt,
+      median_completion_tokens: medianCompletion,
+      median_total_tokens: medianTotal,
+      median_reasoning_tokens: medianReasoning,
+      efficiency_score: efficiencyScore,
+    },
+  };
+}
+
 function rankAdmitted(modelProofs) {
   return Object.entries(modelProofs)
     .filter(([, proof]) => proof?.status === "semantic_pass")
     .sort(([modelA, a], [modelB, b]) => {
-      const ta = Number.isInteger(a?.usage?.total_tokens) ? a.usage.total_tokens : 1e12;
-      const tb = Number.isInteger(b?.usage?.total_tokens) ? b.usage.total_tokens : 1e12;
-      if (ta !== tb) return ta - tb;
-      const la = Number.isFinite(a?.latency_ms) ? a.latency_ms : 1e12;
-      const lb = Number.isFinite(b?.latency_ms) ? b.latency_ms : 1e12;
+      const sa = Number.isFinite(a?.metrics?.efficiency_score)
+        ? a.metrics.efficiency_score
+        : 1e18;
+      const sb = Number.isFinite(b?.metrics?.efficiency_score)
+        ? b.metrics.efficiency_score
+        : 1e18;
+      if (sa !== sb) return sa - sb;
+      const la = Number.isFinite(a?.metrics?.median_latency_ms)
+        ? a.metrics.median_latency_ms
+        : 1e12;
+      const lb = Number.isFinite(b?.metrics?.median_latency_ms)
+        ? b.metrics.median_latency_ms
+        : 1e12;
       if (la !== lb) return la - lb;
       return modelA.localeCompare(modelB);
     })
@@ -319,19 +401,31 @@ async function main() {
 
     for (let index = 0; index < candidates.length; index += 1) {
       const qualifiedModel = `oc/${candidates[index]}`;
-      const proof = await runSemanticProbe(qualifiedModel);
+      const sampleCount = mode === "optimize" ? OPTIMIZE_SAMPLE_COUNT : 1;
+      const samples = [];
+
+      for (let sample = 0; sample < sampleCount; sample += 1) {
+        const proof = await runSemanticProbe(qualifiedModel);
+        samples.push(proof);
+        attempts.push({
+          model: qualifiedModel,
+          sample: sample + 1,
+          status: proof.status,
+        });
+        if (!proof.status.startsWith("http_") && proof.status !== "transport_error") {
+          connectivityProved = true;
+        }
+        console.log(
+          `HAZEWAVE_9ROUTER_FREE_ATTEMPT=${index + 1}/${candidates.length} SAMPLE=${sample + 1}/${sampleCount} MODEL=${qualifiedModel} RESULT=${proof.status}`
+        );
+        if (proof.status === "semantic_pass") {
+          console.log("HAZEWAVE_9ROUTER_FREE_CONNECTIVITY=PASS");
+        }
+      }
+
+      const proof = summarizeSamples(samples);
       modelProofs[qualifiedModel] = proof;
-      attempts.push({ model: qualifiedModel, status: proof.status });
-      if (!proof.status.startsWith("http_") && proof.status !== "transport_error") {
-        connectivityProved = true;
-      }
-      console.log(
-        `HAZEWAVE_9ROUTER_FREE_ATTEMPT=${index + 1}/${candidates.length} MODEL=${qualifiedModel} RESULT=${proof.status}`
-      );
-      if (proof.status === "semantic_pass") {
-        console.log("HAZEWAVE_9ROUTER_FREE_CONNECTIVITY=PASS");
-        if (mode === "probe") break;
-      }
+      if (mode === "probe" && proof.status === "semantic_pass") break;
     }
   } finally {
     try {
@@ -381,7 +475,8 @@ async function main() {
         rtk_enabled: true,
         headroom_enabled: false,
         combos_allowed: false,
-        selection: "LOWEST_TOTAL_TOKENS_THEN_LATENCY",
+        selection: "BALANCED_TOKEN_LATENCY_PRODUCT",
+        benchmark_sample_count: OPTIMIZE_SAMPLE_COUNT,
       },
     } : {}),
     probe: {
@@ -406,7 +501,7 @@ async function main() {
     admitted.forEach((model, index) => {
       const proof = modelProofs[model];
       console.log(
-        `RANK=${index + 1} MODEL=${model} TOKENS=${proof?.usage?.total_tokens ?? "unknown"} LATENCY_MS=${proof?.latency_ms ?? "unknown"}`
+        `RANK=${index + 1} MODEL=${model} SCORE=${proof?.metrics?.efficiency_score ?? "unknown"} TOKENS=${proof?.metrics?.median_total_tokens ?? "unknown"} LATENCY_MS=${proof?.metrics?.median_latency_ms ?? "unknown"} SUCCESS_RATE=${proof?.metrics?.semantic_success_rate ?? "unknown"} REASONING_TOKENS=${proof?.metrics?.median_reasoning_tokens ?? "unknown"}`
       );
     });
     console.log("HAZEWAVE_9ROUTER_OPTIMIZE=PASS");
