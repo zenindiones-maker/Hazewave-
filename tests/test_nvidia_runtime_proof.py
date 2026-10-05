@@ -184,3 +184,77 @@ def test_failed_probe_diagnostics_are_sanitized_and_never_persist_raw_content(
     persisted = receipt_path.read_text(encoding="utf-8")
     assert "not json" not in persisted
     assert "nvapi-runtime-secret-sentinel" not in persisted
+
+
+def test_runtime_observed_rank_map_is_semantically_equivalent() -> None:
+    item = {
+        "evaluation": {
+            "kind": "RANKING_EQUIVALENT",
+            "labels": ["correctness", "latency", "formatting"],
+        }
+    }
+    observed = _result(
+        '{"correctness":1,"latency":2,"formatting":3}'
+    )
+    wrong = _result(
+        '{"correctness":2,"latency":1,"formatting":3}'
+    )
+
+    assert evaluate_probe_item(item, observed).semantic_pass is True
+    assert evaluate_probe_item(item, wrong).semantic_pass is False
+
+
+def test_runtime_observed_deep_classes_pass_semantic_field_contract() -> None:
+    item = {
+        "evaluation": {
+            "kind": "JSON_FIELD_SEMANTICS",
+            "fields": {
+                "429": {
+                    "keyword_groups": [
+                        ["rate limit", "rate-limit", "rate limiting", "throttle"]
+                    ]
+                },
+                "403": {
+                    "keyword_groups": [
+                        [
+                            "access denied",
+                            "permission",
+                            "credential",
+                            "eligibility",
+                            "authorization",
+                            "governance",
+                        ]
+                    ]
+                },
+                "retry_storm": {"equals": False},
+            },
+        }
+    }
+    observed = _result(
+        '{"429":"Rate limiting triggered by governed quota or throttle policy",'
+        '"403":"Access denied due to governance policies, insufficient permissions, or invalid credentials",'
+        '"retry_storm":false}'
+    )
+    wrong = _result(
+        '{"429":"success","403":"temporary server error","retry_storm":false}'
+    )
+
+    assert evaluate_probe_item(item, observed).semantic_pass is True
+    assert evaluate_probe_item(item, wrong).semantic_pass is False
+
+
+def test_code_review_contract_is_structured_and_requires_concurrency_decrease() -> None:
+    root = Path(__file__).resolve().parents[1]
+    corpus = load_probe_corpus(root / "config" / "nvidia-capability-eval-v1.json")
+    item = next(
+        row for row in corpus["items"]
+        if row["capability"] == "code.review"
+    )
+    assert item["evaluation"]["kind"] == "JSON_SUBSET"
+    assert item["evaluation"]["expected"] == {
+        "concurrency_action": "DECREASE",
+        "retry_after": "HONOR",
+        "blind_increase": False,
+    }
+    options = probe_request_options(item)
+    assert options["response_format"] == {"type": "json_object"}
