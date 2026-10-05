@@ -250,7 +250,7 @@ def test_write_account_attestation_is_atomic_owner_only_and_upserts(tmp_path: Pa
     record = write_account_attestation(
         provider="groq",
         credential_id=7,
-        expires_at="2026-11-05T00:00:00+00:00",
+        expires_at="2026-10-20T00:00:00+00:00",
         source_evidence=["https://console.groq.com/docs/billing-faqs"],
         path=path,
         now="2026-10-05T12:00:00+00:00",
@@ -258,7 +258,7 @@ def test_write_account_attestation_is_atomic_owner_only_and_upserts(tmp_path: Pa
     replacement = write_account_attestation(
         provider="groq",
         credential_id=7,
-        expires_at="2026-12-05T00:00:00+00:00",
+        expires_at="2026-11-04T00:00:00+00:00",
         source_evidence=["https://console.groq.com/docs/rate-limits"],
         path=path,
         now="2026-10-05T13:00:00+00:00",
@@ -268,7 +268,7 @@ def test_write_account_attestation_is_atomic_owner_only_and_upserts(tmp_path: Pa
     assert replacement["credential_id"] == 7
     store = load_account_attestations(path)
     assert len(store["attestations"]) == 1
-    assert store["attestations"][0]["expires_at"] == "2026-12-05T00:00:00+00:00"
+    assert store["attestations"][0]["expires_at"] == "2026-11-04T00:00:00+00:00"
     assert path.stat().st_mode & 0o777 == 0o600
 
 
