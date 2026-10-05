@@ -822,6 +822,21 @@ def build_9router_efficiency_status(
             }
         )
 
+    ranked_models_by_capability = {
+        capability: _receipt_ranked_models(
+            receipt,
+            capability_id=capability,
+            route_health=route_health,
+            now=current,
+        )
+        for capability in (
+            "reason.general",
+            "reason.deep",
+            "code.generate",
+            "code.review",
+        )
+    }
+
     return {
         **base,
         "receipt_schema": receipt.get("schema"),
@@ -833,6 +848,7 @@ def build_9router_efficiency_status(
         "effective_admitted_model_count": len(effective_ranked_models),
         "majority_invalid_models": majority_invalid_models,
         "ranked_models": effective_ranked_models,
+        "ranked_models_by_capability": ranked_models_by_capability,
         "selection_policy": policy.get("selection", "EXACT_SINGLE_MODEL"),
         "rtk_enabled": policy.get("rtk_enabled", True),
         "headroom_enabled": policy.get("headroom_enabled", False),
