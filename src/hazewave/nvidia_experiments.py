@@ -88,3 +88,21 @@ def select_sustainable_concurrency(
             break
         selected = concurrency
     return selected
+
+
+def build_model_access_canary_request(model_id: str) -> dict[str, Any]:
+    model = str(model_id or "").strip()
+    if not model:
+        raise ValueError("MODEL_CANARY_MODEL_REQUIRED")
+    return {
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": "Respond exactly HAZEWAVE_NVIDIA_CANARY_OK",
+            }
+        ],
+        "max_tokens": 64,
+        "stream": False,
+        "temperature": 0.0,
+    }
