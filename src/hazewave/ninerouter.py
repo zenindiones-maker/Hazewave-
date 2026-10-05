@@ -361,7 +361,9 @@ def _record_route_health(
             "consecutive_transient_failures": 0,
             "cooldown_until": None,
             "last_status": "PASS",
+            "attempt_count": int(existing.get("attempt_count") or 0) + 1,
             "success_count": int(existing.get("success_count") or 0) + 1,
+            "failure_count": int(existing.get("failure_count") or 0),
             "ewma_latency_ms": ewma(
                 existing.get("ewma_latency_ms"),
                 latency_ms,
@@ -382,6 +384,9 @@ def _record_route_health(
         cooldown_seconds = min(900, 60 * (2 ** (failures - 1)))
         row = {
             **existing,
+            "attempt_count": int(existing.get("attempt_count") or 0) + 1,
+            "success_count": int(existing.get("success_count") or 0),
+            "failure_count": int(existing.get("failure_count") or 0) + 1,
             "consecutive_transient_failures": failures,
             "cooldown_until": (
                 current + timedelta(seconds=cooldown_seconds)
@@ -392,6 +397,9 @@ def _record_route_health(
     else:
         row = {
             **existing,
+            "attempt_count": int(existing.get("attempt_count") or 0) + 1,
+            "success_count": int(existing.get("success_count") or 0),
+            "failure_count": int(existing.get("failure_count") or 0) + 1,
             "last_status": status,
             "updated_at": current.isoformat(),
         }
@@ -499,6 +507,15 @@ def _receipt_ranked_models(
         balanced_score = (
             token_score * latency_score
         ) / (success_rate * success_rate)
+
+        attempt_count = int(health.get("attempt_count") or 0)
+        success_count = int(health.get("success_count") or 0)
+        failure_count = int(health.get("failure_count") or 0)
+        if attempt_count <= 0 and (success_count > 0 or failure_count > 0):
+            attempt_count = success_count + failure_count
+        if attempt_count > 0:
+            reliability = (success_count + 2.0) / (attempt_count + 3.0)
+            balanced_score = balanced_score / max(0.25, reliability) ** 2
 
         reasoning_penalty = 0.0
         if capability_id == "reason.deep":
@@ -678,6 +695,7 @@ class NineRouterExecutionResult:
     total_tokens: int | None = None
     reasoning_tokens: int | None = None
     attempted_models: tuple[str, ...] = ()
+    attempt_trace: tuple[dict[str, Any], ...] = ()
     fallback_count: int = 0
     selection_mode: str = "exact"
     rtk_enabled: bool = True
@@ -933,6 +951,7 @@ def execute_9router_messages(
                 result: NineRouterExecutionResult | None = None
                 last_error: NineRouterExecutionError | None = None
                 attempted_models: list[str] = []
+                attempt_trace: list[dict[str, Any]] = []
 
                 for candidate_model in candidates:
                     attempted_models.append(candidate_model)
@@ -963,6 +982,13 @@ def execute_9router_messages(
                         int(round((time.monotonic() - request_started) * 1000)),
                     )
                     if response.status_code != 200:
+                        attempt_trace.append(
+                            {
+                                "model": candidate_model,
+                                "status": f"HTTP_{response.status_code}",
+                                "latency_ms": latency_ms,
+                            }
+                        )
                         error = NineRouterExecutionError(
                             f"NINEROUTER_COMPLETION_HTTP_{response.status_code}"
                         )
@@ -989,6 +1015,21 @@ def execute_9router_messages(
                     try:
                         payload = response.json()
                     except ValueError as exc:
+                        attempt_trace.append(
+                            {
+                                "model": candidate_model,
+                                "status": "INVALID_JSON",
+                                "latency_ms": latency_ms,
+                            }
+                        )
+                        _record_route_health(
+                            model_id=candidate_model,
+                            status="INVALID_JSON",
+                            transient_failure=False,
+                            success=False,
+                            path=route_health_path,
+                            now=now,
+                        )
                         error = NineRouterExecutionError(
                             "NINEROUTER_COMPLETION_INVALID_JSON"
                         )
@@ -1017,6 +1058,21 @@ def execute_9router_messages(
                         else ()
                     )
                     if not content and not tool_calls:
+                        attempt_trace.append(
+                            {
+                                "model": candidate_model,
+                                "status": "EMPTY",
+                                "latency_ms": latency_ms,
+                            }
+                        )
+                        _record_route_health(
+                            model_id=candidate_model,
+                            status="EMPTY",
+                            transient_failure=False,
+                            success=False,
+                            path=route_health_path,
+                            now=now,
+                        )
                         error = NineRouterExecutionError(
                             "NINEROUTER_COMPLETION_EMPTY"
                         )
@@ -1038,6 +1094,16 @@ def execute_9router_messages(
                         int(usage["total_tokens"])
                         if isinstance(usage.get("total_tokens"), int)
                         else None
+                    )
+
+                    attempt_trace.append(
+                        {
+                            "model": candidate_model,
+                            "status": "PASS",
+                            "latency_ms": latency_ms,
+                            "total_tokens": total_tokens,
+                            "reasoning_tokens": reasoning_tokens,
+                        }
                     )
 
                     _record_route_health(
@@ -1075,6 +1141,7 @@ def execute_9router_messages(
                         total_tokens=total_tokens,
                         reasoning_tokens=reasoning_tokens,
                         attempted_models=tuple(attempted_models),
+                        attempt_trace=tuple(attempt_trace),
                         fallback_count=max(
                             0, len(attempted_models) - 1
                         ),
