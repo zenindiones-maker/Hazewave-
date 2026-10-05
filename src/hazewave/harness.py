@@ -20,13 +20,35 @@ _CAPABILITY_DOMAINS: Final[dict[str, str]] = {
     "audio.mix": HAZE,
     "audio.master": HAZE,
     "audio.voice": HAZE,
+    "audio.transcribe": HAZE,
+    "audio.reason": HAZE,
+    "audio.describe": HAZE,
+    "audio.structure": HAZE,
     "visual.render": WAVE,
     "visual.image": WAVE,
     "visual.video": WAVE,
     "visual.site": WAVE,
     "visual.animate": WAVE,
+    "visual.analyze": WAVE,
+    "visual.storyboard": WAVE,
+    "visual.reason": WAVE,
+    "visual.describe": WAVE,
     "bridge.haze_to_wave": BRIDGE,
+    "bridge.semantic_translation": BRIDGE,
+    "bridge.motif_to_topology": BRIDGE,
+    "bridge.section_to_transition": BRIDGE,
 }
+
+_CROSS_DOMAIN_CAPABILITIES: Final[frozenset[str]] = frozenset(
+    {
+        "reason.general",
+        "reason.deep",
+        "reason.fusion",
+        "code.generate",
+        "code.review",
+        "embedding.create",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -60,10 +82,19 @@ class HazewaveAuthorization:
 
 def classify_capability_domain(capability_id: str) -> str:
     value = str(capability_id or "").strip()
+    if value in _CROSS_DOMAIN_CAPABILITIES:
+        raise ValueError(f"CROSS_DOMAIN_CAPABILITY_REQUIRES_REQUESTED_DOMAIN:{value}")
     try:
         return _CAPABILITY_DOMAINS[value]
     except KeyError as exc:
         raise ValueError(f"UNKNOWN_HAZEWAVE_CAPABILITY:{value}") from exc
+
+
+def capability_allows_domain(capability_id: str, domain: str) -> bool:
+    value = str(capability_id or "").strip()
+    if value in _CROSS_DOMAIN_CAPABILITIES:
+        return domain in {HAZE, WAVE, BRIDGE}
+    return classify_capability_domain(value) == domain
 
 
 def route_task(task: HazewaveTask) -> HazewaveRouteDecision:
@@ -71,11 +102,11 @@ def route_task(task: HazewaveTask) -> HazewaveRouteDecision:
         raise ValueError("TASK_ID_REQUIRED")
     if not task.goal.strip():
         raise ValueError("GOAL_REQUIRED")
-    selected_domain = classify_capability_domain(task.required_capability)
     if task.requested_domain not in {HAZE, WAVE, BRIDGE}:
         raise ValueError("UNKNOWN_HAZEWAVE_DOMAIN")
-    if selected_domain != task.requested_domain:
+    if not capability_allows_domain(task.required_capability, task.requested_domain):
         raise PermissionError("DOMAIN_CAPABILITY_MISMATCH")
+    selected_domain = task.requested_domain
     return HazewaveRouteDecision(
         project_id=PROJECT_ID,
         task_id=task.task_id,
@@ -118,7 +149,7 @@ def validate_authorization(
         raise PermissionError("AUTHORIZATION_TASK_MISMATCH")
     if authorization.capability_id != expected_capability:
         raise PermissionError("AUTHORIZATION_CAPABILITY_MISMATCH")
-    if classify_capability_domain(expected_capability) != authorization.domain:
+    if not capability_allows_domain(expected_capability, authorization.domain):
         raise PermissionError("AUTHORIZATION_DOMAIN_MISMATCH")
     return authorization
 
@@ -129,7 +160,7 @@ def harness_status() -> dict[str, object]:
         "project_id": PROJECT_ID,
         "authority": AUTHORITY,
         "domains": [HAZE, WAVE, BRIDGE],
-        "capabilities": sorted(_CAPABILITY_DOMAINS),
+        "capabilities": sorted(set(_CAPABILITY_DOMAINS) | set(_CROSS_DOMAIN_CAPABILITIES)),
         "portfolio_authority": "NONE",
         "status": "ONLINE",
     }
