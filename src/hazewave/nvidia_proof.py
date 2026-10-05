@@ -25,6 +25,14 @@ from hazewave.provider_fabric import (
     record_provider_result,
 )
 from hazewave.provider_runtime import HazewaveProviderExecutionResult
+from hazewave.nvidia_optimization import (
+    DEEP_HARD,
+    DEEP_MEDIUM,
+    FAST_CODE,
+    FAST_STRUCTURED as OPT_FAST_STRUCTURED,
+    reasoning_budget_for_complexity,
+    select_nvidia_execution_profile,
+)
 
 
 DEFAULT_NVIDIA_PROOF_RECEIPT = (
@@ -49,7 +57,10 @@ def load_probe_corpus(path: Path | str) -> dict[str, Any]:
     target = Path(path)
     payload = json.loads(target.read_text(encoding="utf-8"))
     if (
-        payload.get("schema") != "HazewaveNvidiaCapabilityEvalCorpus/v1"
+        payload.get("schema") not in {
+            "HazewaveNvidiaCapabilityEvalCorpus/v1",
+            "HazewaveNvidiaCapabilityEvalCorpus/v2",
+        }
         or payload.get("project_id") != "HAZEWAVE"
         or payload.get("authority") != "HAZEWAVE_HARNESS"
         or not isinstance(payload.get("items"), list)
@@ -76,6 +87,139 @@ def _json_subset(expected: Any, actual: Any) -> bool:
             for left, right in zip(expected, actual)
         )
     return actual == expected
+
+
+def _restricted_python_eval(node: ast.AST, env: dict[str, Any]) -> Any:
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, (int, float, bool, str, type(None))):
+            return node.value
+        raise ValueError("PYTHON_BEHAVIOR_CONSTANT_FORBIDDEN")
+    if isinstance(node, ast.Name):
+        if node.id in env:
+            return env[node.id]
+        raise ValueError("PYTHON_BEHAVIOR_NAME_FORBIDDEN")
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        value = _restricted_python_eval(node.operand, env)
+        return -value if isinstance(node.op, ast.USub) else +value
+    if isinstance(node, ast.BinOp):
+        left = _restricted_python_eval(node.left, env)
+        right = _restricted_python_eval(node.right, env)
+        if isinstance(node.op, ast.Add):
+            return left + right
+        if isinstance(node.op, ast.Sub):
+            return left - right
+        if isinstance(node.op, ast.Mult):
+            return left * right
+        if isinstance(node.op, ast.Div):
+            return left / right
+        if isinstance(node.op, ast.FloorDiv):
+            return left // right
+        if isinstance(node.op, ast.Mod):
+            return left % right
+        if isinstance(node.op, ast.Pow):
+            return left ** right
+        raise ValueError("PYTHON_BEHAVIOR_OPERATOR_FORBIDDEN")
+    if isinstance(node, ast.IfExp):
+        condition = _restricted_python_eval(node.test, env)
+        branch = node.body if condition else node.orelse
+        return _restricted_python_eval(branch, env)
+    if isinstance(node, ast.Compare):
+        left = _restricted_python_eval(node.left, env)
+        for operator, comparator in zip(node.ops, node.comparators):
+            right = _restricted_python_eval(comparator, env)
+            if isinstance(operator, ast.Lt):
+                ok = left < right
+            elif isinstance(operator, ast.LtE):
+                ok = left <= right
+            elif isinstance(operator, ast.Gt):
+                ok = left > right
+            elif isinstance(operator, ast.GtE):
+                ok = left >= right
+            elif isinstance(operator, ast.Eq):
+                ok = left == right
+            elif isinstance(operator, ast.NotEq):
+                ok = left != right
+            else:
+                raise ValueError("PYTHON_BEHAVIOR_COMPARE_FORBIDDEN")
+            if not ok:
+                return False
+            left = right
+        return True
+    if isinstance(node, ast.BoolOp):
+        values = [_restricted_python_eval(value, env) for value in node.values]
+        if isinstance(node.op, ast.And):
+            return all(values)
+        if isinstance(node.op, ast.Or):
+            return any(values)
+        raise ValueError("PYTHON_BEHAVIOR_BOOL_FORBIDDEN")
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+        allowed = {
+            "min": min,
+            "max": max,
+            "int": int,
+            "float": float,
+            "abs": abs,
+            "round": round,
+        }
+        function = allowed.get(node.func.id)
+        if function is None or node.keywords:
+            raise ValueError("PYTHON_BEHAVIOR_CALL_FORBIDDEN")
+        args = [_restricted_python_eval(arg, env) for arg in node.args]
+        return function(*args)
+    raise ValueError("PYTHON_BEHAVIOR_NODE_FORBIDDEN")
+
+
+def _evaluate_restricted_python_behavior(
+    source: str,
+    evaluation: dict[str, Any],
+) -> ProbeEvaluation:
+    try:
+        tree = ast.parse(_strip_code_fence(source))
+    except SyntaxError:
+        return ProbeEvaluation(False, 0.0, "PYTHON_SYNTAX_INVALID")
+    function_name = str(evaluation.get("function_name") or "")
+    functions = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == function_name
+    ]
+    if len(functions) != 1:
+        return ProbeEvaluation(False, 0.0, "FUNCTION_MISSING")
+    function = functions[0]
+    if function.decorator_list or function.returns is not None:
+        return ProbeEvaluation(False, 0.0, "PYTHON_BEHAVIOR_FUNCTION_UNSAFE")
+    if len(function.body) != 1 or not isinstance(function.body[0], ast.Return):
+        return ProbeEvaluation(False, 0.0, "PYTHON_BEHAVIOR_BODY_UNSAFE")
+    parameter_names = [arg.arg for arg in function.args.args]
+    if function.args.vararg or function.args.kwarg or function.args.kwonlyargs:
+        return ProbeEvaluation(False, 0.0, "PYTHON_BEHAVIOR_SIGNATURE_UNSAFE")
+
+    cases = evaluation.get("cases")
+    cases = cases if isinstance(cases, list) else []
+    if not cases:
+        return ProbeEvaluation(False, 0.0, "PYTHON_BEHAVIOR_CASES_REQUIRED")
+
+    passed = 0
+    for case in cases:
+        if not isinstance(case, dict) or not isinstance(case.get("args"), list):
+            continue
+        args = case["args"]
+        if len(args) != len(parameter_names):
+            continue
+        env = dict(zip(parameter_names, args))
+        try:
+            observed = _restricted_python_eval(function.body[0].value, env)
+        except (TypeError, ValueError, ZeroDivisionError, OverflowError):
+            continue
+        expected = case.get("expected")
+        if observed == expected:
+            passed += 1
+    score = passed / len(cases)
+    return ProbeEvaluation(
+        score == 1.0,
+        score,
+        "PASS" if score == 1.0 else "PYTHON_BEHAVIOR_MISMATCH",
+    )
 
 
 def evaluate_probe_item(
@@ -170,6 +314,9 @@ def evaluate_probe_item(
             return ProbeEvaluation(False, 0.0, "JSON_INVALID")
         passed = _json_subset(evaluation.get("expected"), actual)
         return ProbeEvaluation(passed, 1.0 if passed else 0.0, "PASS" if passed else "JSON_SUBSET_MISMATCH")
+
+    if kind == "PYTHON_RESTRICTED_BEHAVIOR":
+        return _evaluate_restricted_python_behavior(result.content, evaluation)
 
     if kind == "PYTHON_AST":
         source = _strip_code_fence(result.content)
@@ -345,18 +492,59 @@ def _write_private_json(path: Path, payload: dict[str, Any]) -> None:
     path.chmod(0o600)
 
 
+def resolve_probe_profile(item: dict[str, Any]) -> str:
+    complexity = item.get("complexity")
+    if complexity is None:
+        return str(item.get("execution_profile") or OPT_FAST_STRUCTURED)
+    return select_nvidia_execution_profile(
+        capability_id=str(item.get("capability") or ""),
+        complexity=str(complexity),
+        structured_output=bool(item.get("structured_output")),
+    )
+
+
 def probe_request_options(item: dict[str, Any]) -> dict[str, Any]:
     capability = str(item.get("capability") or "")
     evaluation = item.get("evaluation")
     evaluation = evaluation if isinstance(evaluation, dict) else {}
-    options: dict[str, Any] = {}
-    if capability == "reason.deep":
-        options["max_tokens"] = 4096
-    elif capability == "code.review":
-        options["max_tokens"] = 2048
-    elif capability in {"reason.general", "code.generate"}:
-        options["max_tokens"] = 1024
-    if evaluation.get("kind") == "JSON_SUBSET":
+    profile = resolve_probe_profile(item)
+    is_v2 = item.get("complexity") is not None
+    complexity = str(item.get("complexity") or "SIMPLE").upper()
+    options: dict[str, Any] = {
+        "sampling_policy": "DETERMINISTIC_STRUCTURED",
+        "seed": int(item.get("seed") or 20261005),
+    }
+    if not is_v2:
+        if profile == "DEEP_REASONING":
+            options["max_tokens"] = int(item.get("max_tokens") or 4096)
+        elif capability == "code.review":
+            options["max_tokens"] = int(item.get("max_tokens") or 2048)
+        else:
+            options["max_tokens"] = int(item.get("max_tokens") or 1024)
+    elif profile == DEEP_HARD:
+        options["max_tokens"] = int(item.get("max_tokens") or 8192)
+    elif profile == DEEP_MEDIUM:
+        options["max_tokens"] = int(item.get("max_tokens") or 4096)
+    elif profile == FAST_CODE:
+        options["max_tokens"] = int(item.get("max_tokens") or 2048)
+    else:
+        options["max_tokens"] = int(item.get("max_tokens") or 1024)
+
+    if not is_v2 and profile == "DEEP_REASONING":
+        budget = 2048
+    else:
+        budget = (
+            0
+            if profile in {OPT_FAST_STRUCTURED, FAST_CODE}
+            else reasoning_budget_for_complexity(complexity)
+        )
+    options["reasoning_budget"] = budget
+
+    if evaluation.get("kind") in {
+        "JSON_SUBSET",
+        "JSON_FIELD_SEMANTICS",
+        "RANKING_EQUIVALENT",
+    }:
         options["response_format"] = {"type": "json_object"}
     return options
 
@@ -375,7 +563,7 @@ def run_nvidia_capability_probes(
 
     for item in corpus.get("items") or []:
         capability = str(item["capability"])
-        profile = str(item["execution_profile"])
+        profile = resolve_probe_profile(item)
         domain = domain_map[str(item.get("domain") or "HAZE")]
         task = HazewaveTask(
             task_id=str(item["id"]),
@@ -426,6 +614,9 @@ def run_nvidia_capability_probes(
             execution_profile=profile,
             capability_id=capability,
             cost_class=final_result.cost_class,
+            task_family=str(item.get("task_family") or "generic"),
+            complexity=str(item.get("complexity") or "UNSPECIFIED"),
+            reasoning_budget=int(request_options.get("reasoning_budget") or 0),
         )
         record_provider_result(
             path=learning_path,
@@ -437,6 +628,10 @@ def run_nvidia_capability_probes(
         receipt = final_result.secret_free_receipt()
         receipt["task_id"] = item["id"]
         receipt["task_family"] = item["task_family"]
+        receipt["complexity"] = str(item.get("complexity") or "UNSPECIFIED")
+        receipt["reasoning_budget"] = int(
+            request_options.get("reasoning_budget") or 0
+        )
         receipt["output_sha256"] = sha256(
             final_result.content.encode("utf-8")
         ).hexdigest()
