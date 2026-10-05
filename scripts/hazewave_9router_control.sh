@@ -18,14 +18,22 @@ current_release() {
   readlink -f "$CURRENT"
 }
 
-launcher_bin() {
-  local release
+server_entry() {
+  local release custom fallback
   release="$(current_release)"
-  test -x "$release/node_modules/.bin/9router"
-  printf '%s\n' "$release/node_modules/.bin/9router"
+  custom="$release/node_modules/9router/app/custom-server.js"
+  fallback="$release/node_modules/9router/app/server.js"
+  if test -f "$custom"; then
+    printf '%s\n' "$custom"
+  elif test -f "$fallback"; then
+    printf '%s\n' "$fallback"
+  else
+    echo "HAZEWAVE_9ROUTER=FAIL standalone_server_missing" >&2
+    return 2
+  fi
 }
 
-owned_launcher_alive() {
+owned_server_alive() {
   test -s "$PID_FILE" || return 1
   local pid release cmdline
   pid="$(cat "$PID_FILE" 2>/dev/null || true)"
@@ -34,7 +42,7 @@ owned_launcher_alive() {
   release="$(current_release)"
   test -r "/proc/$pid/cmdline" || return 1
   cmdline="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)"
-  [[ "$cmdline" == *"$release/node_modules/9router/cli.js"* || "$cmdline" == *"$release/node_modules/.bin/9router"* ]]
+  [[ "$cmdline" == *"$release/node_modules/9router/app/custom-server.js"* || "$cmdline" == *"$release/node_modules/9router/app/server.js"* ]]
 }
 
 probe() {
@@ -62,11 +70,11 @@ install_runtime() {
 }
 
 start_runtime() {
-  local bin pid
+  local entry pid runtime_node_path
   mkdir -p "$STATE_ROOT" "$RUNTIME_HOME"
   chmod 700 "$STATE_ROOT" "$RUNTIME_HOME"
 
-  if owned_launcher_alive && probe; then
+  if owned_server_alive && probe; then
     echo "HAZEWAVE_9ROUTER=ALREADY_RUNNING"
     return 0
   fi
@@ -108,7 +116,7 @@ stop_runtime() {
     pid="$(cat "$PID_FILE" 2>/dev/null || true)"
   fi
 
-  if owned_launcher_alive; then
+  if owned_server_alive; then
     kill "$pid" 2>/dev/null || true
     for _ in 1 2 3 4 5; do
       kill -0 "$pid" 2>/dev/null || break
@@ -130,7 +138,7 @@ status_runtime() {
   commit="$(cat "$release/UPSTREAM_COMMIT")"
 
   if probe; then
-    if ! owned_launcher_alive; then
+    if ! owned_server_alive; then
       echo "HAZEWAVE_9ROUTER=FAIL unmanaged_process_on_port_$PORT" >&2
       return 3
     fi
@@ -153,7 +161,7 @@ status_runtime() {
 doctor_runtime() {
   status_runtime
   echo "HAZEWAVE_9ROUTER_SECURITY_BIND=LOOPBACK_ONLY"
-  echo "HAZEWAVE_9ROUTER_AUTO_UPDATE=OFF"
+  echo "HAZEWAVE_9ROUTER_AUTO_UPDATE=OFF_DIRECT_STANDALONE_SERVER"
   echo "HAZEWAVE_9ROUTER_FREE_ROUTE_ADMISSION=PENDING_RUNTIME_CATALOG_PROOF"
 }
 
