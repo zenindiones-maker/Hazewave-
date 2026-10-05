@@ -160,6 +160,7 @@ def evaluate_9router_admission(
         receipt_schema not in {
             "Hazewave9RouterFreeAdmissionReceipt/v1",
             "Hazewave9RouterFreeAdmissionReceipt/v2",
+            "Hazewave9RouterFreeAdmissionReceipt/v3",
         }
         or receipt.get("project_id") != PROJECT_ID
         or receipt.get("authority") != AUTHORITY
@@ -223,7 +224,10 @@ def evaluate_9router_admission(
     if model not in admitted:
         return _deny("MODEL_NOT_EXECUTION_ADMITTED", model_id=model)
 
-    if receipt_schema == "Hazewave9RouterFreeAdmissionReceipt/v2":
+    if receipt_schema in {
+        "Hazewave9RouterFreeAdmissionReceipt/v2",
+        "Hazewave9RouterFreeAdmissionReceipt/v3",
+    }:
         optimization_policy = receipt.get("optimization_policy")
         if not isinstance(optimization_policy, dict):
             return _deny("NINEROUTER_OPTIMIZATION_POLICY_MISSING", model_id=model)
@@ -291,6 +295,27 @@ def evaluate_9router_admission(
 
         if not str(proof.get("response_sha256") or "").strip():
             return _deny("NINEROUTER_PROBE_RESPONSE_PROOF_MISSING", model_id=model)
+
+        if receipt_schema == "Hazewave9RouterFreeAdmissionReceipt/v3":
+            lifecycle = receipt.get("model_lifecycle")
+            lifecycle_row = (
+                lifecycle.get(model) if isinstance(lifecycle, dict) else None
+            )
+            if not isinstance(lifecycle_row, dict):
+                return _deny(
+                    "NINEROUTER_ZERO_COST_VERIFICATION_MISSING",
+                    model_id=model,
+                )
+            if (
+                lifecycle_row.get("stage") != "ADMITTED"
+                or lifecycle_row.get("zero_cost_verified") is not True
+                or lifecycle_row.get("capacity_class")
+                not in {"FREE_UNMETERED_OR_DYNAMIC", "FREE_QUOTA"}
+            ):
+                return _deny(
+                    "NINEROUTER_ZERO_COST_VERIFICATION_MISSING",
+                    model_id=model,
+                )
     else:
         probe = receipt.get("probe")
         if not isinstance(probe, dict):
@@ -869,6 +894,8 @@ def rank_9router_models(
     route_health_path: Path | str = DEFAULT_ROUTE_HEALTH_PATH,
     data_classification: str = "PUBLIC",
     now: str | datetime | None = None,
+    context_profile: Any | None = None,
+    capacity_state: dict[str, Any] | None = None,
 ) -> list[str]:
     if receipt is None:
         receipt = load_9router_admission_receipt(receipt_path)
@@ -884,6 +911,32 @@ def rank_9router_models(
         route_health=route_health,
         now=now,
     )
+    if context_profile is not None and capacity_state is not None:
+        from hazewave.ninerouter_capacity import (
+            contextual_cooldown_active,
+            provider_circuit_active,
+            quality_aware_model_score,
+        )
+
+        if provider_circuit_active(
+            capacity_state,
+            "opencode",
+            now=now,
+        ):
+            return []
+
+        ranked = sorted(
+            ranked,
+            key=lambda model: (
+                -quality_aware_model_score(
+                    capacity_state,
+                    model,
+                    context_profile,
+                ),
+                ranked.index(model),
+            ),
+        )
+
     allowed: list[str] = []
     for model in ranked:
         if _model_in_active_cooldown(
@@ -892,6 +945,18 @@ def rank_9router_models(
             now=now,
         ):
             continue
+        if (
+            context_profile is not None
+            and capacity_state is not None
+        ):
+            from hazewave.ninerouter_capacity import contextual_cooldown_active
+            if contextual_cooldown_active(
+                capacity_state,
+                model,
+                context_profile,
+                now=now,
+            ):
+                continue
         decision = evaluate_9router_admission(
             authorization=authorization,
             model_id=model,
@@ -1069,6 +1134,51 @@ def _validate_tools(
     return [dict(item) for item in tools]
 
 
+def _prepared_runtime_settings_safe(settings: dict[str, Any]) -> bool:
+    if settings.get("requireApiKey") is not False:
+        return False
+    if any(
+        settings.get(key) is True
+        for key in ("cloudEnabled", "tunnelEnabled", "tailscaleEnabled")
+    ):
+        return False
+    if settings.get("outboundProxyEnabled") is not False:
+        return False
+    if settings.get("rtkEnabled") is not True:
+        return False
+    if settings.get("headroomEnabled") is not False:
+        return False
+
+    adapters = settings.get("capacityAdapter")
+    if adapters is None:
+        return True
+    if not isinstance(adapters, dict):
+        return False
+    for row in adapters.values():
+        if not isinstance(row, dict):
+            return False
+        if row.get("enabled") is True:
+            return False
+        models = row.get("models")
+        if models not in (None, []):
+            return False
+    return True
+
+
+def _model_compatibility_from_receipt(
+    receipt: dict[str, Any] | None,
+    model_id: str,
+) -> dict[str, Any]:
+    if not isinstance(receipt, dict):
+        return {}
+    lifecycle = receipt.get("model_lifecycle")
+    row = lifecycle.get(model_id) if isinstance(lifecycle, dict) else None
+    if not isinstance(row, dict):
+        return {}
+    compatibility = row.get("compatibility")
+    return compatibility if isinstance(compatibility, dict) else {}
+
+
 def execute_9router_messages(
     *,
     authorization: HazewaveAuthorization,
@@ -1088,6 +1198,12 @@ def execute_9router_messages(
     route_health_path: Path | str = DEFAULT_ROUTE_HEALTH_PATH,
     transport: httpx.BaseTransport | None = None,
     max_fallbacks: int = 3,
+    prepared_runtime: bool = False,
+    capacity_state_path: Path | str | None = None,
+    task_family: str | None = None,
+    reasoning_requirement: str | None = None,
+    requested_reasoning_effort: str | None = None,
+    requested_temperature: float | None = None,
 ) -> NineRouterExecutionResult:
     normalized_messages = _validate_public_text_messages(messages)
     normalized_tools = _validate_tools(tools)
@@ -1101,6 +1217,32 @@ def execute_9router_messages(
     if receipt is None:
         receipt = load_9router_admission_receipt(receipt_path)
 
+    profile = None
+    capacity_state = None
+    capacity_path = capacity_state_path
+    if prepared_runtime:
+        from hazewave.ninerouter_capacity import (
+            DEFAULT_MAX_CAPACITY_STATE_PATH,
+            build_task_context_profile,
+            load_max_capacity_state,
+        )
+
+        if not isinstance(receipt, dict) or receipt.get("schema") != (
+            "Hazewave9RouterFreeAdmissionReceipt/v3"
+        ):
+            raise NineRouterExecutionError(
+                "NINEROUTER_PREPARED_RUNTIME_REQUIRES_V3_RECEIPT"
+            )
+        capacity_path = capacity_path or DEFAULT_MAX_CAPACITY_STATE_PATH
+        profile = build_task_context_profile(
+            capability_id=authorization.capability_id,
+            messages=normalized_messages,
+            tools=normalized_tools,
+            task_family=task_family,
+            reasoning_requirement=reasoning_requirement,
+        )
+        capacity_state = load_max_capacity_state(capacity_path)
+
     requested_model = str(model_id or "").strip()
     if requested_model == "auto":
         candidates = rank_9router_models(
@@ -1110,6 +1252,8 @@ def execute_9router_messages(
             route_health_path=route_health_path,
             data_classification=data_classification,
             now=now,
+            context_profile=profile,
+            capacity_state=capacity_state,
         )[:max_fallbacks]
         if not candidates:
             raise NineRouterExecutionError(
@@ -1134,13 +1278,429 @@ def execute_9router_messages(
     fd = os.open(target_lock, os.O_RDWR | os.O_CREAT, 0o600)
     os.fchmod(fd, 0o600)
 
+    def execute_candidates(client: httpx.Client) -> NineRouterExecutionResult:
+        from hazewave.ninerouter_capacity import (
+            acquire_capacity_lease,
+            record_capacity_outcome,
+            release_capacity_lease,
+            safe_request_parameters,
+        )
+
+        result: NineRouterExecutionResult | None = None
+        last_error: NineRouterExecutionError | None = None
+        attempted_models: list[str] = []
+        attempt_trace: list[dict[str, Any]] = []
+
+        for candidate_model in candidates:
+            attempted_models.append(candidate_model)
+            fallback_used = len(attempted_models) > 1
+            lease_id: str | None = None
+
+            if prepared_runtime:
+                assert profile is not None
+                assert capacity_path is not None
+                compatibility = _model_compatibility_from_receipt(
+                    receipt,
+                    candidate_model,
+                )
+                if not compatibility:
+                    raise NineRouterExecutionError(
+                        "NINEROUTER_MODEL_COMPATIBILITY_PROOF_MISSING"
+                    )
+                try:
+                    lease_id = acquire_capacity_lease(
+                        path=capacity_path,
+                        provider="opencode",
+                        model_id=candidate_model,
+                        profile=profile,
+                        now=now,
+                        lease_ttl_seconds=max(
+                            30,
+                            int(timeout_seconds) + 30,
+                        ),
+                        wait_timeout_seconds=0,
+                    )
+                except RuntimeError as exc:
+                    last_error = NineRouterExecutionError(str(exc))
+                    if requested_model == "auto":
+                        continue
+                    raise last_error from exc
+
+                request_body = safe_request_parameters(
+                    model_id=candidate_model,
+                    messages=normalized_messages,
+                    profile=profile,
+                    compatibility=compatibility,
+                    requested_max_tokens=max_tokens,
+                    tools=normalized_tools,
+                    tool_choice=tool_choice,
+                    requested_reasoning_effort=requested_reasoning_effort,
+                    requested_temperature=requested_temperature,
+                )
+            else:
+                request_body: dict[str, Any] = {
+                    "model": candidate_model,
+                    "messages": normalized_messages,
+                    "max_tokens": max_tokens,
+                    "stream": False,
+                }
+                if normalized_tools is not None:
+                    request_body["tools"] = normalized_tools
+                if tool_choice is not None:
+                    request_body["tool_choice"] = tool_choice
+
+            request_started = time.monotonic()
+            try:
+                try:
+                    response = client.post(
+                        "/v1/chat/completions",
+                        json=request_body,
+                        headers={
+                            "Accept": "application/json",
+                            "User-Agent": (
+                                "Hazewave/9router-governed-executor"
+                            ),
+                            "x-session-id": _opaque_session_hint(
+                                authorization
+                            ),
+                        },
+                    )
+                except httpx.TimeoutException as exc:
+                    latency_ms = max(
+                        0,
+                        int(round(
+                            (time.monotonic() - request_started) * 1000
+                        )),
+                    )
+                    attempt_trace.append(
+                        {
+                            "model": candidate_model,
+                            "status": "TIMEOUT",
+                            "latency_ms": latency_ms,
+                        }
+                    )
+                    _record_route_health(
+                        model_id=candidate_model,
+                        status="TIMEOUT",
+                        transient_failure=True,
+                        success=False,
+                        path=route_health_path,
+                        now=now,
+                        capability_id=authorization.capability_id,
+                    )
+                    if prepared_runtime:
+                        assert profile is not None
+                        assert capacity_path is not None
+                        record_capacity_outcome(
+                            path=capacity_path,
+                            provider="opencode",
+                            model_id=candidate_model,
+                            profile=profile,
+                            status="TIMEOUT",
+                            latency_ms=latency_ms,
+                            fallback_used=fallback_used,
+                            now=now,
+                        )
+                    error = NineRouterExecutionError(
+                        "NINEROUTER_COMPLETION_TIMEOUT"
+                    )
+                    last_error = error
+                    if requested_model == "auto":
+                        continue
+                    raise error from exc
+
+                latency_ms = max(
+                    0,
+                    int(round(
+                        (time.monotonic() - request_started) * 1000
+                    )),
+                )
+                if response.status_code != 200:
+                    status = f"HTTP_{response.status_code}"
+                    attempt_trace.append(
+                        {
+                            "model": candidate_model,
+                            "status": status,
+                            "latency_ms": latency_ms,
+                        }
+                    )
+                    transient = response.status_code in {
+                        429,
+                        500,
+                        502,
+                        503,
+                        504,
+                    }
+                    retry_after_seconds = None
+                    if response.status_code == 429:
+                        retry_after_raw = response.headers.get("Retry-After")
+                        try:
+                            retry_after_seconds = int(
+                                str(retry_after_raw).strip()
+                            )
+                        except (TypeError, ValueError):
+                            retry_after_seconds = None
+                    _record_route_health(
+                        model_id=candidate_model,
+                        status=status,
+                        transient_failure=transient,
+                        success=False,
+                        path=route_health_path,
+                        now=now,
+                        capability_id=authorization.capability_id,
+                        retry_after_seconds=retry_after_seconds,
+                    )
+                    if prepared_runtime:
+                        assert profile is not None
+                        assert capacity_path is not None
+                        record_capacity_outcome(
+                            path=capacity_path,
+                            provider="opencode",
+                            model_id=candidate_model,
+                            profile=profile,
+                            status=status,
+                            latency_ms=latency_ms,
+                            fallback_used=fallback_used,
+                            retry_after_seconds=retry_after_seconds,
+                            now=now,
+                        )
+                    error = NineRouterExecutionError(
+                        f"NINEROUTER_COMPLETION_HTTP_{response.status_code}"
+                    )
+                    last_error = error
+                    if requested_model == "auto" and transient:
+                        continue
+                    raise error
+
+                try:
+                    payload = response.json()
+                except ValueError as exc:
+                    attempt_trace.append(
+                        {
+                            "model": candidate_model,
+                            "status": "INVALID_JSON",
+                            "latency_ms": latency_ms,
+                        }
+                    )
+                    _record_route_health(
+                        model_id=candidate_model,
+                        status="INVALID_JSON",
+                        transient_failure=False,
+                        success=False,
+                        path=route_health_path,
+                        now=now,
+                        capability_id=authorization.capability_id,
+                    )
+                    if prepared_runtime:
+                        assert profile is not None
+                        assert capacity_path is not None
+                        record_capacity_outcome(
+                            path=capacity_path,
+                            provider="opencode",
+                            model_id=candidate_model,
+                            profile=profile,
+                            status="INVALID_JSON",
+                            latency_ms=latency_ms,
+                            fallback_used=fallback_used,
+                            now=now,
+                        )
+                    error = NineRouterExecutionError(
+                        "NINEROUTER_COMPLETION_INVALID_JSON"
+                    )
+                    last_error = error
+                    if requested_model == "auto":
+                        continue
+                    raise error from exc
+
+                choices = payload.get("choices")
+                choices = choices if isinstance(choices, list) else []
+                first_choice = (
+                    choices[0]
+                    if choices and isinstance(choices[0], dict)
+                    else {}
+                )
+                message = first_choice.get("message")
+                message = message if isinstance(message, dict) else {}
+                content = str(message.get("content") or "").strip()
+                raw_tool_calls = message.get("tool_calls")
+                tool_calls = (
+                    tuple(
+                        dict(call)
+                        for call in raw_tool_calls
+                        if isinstance(call, dict)
+                    )
+                    if isinstance(raw_tool_calls, list)
+                    else ()
+                )
+                if not content and not tool_calls:
+                    attempt_trace.append(
+                        {
+                            "model": candidate_model,
+                            "status": "EMPTY",
+                            "latency_ms": latency_ms,
+                        }
+                    )
+                    _record_route_health(
+                        model_id=candidate_model,
+                        status="EMPTY",
+                        transient_failure=False,
+                        success=False,
+                        path=route_health_path,
+                        now=now,
+                        capability_id=authorization.capability_id,
+                    )
+                    if prepared_runtime:
+                        assert profile is not None
+                        assert capacity_path is not None
+                        record_capacity_outcome(
+                            path=capacity_path,
+                            provider="opencode",
+                            model_id=candidate_model,
+                            profile=profile,
+                            status="EMPTY",
+                            latency_ms=latency_ms,
+                            fallback_used=fallback_used,
+                            now=now,
+                        )
+                    error = NineRouterExecutionError(
+                        "NINEROUTER_COMPLETION_EMPTY"
+                    )
+                    last_error = error
+                    if requested_model == "auto":
+                        continue
+                    raise error
+
+                usage = payload.get("usage")
+                usage = usage if isinstance(usage, dict) else {}
+                details = usage.get("completion_tokens_details")
+                details = details if isinstance(details, dict) else {}
+                reasoning_tokens = usage.get("reasoning_tokens")
+                if not isinstance(reasoning_tokens, int):
+                    reasoning_tokens = details.get("reasoning_tokens")
+                if not isinstance(reasoning_tokens, int):
+                    reasoning_tokens = None
+                prompt_tokens = (
+                    int(usage["prompt_tokens"])
+                    if isinstance(usage.get("prompt_tokens"), int)
+                    else None
+                )
+                completion_tokens = (
+                    int(usage["completion_tokens"])
+                    if isinstance(usage.get("completion_tokens"), int)
+                    else None
+                )
+                total_tokens = (
+                    int(usage["total_tokens"])
+                    if isinstance(usage.get("total_tokens"), int)
+                    else None
+                )
+
+                attempt_trace.append(
+                    {
+                        "model": candidate_model,
+                        "status": "PASS",
+                        "latency_ms": latency_ms,
+                        "total_tokens": total_tokens,
+                        "reasoning_tokens": reasoning_tokens,
+                    }
+                )
+                _record_route_health(
+                    model_id=candidate_model,
+                    status="PASS",
+                    transient_failure=False,
+                    success=True,
+                    path=route_health_path,
+                    now=now,
+                    capability_id=authorization.capability_id,
+                    latency_ms=latency_ms,
+                    total_tokens=total_tokens,
+                    reasoning_tokens=reasoning_tokens,
+                )
+                if prepared_runtime:
+                    assert profile is not None
+                    assert capacity_path is not None
+                    record_capacity_outcome(
+                        path=capacity_path,
+                        provider="opencode",
+                        model_id=candidate_model,
+                        profile=profile,
+                        status="PASS",
+                        semantic_pass=None,
+                        quality_score=None,
+                        input_tokens=prompt_tokens,
+                        output_tokens=completion_tokens,
+                        reasoning_tokens=reasoning_tokens,
+                        latency_ms=latency_ms,
+                        fallback_used=fallback_used,
+                        now=now,
+                    )
+
+                result = NineRouterExecutionResult(
+                    status="PASS",
+                    task_id=authorization.task_id,
+                    authorization_id=authorization.authorization_id,
+                    model_id=candidate_model,
+                    content=content,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens,
+                    reasoning_tokens=reasoning_tokens,
+                    attempted_models=tuple(attempted_models),
+                    attempt_trace=tuple(attempt_trace),
+                    fallback_count=max(0, len(attempted_models) - 1),
+                    selection_mode=(
+                        "auto" if requested_model == "auto" else "exact"
+                    ),
+                    rtk_enabled=True,
+                    stream=False,
+                    tool_calls=tool_calls,
+                )
+                break
+            finally:
+                if prepared_runtime and lease_id is not None:
+                    assert capacity_path is not None
+                    release_capacity_lease(
+                        path=capacity_path,
+                        provider="opencode",
+                        model_id=candidate_model,
+                        lease_id=lease_id,
+                    )
+
+        if result is None:
+            if last_error is not None:
+                raise last_error
+            raise NineRouterExecutionError(
+                "NINEROUTER_ALL_ADMITTED_FREE_MODELS_FAILED"
+            )
+        return result
+
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
         with httpx.Client(
             base_url=PINNED_ENDPOINT,
             timeout=timeout_seconds,
             transport=transport,
         ) as client:
+            if prepared_runtime:
+                # Multiple prepared executions may share the settings lock,
+                # while legacy executions require LOCK_EX before mutating
+                # process-global 9Router settings. Holding LOCK_SH for the
+                # whole provider call closes the check/use race without
+                # serializing prepared requests.
+                fcntl.flock(fd, fcntl.LOCK_SH)
+                settings = _settings_request(
+                    client,
+                    "GET",
+                    cli_token=token,
+                )
+                if not _prepared_runtime_settings_safe(settings):
+                    raise NineRouterExecutionError(
+                        "NINEROUTER_PREPARED_SETTINGS_UNSAFE"
+                    )
+                return execute_candidates(client)
+
+            # Legacy lane keeps the existing whole-execution settings lock
+            # and restore behavior for backwards compatibility.
+            fcntl.flock(fd, fcntl.LOCK_EX)
             settings = _settings_request(
                 client,
                 "GET",
@@ -1182,238 +1742,7 @@ def execute_9router_messages(
                         "headroomEnabled": False,
                     },
                 )
-
-                result: NineRouterExecutionResult | None = None
-                last_error: NineRouterExecutionError | None = None
-                attempted_models: list[str] = []
-                attempt_trace: list[dict[str, Any]] = []
-
-                for candidate_model in candidates:
-                    attempted_models.append(candidate_model)
-                    request_body: dict[str, Any] = {
-                        "model": candidate_model,
-                        "messages": normalized_messages,
-                        "max_tokens": max_tokens,
-                        "stream": False,
-                    }
-                    if normalized_tools is not None:
-                        request_body["tools"] = normalized_tools
-                    if tool_choice is not None:
-                        request_body["tool_choice"] = tool_choice
-
-                    request_started = time.monotonic()
-                    response = client.post(
-                        "/v1/chat/completions",
-                        json=request_body,
-                        headers={
-                            "Accept": "application/json",
-                            "User-Agent": (
-                                "Hazewave/9router-governed-executor"
-                            ),
-                            "x-session-id": _opaque_session_hint(
-                                authorization
-                            ),
-                        },
-                    )
-                    latency_ms = max(
-                        0,
-                        int(round((time.monotonic() - request_started) * 1000)),
-                    )
-                    if response.status_code != 200:
-                        attempt_trace.append(
-                            {
-                                "model": candidate_model,
-                                "status": f"HTTP_{response.status_code}",
-                                "latency_ms": latency_ms,
-                            }
-                        )
-                        error = NineRouterExecutionError(
-                            f"NINEROUTER_COMPLETION_HTTP_{response.status_code}"
-                        )
-                        last_error = error
-                        transient = response.status_code in {
-                            429,
-                            500,
-                            502,
-                            503,
-                            504,
-                        }
-                        retry_after_seconds = None
-                        if response.status_code == 429:
-                            retry_after_raw = response.headers.get("Retry-After")
-                            try:
-                                retry_after_seconds = int(
-                                    str(retry_after_raw).strip()
-                                )
-                            except (TypeError, ValueError):
-                                retry_after_seconds = None
-                        _record_route_health(
-                            model_id=candidate_model,
-                            status=f"HTTP_{response.status_code}",
-                            transient_failure=transient,
-                            success=False,
-                            path=route_health_path,
-                            now=now,
-                            capability_id=authorization.capability_id,
-                            retry_after_seconds=retry_after_seconds,
-                        )
-                        if requested_model == "auto" and transient:
-                            continue
-                        raise error
-
-                    try:
-                        payload = response.json()
-                    except ValueError as exc:
-                        attempt_trace.append(
-                            {
-                                "model": candidate_model,
-                                "status": "INVALID_JSON",
-                                "latency_ms": latency_ms,
-                            }
-                        )
-                        _record_route_health(
-                            model_id=candidate_model,
-                            status="INVALID_JSON",
-                            transient_failure=False,
-                            success=False,
-                            path=route_health_path,
-                            now=now,
-                            capability_id=authorization.capability_id,
-                        )
-                        error = NineRouterExecutionError(
-                            "NINEROUTER_COMPLETION_INVALID_JSON"
-                        )
-                        last_error = error
-                        if requested_model == "auto":
-                            continue
-                        raise error from exc
-
-                    choices = payload.get("choices")
-                    choices = choices if isinstance(choices, list) else []
-                    first_choice = (
-                        choices[0] if choices and isinstance(choices[0], dict)
-                        else {}
-                    )
-                    message = first_choice.get("message")
-                    message = message if isinstance(message, dict) else {}
-                    content = str(message.get("content") or "").strip()
-                    raw_tool_calls = message.get("tool_calls")
-                    tool_calls = (
-                        tuple(
-                            dict(call)
-                            for call in raw_tool_calls
-                            if isinstance(call, dict)
-                        )
-                        if isinstance(raw_tool_calls, list)
-                        else ()
-                    )
-                    if not content and not tool_calls:
-                        attempt_trace.append(
-                            {
-                                "model": candidate_model,
-                                "status": "EMPTY",
-                                "latency_ms": latency_ms,
-                            }
-                        )
-                        _record_route_health(
-                            model_id=candidate_model,
-                            status="EMPTY",
-                            transient_failure=False,
-                            success=False,
-                            path=route_health_path,
-                            now=now,
-                            capability_id=authorization.capability_id,
-                        )
-                        error = NineRouterExecutionError(
-                            "NINEROUTER_COMPLETION_EMPTY"
-                        )
-                        last_error = error
-                        if requested_model == "auto":
-                            continue
-                        raise error
-
-                    usage = payload.get("usage")
-                    usage = usage if isinstance(usage, dict) else {}
-                    details = usage.get("completion_tokens_details")
-                    details = details if isinstance(details, dict) else {}
-                    reasoning_tokens = usage.get("reasoning_tokens")
-                    if not isinstance(reasoning_tokens, int):
-                        reasoning_tokens = details.get("reasoning_tokens")
-                    if not isinstance(reasoning_tokens, int):
-                        reasoning_tokens = None
-                    total_tokens = (
-                        int(usage["total_tokens"])
-                        if isinstance(usage.get("total_tokens"), int)
-                        else None
-                    )
-
-                    attempt_trace.append(
-                        {
-                            "model": candidate_model,
-                            "status": "PASS",
-                            "latency_ms": latency_ms,
-                            "total_tokens": total_tokens,
-                            "reasoning_tokens": reasoning_tokens,
-                        }
-                    )
-
-                    _record_route_health(
-                        model_id=candidate_model,
-                        status="PASS",
-                        transient_failure=False,
-                        success=True,
-                        path=route_health_path,
-                        now=now,
-                        capability_id=authorization.capability_id,
-                        latency_ms=latency_ms,
-                        total_tokens=total_tokens,
-                        reasoning_tokens=reasoning_tokens,
-                    )
-
-                    result = NineRouterExecutionResult(
-                        status="PASS",
-                        task_id=authorization.task_id,
-                        authorization_id=authorization.authorization_id,
-                        model_id=candidate_model,
-                        content=content,
-                        prompt_tokens=(
-                            int(usage["prompt_tokens"])
-                            if isinstance(
-                                usage.get("prompt_tokens"), int
-                            )
-                            else None
-                        ),
-                        completion_tokens=(
-                            int(usage["completion_tokens"])
-                            if isinstance(
-                                usage.get("completion_tokens"), int
-                            )
-                            else None
-                        ),
-                        total_tokens=total_tokens,
-                        reasoning_tokens=reasoning_tokens,
-                        attempted_models=tuple(attempted_models),
-                        attempt_trace=tuple(attempt_trace),
-                        fallback_count=max(
-                            0, len(attempted_models) - 1
-                        ),
-                        selection_mode=(
-                            "auto"
-                            if requested_model == "auto"
-                            else "exact"
-                        ),
-                        rtk_enabled=True,
-                        stream=False,
-                        tool_calls=tool_calls,
-                    )
-                    break
-
-                if result is None:
-                    if last_error is not None:
-                        raise last_error
-                    raise NineRouterExecutionError(
-                        "NINEROUTER_ALL_ADMITTED_FREE_MODELS_FAILED"
-                    )
+                result = execute_candidates(client)
             finally:
                 try:
                     _settings_request(
@@ -1441,9 +1770,10 @@ def execute_9router_messages(
     finally:
         try:
             fcntl.flock(fd, fcntl.LOCK_UN)
+        except OSError:
+            pass
         finally:
             os.close(fd)
-
 
 def execute_9router_text(
     *,
