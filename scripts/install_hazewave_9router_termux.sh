@@ -27,6 +27,20 @@ if (!Number.isInteger(major) || major < 20) {
 }
 NODE
 
+bootstrap_sqlite_runtime() {
+  local release_root="$1"
+  HOME="$RUNTIME_HOME" node - "$release_root" <<'NODE'
+const root = process.argv[2];
+const { ensureSqliteRuntime } = require(root + "/node_modules/9router/hooks/sqliteRuntime.js");
+const result = ensureSqliteRuntime({ silent: false });
+if (!result || result.sqlJs !== true) {
+  console.error("HAZEWAVE_9ROUTER_INSTALL=FAIL sqlite_runtime_unavailable");
+  process.exit(3);
+}
+console.log("HAZEWAVE_9ROUTER_SQLITE_RUNTIME=PASS");
+NODE
+}
+
 mkdir -p "$RELEASES" "$STATE_ROOT" "$RUNTIME_HOME"
 chmod 700 "$STATE_ROOT" "$RUNTIME_HOME"
 
@@ -49,17 +63,6 @@ if [ ! -d "$RELEASE_DIR" ]; then
   )"
   test "$INSTALLED_VERSION" = "$VERSION"
 
-  HOME="$RUNTIME_HOME" node - "$TMP" <<'NODE'
-const root = process.argv[2];
-const { ensureSqliteRuntime } = require(root + "/node_modules/9router/hooks/sqliteRuntime.js");
-const result = ensureSqliteRuntime({ silent: false });
-if (!result || result.sqlJs !== true) {
-  console.error("HAZEWAVE_9ROUTER_INSTALL=FAIL sqlite_runtime_unavailable");
-  process.exit(3);
-}
-console.log("HAZEWAVE_9ROUTER_SQLITE_RUNTIME=PASS");
-NODE
-
   printf '%s\n' "$UPSTREAM_REPO" > "$TMP/UPSTREAM_REPOSITORY"
   printf '%s\n' "$UPSTREAM_COMMIT" > "$TMP/UPSTREAM_COMMIT"
   printf '%s\n' "$VERSION" > "$TMP/UPSTREAM_VERSION"
@@ -71,6 +74,8 @@ test "$(cat "$RELEASE_DIR/UPSTREAM_REPOSITORY")" = "$UPSTREAM_REPO"
 test "$(cat "$RELEASE_DIR/UPSTREAM_COMMIT")" = "$UPSTREAM_COMMIT"
 test "$(cat "$RELEASE_DIR/UPSTREAM_VERSION")" = "$VERSION"
 test -x "$RELEASE_DIR/node_modules/.bin/9router"
+
+bootstrap_sqlite_runtime "$RELEASE_DIR"
 
 NEXT_LINK="$ROOT/.current.${UPSTREAM_COMMIT}"
 rm -f "$NEXT_LINK"
