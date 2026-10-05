@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import fcntl
+from hashlib import sha256
 import json
+import os
 from pathlib import Path
 from typing import Any
+
+import httpx
 
 from hazewave.harness import AUTHORITY, PROJECT_ID, HazewaveAuthorization, validate_authorization
 
@@ -22,6 +27,26 @@ PINNED_UPSTREAM_COMMIT = "a99cf57239ff778b61e434c2786009d5ed1c412c"
 PINNED_ENDPOINT = "http://127.0.0.1:20128"
 CATALOG_SOURCE = "https://opencode.ai/zen/v1/models"
 MAX_RECEIPT_AGE = timedelta(hours=24)
+DEFAULT_EXECUTION_LOCK_PATH = (
+    Path.home()
+    / ".local"
+    / "state"
+    / "hazewave"
+    / "providers"
+    / "9router"
+    / "execution.lock"
+)
+DEFAULT_9ROUTER_DATA_DIR = (
+    Path.home()
+    / ".local"
+    / "state"
+    / "hazewave"
+    / "providers"
+    / "9router"
+    / "home"
+    / ".9router"
+)
+CLI_TOKEN_SALT = "9r-cli-auth"
 
 _ALLOWED_CAPABILITIES = frozenset(
     {
@@ -209,3 +234,252 @@ def evaluate_9router_admission(
         zero_cost_verified=True,
         receipt_path=str(Path(receipt_path).expanduser()),
     )
+
+
+class NineRouterExecutionError(RuntimeError):
+    """Raised when the governed 9Router execution boundary fails closed."""
+
+
+@dataclass(frozen=True)
+class NineRouterExecutionResult:
+    status: str
+    task_id: str
+    authorization_id: str
+    model_id: str
+    content: str
+    gateway: str = "9router"
+    provider: str = "opencode"
+    zero_cost_verified: bool = True
+    schema: str = "Hazewave9RouterExecutionResult/v1"
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+
+
+def _derive_cli_token(data_dir: Path | str = DEFAULT_9ROUTER_DATA_DIR) -> str:
+    root = Path(data_dir).expanduser()
+    machine_file = root / "machine-id"
+    secret_file = root / "auth" / "cli-secret"
+    try:
+        machine_id = machine_file.read_text(encoding="utf-8").strip()
+        secret = secret_file.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        raise NineRouterExecutionError(
+            "NINEROUTER_CLI_AUTH_MATERIAL_MISSING"
+        ) from exc
+    if not machine_id or not secret:
+        raise NineRouterExecutionError("NINEROUTER_CLI_AUTH_MATERIAL_INVALID")
+    return sha256(
+        f"{machine_id}{CLI_TOKEN_SALT}{secret}".encode("utf-8")
+    ).hexdigest()[:16]
+
+
+def _disabled_capacity_adapters(value: Any) -> dict[str, Any]:
+    source = value if isinstance(value, dict) else {}
+    return {
+        str(key): {
+            **(row if isinstance(row, dict) else {}),
+            "enabled": False,
+            "models": [],
+        }
+        for key, row in source.items()
+    }
+
+
+def _settings_request(
+    client: httpx.Client,
+    method: str,
+    *,
+    cli_token: str,
+    payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    response = client.request(
+        method,
+        "/api/settings",
+        headers={"x-9r-cli-token": cli_token},
+        json=payload,
+    )
+    if response.status_code != 200:
+        raise NineRouterExecutionError(
+            f"NINEROUTER_SETTINGS_{method}_HTTP_{response.status_code}"
+        )
+    try:
+        body = response.json()
+    except ValueError as exc:
+        raise NineRouterExecutionError(
+            "NINEROUTER_SETTINGS_RESPONSE_INVALID_JSON"
+        ) from exc
+    if not isinstance(body, dict):
+        raise NineRouterExecutionError("NINEROUTER_SETTINGS_RESPONSE_INVALID")
+    return body
+
+
+def execute_9router_text(
+    *,
+    authorization: HazewaveAuthorization,
+    model_id: str,
+    prompt: str,
+    receipt: dict[str, Any] | None = None,
+    receipt_path: Path | str = DEFAULT_ADMISSION_RECEIPT_PATH,
+    data_classification: str = "PUBLIC",
+    now: str | datetime | None = None,
+    max_tokens: int = 1024,
+    timeout_seconds: float = 90.0,
+    lock_path: Path | str = DEFAULT_EXECUTION_LOCK_PATH,
+    cli_token: str | None = None,
+    data_dir: Path | str = DEFAULT_9ROUTER_DATA_DIR,
+    transport: httpx.BaseTransport | None = None,
+) -> NineRouterExecutionResult:
+    text = str(prompt or "").strip()
+    if not text:
+        raise ValueError("NINEROUTER_PROMPT_REQUIRED")
+    if max_tokens < 1 or max_tokens > 4096:
+        raise ValueError("NINEROUTER_MAX_TOKENS_OUT_OF_RANGE")
+
+    decision = evaluate_9router_admission(
+        authorization=authorization,
+        model_id=model_id,
+        receipt=receipt,
+        receipt_path=receipt_path,
+        data_classification=data_classification,
+        now=now,
+    )
+    if not decision.allowed:
+        raise NineRouterExecutionError(decision.reason)
+
+    token = cli_token or _derive_cli_token(data_dir)
+    target_lock = Path(lock_path).expanduser()
+    target_lock.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(target_lock, os.O_RDWR | os.O_CREAT, 0o600)
+    os.fchmod(fd, 0o600)
+
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        with httpx.Client(
+            base_url=PINNED_ENDPOINT,
+            timeout=timeout_seconds,
+            transport=transport,
+        ) as client:
+            settings = _settings_request(
+                client,
+                "GET",
+                cli_token=token,
+            )
+            if any(
+                settings.get(key) is True
+                for key in (
+                    "cloudEnabled",
+                    "tunnelEnabled",
+                    "tailscaleEnabled",
+                )
+            ):
+                raise NineRouterExecutionError(
+                    "NINEROUTER_EXTERNAL_EXPOSURE_ENABLED"
+                )
+
+            original_require_api_key = settings.get("requireApiKey")
+            original_capacity_adapter = settings.get("capacityAdapter")
+            original_outbound_proxy_enabled = settings.get(
+                "outboundProxyEnabled"
+            )
+            restore_error: Exception | None = None
+
+            try:
+                _settings_request(
+                    client,
+                    "PATCH",
+                    cli_token=token,
+                    payload={
+                        "requireApiKey": False,
+                        "capacityAdapter": _disabled_capacity_adapters(
+                            original_capacity_adapter
+                        ),
+                        "outboundProxyEnabled": False,
+                    },
+                )
+
+                response = client.post(
+                    "/v1/chat/completions",
+                    json={
+                        "model": model_id,
+                        "messages": [{"role": "user", "content": text}],
+                        "max_tokens": max_tokens,
+                        "stream": False,
+                    },
+                    headers={
+                        "Accept": "application/json",
+                        "User-Agent": "Hazewave/9router-governed-executor",
+                    },
+                )
+                if response.status_code != 200:
+                    raise NineRouterExecutionError(
+                        f"NINEROUTER_COMPLETION_HTTP_{response.status_code}"
+                    )
+                try:
+                    payload = response.json()
+                except ValueError as exc:
+                    raise NineRouterExecutionError(
+                        "NINEROUTER_COMPLETION_INVALID_JSON"
+                    ) from exc
+
+                content = str(
+                    payload.get("choices", [{}])[0]
+                    .get("message", {})
+                    .get("content", "")
+                    or ""
+                ).strip()
+                if not content:
+                    raise NineRouterExecutionError(
+                        "NINEROUTER_COMPLETION_EMPTY"
+                    )
+
+                usage = payload.get("usage")
+                usage = usage if isinstance(usage, dict) else {}
+
+                result = NineRouterExecutionResult(
+                    status="PASS",
+                    task_id=authorization.task_id,
+                    authorization_id=authorization.authorization_id,
+                    model_id=model_id,
+                    content=content,
+                    prompt_tokens=(
+                        int(usage["prompt_tokens"])
+                        if isinstance(usage.get("prompt_tokens"), int)
+                        else None
+                    ),
+                    completion_tokens=(
+                        int(usage["completion_tokens"])
+                        if isinstance(usage.get("completion_tokens"), int)
+                        else None
+                    ),
+                    total_tokens=(
+                        int(usage["total_tokens"])
+                        if isinstance(usage.get("total_tokens"), int)
+                        else None
+                    ),
+                )
+            finally:
+                try:
+                    _settings_request(
+                        client,
+                        "PATCH",
+                        cli_token=token,
+                        payload={
+                            "requireApiKey": original_require_api_key,
+                            "capacityAdapter": original_capacity_adapter,
+                            "outboundProxyEnabled": original_outbound_proxy_enabled,
+                        },
+                    )
+                except Exception as exc:  # fail closed if the global state cannot be restored
+                    restore_error = exc
+
+            if restore_error is not None:
+                raise NineRouterExecutionError(
+                    "NINEROUTER_SETTINGS_RESTORE_FAILED"
+                ) from restore_error
+            return result
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
