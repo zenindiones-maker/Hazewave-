@@ -32,6 +32,7 @@ from hazewave.nvidia_optimization import (
     FAST_STRUCTURED as OPT_FAST_STRUCTURED,
     reasoning_budget_for_complexity,
     select_nvidia_execution_profile,
+    update_nvidia_concurrency,
 )
 
 
@@ -226,8 +227,12 @@ def evaluate_probe_item(
     item: dict[str, Any],
     result: HazewaveProviderExecutionResult,
 ) -> ProbeEvaluation:
-    if result.status != "PASS" or result.semantic_pass is not True:
-        return ProbeEvaluation(False, 0.0, result.error_class or "PROVIDER_RESULT_NOT_PASS")
+    if result.status != "PASS" or result.semantic_pass is False:
+        return ProbeEvaluation(
+            False,
+            0.0,
+            result.error_class or "PROVIDER_RESULT_NOT_PASS",
+        )
 
     evaluation = item.get("evaluation")
     evaluation = evaluation if isinstance(evaluation, dict) else {}
@@ -608,6 +613,17 @@ def run_nvidia_capability_probes(
                 else (None if evaluation.semantic_pass else evaluation.reason)
             ),
         )
+        if (
+            evaluation.semantic_pass
+            and adapter.optimization_state_path is not None
+        ):
+            update_nvidia_concurrency(
+                path=adapter.optimization_state_path,
+                model_id=DEFAULT_NVIDIA_MODEL,
+                outcome="PASS",
+                latency_ms=final_result.latency_ms,
+                now=now,
+            )
         route = ProviderRoute(
             provider="nvidia",
             model_id=DEFAULT_NVIDIA_MODEL,
