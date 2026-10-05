@@ -311,6 +311,46 @@ class FreeLLMAPILocalCatalog:
         ).fetchone()
         return row is not None
 
+    def routing_key_ids(
+        self,
+        provider: str,
+        *,
+        model_key_id: int | None,
+    ) -> tuple[int, ...]:
+        """Return the exact enabled FreeLLMAPI key ids a route may use."""
+
+        try:
+            with self._connect() as db:
+                if model_key_id is not None:
+                    rows = db.execute(
+                        """
+                        SELECT id
+                        FROM api_keys
+                        WHERE platform = ?
+                          AND enabled = 1
+                          AND id = ?
+                        ORDER BY id
+                        """,
+                        (provider, int(model_key_id)),
+                    ).fetchall()
+                else:
+                    rows = db.execute(
+                        """
+                        SELECT id
+                        FROM api_keys
+                        WHERE platform = ?
+                          AND enabled = 1
+                        ORDER BY id
+                        """,
+                        (provider,),
+                    ).fetchall()
+        except sqlite3.Error as exc:
+            raise FreeLLMAPIError(
+                f"FREELLMAPI_LOCAL_CATALOG_SCHEMA_INVALID:{type(exc).__name__}"
+            ) from exc
+
+        return tuple(int(row["id"]) for row in rows)
+
     def embedding_candidates(self) -> list[FreeLLMAPIEmbeddingCandidate]:
         try:
             with self._connect() as db:
