@@ -94,18 +94,54 @@ def _v2_receipt() -> dict:
     }
 
 
-def test_ranker_prefers_lowest_tokens_then_latency() -> None:
+def test_ranker_balances_tokens_and_latency_instead_of_token_only() -> None:
+    receipt = _v2_receipt()
+    receipt["model_proofs"] = {
+        "oc/longcat-2.5-preview-free": {
+            "status": "semantic_pass",
+            "latency_ms": 20730,
+            "usage": {
+                "prompt_tokens": 20,
+                "completion_tokens": 39,
+                "total_tokens": 59,
+            },
+            "response_sha256": "longcat-proof",
+        },
+        "oc/space-bunny-free": {
+            "status": "semantic_pass",
+            "latency_ms": 1793,
+            "usage": {
+                "prompt_tokens": 20,
+                "completion_tokens": 151,
+                "total_tokens": 171,
+            },
+            "response_sha256": "space-proof",
+        },
+        "oc/big-pickle": {
+            "status": "semantic_pass",
+            "latency_ms": 1299,
+            "usage": {
+                "prompt_tokens": 20,
+                "completion_tokens": 163,
+                "total_tokens": 183,
+            },
+            "response_sha256": "pickle-proof",
+        },
+    }
+    receipt["catalog_discovered_models"] = list(receipt["model_proofs"])
+    receipt["execution_admitted_models"] = list(receipt["model_proofs"])
+
     ranked = rank_9router_models(
         authorization=_authorization(),
-        receipt=_v2_receipt(),
+        receipt=receipt,
         data_classification="PUBLIC",
         now="2026-10-05T12:30:00+00:00",
     )
 
     assert ranked == [
-        "oc/mimo-v2.6-flash-free",
-        "oc/nemotron-3.5-lightning-free",
+        "oc/big-pickle",
         "oc/space-bunny-free",
+        "oc/longcat-2.5-preview-free",
     ]
 
 
@@ -232,9 +268,11 @@ def test_optimizer_script_benchmarks_entire_free_catalog() -> None:
     assert "optimize)" in control
 
 
-def test_deep_reasoning_prefers_observed_reasoning_before_token_score() -> None:
+def test_deep_reasoning_prefers_observed_reasoning_before_efficiency_score() -> None:
     receipt = _v2_receipt()
-    receipt["model_proofs"]["oc/nemotron-3.5-lightning-free"]["reasoning_observed"] = True
+    receipt["model_proofs"]["oc/nemotron-3.5-lightning-free"]["usage"][
+        "reasoning_tokens"
+    ] = 16
 
     ranked = rank_9router_models(
         authorization=_authorization("reason.deep"),
@@ -261,6 +299,15 @@ def test_efficiency_policy_locks_safe_maximum_surface() -> None:
     assert policy["optimizer"]["receipt_ttl_hours"] == 24
     assert policy["optimizer"]["benchmark_max_models"] == 16
     assert policy["optimizer"]["execution_max_fallbacks"] == 3
+    assert policy["optimizer"]["benchmark_sample_count"] == 3
+    assert (
+        policy["optimizer"]["general_and_code_selection"]
+        == "BALANCED_TOKEN_LATENCY_PRODUCT"
+    )
+    assert (
+        policy["optimizer"]["deep_reasoning_selection"]
+        == "REASONING_EVIDENCE_THEN_BALANCED_TOKEN_LATENCY_PRODUCT"
+    )
     assert policy["optimizer"]["transient_cooldown"]["base_seconds"] == 60
     assert policy["optimizer"]["transient_cooldown"]["max_seconds"] == 900
     assert policy["optimizer"]["transient_cooldown"]["strategy"] == "EXPONENTIAL"
@@ -393,3 +440,112 @@ def test_efficiency_status_exposes_active_model_cooldowns() -> None:
             "consecutive_transient_failures": 1,
         }
     ]
+
+
+def test_ranker_prefers_live_ewma_metrics_over_stale_benchmark() -> None:
+    receipt = _v2_receipt()
+    health = {
+        "schema": "Hazewave9RouterRouteHealth/v1",
+        "project_id": "HAZEWAVE",
+        "authority": "HAZEWAVE_HARNESS",
+        "models": {
+            "oc/space-bunny-free": {
+                "consecutive_transient_failures": 0,
+                "cooldown_until": None,
+                "last_status": "PASS",
+                "success_count": 4,
+                "ewma_latency_ms": 500,
+                "ewma_total_tokens": 100,
+            }
+        },
+    }
+
+    ranked = rank_9router_models(
+        authorization=_authorization(),
+        receipt=receipt,
+        route_health=health,
+        data_classification="PUBLIC",
+        now="2026-10-05T12:30:00+00:00",
+    )
+
+    assert ranked[0] == "oc/space-bunny-free"
+
+
+def test_execution_records_reasoning_tokens_and_live_efficiency_ewma(
+    tmp_path: Path,
+) -> None:
+    receipt = _v2_receipt()
+    settings = {
+        "requireApiKey": True,
+        "cloudEnabled": False,
+        "tunnelEnabled": False,
+        "tailscaleEnabled": False,
+        "capacityAdapter": {},
+        "outboundProxyEnabled": False,
+        "rtkEnabled": True,
+        "headroomEnabled": False,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/settings" and request.method == "GET":
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/api/settings" and request.method == "PATCH":
+            settings.update(json.loads(request.content))
+            return httpx.Response(200, json=settings)
+        if request.url.path == "/v1/chat/completions":
+            return httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {"message": {"content": "runtime answer"}}
+                    ],
+                    "usage": {
+                        "prompt_tokens": 20,
+                        "completion_tokens": 40,
+                        "total_tokens": 60,
+                        "completion_tokens_details": {
+                            "reasoning_tokens": 30
+                        },
+                    },
+                },
+            )
+        raise AssertionError("unexpected request")
+
+    health_path = tmp_path / "route-health.json"
+    result = execute_9router_text(
+        authorization=_authorization(),
+        model_id="oc/mimo-v2.6-flash-free",
+        prompt="hello",
+        receipt=receipt,
+        now="2026-10-05T12:30:00+00:00",
+        lock_path=tmp_path / "lock",
+        route_health_path=health_path,
+        transport=httpx.MockTransport(handler),
+        cli_token="unit-test-token",
+    )
+
+    assert result.reasoning_tokens == 30
+
+    health = load_9router_route_health(health_path)
+    row = health["models"]["oc/mimo-v2.6-flash-free"]
+    assert row["success_count"] == 1
+    assert row["ewma_total_tokens"] == 60
+    assert isinstance(row["ewma_latency_ms"], int)
+    assert row["ewma_latency_ms"] >= 0
+    assert row["last_reasoning_tokens"] == 30
+
+
+def test_optimizer_uses_repeated_samples_medians_and_reasoning_usage() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script = (root / "scripts" / "hazewave_9router_free_probe.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "OPTIMIZE_SAMPLE_COUNT = 3" in script
+    assert "benchmark_samples" in script
+    assert "median_latency_ms" in script
+    assert "median_total_tokens" in script
+    assert "semantic_success_rate" in script
+    assert "efficiency_score" in script
+    assert "reasoning_tokens" in script
+    assert "BALANCED_TOKEN_LATENCY_PRODUCT" in script
