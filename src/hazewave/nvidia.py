@@ -717,6 +717,7 @@ class NvidiaNIMAdapter:
         seed: int | None = None,
         reasoning_budget: int | None = None,
         enable_thinking_override: bool | None = None,
+        request_timeout_seconds: float | None = None,
     ) -> HazewaveProviderExecutionResult:
         decision = evaluate_nvidia_admission(
             authorization=authorization,
@@ -783,6 +784,11 @@ class NvidiaNIMAdapter:
                 response = self._client.post(
                     "/chat/completions",
                     json=request_body,
+                    timeout=(
+                        float(request_timeout_seconds)
+                        if request_timeout_seconds is not None
+                        else self.timeout_seconds
+                    ),
                     headers={
                         "Authorization": f"Bearer {api_key}",
                         "Accept": "application/json",
