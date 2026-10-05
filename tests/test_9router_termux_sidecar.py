@@ -113,7 +113,8 @@ def test_9router_cli_auth_material_is_preseeded_before_server_and_probe() -> Non
 
     assert "ensure_cli_auth_material()" in control
     assert "machine-id" in control
-    assert "auth/cli-secret" in control
+    assert 'auth_dir="$data_dir/auth"' in control
+    assert 'secret_file="$auth_dir/cli-secret"' in control
     assert "chmod 600" in control
     assert "HAZEWAVE_9ROUTER_CLI_AUTH_CREATED=" in control
     assert control.index("ensure_cli_auth_material") < control.index('nohup node "$entry"')
