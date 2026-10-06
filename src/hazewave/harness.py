@@ -26,6 +26,7 @@ _CAPABILITY_DOMAINS: Final[dict[str, str]] = {
     "audio.structure": HAZE,
     "session.inspect": HAZE,
     "session.checkpoint": HAZE,
+    "session.rollback": HAZE,
     "arrangement.structure": HAZE,
     "arrangement.marker": HAZE,
     "arrangement.region": HAZE,
