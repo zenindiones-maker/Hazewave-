@@ -79,6 +79,8 @@ _CAPABILITY_DOMAINS: Final[dict[str, str]] = {
     "visual.animate": WAVE,
     "animation.scene.inspect": WAVE,
     "animation.fixture.create": WAVE,
+    "animation.shot.build": WAVE,
+    "animation.render.frames": WAVE,
     "visual.analyze": WAVE,
     "visual.storyboard": WAVE,
     "visual.reason": WAVE,
