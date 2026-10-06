@@ -44,3 +44,21 @@ def test_creative_execution_control_exposes_render_preview_with_qc() -> None:
     assert "python -m hazewave.creative_cli render-preview" in text
     assert "render-preview) cmd_render_preview" in text
     assert "HUMAN_APPROVAL=REQUIRED" in text
+
+
+
+def test_creative_execution_control_exposes_exact_bound_vertical_proof() -> None:
+    text = CONTROL.read_text(encoding="utf-8")
+
+    assert "cmd_vertical_proof()" in text
+    assert 'CANDIDATE_HEAD="$(git rev-parse HEAD)"' in text
+    assert 'config/project-profile-v2.json' in text
+    assert 'sha256sum' in text
+    assert 'CODESPACE_NAME' in text
+    assert "python -m hazewave.creative_cli vertical-proof" in text
+    assert "--candidate-head" in text
+    assert "--policy-digest" in text
+    assert "--runtime-identity" in text
+    assert "--fixture-root" in text
+    assert "--source-audio" in text
+    assert "vertical-proof) shift; cmd_vertical_proof" in text
