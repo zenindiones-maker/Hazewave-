@@ -412,7 +412,8 @@ def test_cli_executor_loads_existing_blend_for_shot_and_frame_operations(tmp_pat
             deadline=now + timedelta(seconds=60),
         )
         prepared = executor.prepare(request, blend_path=blend)
-        assert prepared.command[2] == str(blend.resolve())
+        assert prepared.command[2] == "--disable-autoexec"
+        assert prepared.command[3] == str(blend.resolve())
 
 
 def test_animation_frame_repair_request_is_bounded_to_existing_render_id() -> None:
