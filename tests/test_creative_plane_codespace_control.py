@@ -47,3 +47,10 @@ def test_termux_control_can_invoke_vertical_proof_on_existing_codespace() -> Non
 
     assert 'vertical-proof) cmd_creative_remote vertical-proof "${2:-}" ;;' in text
     assert "gh codespace create" not in text
+
+
+def test_termux_vertical_proof_requires_no_cross_device_file_path() -> None:
+    text = CONTROL.read_text(encoding="utf-8")
+
+    assert "vertical-proof) cmd_creative_remote vertical-proof ;;" in text
+    assert 'cmd_creative_remote vertical-proof "${2:-}"' not in text
