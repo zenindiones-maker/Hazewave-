@@ -53,3 +53,17 @@ def test_lua_bridge_rejects_expired_request_before_dispatch() -> None:
     assert "issued_at_epoch_seconds" in text
     assert "REAPER_REQUEST_DEADLINE_EXCEEDED" in text
     assert "os.time() > request.deadline_epoch_seconds" in text
+
+
+def test_lua_bridge_has_non_destructive_checkpoint_and_guarded_rollback() -> None:
+    text = BRIDGE.read_text(encoding="utf-8")
+
+    assert 'handlers["session.checkpoint"]' in text
+    assert 'handlers["session.rollback"]' in text
+    assert "reaper.Main_SaveProjectEx" in text
+    assert "checkpoint_root" in text
+    assert "expected_undo_description" in text
+    assert "reaper.Undo_CanUndo2" in text
+    assert "REAPER_ROLLBACK_UNDO_MISMATCH" in text
+    assert "special_operations" in text
+    assert '["session.rollback"] = true' in text
