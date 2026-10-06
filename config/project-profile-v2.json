@@ -6,7 +6,7 @@
   "project_id": "HAZEWAVE",
   "repository": "zenindiones-maker/Hazewave-",
   "canonical_branch": "main",
-  "active_development_ref": "work/wave-living-resonance-v1",
+  "active_development_ref": "work/creative-execution-plane-v1",
   "project_purpose": "HAZE owns sound and music. WAVE owns image and visual media. BRIDGE translates structured sonic state into visual state without collapsing the two domains.",
   "accepted_by": "HUMAN_OWNER",
   "accepted_on": "2026-10-04",
@@ -129,7 +129,9 @@
       "scripts/install_hazewave_freellmapi_termux.sh",
       "scripts/hazewave_freellmapi_control.sh",
       "docs/architecture/decisions/ADR-0005-freellmapi-provider-gateway.md",
-      "docs/runbooks/FREELLMAPI_PROVIDER_V1.md"
+      "docs/runbooks/FREELLMAPI_PROVIDER_V1.md",
+      "src/hazewave/reaper_bridge.py",
+      "scripts/reaper/"
     ],
     "accepted_unmaterialized_ttl_days": 7
   },
