@@ -36,3 +36,11 @@ def test_blender_adapter_owns_fixture_path_and_snapshot_contract() -> None:
     assert "bpy.ops.wm.save_as_mainfile" in text
     assert "GREASEPENCIL" in text
     assert "BLENDER_FIXTURE_ALREADY_EXISTS" in text
+
+
+def test_blender_snapshot_separates_view_transform_from_look() -> None:
+    text = ADAPTER.read_text(encoding="utf-8")
+
+    assert '"view_transform": str(scene.view_settings.view_transform)' in text
+    assert '"look": str(scene.view_settings.look)' in text
+    assert '"view_transform": str(scene.view_settings.look)' not in text
