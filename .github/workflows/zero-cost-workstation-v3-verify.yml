@@ -52,6 +52,8 @@ jobs:
           grep -q 'REAPER_AUDIO_BRIDGE=ALSA_PULSE' scripts/codespaces/professional-doctor.sh
           grep -q 'XPRA_REQUIRED=TRUE' scripts/codespaces/hazewave-termux-control.sh
           grep -q 'proof)' scripts/codespaces/hazewave-termux-control.sh
+          grep -q 'WORKTREE=BLOCKED_DIRTY_PRESERVE_WIP' scripts/codespaces/hazewave-termux-control.sh
+          grep -q 'receipt.sha256' scripts/codespaces/hazewave-runtime-proof.sh
           ! grep -q 'FALLBACK_NOVNC' .devcontainer/devcontainer.json
           ! grep -q 'XPRA=WAIT_FALLBACK_NOVNC' scripts/codespaces/hazewave-termux-control.sh
           ! grep -R 'work/zero-cost-codespaces-v1'             .devcontainer scripts/codespaces/hazewave-termux-control.sh
