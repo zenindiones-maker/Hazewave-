@@ -70,6 +70,36 @@ cmd_render_preview() {
   echo "HUMAN_APPROVAL=REQUIRED"
 }
 
+
+cmd_vertical_proof() {
+  require_candidate
+  local source_audio="${1:-}" fixture_root proof_id
+  local CANDIDATE_HEAD POLICY_DIGEST RUNTIME_IDENTITY
+
+  [ -n "$source_audio" ] || die "VERTICAL_PROOF=BLOCKED_SOURCE_AUDIO_REQUIRED" 32
+  [ -f "$source_audio" ] || die "VERTICAL_PROOF=BLOCKED_SOURCE_AUDIO_NOT_FOUND" 33
+
+  fixture_root="${HAZEWAVE_CREATIVE_FIXTURE_ROOT:-${HOME}/.local/state/hazewave-codespace/creative-fixtures}"
+  [ -d "$fixture_root" ] || die "VERTICAL_PROOF=BLOCKED_FIXTURE_ROOT_MISSING" 34
+
+  CANDIDATE_HEAD="$(git rev-parse HEAD)"
+  POLICY_DIGEST="$(sha256sum "$REPO_ROOT/config/project-profile-v2.json" | awk '{print $1}')"
+  RUNTIME_IDENTITY="codespace:${CODESPACE_NAME:-$(hostname)}"
+  proof_id="$(python -c 'import uuid; print("vertical-" + uuid.uuid4().hex)')"
+
+  python -m hazewave.creative_cli vertical-proof \
+    --source-audio "$source_audio" \
+    --fixture-root "$fixture_root" \
+    --proof-id "$proof_id" \
+    --candidate-head "$CANDIDATE_HEAD" \
+    --policy-digest "$POLICY_DIGEST" \
+    --runtime-identity "$RUNTIME_IDENTITY" \
+    --tape-echo-version "1.0.8"
+
+  echo "LIVE_REAPER_PROOF=PASS"
+  echo "HUMAN_APPROVAL=REQUIRED"
+}
+
 cmd_audition() {
   require_candidate
   local artifact="${1:-}" scratch
@@ -100,7 +130,8 @@ case "${1:-producer-doctor}" in
   snapshot) cmd_snapshot ;;
   execute) shift; cmd_execute "${1:-}" ;;
   render-preview) cmd_render_preview ;;
+  vertical-proof) shift; cmd_vertical_proof "${1:-}" ;;
   audition) shift; cmd_audition "${1:-}" ;;
   proof) cmd_proof ;;
-  *) echo "usage: creative-execution-control.sh {producer-doctor|snapshot|execute COMMAND.json|render-preview|audition AUDIO_FILE|proof}"; exit 2 ;;
+  *) echo "usage: creative-execution-control.sh {producer-doctor|snapshot|execute COMMAND.json|render-preview|vertical-proof SOURCE_AUDIO|audition AUDIO_FILE|proof}"; exit 2 ;;
 esac
