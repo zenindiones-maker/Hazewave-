@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -481,4 +482,124 @@ def test_animation_frame_repair_rejects_unsafe_contract(
             seed=42,
             issued_at=now,
             deadline=now + timedelta(seconds=120),
+        )
+
+
+def test_cli_executor_executes_and_parses_exact_bound_receipt(tmp_path: Path) -> None:
+    adapter = tmp_path / "adapter.py"
+    adapter.write_text("# adapter\n", encoding="utf-8")
+    blend = tmp_path / "scene.blend"
+    blend.write_bytes(b"blend")
+    request = _request()
+    executor = BlenderCLIExecutor(
+        root=tmp_path / "runtime",
+        blender_binary=Path("/opt/blender/blender"),
+        adapter_script=adapter,
+    )
+
+    calls: list[list[str]] = []
+
+    def runner(args: list[str], timeout_seconds: float):
+        calls.append(args)
+        response_path = Path(args[args.index("--response") + 1])
+        response_path.write_text(
+            json.dumps(
+                {
+                    "schema": "BlenderExecutionReceipt/v1",
+                    "request_id": request.request_id,
+                    "task_id": request.task_id,
+                    "operation": request.operation,
+                    "status": "PASS",
+                    "blender_version": "5.2.2",
+                    "state_before": {"blend_sha256": "a" * 64},
+                    "state_after": {"blend_sha256": "a" * 64},
+                    "result": {"snapshot": {}},
+                    "error": None,
+                    "started_at": request.issued_at.isoformat(),
+                    "completed_at": request.issued_at.isoformat(),
+                }
+            ),
+            encoding="utf-8",
+        )
+        return subprocess.CompletedProcess(args, 0, stdout="ok", stderr="")
+
+    response = executor.execute(
+        request,
+        blend_path=blend,
+        timeout_seconds=10.0,
+        runner=runner,
+    )
+
+    assert response["status"] == "PASS"
+    assert response["request_id"] == request.request_id
+    assert len(calls) == 1
+
+
+def test_cli_executor_fails_closed_when_response_is_missing(tmp_path: Path) -> None:
+    adapter = tmp_path / "adapter.py"
+    adapter.write_text("# adapter\n", encoding="utf-8")
+    blend = tmp_path / "scene.blend"
+    blend.write_bytes(b"blend")
+    request = _request()
+    executor = BlenderCLIExecutor(
+        root=tmp_path / "runtime",
+        blender_binary=Path("/opt/blender/blender"),
+        adapter_script=adapter,
+    )
+
+    with pytest.raises(BlenderBridgeError, match="BLENDER_RESPONSE_MISSING"):
+        executor.execute(
+            request,
+            blend_path=blend,
+            timeout_seconds=10.0,
+            runner=lambda args, timeout: subprocess.CompletedProcess(
+                args, 0, stdout="", stderr=""
+            ),
+        )
+
+
+def test_cli_executor_surfaces_typed_adapter_failure(tmp_path: Path) -> None:
+    adapter = tmp_path / "adapter.py"
+    adapter.write_text("# adapter\n", encoding="utf-8")
+    blend = tmp_path / "scene.blend"
+    blend.write_bytes(b"blend")
+    request = _request()
+    executor = BlenderCLIExecutor(
+        root=tmp_path / "runtime",
+        blender_binary=Path("/opt/blender/blender"),
+        adapter_script=adapter,
+    )
+
+    def runner(args: list[str], timeout_seconds: float):
+        response_path = Path(args[args.index("--response") + 1])
+        response_path.write_text(
+            json.dumps(
+                {
+                    "schema": "BlenderExecutionReceipt/v1",
+                    "request_id": request.request_id,
+                    "task_id": request.task_id,
+                    "operation": request.operation,
+                    "status": "FAIL",
+                    "blender_version": "5.2.2",
+                    "state_before": {"blend_sha256": "a" * 64},
+                    "state_after": {"blend_sha256": "a" * 64},
+                    "result": {},
+                    "error": {"code": "BLENDER_FIXTURE"},
+                    "started_at": request.issued_at.isoformat(),
+                    "completed_at": request.issued_at.isoformat(),
+                }
+            ),
+            encoding="utf-8",
+        )
+        return subprocess.CompletedProcess(args, 20, stdout="", stderr="")
+
+    with pytest.raises(
+        BlenderBridgeError,
+        match="BLENDER_EXECUTION_FAILED:BLENDER_FIXTURE",
+    ):
+        executor.execute(
+            request,
+            blend_path=blend,
+            timeout_seconds=10.0,
+            runner=runner,
         )
