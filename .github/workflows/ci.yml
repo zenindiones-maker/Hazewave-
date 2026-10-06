@@ -47,6 +47,9 @@ jobs:
           bash -n scripts/codespaces/install-blender-pinned.sh
           bash -n scripts/codespaces/upgrade-professional-v2.sh
           bash -n scripts/codespaces/professional-doctor.sh
+          bash -n scripts/codespaces/creative-execution-control.sh
+          bash -n scripts/codespaces/hazewave-runtime-proof.sh
+          bash -n scripts/codespaces/hazewave-termux-control.sh
 
       - name: Validate repository contracts
         run: python scripts/validate_repository_contracts.py
