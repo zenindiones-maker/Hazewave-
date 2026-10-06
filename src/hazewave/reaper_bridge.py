@@ -20,6 +20,7 @@ REAPER_OPERATION_ALLOWLIST: Final[frozenset[str]] = frozenset(
     {
         "session.inspect",
         "session.checkpoint",
+        "session.rollback",
         "arrangement.structure",
         "arrangement.marker",
         "arrangement.region",
@@ -299,6 +300,25 @@ def build_reaper_request(
         raise ReaperBridgeError("REAPER_EXPECTED_STATE_INVALID")
     if not isinstance(arguments, Mapping):
         raise ReaperBridgeError("REAPER_ARGUMENTS_MALFORMED")
+
+    if operation == "session.checkpoint":
+        caller_path_keys = {"path", "output_path", "checkpoint_path", "destination"}
+        if caller_path_keys.intersection(arguments):
+            raise ReaperBridgeError("REAPER_CHECKPOINT_PATH_CALLER_CONTROLLED")
+    if operation == "session.rollback":
+        expected_undo = arguments.get("expected_undo_description")
+        if not isinstance(expected_undo, str) or not expected_undo.strip():
+            raise ReaperBridgeError("REAPER_ROLLBACK_EXPECTED_UNDO_REQUIRED")
+        expected_undo = expected_undo.strip()
+        if (
+            not expected_undo.startswith("Hazewave: ")
+            or "[" not in expected_undo
+            or not expected_undo.endswith("]")
+            or "\n" in expected_undo
+            or "\r" in expected_undo
+            or len(expected_undo) > 512
+        ):
+            raise ReaperBridgeError("REAPER_ROLLBACK_EXPECTED_UNDO_NOT_HAZEWAVE")
 
     issued = _require_aware(issued_at, code="REAPER_ISSUED_AT_INVALID")
     due = _require_aware(deadline, code="REAPER_DEADLINE_INVALID")
