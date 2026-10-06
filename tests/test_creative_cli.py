@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from hazewave.audio_qc import AudioQCReport
 from hazewave.creative_cli import CreativeBridgeClient, CreativeControlError
 
 
@@ -127,4 +128,132 @@ def test_wait_timeout_is_typed_failure_not_success(tmp_path: Path) -> None:
             request_id="req-timeout",
             idempotency_key="timeout-idem",
             timeout_seconds=0.01,
+        )
+
+
+def _qc_report(path: Path) -> AudioQCReport:
+    return AudioQCReport(
+        source_path=str(path),
+        source_sha256="a" * 64,
+        codec_name="pcm_s24le",
+        sample_rate=48000,
+        channels=2,
+        channel_layout="stereo",
+        duration_seconds=2.0,
+        integrated_lufs=-16.0,
+        integrated_threshold_lufs=-26.0,
+        loudness_range_lu=3.0,
+        true_peak_dbfs=-1.0,
+        sample_peak_dbfs=-1.2,
+        rms_dbfs=-18.0,
+        dc_offset=0.0,
+        crest_factor_ratio=7.0,
+        clipping_detected=False,
+        technical_flags=(),
+    )
+
+
+def test_render_preview_returns_artifact_plus_audio_qc(tmp_path: Path) -> None:
+    _heartbeat(tmp_path, state=9)
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir(parents=True)
+    artifact = artifact_dir / "req-render.wav"
+    artifact.write_bytes(b"RIFFfixture")
+
+    responses = tmp_path / "responses"
+    responses.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc).isoformat()
+    (responses / "req-render.json").write_text(
+        json.dumps(
+            {
+                "schema": "ReaperExecutionResponse/v1",
+                "request_id": "req-render",
+                "task_id": "task-render",
+                "operation": "render.preview",
+                "status": "PASS",
+                "state_before": {"project_state_change_count": 9},
+                "state_after": {"project_state_change_count": 10},
+                "result": {
+                    "artifact_path": str(artifact),
+                    "artifact_size_bytes": len(artifact.read_bytes()),
+                    "format": "WAV",
+                    "sample_rate": 48000,
+                    "channels": 2,
+                },
+                "error": None,
+                "started_at": now,
+                "completed_at": now,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    analyzed: list[Path] = []
+
+    def analyzer(path: Path):
+        analyzed.append(path)
+        return _qc_report(path)
+
+    result = CreativeBridgeClient(
+        tmp_path,
+        audio_qc_analyzer=analyzer,
+    ).render_preview(
+        task_id="task-render",
+        request_id="req-render",
+        idempotency_key="idem-render",
+        timeout_seconds=0.1,
+    )
+
+    assert result["schema"] == "AuditionRender/v1"
+    assert result["artifact_path"] == str(artifact.resolve())
+    assert result["audio_qc"]["schema"] == "AudioQCReport/v1"
+    assert result["state_before"] == 9
+    assert result["state_after"] == 10
+    assert analyzed == [artifact.resolve()]
+
+    request = json.loads((tmp_path / "requests" / "req-render.json").read_text())
+    assert request["operation"] == "render.preview"
+    assert request["arguments"] == {}
+
+
+def test_render_preview_rejects_bridge_artifact_outside_project_owned_root(
+    tmp_path: Path,
+) -> None:
+    _heartbeat(tmp_path, state=9)
+    outside = tmp_path.parent / "outside.wav"
+    outside.write_bytes(b"fixture")
+    responses = tmp_path / "responses"
+    responses.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc).isoformat()
+    (responses / "req-render-escape.json").write_text(
+        json.dumps(
+            {
+                "schema": "ReaperExecutionResponse/v1",
+                "request_id": "req-render-escape",
+                "task_id": "task-render-escape",
+                "operation": "render.preview",
+                "status": "PASS",
+                "state_before": {"project_state_change_count": 9},
+                "state_after": {"project_state_change_count": 10},
+                "result": {
+                    "artifact_path": str(outside),
+                    "artifact_size_bytes": len(outside.read_bytes()),
+                },
+                "error": None,
+                "started_at": now,
+                "completed_at": now,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CreativeControlError, match="REAPER_RENDER_ARTIFACT_OUTSIDE_ROOT"):
+        CreativeBridgeClient(
+            tmp_path,
+            audio_qc_analyzer=lambda path: _qc_report(path),
+        ).render_preview(
+            task_id="task-render-escape",
+            request_id="req-render-escape",
+            idempotency_key="idem-render-escape",
+            timeout_seconds=0.1,
         )
