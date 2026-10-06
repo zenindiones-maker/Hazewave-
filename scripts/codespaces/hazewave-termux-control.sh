@@ -290,17 +290,23 @@ cmd_close() {
 }
 
 cmd_creative_remote() {
-  local action="$1" cs
+  local action="$1" argument="${2:-}" cs remote_action remote_arg
   guard_singleton
   cs="$(resolve_cs)"
   [ -n "$cs" ] || die "HAZEWAVE_CODESPACE=NOT_FOUND_EXISTING_REUSE_REQUIRED" 27
   verify_identity "$cs"
   start_cs "$cs"
 
+  printf -v remote_action '%q' "$action"
+  remote_arg=""
+  if [ -n "$argument" ]; then
+    printf -v remote_arg ' %q' "$argument"
+  fi
+
   gh codespace ssh -c "$cs" -- bash -lc "
     set -euo pipefail
     cd /workspaces/Hazewave-
-    bash scripts/codespaces/creative-execution-control.sh '$action'
+    bash scripts/codespaces/creative-execution-control.sh $remote_action$remote_arg
   "
 }
 
@@ -320,8 +326,8 @@ case "${1:-status}" in
   doctor) cmd_doctor ;;
   producer-doctor) cmd_creative_remote producer-doctor ;;
   snapshot) cmd_creative_remote snapshot ;;
-  execute) cmd_creative_remote execute ;;
-  audition) cmd_creative_remote audition ;;
+  execute) cmd_creative_remote execute "${2:-}" ;;
+  audition) cmd_creative_remote audition "${2:-}" ;;
   close|stop) cmd_close ;;
   create) cmd_create ;;
   *) echo "usage: hazectl {open|status|sync|proof|doctor|producer-doctor|snapshot|execute|audition|close|create}"; exit 2 ;;
