@@ -328,8 +328,9 @@ case "${1:-status}" in
   snapshot) cmd_creative_remote snapshot ;;
   execute) cmd_creative_remote execute "${2:-}" ;;
   render-preview) cmd_creative_remote render-preview ;;
+  vertical-proof) cmd_creative_remote vertical-proof "${2:-}" ;;
   audition) cmd_creative_remote audition "${2:-}" ;;
   close|stop) cmd_close ;;
   create) cmd_create ;;
-  *) echo "usage: hazectl {open|status|sync|proof|doctor|producer-doctor|snapshot|execute|render-preview|audition|close|create}"; exit 2 ;;
+  *) echo "usage: hazectl {open|status|sync|proof|doctor|producer-doctor|snapshot|execute|render-preview|vertical-proof|audition|close|create}"; exit 2 ;;
 esac
