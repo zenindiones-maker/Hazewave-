@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BRANCH="work/zero-cost-workstation-v3"
+BRANCH="work/creative-execution-plane-v1"
 REPO_ROOT="/workspaces/Hazewave-"
 STATE_ROOT="${HOME}/.local/state/hazewave-codespace/runtime-proof"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -80,6 +80,42 @@ run_proof() {
     exit 25
   }
   echo "REAPER_PROCESS=PASS"
+
+  export HAZEWAVE_REAPER_BRIDGE_DIR="${HAZEWAVE_REAPER_BRIDGE_DIR:-${HOME}/.local/state/hazewave/reaper-bridge}"
+  export PYTHONPATH="${REPO_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
+
+  CREATIVE_DOCTOR_JSON="$OUT_DIR/creative-producer-doctor.json"
+  if ! python -m hazewave.creative_cli doctor >"$CREATIVE_DOCTOR_JSON"; then
+    echo "REAPER_BRIDGE=NOT_PROVEN"
+    echo "LIVE_REAPER_PROOF=NOT_PROVEN"
+    exit 32
+  fi
+  grep -Fq '"schema": "CreativeProducerDoctor/v1"' "$CREATIVE_DOCTOR_JSON" || {
+    echo "REAPER_BRIDGE=FAIL_DOCTOR_SCHEMA"
+    echo "LIVE_REAPER_PROOF=NOT_PROVEN"
+    exit 33
+  }
+  grep -Fq '"bridge_id": "HAZEWAVE_REAPER_BRIDGE"' "$CREATIVE_DOCTOR_JSON" || {
+    echo "REAPER_BRIDGE=FAIL_BRIDGE_IDENTITY"
+    echo "LIVE_REAPER_PROOF=NOT_PROVEN"
+    exit 34
+  }
+  echo "REAPER_BRIDGE=PASS_RUNTIME_HEARTBEAT"
+
+  SNAPSHOT_JSON="$OUT_DIR/reaper-project-snapshot.json"
+  SNAPSHOT_REQUEST_ID="runtime-snapshot-$STAMP"
+  if ! python -m hazewave.creative_cli snapshot       --task-id "runtime-proof-snapshot"       --request-id "$SNAPSHOT_REQUEST_ID"       --idempotency-key "$SNAPSHOT_REQUEST_ID" >"$SNAPSHOT_JSON"; then
+    echo "REAPER_SNAPSHOT=NOT_PROVEN"
+    echo "LIVE_REAPER_PROOF=NOT_PROVEN"
+    exit 35
+  fi
+  grep -Fq '"schema": "ReaperProjectSnapshot/v1"' "$SNAPSHOT_JSON" || {
+    echo "REAPER_SNAPSHOT=FAIL_SCHEMA"
+    echo "LIVE_REAPER_PROOF=NOT_PROVEN"
+    exit 36
+  }
+  echo "REAPER_SNAPSHOT=PASS_RUNTIME"
+  echo "LIVE_REAPER_PROOF=NOT_PROVEN"
 
   pactl info >"$OUT_DIR/pactl-info.txt"
   pactl list short sinks >"$OUT_DIR/pulse-sinks.txt"
