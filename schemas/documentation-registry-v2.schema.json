@@ -49,6 +49,7 @@
             "enum": [
               "AGENT_CONTRACT",
               "PROJECT_PROFILE",
+              "PROJECT_POLICY",
               "CANON",
               "ARCHITECTURE_DECISION",
               "EXPLANATION",
