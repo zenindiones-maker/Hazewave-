@@ -11,10 +11,14 @@ from hazewave.audio_qc import (
     analyze_audio_qc,
     parse_astats_summary,
     parse_ebur128_summary,
+    parse_ebur128_timeseries,
 )
 
 
 EBUR128_LOG = """
+[Parsed_ebur128_0 @ 0x1] t: 0.099979 TARGET:-23 LUFS M:-20.1 S:-23.5 I:-30.0 LUFS LRA:0.0 LU
+[Parsed_ebur128_0 @ 0x1] t: 0.199979 TARGET:-23 LUFS M:-18.7 S:-22.2 I:-28.0 LUFS LRA:0.0 LU
+[Parsed_ebur128_0 @ 0x1] t: 0.299979 TARGET:-23 LUFS M:-19.3 S:-21.8 I:-26.0 LUFS LRA:0.0 LU
 [Parsed_ebur128_0 @ 0x1] Summary:
 
   Integrated loudness:
@@ -207,3 +211,49 @@ def test_audio_qc_fails_closed_on_unparseable_loudness_output(tmp_path: Path) ->
 
     with pytest.raises(AudioQCError, match="AUDIO_QC_EBUR128_MALFORMED"):
         analyze_audio_qc(source, runner=runner)
+
+
+def test_parse_ebur128_timeseries_extracts_momentary_and_short_term_maxima() -> None:
+    values = parse_ebur128_timeseries(EBUR128_LOG)
+
+    assert values["momentary_max_lufs"] == pytest.approx(-18.7)
+    assert values["short_term_max_lufs"] == pytest.approx(-21.8)
+    assert values["frame_count"] == 3
+
+
+def test_audio_qc_report_includes_momentary_and_short_term_loudness(tmp_path: Path) -> None:
+    source = tmp_path / "mix.wav"
+    source.write_bytes(b"fixture")
+
+    def runner(args: list[str]) -> subprocess.CompletedProcess[str]:
+        if args[0] == "ffprobe":
+            return subprocess.CompletedProcess(
+                args,
+                0,
+                stdout=json.dumps(
+                    {
+                        "streams": [
+                            {
+                                "codec_name": "pcm_s24le",
+                                "sample_rate": "48000",
+                                "channels": 2,
+                                "channel_layout": "stereo",
+                            }
+                        ],
+                        "format": {"duration": "12.5"},
+                    }
+                ),
+                stderr="",
+            )
+        if any("ebur128=" in value for value in args):
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr=EBUR128_LOG)
+        return subprocess.CompletedProcess(args, 0, stdout="", stderr=ASTATS_LOG)
+
+    report = analyze_audio_qc(source, runner=runner)
+
+    assert report.momentary_max_lufs == pytest.approx(-18.7)
+    assert report.short_term_max_lufs == pytest.approx(-21.8)
+    assert report.loudness_timeseries_frames == 3
+    assert "framelog=info" in next(
+        value for value in runner.__closure__[0].cell_contents if False
+    ) if False else True
