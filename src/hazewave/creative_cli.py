@@ -9,6 +9,8 @@ from typing import Any, Callable, Mapping
 
 from hazewave.audio_qc import AudioQCError, analyze_audio_qc
 from hazewave.harness import HAZE, HazewaveTask, issue_authorization, route_task
+from hazewave.reaper_vertical_proof import ReaperVerticalProofRunner, VerticalProofError
+from hazewave.runtime_receipts import default_runtime_receipt_store
 from hazewave.reaper_bridge import (
     BridgeHeartbeat,
     FilesystemReaperBridge,
@@ -401,6 +403,14 @@ def main(argv: list[str] | None = None) -> int:
     render_parser.add_argument("--request-id", required=True)
     render_parser.add_argument("--idempotency-key", required=True)
     render_parser.add_argument("--timeout-seconds", type=float, default=180.0)
+    vertical_parser = sub.add_parser("vertical-proof")
+    vertical_parser.add_argument("--source-audio", type=Path, required=True)
+    vertical_parser.add_argument("--fixture-root", type=Path, required=True)
+    vertical_parser.add_argument("--proof-id", required=True)
+    vertical_parser.add_argument("--candidate-head", required=True)
+    vertical_parser.add_argument("--policy-digest", required=True)
+    vertical_parser.add_argument("--runtime-identity", required=True)
+    vertical_parser.add_argument("--tape-echo-version", default="1.0.8")
 
     args = parser.parse_args(argv)
     client = CreativeBridgeClient(args.bridge_root)
@@ -430,7 +440,24 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
             return 0
-    except CreativeControlError as exc:
+        if args.command == "vertical-proof":
+            runner = ReaperVerticalProofRunner(
+                client=client,
+                receipt_store=default_runtime_receipt_store(),
+                fixture_root=args.fixture_root,
+                candidate_head=args.candidate_head,
+                policy_digest=args.policy_digest,
+                runtime_identity=args.runtime_identity,
+                tape_echo_version=args.tape_echo_version,
+            )
+            _print_json(
+                runner.run(
+                    source_audio=args.source_audio,
+                    proof_id=args.proof_id,
+                )
+            )
+            return 0
+    except (CreativeControlError, VerticalProofError) as exc:
         print(f"CREATIVE_CONTROL=FAIL:{exc}")
         return 20
 
