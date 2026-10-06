@@ -73,19 +73,58 @@ cmd_render_preview() {
 
 cmd_vertical_proof() {
   require_candidate
-  local source_audio="${1:-}" fixture_root proof_id
+  command -v sox >/dev/null 2>&1 || die "SOX=MISSING" 32
+
+  local fixture_root proof_id source_audio
   local CANDIDATE_HEAD POLICY_DIGEST RUNTIME_IDENTITY
+  local fixture_opened=0 open_request close_request
 
-  [ -n "$source_audio" ] || die "VERTICAL_PROOF=BLOCKED_SOURCE_AUDIO_REQUIRED" 32
-  [ -f "$source_audio" ] || die "VERTICAL_PROOF=BLOCKED_SOURCE_AUDIO_NOT_FOUND" 33
-
-  fixture_root="${HAZEWAVE_CREATIVE_FIXTURE_ROOT:-${HOME}/.local/state/hazewave-codespace/creative-fixtures}"
-  [ -d "$fixture_root" ] || die "VERTICAL_PROOF=BLOCKED_FIXTURE_ROOT_MISSING" 34
+  fixture_root="$BRIDGE_ROOT/fixtures"
+  mkdir -p "$fixture_root"
+  chmod 700 "$fixture_root"
 
   CANDIDATE_HEAD="$(git rev-parse HEAD)"
   POLICY_DIGEST="$(sha256sum "$REPO_ROOT/config/project-profile-v2.json" | awk '{print $1}')"
   RUNTIME_IDENTITY="codespace:${CODESPACE_NAME:-$(hostname)}"
   proof_id="$(python -c 'import uuid; print("vertical-" + uuid.uuid4().hex)')"
+  source_audio="$fixture_root/${proof_id}.wav"
+
+  sox -n -r 48000 -c 2 -b 24 "$source_audio" synth 2 sine 220 vol 0.12
+  [ -s "$source_audio" ] || die "VERTICAL_PROOF=BLOCKED_FIXTURE_AUDIO_EMPTY" 33
+
+  cleanup_fixture() {
+    local original_status=$? cleanup_status=0 cleanup_request
+    trap - EXIT
+    set +e
+    if [ "$fixture_opened" = "1" ]; then
+      cleanup_request="${proof_id}-fixture-close-cleanup"
+      python -m hazewave.creative_cli fixture-close \
+        --task-id "${proof_id}-fixture-close-cleanup" \
+        --request-id "$cleanup_request" \
+        --idempotency-key "$cleanup_request" \
+        --timeout-seconds 30
+      cleanup_status=$?
+      if [ "$cleanup_status" -ne 0 ]; then
+        echo "VERTICAL_PROOF_FIXTURE_CLEANUP=FAIL"
+        if [ "$original_status" -eq 0 ]; then
+          original_status=44
+        fi
+      else
+        echo "VERTICAL_PROOF_FIXTURE_CLEANUP=PASS"
+      fi
+    fi
+    exit "$original_status"
+  }
+  trap cleanup_fixture EXIT
+
+  open_request="${proof_id}-fixture-open"
+  python -m hazewave.creative_cli fixture-open \
+    --fixture-id "$proof_id" \
+    --task-id "${proof_id}-fixture-open" \
+    --request-id "$open_request" \
+    --idempotency-key "$open_request" \
+    --timeout-seconds 30
+  fixture_opened=1
 
   python -m hazewave.creative_cli vertical-proof \
     --source-audio "$source_audio" \
@@ -96,7 +135,17 @@ cmd_vertical_proof() {
     --runtime-identity "$RUNTIME_IDENTITY" \
     --tape-echo-version "1.0.8"
 
+  close_request="${proof_id}-fixture-close"
+  python -m hazewave.creative_cli fixture-close \
+    --task-id "${proof_id}-fixture-close" \
+    --request-id "$close_request" \
+    --idempotency-key "$close_request" \
+    --timeout-seconds 30
+  fixture_opened=0
+  trap - EXIT
+
   echo "LIVE_REAPER_PROOF=PASS"
+  echo "FIXTURE_PROJECT_CLOSED=PASS"
   echo "HUMAN_APPROVAL=REQUIRED"
 }
 
