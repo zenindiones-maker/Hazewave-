@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 import json
 import os
+import re
 from pathlib import Path
 import tempfile
 from typing import Any, Final, Mapping
@@ -21,6 +22,8 @@ REAPER_OPERATION_ALLOWLIST: Final[frozenset[str]] = frozenset(
         "session.inspect",
         "session.checkpoint",
         "session.rollback",
+        "session.fixture.open",
+        "session.fixture.close",
         "arrangement.structure",
         "arrangement.marker",
         "arrangement.region",
@@ -309,6 +312,27 @@ def build_reaper_request(
         caller_path_keys = {"path", "output_path", "render_path", "destination", "directory"}
         if caller_path_keys.intersection(arguments):
             raise ReaperBridgeError("REAPER_RENDER_PATH_CALLER_CONTROLLED")
+    if operation == "session.fixture.open":
+        forbidden_fixture_keys = {
+            "path",
+            "project_path",
+            "fixture_path",
+            "output_path",
+            "destination",
+            "directory",
+        }
+        if forbidden_fixture_keys.intersection(arguments):
+            raise ReaperBridgeError("REAPER_FIXTURE_PATH_CALLER_CONTROLLED")
+        if set(arguments) != {"fixture_id"}:
+            raise ReaperBridgeError("REAPER_FIXTURE_ARGUMENTS_INVALID")
+        fixture_id = arguments.get("fixture_id")
+        if (
+            not isinstance(fixture_id, str)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", fixture_id)
+        ):
+            raise ReaperBridgeError("REAPER_FIXTURE_ID_INVALID")
+    if operation == "session.fixture.close" and arguments:
+        raise ReaperBridgeError("REAPER_FIXTURE_CLOSE_ARGUMENTS_FORBIDDEN")
     if operation == "session.rollback":
         expected_undo = arguments.get("expected_undo_description")
         if not isinstance(expected_undo, str) or not expected_undo.strip():
