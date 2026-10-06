@@ -57,6 +57,39 @@ class CreativeBridgeClient:
             raise CreativeControlError("REAPER_HEARTBEAT_PROJECT_STATE_MISSING")
         return payload, identity, state
 
+    def _wait_for_project_identity(
+        self,
+        expected_identity: str,
+        timeout_seconds: float,
+    ) -> dict[str, Any]:
+        if timeout_seconds <= 0 or timeout_seconds > 300:
+            raise CreativeControlError("REAPER_CONTEXT_SWITCH_TIMEOUT_INVALID")
+        expected = str(expected_identity or "").strip()
+        if not expected:
+            raise CreativeControlError("REAPER_CONTEXT_SWITCH_IDENTITY_REQUIRED")
+
+        deadline = time.monotonic() + timeout_seconds
+        last_error: ReaperBridgeError | None = None
+        while True:
+            try:
+                payload = self.heartbeat.require_fresh()
+                last_error = None
+            except ReaperBridgeError as exc:
+                last_error = exc
+                payload = {}
+
+            identity = payload.get("project_identity")
+            state = payload.get("project_state_change_count")
+            if identity == expected and isinstance(state, int) and state >= 0:
+                return dict(payload)
+
+            if time.monotonic() >= deadline:
+                detail = f":{last_error}" if last_error is not None else ""
+                raise CreativeControlError(
+                    f"REAPER_PROJECT_CONTEXT_SWITCH_TIMEOUT{detail}"
+                )
+            time.sleep(0.01)
+
     def doctor(self) -> dict[str, Any]:
         payload, identity, state = self._binding()
         return {
@@ -193,6 +226,107 @@ class CreativeBridgeClient:
             return ReaperProjectSnapshot.from_dict(snapshot_payload)
         except ReaperBridgeError as exc:
             raise CreativeControlError(f"REAPER_SNAPSHOT_INVALID:{exc}") from exc
+
+    def open_fixture(
+        self,
+        *,
+        fixture_id: str,
+        task_id: str,
+        request_id: str,
+        idempotency_key: str,
+        timeout_seconds: float = 30.0,
+    ) -> dict[str, Any]:
+        _, previous_identity, previous_state = self._binding()
+        response = self._submit_and_wait(
+            task_id=task_id,
+            request_id=request_id,
+            idempotency_key=idempotency_key,
+            operation="session.fixture.open",
+            arguments={"fixture_id": fixture_id},
+            expected_project_identity=previous_identity,
+            expected_project_state_change_count=previous_state,
+            deadline_seconds=min(timeout_seconds, 60.0),
+            timeout_seconds=timeout_seconds,
+        )
+        result = response.get("result")
+        if not isinstance(result, Mapping):
+            raise CreativeControlError("REAPER_FIXTURE_OPEN_RESULT_MALFORMED")
+        fixture_value = result.get("fixture_project")
+        previous_value = result.get("previous_project_identity")
+        if not isinstance(fixture_value, str) or not fixture_value.strip():
+            raise CreativeControlError("REAPER_FIXTURE_OPEN_RESULT_MALFORMED")
+        if previous_value != previous_identity:
+            raise CreativeControlError("REAPER_FIXTURE_PREVIOUS_IDENTITY_MISMATCH")
+
+        fixture_path = Path(fixture_value).expanduser().resolve()
+        fixture_root = (self.root / "fixtures").resolve()
+        try:
+            fixture_path.relative_to(fixture_root)
+        except ValueError as exc:
+            raise CreativeControlError("REAPER_FIXTURE_PROJECT_OUTSIDE_ROOT") from exc
+
+        binding = self._wait_for_project_identity(
+            str(fixture_path),
+            timeout_seconds,
+        )
+        return {
+            "schema": "FixtureSessionOpen/v1",
+            "authority": "HAZEWAVE_HARNESS",
+            "portfolio_authority": "NONE",
+            "fixture_id": fixture_id,
+            "fixture_project": str(fixture_path),
+            "previous_project_identity": previous_identity,
+            "project_state_change_count": binding["project_state_change_count"],
+        }
+
+    def close_fixture(
+        self,
+        *,
+        task_id: str,
+        request_id: str,
+        idempotency_key: str,
+        timeout_seconds: float = 30.0,
+    ) -> dict[str, Any]:
+        _, fixture_identity, fixture_state = self._binding()
+        fixture_path = Path(fixture_identity).expanduser().resolve()
+        fixture_root = (self.root / "fixtures").resolve()
+        try:
+            fixture_path.relative_to(fixture_root)
+        except ValueError as exc:
+            raise CreativeControlError(
+                "REAPER_FIXTURE_CLOSE_ACTIVE_PROJECT_OUTSIDE_ROOT"
+            ) from exc
+
+        response = self._submit_and_wait(
+            task_id=task_id,
+            request_id=request_id,
+            idempotency_key=idempotency_key,
+            operation="session.fixture.close",
+            arguments={},
+            expected_project_identity=fixture_identity,
+            expected_project_state_change_count=fixture_state,
+            deadline_seconds=min(timeout_seconds, 60.0),
+            timeout_seconds=timeout_seconds,
+        )
+        result = response.get("result")
+        if not isinstance(result, Mapping):
+            raise CreativeControlError("REAPER_FIXTURE_CLOSE_RESULT_MALFORMED")
+        restored = result.get("restored_project_identity")
+        closed = result.get("closed_fixture_project")
+        if not isinstance(restored, str) or not restored.strip():
+            raise CreativeControlError("REAPER_FIXTURE_CLOSE_RESULT_MALFORMED")
+        if closed != fixture_identity:
+            raise CreativeControlError("REAPER_FIXTURE_CLOSED_IDENTITY_MISMATCH")
+
+        binding = self._wait_for_project_identity(restored, timeout_seconds)
+        return {
+            "schema": "FixtureSessionClose/v1",
+            "authority": "HAZEWAVE_HARNESS",
+            "portfolio_authority": "NONE",
+            "closed_fixture_project": fixture_identity,
+            "restored_project_identity": restored,
+            "project_state_change_count": binding["project_state_change_count"],
+        }
 
     def _audition_from_render_response(
         self,
@@ -398,6 +532,17 @@ def main(argv: list[str] | None = None) -> int:
     snapshot_parser.add_argument("--idempotency-key", required=True)
     execute_parser = sub.add_parser("execute")
     execute_parser.add_argument("command_file", type=Path)
+    fixture_open_parser = sub.add_parser("fixture-open")
+    fixture_open_parser.add_argument("--fixture-id", required=True)
+    fixture_open_parser.add_argument("--task-id", default="creative-fixture-open")
+    fixture_open_parser.add_argument("--request-id", required=True)
+    fixture_open_parser.add_argument("--idempotency-key", required=True)
+    fixture_open_parser.add_argument("--timeout-seconds", type=float, default=30.0)
+    fixture_close_parser = sub.add_parser("fixture-close")
+    fixture_close_parser.add_argument("--task-id", default="creative-fixture-close")
+    fixture_close_parser.add_argument("--request-id", required=True)
+    fixture_close_parser.add_argument("--idempotency-key", required=True)
+    fixture_close_parser.add_argument("--timeout-seconds", type=float, default=30.0)
     render_parser = sub.add_parser("render-preview")
     render_parser.add_argument("--task-id", default="creative-render-preview")
     render_parser.add_argument("--request-id", required=True)
@@ -429,6 +574,27 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "execute":
             _print_json(client.execute_command(args.command_file))
+            return 0
+        if args.command == "fixture-open":
+            _print_json(
+                client.open_fixture(
+                    fixture_id=args.fixture_id,
+                    task_id=args.task_id,
+                    request_id=args.request_id,
+                    idempotency_key=args.idempotency_key,
+                    timeout_seconds=args.timeout_seconds,
+                )
+            )
+            return 0
+        if args.command == "fixture-close":
+            _print_json(
+                client.close_fixture(
+                    task_id=args.task_id,
+                    request_id=args.request_id,
+                    idempotency_key=args.idempotency_key,
+                    timeout_seconds=args.timeout_seconds,
+                )
+            )
             return 0
         if args.command == "render-preview":
             _print_json(
