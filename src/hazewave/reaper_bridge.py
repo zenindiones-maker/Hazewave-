@@ -11,6 +11,10 @@ import tempfile
 from typing import Any, Final, Mapping
 
 from hazewave.harness import HAZE, HazewaveAuthorization, validate_authorization
+from hazewave.reaper_professional_surface import (
+    DIRECT_REAPER_CAPABILITIES,
+    INTERNAL_REAPER_OPERATIONS,
+)
 
 
 REAPER_REQUEST_SCHEMA: Final = "ReaperExecutionRequest/v1"
@@ -18,57 +22,7 @@ REAPER_RESPONSE_SCHEMA: Final = "ReaperExecutionResponse/v1"
 REAPER_HEARTBEAT_SCHEMA: Final = "ReaperBridgeHeartbeat/v1"
 
 REAPER_OPERATION_ALLOWLIST: Final[frozenset[str]] = frozenset(
-    {
-        "session.inspect",
-        "session.checkpoint",
-        "session.rollback",
-        "session.fixture.open",
-        "session.fixture.close",
-        "arrangement.structure",
-        "arrangement.marker",
-        "arrangement.region",
-        "audio.import",
-        "audio.edit",
-        "audio.split",
-        "audio.trim",
-        "audio.fade",
-        "audio.align",
-        "audio.time_stretch",
-        "audio.pitch",
-        "track.create",
-        "track.configure",
-        "track.folder",
-        "routing.bus",
-        "routing.send",
-        "routing.sidechain",
-        "routing.parallel",
-        "fx.inventory",
-        "fx.add",
-        "fx.remove",
-        "fx.bypass",
-        "fx.preset",
-        "fx.parameter.read",
-        "fx.parameter.write",
-        "fx.automation",
-        "mix.gainstage",
-        "mix.balance",
-        "mix.eq",
-        "mix.dynamics",
-        "mix.saturation",
-        "mix.spatial",
-        "mix.delay",
-        "mix.reverb",
-        "mix.automation",
-        "master.prepare",
-        "master.process",
-        "master.render",
-        "render.preview",
-        "render.stems",
-        "render.master",
-        "audio.analyze",
-        "audio.compare",
-        "audio.qc",
-    }
+    (*DIRECT_REAPER_CAPABILITIES, *INTERNAL_REAPER_OPERATIONS)
 )
 
 REAPER_READ_ONLY_OPERATIONS: Final[frozenset[str]] = frozenset(
