@@ -18,6 +18,28 @@ Runner = Callable[[list[str]], subprocess.CompletedProcess[str]]
 
 
 @dataclass(frozen=True)
+class VisualAnomalyInterval:
+    kind: str
+    start_seconds: float
+    end_seconds: float
+    duration_seconds: float
+    schema: str = "VisualAnomalyInterval/v1"
+
+    def __post_init__(self) -> None:
+        if self.kind not in {"BLACK", "FREEZE"}:
+            raise VideoQCError("VIDEO_QC_VISUAL_ANOMALY_KIND_INVALID")
+        if (
+            self.start_seconds < 0
+            or self.end_seconds < self.start_seconds
+            or self.duration_seconds < 0
+        ):
+            raise VideoQCError("VIDEO_QC_VISUAL_ANOMALY_RANGE_INVALID")
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
 class VideoQCReport:
     output_path: str
     output_sha256: str
@@ -38,6 +60,11 @@ class VideoQCReport:
     av_duration_delta_seconds: float
     encode_integrity: str
     technical_flags: tuple[str, ...]
+    black_intervals: tuple[VisualAnomalyInterval, ...] = ()
+    freeze_intervals: tuple[VisualAnomalyInterval, ...] = ()
+    black_duration_seconds: float = 0.0
+    freeze_duration_seconds: float = 0.0
+    visual_anomaly_count: int = 0
     reference_quality: Mapping[str, object] | None = None
     artistic_verdict: str = "NOT_ASSIGNED"
     schema: str = "VideoQCReport/v1"
@@ -45,6 +72,8 @@ class VideoQCReport:
     def to_dict(self) -> dict[str, object]:
         value = asdict(self)
         value["technical_flags"] = list(self.technical_flags)
+        value["black_intervals"] = [item.to_dict() for item in self.black_intervals]
+        value["freeze_intervals"] = [item.to_dict() for item in self.freeze_intervals]
         if self.reference_quality is not None:
             value["reference_quality"] = dict(self.reference_quality)
         return value
@@ -182,6 +211,177 @@ def parse_reference_quality_metrics(text: str) -> dict[str, object]:
     if result["vmaf"] is None and result["ssim"] is None and result["psnr_db"] is None:
         raise VideoQCError("VIDEO_QC_REFERENCE_METRICS_MISSING")
     return result
+
+
+def parse_blackdetect_log(text: str) -> tuple[VisualAnomalyInterval, ...]:
+    if not isinstance(text, str):
+        raise VideoQCError("VIDEO_QC_BLACKDETECT_LOG_MALFORMED")
+
+    pattern = re.compile(
+        r"black_start:\s*([0-9]+(?:\.[0-9]+)?)\s+"
+        r"black_end:\s*([0-9]+(?:\.[0-9]+)?)\s+"
+        r"black_duration:\s*([0-9]+(?:\.[0-9]+)?)",
+        flags=re.IGNORECASE,
+    )
+    intervals: list[VisualAnomalyInterval] = []
+    for match in pattern.finditer(text):
+        start = float(match.group(1))
+        end = float(match.group(2))
+        duration = float(match.group(3))
+        if end < start:
+            raise VideoQCError("VIDEO_QC_BLACKDETECT_LOG_MALFORMED")
+        intervals.append(
+            VisualAnomalyInterval(
+                kind="BLACK",
+                start_seconds=start,
+                end_seconds=end,
+                duration_seconds=duration,
+            )
+        )
+    return tuple(intervals)
+
+
+def parse_freezedetect_log(
+    text: str,
+    *,
+    media_duration_seconds: float,
+) -> tuple[VisualAnomalyInterval, ...]:
+    if not isinstance(text, str) or media_duration_seconds < 0:
+        raise VideoQCError("VIDEO_QC_FREEZEDETECT_LOG_MALFORMED")
+
+    start_re = re.compile(
+        r"lavfi\.freezedetect\.freeze_start:\s*([0-9]+(?:\.[0-9]+)?)",
+        flags=re.IGNORECASE,
+    )
+    duration_re = re.compile(
+        r"lavfi\.freezedetect\.freeze_duration:\s*([0-9]+(?:\.[0-9]+)?)",
+        flags=re.IGNORECASE,
+    )
+    end_re = re.compile(
+        r"lavfi\.freezedetect\.freeze_end:\s*([0-9]+(?:\.[0-9]+)?)",
+        flags=re.IGNORECASE,
+    )
+
+    intervals: list[VisualAnomalyInterval] = []
+    current_start: float | None = None
+    current_duration: float | None = None
+
+    for line in text.splitlines():
+        start_match = start_re.search(line)
+        if start_match is not None:
+            if current_start is not None:
+                end = media_duration_seconds
+                if end < current_start:
+                    raise VideoQCError("VIDEO_QC_FREEZEDETECT_LOG_MALFORMED")
+                intervals.append(
+                    VisualAnomalyInterval(
+                        kind="FREEZE",
+                        start_seconds=current_start,
+                        end_seconds=end,
+                        duration_seconds=end - current_start,
+                    )
+                )
+            current_start = float(start_match.group(1))
+            current_duration = None
+            continue
+
+        duration_match = duration_re.search(line)
+        if duration_match is not None and current_start is not None:
+            current_duration = float(duration_match.group(1))
+            continue
+
+        end_match = end_re.search(line)
+        if end_match is not None and current_start is not None:
+            end = float(end_match.group(1))
+            if end < current_start:
+                raise VideoQCError("VIDEO_QC_FREEZEDETECT_LOG_MALFORMED")
+            duration = (
+                current_duration
+                if current_duration is not None
+                else end - current_start
+            )
+            intervals.append(
+                VisualAnomalyInterval(
+                    kind="FREEZE",
+                    start_seconds=current_start,
+                    end_seconds=end,
+                    duration_seconds=duration,
+                )
+            )
+            current_start = None
+            current_duration = None
+
+    if current_start is not None:
+        if media_duration_seconds < current_start:
+            raise VideoQCError("VIDEO_QC_FREEZEDETECT_LOG_MALFORMED")
+        intervals.append(
+            VisualAnomalyInterval(
+                kind="FREEZE",
+                start_seconds=current_start,
+                end_seconds=media_duration_seconds,
+                duration_seconds=media_duration_seconds - current_start,
+            )
+        )
+
+    return tuple(intervals)
+
+
+def _scan_visual_anomalies(
+    path: Path,
+    *,
+    duration_seconds: float,
+    runner: Runner,
+) -> tuple[
+    tuple[VisualAnomalyInterval, ...],
+    tuple[VisualAnomalyInterval, ...],
+]:
+    black = _run_checked(
+        runner,
+        [
+            "ffmpeg",
+            "-nostdin",
+            "-hide_banner",
+            "-v",
+            "info",
+            "-i",
+            str(path),
+            "-vf",
+            "blackdetect=d=0.100:pic_th=0.980:pix_th=0.100",
+            "-an",
+            "-f",
+            "null",
+            "-",
+        ],
+        code="VIDEO_QC_BLACKDETECT_FAILED",
+    )
+    black_intervals = parse_blackdetect_log(
+        (black.stderr or "") + "\n" + (black.stdout or "")
+    )
+
+    freeze = _run_checked(
+        runner,
+        [
+            "ffmpeg",
+            "-nostdin",
+            "-hide_banner",
+            "-v",
+            "info",
+            "-i",
+            str(path),
+            "-vf",
+            "freezedetect=n=-60dB:d=2.000",
+            "-an",
+            "-f",
+            "null",
+            "-",
+        ],
+        code="VIDEO_QC_FREEZEDETECT_FAILED",
+    )
+    freeze_intervals = parse_freezedetect_log(
+        (freeze.stderr or "") + "\n" + (freeze.stdout or ""),
+        media_duration_seconds=duration_seconds,
+    )
+    return black_intervals, freeze_intervals
 
 
 def _probe(
@@ -347,6 +547,18 @@ def analyze_video_qc(
     ):
         flags.append("COLOR_METADATA_AMBIGUOUS")
 
+    black_intervals, freeze_intervals = _scan_visual_anomalies(
+        path,
+        duration_seconds=format_duration,
+        runner=execute,
+    )
+    black_duration = sum(item.duration_seconds for item in black_intervals)
+    freeze_duration = sum(item.duration_seconds for item in freeze_intervals)
+    if black_intervals:
+        flags.append("BLACK_INTERVALS_DETECTED")
+    if freeze_intervals:
+        flags.append("FROZEN_INTERVALS_DETECTED")
+
     reference_quality: dict[str, object] | None = None
     if reference is not None:
         reference_quality = _reference_metrics(
@@ -375,5 +587,10 @@ def analyze_video_qc(
         av_duration_delta_seconds=av_delta,
         encode_integrity="PASS",
         technical_flags=tuple(flags),
+        black_intervals=black_intervals,
+        freeze_intervals=freeze_intervals,
+        black_duration_seconds=black_duration,
+        freeze_duration_seconds=freeze_duration,
+        visual_anomaly_count=len(black_intervals) + len(freeze_intervals),
         reference_quality=reference_quality,
     )
