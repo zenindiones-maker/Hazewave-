@@ -320,3 +320,83 @@ def test_cartoon_live_proof_refuses_existing_proof_directory(tmp_path: Path) -> 
             proof_id="cartoon-proof-001",
             haze_audio=audio,
         )
+
+
+def test_cartoon_live_proof_cli_constructs_real_executor_and_prints_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import hazewave.cartoon_live_proof as module
+
+    audio = tmp_path / "haze.wav"
+    audio.write_bytes(b"RIFF-haze")
+    adapter = tmp_path / "adapter.py"
+    adapter.write_text("# adapter\n", encoding="utf-8")
+    blender_binary = tmp_path / "blender"
+    blender_binary.write_text("#!/bin/sh\n", encoding="utf-8")
+
+    captured: dict[str, object] = {}
+    fake_executor = object()
+
+    class FakeExecutor:
+        def __init__(self, **kwargs):
+            captured["executor"] = kwargs
+
+    class FakeRunner:
+        def __init__(self, **kwargs):
+            captured["runner"] = kwargs
+
+        def run(self, *, proof_id, haze_audio):
+            captured["run"] = {
+                "proof_id": proof_id,
+                "haze_audio": haze_audio,
+            }
+            return {
+                "schema": "CartoonLiveProof/v1",
+                "status": "PASS",
+                "human_owner_review": "REQUIRED",
+            }
+
+    monkeypatch.setattr(module, "BlenderCLIExecutor", FakeExecutor, raising=False)
+    monkeypatch.setattr(module, "CartoonLiveProofRunner", FakeRunner)
+
+    rc = module.main(
+        [
+            "--blender-root",
+            str(tmp_path / "blender-root"),
+            "--proof-root",
+            str(tmp_path / "proof-root"),
+            "--blender-binary",
+            str(blender_binary),
+            "--adapter-script",
+            str(adapter),
+            "--haze-audio",
+            str(audio),
+            "--proof-id",
+            "cartoon-proof-001",
+            "--candidate-head",
+            "candidate-sha",
+            "--policy-digest",
+            "policy-sha",
+            "--runtime-identity",
+            "codespace:fixture",
+        ]
+    )
+
+    assert rc == 0
+    assert captured["executor"] == {
+        "root": (tmp_path / "blender-root" / "execution"),
+        "blender_binary": blender_binary,
+        "adapter_script": adapter,
+    }
+    assert captured["runner"]["blender_executor"].__class__ is FakeExecutor
+    assert captured["runner"]["blender_root"] == tmp_path / "blender-root"
+    assert captured["runner"]["proof_root"] == tmp_path / "proof-root"
+    assert captured["run"] == {
+        "proof_id": "cartoon-proof-001",
+        "haze_audio": audio,
+    }
+    output = capsys.readouterr().out
+    assert '"schema": "CartoonLiveProof/v1"' in output
+    assert '"status": "PASS"' in output
