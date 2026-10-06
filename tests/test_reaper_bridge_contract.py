@@ -220,3 +220,134 @@ def test_capability_domain_authorization_is_enforced() -> None:
             issued_at=now,
             deadline=now + timedelta(seconds=10),
         )
+
+
+def test_project_snapshot_parses_full_professional_state_contract() -> None:
+    snapshot = ReaperProjectSnapshot.from_dict(
+        {
+            "schema": "ReaperProjectSnapshot/v1",
+            "project_identity": "/tmp/fixture.rpp",
+            "project_path": "/tmp/fixture.rpp",
+            "project_state_change_count": 14,
+            "dirty": True,
+            "sample_rate": 48000,
+            "tempo": 78.0,
+            "time_signature": {"numerator": 4, "denominator": 4},
+            "project_length": 125.5,
+            "markers": [{"id": 1, "name": "Intro", "position": 0.0}],
+            "regions": [{"id": 2, "name": "Verse", "start": 8.0, "end": 40.0}],
+            "tracks": [
+                {
+                    "guid": "{TRACK-1}",
+                    "name": "Vocal",
+                    "index": 0,
+                    "volume": 1.0,
+                    "pan": 0.0,
+                    "width": 1.0,
+                    "mute": False,
+                    "solo": False,
+                    "record_arm": False,
+                    "folder_depth": 0,
+                    "channel_count": 2,
+                }
+            ],
+            "items": [
+                {
+                    "guid": "{ITEM-1}",
+                    "track_guid": "{TRACK-1}",
+                    "position": 0.0,
+                    "length": 4.0,
+                    "fade_in": 0.01,
+                    "fade_out": 0.01,
+                    "mute": False,
+                    "takes": [
+                        {
+                            "guid": "{TAKE-1}",
+                            "source": "/tmp/a.wav",
+                            "gain": 1.0,
+                            "pitch": 0.0,
+                            "rate": 1.0,
+                        }
+                    ],
+                }
+            ],
+            "routing": [
+                {
+                    "source_track_guid": "{TRACK-1}",
+                    "destination_track_guid": "{BUS-1}",
+                    "source_channels": 0,
+                    "destination_channels": 0,
+                    "gain": 1.0,
+                    "pan": 0.0,
+                    "mute": False,
+                    "mode": 0,
+                }
+            ],
+            "fx": [
+                {
+                    "track_guid": "{TRACK-1}",
+                    "fx_guid": "{FX-1}",
+                    "name": "Tape Echo 2",
+                    "vendor": "unknown",
+                    "enabled": True,
+                    "offline": False,
+                    "preset": "",
+                    "parameters": [
+                        {
+                            "index": 0,
+                            "name": "Mix",
+                            "value": 0.5,
+                            "min": 0.0,
+                            "max": 1.0,
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+
+    assert snapshot.sample_rate == 48000
+    assert snapshot.tempo == 78.0
+    assert snapshot.time_signature == {"numerator": 4, "denominator": 4}
+    assert snapshot.tracks[0]["guid"] == "{TRACK-1}"
+    assert snapshot.items[0]["takes"][0]["source"] == "/tmp/a.wav"
+    assert snapshot.fx[0]["name"] == "Tape Echo 2"
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [
+        "sample_rate",
+        "tempo",
+        "time_signature",
+        "project_length",
+        "markers",
+        "regions",
+        "tracks",
+        "items",
+        "routing",
+        "fx",
+    ],
+)
+def test_full_snapshot_fails_closed_when_required_surface_is_missing(missing: str) -> None:
+    payload = {
+        "schema": "ReaperProjectSnapshot/v1",
+        "project_identity": "/tmp/fixture.rpp",
+        "project_path": "/tmp/fixture.rpp",
+        "project_state_change_count": 14,
+        "dirty": False,
+        "sample_rate": 48000,
+        "tempo": 120.0,
+        "time_signature": {"numerator": 4, "denominator": 4},
+        "project_length": 10.0,
+        "markers": [],
+        "regions": [],
+        "tracks": [],
+        "items": [],
+        "routing": [],
+        "fx": [],
+    }
+    payload.pop(missing)
+
+    with pytest.raises(ReaperBridgeError, match="REAPER_SNAPSHOT_MALFORMED"):
+        ReaperProjectSnapshot.from_dict(payload)
