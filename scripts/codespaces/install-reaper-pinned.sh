@@ -56,7 +56,7 @@ SIZE_BYTES="$(stat -c '%s' "$TMP/$REAPER_ARCHIVE")"
 }
 
 tar -tf "$TMP/$REAPER_ARCHIVE" |
-  grep -Eq '(^|\\./)reaper_linux_x86_64/REAPER/reaper || {
+  grep -Eq '(^|\\./)reaper_linux_x86_64/REAPER/reaper$' || {
     echo "REAPER_ARCHIVE=BLOCKED_UNEXPECTED_LAYOUT"
     exit 23
   }
