@@ -84,11 +84,11 @@ def _without_managed_block(text: str) -> str:
 
 
 def _desired_startup(existing: str) -> str:
-    remaining = _without_managed_block(existing)
-    if remaining and not remaining.endswith("\n"):
-        remaining += "\n"
+    remaining = _without_managed_block(existing).rstrip("\n")
     if remaining.strip():
-        remaining += "\n"
+        remaining += "\n\n"
+    else:
+        remaining = ""
     return remaining + _autostart_block()
 
 
