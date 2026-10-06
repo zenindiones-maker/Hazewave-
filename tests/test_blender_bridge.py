@@ -411,3 +411,74 @@ def test_cli_executor_loads_existing_blend_for_shot_and_frame_operations(tmp_pat
         )
         prepared = executor.prepare(request, blend_path=blend)
         assert prepared.command[2] == str(blend.resolve())
+
+
+def test_animation_frame_repair_request_is_bounded_to_existing_render_id() -> None:
+    now = datetime.now(timezone.utc)
+    request = build_blender_request(
+        authorization=_authorization("animation.render.frames.repair"),
+        request_id="repair-frames-001",
+        idempotency_key="repair-frames-001",
+        operation="animation.render.frames.repair",
+        arguments={
+            "render_id": "shot-001-v1",
+            "frame_numbers": [6, 7, 8],
+            "format": "PNG",
+        },
+        expected_blender_version="5.2.2",
+        expected_scene_identity="cartoon-fixture",
+        expected_blend_sha256="f" * 64,
+        seed=42,
+        issued_at=now,
+        deadline=now + timedelta(seconds=120),
+    )
+
+    assert request.arguments["frame_numbers"] == [6, 7, 8]
+    assert "output_path" not in request.arguments
+
+
+@pytest.mark.parametrize(
+    "arguments,code",
+    [
+        (
+            {"render_id": "shot-001-v1", "frame_numbers": [], "format": "PNG"},
+            "BLENDER_FRAME_REPAIR_RANGE_INVALID",
+        ),
+        (
+            {"render_id": "shot-001-v1", "frame_numbers": [6, 6], "format": "PNG"},
+            "BLENDER_FRAME_REPAIR_RANGE_INVALID",
+        ),
+        (
+            {"render_id": "../escape", "frame_numbers": [6], "format": "PNG"},
+            "BLENDER_RENDER_ID_INVALID",
+        ),
+        (
+            {
+                "render_id": "shot-001-v1",
+                "frame_numbers": [6],
+                "format": "PNG",
+                "output_path": "/tmp/escape",
+            },
+            "BLENDER_FRAME_REPAIR_ARGUMENTS_INVALID",
+        ),
+    ],
+)
+def test_animation_frame_repair_rejects_unsafe_contract(
+    arguments: dict,
+    code: str,
+) -> None:
+    now = datetime.now(timezone.utc)
+    with pytest.raises(BlenderBridgeError, match=code):
+        build_blender_request(
+            authorization=_authorization("animation.render.frames.repair"),
+            request_id="repair-bad",
+            idempotency_key="repair-bad",
+            operation="animation.render.frames.repair",
+            arguments=arguments,
+            expected_blender_version="5.2.2",
+            expected_scene_identity="cartoon-fixture",
+            expected_blend_sha256="f" * 64,
+            seed=42,
+            issued_at=now,
+            deadline=now + timedelta(seconds=120),
+        )
