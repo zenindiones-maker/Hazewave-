@@ -86,3 +86,22 @@ def test_lua_bridge_render_preview_is_bounded_verified_and_restores_settings() -
     assert "REAPER_RENDER_OUTPUT_MISSING" in text
     assert "REAPER_RENDER_OUTPUT_EMPTY" in text
     assert '["render.preview"] = true' in text
+
+
+def test_lua_bridge_fixture_session_uses_isolated_project_tab_and_owned_root() -> None:
+    text = BRIDGE.read_text(encoding="utf-8")
+
+    assert 'handlers["session.fixture.open"]' in text
+    assert 'handlers["session.fixture.close"]' in text
+    assert "fixture_root" in text
+    assert "40859" in text
+    assert "40860" in text
+    assert "reaper.kbd_getTextFromCmd" in text
+    assert "REAPER_FIXTURE_NEW_TAB_ACTION_MISMATCH" in text
+    assert "REAPER_FIXTURE_CLOSE_TAB_ACTION_MISMATCH" in text
+    assert "reaper.Main_SaveProjectEx" in text
+    assert "reaper.Main_SaveProject" in text
+    assert "fixture_session" in text
+    assert "context_switch_operations" in text
+    assert '["session.fixture.open"] = true' in text
+    assert '["session.fixture.close"] = true' in text
