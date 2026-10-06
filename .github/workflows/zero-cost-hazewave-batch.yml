@@ -1,10 +1,10 @@
-name: Zero-Cost Hazewave Batch
+name: Professional Zero-Cost Hazewave Batch
 
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Free batch operation
+        description: Zero-cost Hazewave operation
         required: true
         default: validate
         type: choice
@@ -21,34 +21,39 @@ permissions:
   contents: read
 
 concurrency:
-  group: zero-cost-hazewave-${{ github.run_id }}
-  cancel-in-progress: false
+  group: hazewave-zero-cost-${{ github.ref }}-${{ inputs.mode }}
+  cancel-in-progress: true
 
 jobs:
-  free-standard-runner:
+  standard-public-runner:
     if: ${{ github.event.repository.private == false }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
     steps:
       - name: Checkout exact requested ref
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
 
-      - name: Enforce zero-cost/public repository boundary
+      - name: Enforce zero-cost boundary
         run: |
           set -euo pipefail
           test "${{ github.event.repository.private }}" = "false"
+          echo "PROJECT=HAZEWAVE"
           echo "REPOSITORY_VISIBILITY=PUBLIC"
           echo "RUNNER_CLASS=GITHUB_HOSTED_STANDARD"
+          echo "RUNNER_LABEL=ubuntu-24.04"
+          echo "LARGER_RUNNER=FALSE"
           echo "PAID_FALLBACK=FALSE"
           echo "UNKNOWN_COST_FALLBACK=FALSE"
+          echo "LARGE_MEDIA_ARTIFACT_UPLOAD=DISABLED"
 
-      - name: Install free batch dependencies
+      - name: Install deterministic QC dependencies
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y ffmpeg sox libsox-fmt-all python3-venv
+          sudo apt-get install -y --no-install-recommends             ffmpeg             sox             libsox-fmt-all             python3-venv
           python3 -m venv .venv
           .venv/bin/python -m pip install --upgrade pip
           .venv/bin/python -m pip install -e ".[dev]"
@@ -60,26 +65,50 @@ jobs:
           .venv/bin/python -m compileall -q src
           .venv/bin/python scripts/validate_repository_contracts.py
           .venv/bin/python -m pytest
+          echo "HAZEWAVE_VALIDATE=PASS"
 
-      - name: Audio QC
+      - name: Professional audio QC
         if: ${{ inputs.mode == 'audio-qc' }}
         env:
           MEDIA_ROOT: ${{ inputs.media_root }}
         run: |
           set -euo pipefail
+
           case "${MEDIA_ROOT}" in
-            /*|*..*) echo "MEDIA_ROOT=BLOCKED_INVALID_PATH"; exit 20 ;;
+            /*|*..*)
+              echo "MEDIA_ROOT=BLOCKED_INVALID_PATH"
+              exit 20
+              ;;
           esac
-          test -d "${MEDIA_ROOT}" || {
+
+          if [ ! -d "${MEDIA_ROOT}" ]; then
             echo "AUDIO_QC=WAIT_NO_MEDIA_ROOT"
             exit 0
-          }
+          fi
+
           count=0
           while IFS= read -r -d '' file; do
+            echo "============================================================"
             echo "AUDIO_FILE=${file}"
-            ffprobe -v error -show_entries format=duration,format_name -of json "${file}"
+            sha256sum "${file}"
+
+            echo "--- FFPROBE ---"
+            ffprobe -v error               -show_entries format=duration,format_name,bit_rate               -show_entries stream=index,codec_name,codec_type,sample_rate,channels,channel_layout               -of json               "${file}"
+
+            echo "--- SOX INFO ---"
             sox --i "${file}"
+
+            echo "--- EBU R128 / TRUE PEAK ---"
+            ffmpeg -hide_banner -nostats -i "${file}"               -filter_complex "ebur128=peak=true"               -f null - 2>&1
+
+            echo "--- AUDIO STATS ---"
+            ffmpeg -hide_banner -nostats -i "${file}"               -af "astats=metadata=1:reset=0"               -f null - 2>&1
+
             count=$((count+1))
-          done < <(find "${MEDIA_ROOT}" -type f \( -iname '*.wav' -o -iname '*.flac' \) -print0)
+          done < <(
+            find "${MEDIA_ROOT}" -type f               \( -iname '*.wav' -o -iname '*.flac' -o -iname '*.aiff' -o -iname '*.aif' \)               -print0
+          )
+
           echo "AUDIO_QC_FILES=${count}"
           echo "AUDIO_QC=PASS"
+          echo "LARGE_MEDIA_ARTIFACT_UPLOAD=DISABLED"
