@@ -24,3 +24,11 @@ def test_creative_plane_control_exposes_required_producer_commands() -> None:
         "open",
     ):
         assert command in text
+
+
+def test_termux_execute_and_audition_forward_one_bounded_argument() -> None:
+    text = CONTROL.read_text(encoding="utf-8")
+
+    assert 'execute) cmd_creative_remote execute "${2:-}" ;;' in text
+    assert 'audition) cmd_creative_remote audition "${2:-}" ;;' in text
+    assert 'printf -v remote_arg' in text
