@@ -15,7 +15,7 @@ if [[ "${CODESPACES:-}" != "true" ]]; then
   exit 20
 fi
 
-for cmd in xpra curl ss xfce4-session reaper; do
+for cmd in xpra curl ss xfce4-session; do
   command -v "$cmd" >/dev/null 2>&1 || {
     echo "HAZEWAVE_PRO=BLOCKED_MISSING_$cmd"
     exit 21
@@ -33,13 +33,28 @@ mkdir -p "$STATE_ROOT" "$SCRATCH" "$CACHE" "$SOCKET_DIR"
 chmod 700 "$RUNTIME" "$SOCKET_DIR"
 export XDG_RUNTIME_DIR="$RUNTIME"
 
-REAPER_BIN="$(command -v reaper)"
+REAPER_BIN="${HOME}/.local/bin/reaper"
 EXPECTED_REAPER="${HOME}/.local/opt/reaper/7.82/REAPER/reaper"
+[[ -x "$REAPER_BIN" ]] || {
+  echo "REAPER_PRIMARY=BLOCKED_NOT_INSTALLED"
+  exit 23
+}
 [[ "$(readlink -f "$REAPER_BIN")" == "$EXPECTED_REAPER" ]] || {
   echo "REAPER_PRIMARY=BLOCKED_UNEXPECTED_BINARY"
   echo "EXPECTED=$EXPECTED_REAPER"
   echo "ACTUAL=$(readlink -f "$REAPER_BIN")"
-  exit 23
+  exit 24
+}
+
+ASOUNDRC="${HOME}/.asoundrc"
+[[ -f "$ASOUNDRC" ]] || {
+  echo "REAPER_AUDIO_BRIDGE=BLOCKED_MISSING_ASOUNDRC"
+  exit 25
+}
+
+grep -q "type pulse" "$ASOUNDRC" || {
+  echo "REAPER_AUDIO_BRIDGE=BLOCKED_NOT_PULSE"
+  exit 26
 }
 
 session_live() {
@@ -93,20 +108,21 @@ done
 if ! http_live; then
   echo "XPRA_HTML5=FAIL"
   tail -n 80 "$LOG_FILE" 2>/dev/null || true
-  exit 24
+  exit 27
 fi
 
 LISTEN_LINE="$(ss -ltn 2>/dev/null | awk -v p=":${PORT}" '$4 ~ p"$" {print $4; exit}')"
 [[ "$LISTEN_LINE" == "127.0.0.1:${PORT}" ]] || {
   echo "XPRA_BIND=FAIL"
   echo "LISTEN=${LISTEN_LINE:-NONE}"
-  exit 25
+  exit 28
 }
 
 echo "HAZEWAVE_PRO_DESKTOP=PASS"
 echo "WORKSTATION_ROLE=HAZE_AUDIO_REAPER"
 echo "REAPER_PRIMARY=PASS"
 echo "REAPER_VERSION_PIN=7.82"
+echo "REAPER_AUDIO_BRIDGE=ALSA_PULSE"
 echo "REMOTE_TRANSPORT=XPRA_HTML5"
 echo "XPRA_PORT=$PORT"
 echo "XPRA_BIND=LOOPBACK_ONLY"
