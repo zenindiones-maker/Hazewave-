@@ -1,0 +1,61 @@
+name: Zero-Cost Workstation V3 Verify
+
+on:
+  push:
+    branches:
+      - work/zero-cost-workstation-v3
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact candidate
+        run: |
+          set -euo pipefail
+          git init repo
+          cd repo
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+
+      - name: Validate shell and devcontainer syntax
+        working-directory: repo
+        run: |
+          set -euo pipefail
+          bash -n scripts/codespaces/install-reaper-pinned.sh
+          bash -n scripts/codespaces/upgrade-professional-v2.sh
+          bash -n scripts/codespaces/start-professional-desktop.sh
+          bash -n scripts/codespaces/professional-doctor.sh
+          bash -n scripts/codespaces/hazewave-termux-control.sh
+          python -m json.tool .devcontainer/devcontainer.json >/dev/null
+
+      - name: Validate workstation role and zero-cost lifecycle
+        working-directory: repo
+        run: |
+          set -euo pipefail
+          grep -q 'work/zero-cost-workstation-v3' scripts/codespaces/hazewave-termux-control.sh
+          grep -q -- '--idle-timeout 20m' scripts/codespaces/hazewave-termux-control.sh
+          grep -q -- '--retention-period 24h' scripts/codespaces/hazewave-termux-control.sh
+          grep -q 'MACHINE="basicLinux32gb"' scripts/codespaces/hazewave-termux-control.sh
+          grep -q 'HAZE_AUDIO_REAPER' .devcontainer/devcontainer.json
+          ! grep -R 'work/zero-cost-codespaces-v1'             .devcontainer scripts/codespaces/hazewave-termux-control.sh
+
+      - name: Prove pinned REAPER artifact installs
+        working-directory: repo
+        env:
+          CODESPACES: "true"
+        run: |
+          set -euo pipefail
+          bash scripts/codespaces/install-reaper-pinned.sh
+          test -x "$HOME/.local/bin/reaper"
+          test "$(readlink -f "$HOME/.local/bin/reaper")" =             "$HOME/.local/opt/reaper/7.82/REAPER/reaper"
+          test -s "$HOME/.local/state/hazewave-codespace/reaper-7.82.receipt"
+          file "$HOME/.local/bin/reaper"
+          echo "HAZEWAVE_WORKSTATION_V3_STATIC=PASS"
+          echo "REAPER_PINNED_INSTALL=PASS"
+          echo "PAID_FALLBACK=FALSE"
