@@ -9,6 +9,10 @@ CACHE="/tmp/hazewave-cache"
 RUNTIME="/tmp/hazewave-runtime-${UID}"
 SOCKET_DIR="${RUNTIME}/xpra"
 LOG_FILE="${STATE_ROOT}/xpra-professional.log"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+BRIDGE_SOURCE="$REPO_ROOT/scripts/reaper/hazewave_reaper_bridge.lua"
+BRIDGE_INSTALL_RECEIPT="$STATE_ROOT/reaper-bridge-install.json"
 
 if [[ "${CODESPACES:-}" != "true" ]]; then
   echo "HAZEWAVE_PRO=BLOCKED_NOT_CODESPACES"
@@ -56,6 +60,9 @@ grep -q "type pulse" "$ASOUNDRC" || {
   echo "REAPER_AUDIO_BRIDGE=BLOCKED_NOT_PULSE"
   exit 26
 }
+
+export PYTHONPATH="${REPO_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
+python -m hazewave.reaper_bridge_install   --source "$BRIDGE_SOURCE"   --resource-dir "${HOME}/.config/REAPER"   --receipt "$BRIDGE_INSTALL_RECEIPT"
 
 session_live() {
   xpra list --socket-dir="$SOCKET_DIR" 2>/dev/null |
