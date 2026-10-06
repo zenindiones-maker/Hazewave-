@@ -4,6 +4,7 @@ import argparse
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -24,7 +25,9 @@ root = Path(
     )
 ).expanduser().resolve()
 fixture_root = root / "fixtures"
+frame_root = root / "frames"
 fixture_root.mkdir(parents=True, exist_ok=True)
+frame_root.mkdir(parents=True, exist_ok=True)
 
 _FIXTURE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 
@@ -219,9 +222,167 @@ def handle_fixture_create(request: dict) -> dict:
     }
 
 
+def handle_shot_build(request: dict) -> dict:
+    before = current_snapshot()
+    validate_existing_scene(request, before)
+    args = request["arguments"]
+
+    shot_id = safe_id(args.get("shot_id"), "BLENDER_SHOT_ID_INVALID")
+    frame_start = int(args["frame_start"])
+    breakdown_frame = int(args["breakdown_frame"])
+    frame_end = int(args["frame_end"])
+    if not (1 <= frame_start < breakdown_frame < frame_end <= 10000):
+        raise RuntimeError("BLENDER_SHOT_FRAME_RANGE_INVALID")
+
+    character_name = str(args.get("character_name") or "").strip()
+    background_name = str(args.get("background_name") or "").strip()
+    if not character_name or not background_name:
+        raise RuntimeError("BLENDER_SHOT_NAME_INVALID")
+
+    scene = bpy.context.scene
+    scene.frame_start = frame_start
+    scene.frame_end = frame_end
+    scene.render.fps = 24
+    scene.render.fps_base = 1.0
+    scene["hazewave_shot_id"] = shot_id
+
+    if bpy.data.objects.get(character_name) is not None:
+        raise RuntimeError("BLENDER_SHOT_CHARACTER_ALREADY_EXISTS")
+    if bpy.data.objects.get(background_name) is not None:
+        raise RuntimeError("BLENDER_SHOT_BACKGROUND_ALREADY_EXISTS")
+    if bpy.data.objects.get("HazewaveCamera") is not None:
+        raise RuntimeError("BLENDER_SHOT_CAMERA_ALREADY_EXISTS")
+
+    grease_pencil = bpy.data.grease_pencils.new(character_name + "Data")
+    character = bpy.data.objects.new(character_name, grease_pencil)
+    scene.collection.objects.link(character)
+    ensure_gp_material(grease_pencil, "HazewaveInk")
+    layer = grease_pencil.layers.new("Character", set_active=True)
+
+    make_character_frame(layer, frame_start, "EXTREME", -0.35)
+    make_character_frame(layer, breakdown_frame, "BREAKDOWN", 0.0)
+    make_character_frame(layer, frame_end, "EXTREME", 0.35)
+
+    background = create_background(background_name)
+    camera = create_camera()
+
+    bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
+    after = current_snapshot()
+    if character_name not in after["grease_pencil_objects"]:
+        raise RuntimeError("BLENDER_GREASE_PENCIL_OBJECT_MISSING")
+    if "HazewaveCamera" not in after["cameras"]:
+        raise RuntimeError("BLENDER_CAMERA_MISSING")
+
+    return {
+        "state_before": before,
+        "state_after": after,
+        "result": {
+            "shot_id": shot_id,
+            "character_object": character.name,
+            "background_object": background.name,
+            "camera_object": camera.name,
+            "keyframes": [frame_start, breakdown_frame, frame_end],
+            "keyframe_types": ["EXTREME", "BREAKDOWN", "EXTREME"],
+            "snapshot": after,
+        },
+    }
+
+
+def frame_sha256(path: Path) -> str:
+    return sha256_file(path)
+
+
+def handle_render_frames(request: dict) -> dict:
+    before = current_snapshot()
+    validate_existing_scene(request, before)
+    args = request["arguments"]
+    render_id = safe_id(args.get("render_id"), "BLENDER_RENDER_ID_INVALID")
+    if args.get("format") != "PNG":
+        raise RuntimeError("BLENDER_FRAME_RENDER_FORMAT_INVALID")
+    frame_start = int(args["frame_start"])
+    frame_end = int(args["frame_end"])
+    if not (1 <= frame_start <= frame_end <= 10000):
+        raise RuntimeError("BLENDER_FRAME_RENDER_RANGE_INVALID")
+
+    output_dir = (frame_root / render_id).resolve()
+    try:
+        output_dir.relative_to(frame_root.resolve())
+    except ValueError as exc:
+        raise RuntimeError("BLENDER_FRAME_RENDER_PATH_OUTSIDE_ROOT") from exc
+    if output_dir.exists():
+        raise RuntimeError("BLENDER_FRAME_RENDER_ALREADY_EXISTS")
+    output_dir.mkdir(parents=True, exist_ok=False)
+
+    scene = bpy.context.scene
+    saved = {
+        "frame_start": scene.frame_start,
+        "frame_end": scene.frame_end,
+        "filepath": scene.render.filepath,
+        "format": scene.render.image_settings.file_format,
+    }
+    try:
+        scene.frame_start = frame_start
+        scene.frame_end = frame_end
+        scene.render.image_settings.file_format = "PNG"
+        scene.render.filepath = str(output_dir / "frame-")
+        bpy.ops.render.render(animation=True)
+    finally:
+        scene.frame_start = saved["frame_start"]
+        scene.frame_end = saved["frame_end"]
+        scene.render.filepath = saved["filepath"]
+        scene.render.image_settings.file_format = saved["format"]
+
+    frame_files = sorted(output_dir.glob("frame-*.png"))
+    expected_count = frame_end - frame_start + 1
+    if not frame_files:
+        raise RuntimeError("ANIMATION_FRAME_SEQUENCE_MISSING")
+    if len(frame_files) != expected_count:
+        raise RuntimeError("ANIMATION_FRAME_SEQUENCE_GAP")
+
+    numbers = []
+    frames = []
+    for path in frame_files:
+        match = re.search(r"(\\d+)\\.png$", path.name)
+        if match is None:
+            raise RuntimeError("ANIMATION_FRAME_SEQUENCE_NAME_INVALID")
+        frame_number = int(match.group(1))
+        numbers.append(frame_number)
+        frames.append(
+            {
+                "frame_number": frame_number,
+                "path": str(path),
+                "sha256": frame_sha256(path),
+                "size_bytes": path.stat().st_size,
+            }
+        )
+    if numbers != list(range(frame_start, frame_end + 1)):
+        raise RuntimeError("ANIMATION_FRAME_SEQUENCE_GAP")
+    if any(item["size_bytes"] <= 0 for item in frames):
+        raise RuntimeError("ANIMATION_FRAME_SEQUENCE_EMPTY_FRAME")
+
+    after = current_snapshot()
+    if after["blend_sha256"] != before["blend_sha256"]:
+        raise RuntimeError("BLENDER_FRAME_RENDER_MUTATED_BLEND")
+
+    return {
+        "state_before": before,
+        "state_after": after,
+        "result": {
+            "render_id": render_id,
+            "format": "PNG",
+            "frame_start": frame_start,
+            "frame_end": frame_end,
+            "frame_count": len(frames),
+            "frames": frames,
+        },
+    }
+
+
 handlers = {
     "animation.scene.inspect": handle_scene_inspect,
     "animation.fixture.create": handle_fixture_create,
+    "animation.shot.build": handle_shot_build,
+    "animation.render.frames": handle_render_frames,
 }
 
 
