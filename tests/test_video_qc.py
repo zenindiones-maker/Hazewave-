@@ -9,6 +9,8 @@ import pytest
 from hazewave.video_qc import (
     VideoQCError,
     analyze_video_qc,
+    parse_blackdetect_log,
+    parse_freezedetect_log,
     parse_reference_quality_metrics,
 )
 
@@ -154,3 +156,115 @@ def test_reference_quality_parser_keeps_metrics_technical_not_artistic() -> None
 def test_reference_quality_parser_requires_at_least_one_metric() -> None:
     with pytest.raises(VideoQCError, match="VIDEO_QC_REFERENCE_METRICS_MISSING"):
         parse_reference_quality_metrics("no metrics here")
+
+
+BLACKDETECT_LOG = """
+[blackdetect @ 0x1] black_start:1.000 black_end:2.500 black_duration:1.500
+[blackdetect @ 0x1] black_start:7.000 black_end:7.600 black_duration:0.600
+"""
+
+FREEZEDETECT_LOG = """
+[freezedetect @ 0x2] lavfi.freezedetect.freeze_start: 3.200000
+[freezedetect @ 0x2] lavfi.freezedetect.freeze_duration: 2.300000
+[freezedetect @ 0x2] lavfi.freezedetect.freeze_end: 5.500000
+"""
+
+
+def test_parse_blackdetect_log_returns_typed_intervals() -> None:
+    intervals = parse_blackdetect_log(BLACKDETECT_LOG)
+
+    assert len(intervals) == 2
+    assert intervals[0].kind == "BLACK"
+    assert intervals[0].start_seconds == pytest.approx(1.0)
+    assert intervals[0].end_seconds == pytest.approx(2.5)
+    assert intervals[0].duration_seconds == pytest.approx(1.5)
+
+
+def test_parse_freezedetect_log_returns_typed_intervals() -> None:
+    intervals = parse_freezedetect_log(
+        FREEZEDETECT_LOG,
+        media_duration_seconds=10.0,
+    )
+
+    assert len(intervals) == 1
+    assert intervals[0].kind == "FREEZE"
+    assert intervals[0].start_seconds == pytest.approx(3.2)
+    assert intervals[0].end_seconds == pytest.approx(5.5)
+    assert intervals[0].duration_seconds == pytest.approx(2.3)
+
+
+def test_freezedetect_open_interval_is_closed_at_media_end() -> None:
+    intervals = parse_freezedetect_log(
+        "[freezedetect] lavfi.freezedetect.freeze_start: 8.250000",
+        media_duration_seconds=10.0,
+    )
+
+    assert len(intervals) == 1
+    assert intervals[0].start_seconds == pytest.approx(8.25)
+    assert intervals[0].end_seconds == pytest.approx(10.0)
+    assert intervals[0].duration_seconds == pytest.approx(1.75)
+
+
+def test_video_qc_scans_black_and_frozen_intervals_without_artistic_score(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "delivery.mp4"
+    output.write_bytes(b"encoded-fixture")
+    calls: list[list[str]] = []
+
+    def runner(args: list[str]) -> subprocess.CompletedProcess[str]:
+        calls.append(args)
+        if args[0] == "ffprobe":
+            return subprocess.CompletedProcess(
+                args, 0, stdout=json.dumps(_payload()), stderr=""
+            )
+        if any("blackdetect=" in value for value in args):
+            return subprocess.CompletedProcess(
+                args, 0, stdout="", stderr=BLACKDETECT_LOG
+            )
+        if any("freezedetect=" in value for value in args):
+            return subprocess.CompletedProcess(
+                args, 0, stdout="", stderr=FREEZEDETECT_LOG
+            )
+        raise AssertionError(args)
+
+    report = analyze_video_qc(output, runner=runner)
+
+    assert len(report.black_intervals) == 2
+    assert len(report.freeze_intervals) == 1
+    assert report.black_duration_seconds == pytest.approx(2.1)
+    assert report.freeze_duration_seconds == pytest.approx(2.3)
+    assert report.visual_anomaly_count == 3
+    assert "BLACK_INTERVALS_DETECTED" in report.technical_flags
+    assert "FROZEN_INTERVALS_DETECTED" in report.technical_flags
+    assert report.artistic_verdict == "NOT_ASSIGNED"
+
+    black_call = next(
+        args for args in calls
+        if any("blackdetect=" in value for value in args)
+    )
+    freeze_call = next(
+        args for args in calls
+        if any("freezedetect=" in value for value in args)
+    )
+    assert "blackdetect=d=0.100:pic_th=0.980:pix_th=0.100" in black_call
+    assert "freezedetect=n=-60dB:d=2.000" in freeze_call
+
+
+def test_video_qc_fails_closed_when_visual_anomaly_scan_fails(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "delivery.mp4"
+    output.write_bytes(b"encoded-fixture")
+
+    def runner(args: list[str]) -> subprocess.CompletedProcess[str]:
+        if args[0] == "ffprobe":
+            return subprocess.CompletedProcess(
+                args, 0, stdout=json.dumps(_payload()), stderr=""
+            )
+        return subprocess.CompletedProcess(
+            args, 1, stdout="", stderr="filter unavailable"
+        )
+
+    with pytest.raises(VideoQCError, match="VIDEO_QC_BLACKDETECT_FAILED"):
+        analyze_video_qc(output, runner=runner)
