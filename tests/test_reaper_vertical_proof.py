@@ -409,9 +409,8 @@ class _FakeIsolatedVerticalClient(_FakeVerticalClient):
                 self.state,
                 {
                     "fixture_id": "vertical-isolated",
-                    "fixture_path": str(self.fixture.resolve()),
-                    "original_project_identity": str(self.original),
-                    "active_project_identity": str(self.fixture.resolve()),
+                    "fixture_project": str(self.fixture.resolve()),
+                    "previous_project_identity": str(self.original),
                 },
             )
         if operation == "session.fixture.close":
@@ -426,7 +425,7 @@ class _FakeIsolatedVerticalClient(_FakeVerticalClient):
                 before,
                 self.original_state,
                 {
-                    "closed_fixture_path": str(self.fixture.resolve()),
+                    "closed_fixture_project": str(self.fixture.resolve()),
                     "restored_project_identity": str(self.original),
                 },
             )
