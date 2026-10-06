@@ -62,7 +62,11 @@ python3 -m venv --help >/dev/null 2>&1 || die "WAVE_RUNTIME_INSTALL=FAIL_VENV_UN
 python3 -m venv "$WAVE_RUNTIME_ROOT"
 CREATED_TARGET=1
 
-PIP_DISABLE_PIP_VERSION_CHECK=1 "$WAVE_RUNTIME_PYTHON" -m pip install   --no-cache-dir   --only-binary=:all:   "OpenTimelineIO==0.18.1"   "scenedetect-headless==0.7.1"
+export PIP_DISABLE_PIP_VERSION_CHECK=1
+"$WAVE_RUNTIME_PYTHON" -m pip install --only-binary=:all: \
+  --no-cache-dir \
+  "OpenTimelineIO==0.18.1" \
+  "scenedetect-headless==0.7.1"
 
 VERSIONS="$("$WAVE_RUNTIME_PYTHON" - <<'PY'
 import opentimelineio as otio
