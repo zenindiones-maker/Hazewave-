@@ -198,3 +198,273 @@ def test_project_seed_is_versioned_source_verified_not_fake_runtime_proof() -> N
             assert evidence.validation_status != KnowledgeValidationStatus.RUNTIME_PROVEN
 
     assert registry.to_dict()["authority"] == "NONE"
+
+
+def test_runtime_proof_outranks_fresh_official_documentation() -> None:
+    as_of = datetime(2026, 10, 6, tzinfo=timezone.utc)
+    runtime = KnowledgeEvidence(
+        source="runtime:codespace:fixture",
+        source_type="CURRENT_LOCAL_RUNTIME_PROOF",
+        retrieved_at=as_of - timedelta(days=1),
+        version="7.82",
+        platform="linux",
+        architecture="x86_64",
+        license_or_cost_class="FREEWARE_NO_PAYMENT",
+        confidence=0.95,
+        freshness_days=14,
+        validation_status=KnowledgeValidationStatus.RUNTIME_PROVEN,
+    )
+    official = KnowledgeEvidence(
+        source="https://www.reaper.fm/sdk/reascript/reascripthelp.html",
+        source_type="OFFICIAL_DOCUMENTATION",
+        retrieved_at=as_of,
+        version="7.82",
+        platform="linux",
+        architecture="x86_64",
+        license_or_cost_class="DOCUMENTATION",
+        confidence=1.0,
+        freshness_days=30,
+        validation_status=KnowledgeValidationStatus.SOURCE_VERIFIED,
+    )
+    registry = ProfessionalKnowledgeRegistry(
+        (
+            ToolKnowledge(
+                knowledge_id="reaper-runtime",
+                title="REAPER current runtime",
+                kind=KnowledgeKind.COMPATIBILITY_EVIDENCE,
+                evidence=(official, runtime),
+                tool_id="reaper",
+                tool_version="7.82",
+                capabilities=("REASCRIPT",),
+            ),
+        )
+    )
+
+    resolution = registry.resolve_best_evidence(
+        "reaper-runtime",
+        as_of=as_of,
+        required_version="7.82",
+        platform="linux",
+        architecture="x86_64",
+    )
+
+    assert resolution.schema == "KnowledgeFreshnessResolution/v1"
+    assert resolution.status == "FRESH"
+    assert resolution.selected_source == "runtime:codespace:fixture"
+    assert resolution.selected_validation_status == "RUNTIME_PROVEN"
+    assert resolution.evidence_rank == 1
+    assert resolution.grants_execution_authority is False
+    assert resolution.can_grant_production_approval is False
+
+
+def test_official_documentation_outranks_release_and_community_evidence() -> None:
+    as_of = datetime(2026, 10, 6, tzinfo=timezone.utc)
+    evidence = (
+        KnowledgeEvidence(
+            source="community:popular-post",
+            source_type="COMMUNITY_OPINION",
+            retrieved_at=as_of,
+            version="1.0",
+            platform="linux",
+            architecture="x86_64",
+            license_or_cost_class="FREE_OPEN_SOURCE",
+            confidence=1.0,
+            freshness_days=30,
+            validation_status=KnowledgeValidationStatus.SOURCE_VERIFIED,
+        ),
+        KnowledgeEvidence(
+            source="release:1.0",
+            source_type="OFFICIAL_RELEASE",
+            retrieved_at=as_of,
+            version="1.0",
+            platform="linux",
+            architecture="x86_64",
+            license_or_cost_class="FREE_OPEN_SOURCE",
+            confidence=0.95,
+            freshness_days=30,
+            validation_status=KnowledgeValidationStatus.SOURCE_VERIFIED,
+        ),
+        KnowledgeEvidence(
+            source="docs:current",
+            source_type="OFFICIAL_DOCUMENTATION",
+            retrieved_at=as_of,
+            version="1.0",
+            platform="linux",
+            architecture="x86_64",
+            license_or_cost_class="FREE_OPEN_SOURCE",
+            confidence=0.9,
+            freshness_days=30,
+            validation_status=KnowledgeValidationStatus.SOURCE_VERIFIED,
+        ),
+    )
+    registry = ProfessionalKnowledgeRegistry(
+        (
+            ToolKnowledge(
+                knowledge_id="tool-ordering",
+                title="Ordering fixture",
+                kind=KnowledgeKind.TOOL_CAPABILITY,
+                evidence=evidence,
+                tool_id="fixture",
+                tool_version="1.0",
+                capabilities=("x",),
+            ),
+        )
+    )
+
+    resolution = registry.resolve_best_evidence(
+        "tool-ordering",
+        as_of=as_of,
+        required_version="1.0",
+        platform="linux",
+        architecture="x86_64",
+    )
+
+    assert resolution.selected_source == "docs:current"
+    assert resolution.evidence_rank == 2
+
+
+def test_stale_or_version_mismatched_evidence_is_never_selected() -> None:
+    as_of = datetime(2026, 10, 6, tzinfo=timezone.utc)
+    stale_runtime = KnowledgeEvidence(
+        source="runtime:stale",
+        source_type="CURRENT_LOCAL_RUNTIME_PROOF",
+        retrieved_at=as_of - timedelta(days=60),
+        version="1.0",
+        platform="linux",
+        architecture="x86_64",
+        license_or_cost_class="FREE_OPEN_SOURCE",
+        confidence=1.0,
+        freshness_days=7,
+        validation_status=KnowledgeValidationStatus.RUNTIME_PROVEN,
+    )
+    wrong_version = KnowledgeEvidence(
+        source="docs:wrong-version",
+        source_type="OFFICIAL_DOCUMENTATION",
+        retrieved_at=as_of,
+        version="0.9",
+        platform="linux",
+        architecture="x86_64",
+        license_or_cost_class="FREE_OPEN_SOURCE",
+        confidence=1.0,
+        freshness_days=30,
+        validation_status=KnowledgeValidationStatus.SOURCE_VERIFIED,
+    )
+    current_release = KnowledgeEvidence(
+        source="release:1.0",
+        source_type="OFFICIAL_RELEASE",
+        retrieved_at=as_of,
+        version="1.0",
+        platform="linux",
+        architecture="x86_64",
+        license_or_cost_class="FREE_OPEN_SOURCE",
+        confidence=0.8,
+        freshness_days=30,
+        validation_status=KnowledgeValidationStatus.SOURCE_VERIFIED,
+    )
+    registry = ProfessionalKnowledgeRegistry(
+        (
+            ToolKnowledge(
+                knowledge_id="freshness-filter",
+                title="Freshness filter",
+                kind=KnowledgeKind.COMPATIBILITY_EVIDENCE,
+                evidence=(stale_runtime, wrong_version, current_release),
+                tool_id="fixture",
+                tool_version="1.0",
+                capabilities=("x",),
+            ),
+        )
+    )
+
+    resolution = registry.resolve_best_evidence(
+        "freshness-filter",
+        as_of=as_of,
+        required_version="1.0",
+        platform="linux",
+        architecture="x86_64",
+    )
+
+    assert resolution.selected_source == "release:1.0"
+    assert "runtime:stale" in resolution.stale_sources
+    assert "docs:wrong-version" in resolution.incompatible_sources
+
+
+def test_no_fresh_compatible_evidence_fails_closed() -> None:
+    as_of = datetime(2026, 10, 6, tzinfo=timezone.utc)
+    registry = ProfessionalKnowledgeRegistry(
+        (
+            ToolKnowledge(
+                knowledge_id="stale-only",
+                title="Stale only",
+                kind=KnowledgeKind.TOOL_CAPABILITY,
+                evidence=(
+                    KnowledgeEvidence(
+                        source="docs:stale",
+                        source_type="OFFICIAL_DOCUMENTATION",
+                        retrieved_at=as_of - timedelta(days=365),
+                        version="1.0",
+                        platform="linux",
+                        architecture="x86_64",
+                        license_or_cost_class="FREE_OPEN_SOURCE",
+                        confidence=1.0,
+                        freshness_days=30,
+                        validation_status=KnowledgeValidationStatus.SOURCE_VERIFIED,
+                    ),
+                ),
+                tool_id="fixture",
+                tool_version="1.0",
+                capabilities=("x",),
+            ),
+        )
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="KNOWLEDGE_NO_FRESH_COMPATIBLE_EVIDENCE",
+    ):
+        registry.resolve_best_evidence(
+            "stale-only",
+            as_of=as_of,
+            required_version="1.0",
+            platform="linux",
+            architecture="x86_64",
+        )
+
+
+def test_invalidated_or_unvalidated_evidence_is_not_eligible() -> None:
+    as_of = datetime(2026, 10, 6, tzinfo=timezone.utc)
+    registry = ProfessionalKnowledgeRegistry(
+        (
+            ToolKnowledge(
+                knowledge_id="invalid-only",
+                title="Invalid only",
+                kind=KnowledgeKind.FACT,
+                evidence=(
+                    KnowledgeEvidence(
+                        source="source:invalidated",
+                        source_type="OFFICIAL_DOCUMENTATION",
+                        retrieved_at=as_of,
+                        version="1.0",
+                        platform="linux",
+                        architecture="x86_64",
+                        license_or_cost_class="FREE_OPEN_SOURCE",
+                        confidence=1.0,
+                        freshness_days=30,
+                        validation_status=KnowledgeValidationStatus.INVALIDATED,
+                    ),
+                ),
+                tool_id="fixture",
+                tool_version="1.0",
+                capabilities=("x",),
+            ),
+        )
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="KNOWLEDGE_NO_FRESH_COMPATIBLE_EVIDENCE",
+    ):
+        registry.resolve_best_evidence(
+            "invalid-only",
+            as_of=as_of,
+            required_version="1.0",
+        )
