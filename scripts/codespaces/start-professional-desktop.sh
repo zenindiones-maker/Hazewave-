@@ -15,7 +15,7 @@ if [[ "${CODESPACES:-}" != "true" ]]; then
   exit 20
 fi
 
-for cmd in xpra curl ss xfce4-session; do
+for cmd in xpra curl ss xfce4-session reaper; do
   command -v "$cmd" >/dev/null 2>&1 || {
     echo "HAZEWAVE_PRO=BLOCKED_MISSING_$cmd"
     exit 21
@@ -33,16 +33,12 @@ mkdir -p "$STATE_ROOT" "$SCRATCH" "$CACHE" "$SOCKET_DIR"
 chmod 700 "$RUNTIME" "$SOCKET_DIR"
 export XDG_RUNTIME_DIR="$RUNTIME"
 
-ARDOUR_BIN=""
-for candidate in ardour9 ardour8 ardour7 ardour6 ardour; do
-  if command -v "$candidate" >/dev/null 2>&1; then
-    ARDOUR_BIN="$(command -v "$candidate")"
-    break
-  fi
-done
-
-[[ -n "$ARDOUR_BIN" ]] || {
-  echo "ARDOUR=BLOCKED_NOT_INSTALLED"
+REAPER_BIN="$(command -v reaper)"
+EXPECTED_REAPER="${HOME}/.local/opt/reaper/7.82/REAPER/reaper"
+[[ "$(readlink -f "$REAPER_BIN")" == "$EXPECTED_REAPER" ]] || {
+  echo "REAPER_PRIMARY=BLOCKED_UNEXPECTED_BINARY"
+  echo "EXPECTED=$EXPECTED_REAPER"
+  echo "ACTUAL=$(readlink -f "$REAPER_BIN")"
   exit 23
 }
 
@@ -62,7 +58,31 @@ if session_live && ! http_live; then
 fi
 
 if ! session_live; then
-  xpra start-desktop "$SESSION"     --socket-dir="$SOCKET_DIR"     --bind-tcp="127.0.0.1:${PORT},auth=none"     --html=on     --pulseaudio=yes     --speaker=on     --microphone=disabled     --webcam=no     --file-transfer=off     --open-files=off     --printing=no     --mdns=no     --sharing=no     --start-new-commands=no     --systemd-run=no     --resize-display=1600x900     --dpi=96     --session-name="Hazewave Professional"     --env="TMPDIR=${SCRATCH}"     --env="XDG_CACHE_HOME=${CACHE}"     --start="xfce4-session"     --start="$ARDOUR_BIN"     --exit-with-children=no     --log-file="$LOG_FILE"     --daemon=yes
+  xpra start-desktop "$SESSION" \
+    --socket-dir="$SOCKET_DIR" \
+    --bind-tcp="127.0.0.1:${PORT},auth=none" \
+    --html=on \
+    --pulseaudio=yes \
+    --speaker=on \
+    --microphone=disabled \
+    --webcam=no \
+    --file-transfer=off \
+    --open-files=off \
+    --printing=no \
+    --mdns=no \
+    --sharing=no \
+    --start-new-commands=no \
+    --systemd-run=no \
+    --resize-display=1600x900 \
+    --dpi=96 \
+    --session-name="Hazewave HAZE Audio / REAPER" \
+    --env="TMPDIR=${SCRATCH}" \
+    --env="XDG_CACHE_HOME=${CACHE}" \
+    --start="xfce4-session" \
+    --start="$REAPER_BIN" \
+    --exit-with-children=no \
+    --log-file="$LOG_FILE" \
+    --daemon=yes
 fi
 
 for _ in $(seq 1 60); do
@@ -84,6 +104,9 @@ LISTEN_LINE="$(ss -ltn 2>/dev/null | awk -v p=":${PORT}" '$4 ~ p"$" {print $4; e
 }
 
 echo "HAZEWAVE_PRO_DESKTOP=PASS"
+echo "WORKSTATION_ROLE=HAZE_AUDIO_REAPER"
+echo "REAPER_PRIMARY=PASS"
+echo "REAPER_VERSION_PIN=7.82"
 echo "REMOTE_TRANSPORT=XPRA_HTML5"
 echo "XPRA_PORT=$PORT"
 echo "XPRA_BIND=LOOPBACK_ONLY"
