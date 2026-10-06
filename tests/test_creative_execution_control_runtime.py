@@ -35,3 +35,12 @@ def test_candidate_runtime_proof_binds_to_creative_branch_and_bridge() -> None:
     assert "CreativeProducerDoctor/v1" in text
     assert "HAZEWAVE_REAPER_BRIDGE" in text
     assert "LIVE_REAPER_PROOF=NOT_PROVEN" in text
+
+
+def test_creative_execution_control_exposes_render_preview_with_qc() -> None:
+    text = CONTROL.read_text(encoding="utf-8")
+
+    assert "cmd_render_preview()" in text
+    assert "python -m hazewave.creative_cli render-preview" in text
+    assert "render-preview) cmd_render_preview" in text
+    assert "HUMAN_APPROVAL=REQUIRED" in text
