@@ -239,6 +239,81 @@ PY
   echo "VERTICAL_PROOF_JSON=$VERTICAL_PROOF_JSON"
   echo "HAZE_RENDER_B=$HAZE_RENDER_B"
 
+  POLICY_DIGEST="$(sha256sum "$REPO_ROOT/config/project-profile-v2.json" | awk '{print $1}')"
+  RUNTIME_IDENTITY="codespace:${CODESPACE_NAME:-$(hostname)}"
+  WAVE_PROOF_ID="wave-$STAMP"
+  WAVE_PROOF_ROOT="$OUT_DIR/wave-proofs"
+  WAVE_LIVE_PROOF_JSON="$OUT_DIR/wave-live-proof.json"
+  mkdir -p "$WAVE_PROOF_ROOT"
+  chmod 700 "$WAVE_PROOF_ROOT"
+
+  if ! python -m hazewave.wave_live_proof \
+      --proof-root "$WAVE_PROOF_ROOT" \
+      --proof-id "$WAVE_PROOF_ID" \
+      --candidate-head "$ACTUAL_HEAD" \
+      --policy-digest "$POLICY_DIGEST" \
+      --runtime-identity "$RUNTIME_IDENTITY" \
+      >"$WAVE_LIVE_PROOF_JSON"; then
+    echo "LIVE_WAVE_PROOF=FAIL_EXECUTION"
+    exit 45
+  fi
+
+  python - "$WAVE_LIVE_PROOF_JSON" <<'PY'
+import hashlib
+import json
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1]).expanduser().resolve()
+payload = json.loads(path.read_text(encoding="utf-8"))
+
+if payload.get("schema") != "WaveLiveProof/v1":
+    raise SystemExit("LIVE_WAVE_PROOF=FAIL_SCHEMA")
+if payload.get("status") != "PASS":
+    raise SystemExit("LIVE_WAVE_PROOF=FAIL_STATUS")
+if payload.get("authority") != "HAZEWAVE_HARNESS":
+    raise SystemExit("LIVE_WAVE_PROOF=FAIL_AUTHORITY")
+if payload.get("portfolio_authority") != "NONE":
+    raise SystemExit("LIVE_WAVE_PROOF=FAIL_PORTFOLIO_AUTHORITY")
+
+scene = payload.get("scene_detection")
+if not isinstance(scene, dict) or scene.get("schema") != "SceneDetectionReport/v1":
+    raise SystemExit("LIVE_WAVE_PROOF=FAIL_SCENE_SCHEMA")
+if int(scene.get("scene_count") or 0) < 2:
+    raise SystemExit("LIVE_WAVE_PROOF=FAIL_SCENE_COUNT")
+
+otio = payload.get("otio")
+if not isinstance(otio, dict) or otio.get("schema") != "OTIOInterchangeReceipt/v1":
+    raise SystemExit("LIVE_WAVE_PROOF=FAIL_OTIO_SCHEMA")
+if otio.get("otio_version") != "0.18.1":
+    raise SystemExit("LIVE_WAVE_PROOF=FAIL_OTIO_VERSION")
+
+render = payload.get("render")
+if not isinstance(render, dict) or render.get("schema") != "WaveRenderReceipt/v1":
+    raise SystemExit("LIVE_WAVE_PROOF=FAIL_RENDER_SCHEMA")
+
+video_qc = payload.get("video_qc")
+if not isinstance(video_qc, dict) or video_qc.get("schema") != "VideoQCReport/v1":
+    raise SystemExit("LIVE_WAVE_PROOF=FAIL_VIDEO_QC_SCHEMA")
+if video_qc.get("encode_integrity") != "PASS":
+    raise SystemExit("LIVE_WAVE_PROOF=FAIL_VIDEO_QC")
+
+output_manifest = payload.get("output_manifest")
+if not isinstance(output_manifest, dict) or output_manifest.get("schema") != "MediaManifest/v1":
+    raise SystemExit("LIVE_WAVE_PROOF=FAIL_OUTPUT_MANIFEST")
+
+receipt_path = Path(str(payload.get("receipt_path") or "")).expanduser().resolve()
+receipt_sha256 = str(payload.get("receipt_sha256") or "")
+if not receipt_path.is_file() or receipt_path.stat().st_size <= 0:
+    raise SystemExit("LIVE_WAVE_PROOF=FAIL_DURABLE_RECEIPT")
+actual_sha256 = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+if actual_sha256 != receipt_sha256:
+    raise SystemExit("LIVE_WAVE_PROOF=FAIL_RECEIPT_HASH")
+PY
+
+  echo "WAVE_LIVE_PROOF_JSON=$WAVE_LIVE_PROOF_JSON"
+  echo "LIVE_WAVE_PROOF=PASS"
+
   [[ -x "$EXPECTED_BLENDER" ]] || {
     echo "BLENDER_RUNTIME=FAIL_BINARY"
     exit 45
