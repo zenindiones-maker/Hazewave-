@@ -1,0 +1,85 @@
+name: Zero-Cost Hazewave Batch
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Free batch operation
+        required: true
+        default: validate
+        type: choice
+        options:
+          - validate
+          - audio-qc
+      media_root:
+        description: Relative directory for audio QC
+        required: false
+        default: output
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zero-cost-hazewave-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  free-standard-runner:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact requested ref
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Enforce zero-cost/public repository boundary
+        run: |
+          set -euo pipefail
+          test "${{ github.event.repository.private }}" = "false"
+          echo "REPOSITORY_VISIBILITY=PUBLIC"
+          echo "RUNNER_CLASS=GITHUB_HOSTED_STANDARD"
+          echo "PAID_FALLBACK=FALSE"
+          echo "UNKNOWN_COST_FALLBACK=FALSE"
+
+      - name: Install free batch dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg sox libsox-fmt-all python3-venv
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e ".[dev]"
+
+      - name: Validate Hazewave contracts
+        if: ${{ inputs.mode == 'validate' }}
+        run: |
+          set -euo pipefail
+          .venv/bin/python -m compileall -q src
+          .venv/bin/python scripts/validate_repository_contracts.py
+          .venv/bin/python -m pytest
+
+      - name: Audio QC
+        if: ${{ inputs.mode == 'audio-qc' }}
+        env:
+          MEDIA_ROOT: ${{ inputs.media_root }}
+        run: |
+          set -euo pipefail
+          case "${MEDIA_ROOT}" in
+            /*|*..*) echo "MEDIA_ROOT=BLOCKED_INVALID_PATH"; exit 20 ;;
+          esac
+          test -d "${MEDIA_ROOT}" || {
+            echo "AUDIO_QC=WAIT_NO_MEDIA_ROOT"
+            exit 0
+          }
+          count=0
+          while IFS= read -r -d '' file; do
+            echo "AUDIO_FILE=${file}"
+            ffprobe -v error -show_entries format=duration,format_name -of json "${file}"
+            sox --i "${file}"
+            count=$((count+1))
+          done < <(find "${MEDIA_ROOT}" -type f \( -iname '*.wav' -o -iname '*.flac' \) -print0)
+          echo "AUDIO_QC_FILES=${count}"
+          echo "AUDIO_QC=PASS"
