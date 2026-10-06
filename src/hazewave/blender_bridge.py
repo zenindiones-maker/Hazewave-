@@ -22,6 +22,7 @@ BLENDER_OPERATION_ALLOWLIST: Final[frozenset[str]] = frozenset(
         "animation.fixture.create",
         "animation.shot.build",
         "animation.render.frames",
+        "animation.render.frames.repair",
     }
 )
 
@@ -297,6 +298,30 @@ def build_blender_request(
         if not (1 <= frame_start < breakdown_frame < frame_end <= 10000):
             raise BlenderBridgeError("BLENDER_SHOT_FRAME_RANGE_INVALID")
 
+    if operation == "animation.render.frames.repair":
+        required = {"render_id", "frame_numbers", "format"}
+        if set(arguments) != required:
+            raise BlenderBridgeError("BLENDER_FRAME_REPAIR_ARGUMENTS_INVALID")
+        render_id = arguments.get("render_id")
+        if not isinstance(render_id, str) or not _FIXTURE_ID_RE.fullmatch(render_id):
+            raise BlenderBridgeError("BLENDER_RENDER_ID_INVALID")
+        if arguments.get("format") != "PNG":
+            raise BlenderBridgeError("BLENDER_FRAME_RENDER_FORMAT_INVALID")
+        frame_numbers = arguments.get("frame_numbers")
+        if (
+            not isinstance(frame_numbers, list)
+            or not frame_numbers
+            or len(frame_numbers) > 120
+            or any(
+                not isinstance(value, int) or isinstance(value, bool)
+                for value in frame_numbers
+            )
+            or any(value < 1 or value > 10000 for value in frame_numbers)
+            or len(set(frame_numbers)) != len(frame_numbers)
+            or frame_numbers != sorted(frame_numbers)
+        ):
+            raise BlenderBridgeError("BLENDER_FRAME_REPAIR_RANGE_INVALID")
+
     if operation == "animation.render.frames":
         required = {"render_id", "frame_start", "frame_end", "format"}
         if set(arguments) != required:
@@ -389,7 +414,7 @@ class BlenderCLIExecutor:
         self._atomic_write(request_path, request.to_dict())
 
         command: list[str] = [str(self.blender_binary), "--background"]
-        if request.operation in {"animation.scene.inspect", "animation.shot.build", "animation.render.frames"}:
+        if request.operation in {"animation.scene.inspect", "animation.shot.build", "animation.render.frames", "animation.render.frames.repair"}:
             if blend_path is None:
                 raise BlenderBridgeError("BLENDER_BLEND_PATH_REQUIRED")
             source = Path(blend_path).expanduser().resolve()
