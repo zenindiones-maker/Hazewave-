@@ -42,6 +42,8 @@ jobs:
           grep -q -- '--idle-timeout 20m' scripts/codespaces/hazewave-termux-control.sh
           grep -q -- '--retention-period 24h' scripts/codespaces/hazewave-termux-control.sh
           grep -q 'MACHINE="basicLinux32gb"' scripts/codespaces/hazewave-termux-control.sh
+          grep -q 'WORKSTATION_ROLE=HAZE_AUDIO_REAPER' scripts/codespaces/hazewave-termux-control.sh
+          grep -q 'ZERO_COST_MODE=INCLUDED_USAGE_ONLY' scripts/codespaces/hazewave-termux-control.sh
           grep -q 'HAZE_AUDIO_REAPER' .devcontainer/devcontainer.json
           grep -q 'libasound2-plugins' scripts/codespaces/upgrade-professional-v2.sh
           grep -q 'REAPER_AUDIO_BRIDGE=ALSA_PULSE' scripts/codespaces/start-professional-desktop.sh
