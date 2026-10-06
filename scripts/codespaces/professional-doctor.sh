@@ -3,44 +3,64 @@ set -euo pipefail
 
 PORT="14500"
 SESSION=":100"
+RUNTIME="/tmp/hazewave-runtime-${UID}"
+SOCKET_DIR="${RUNTIME}/xpra"
 
-required=(xpra ffmpeg ffprobe sox ardour curl ss)
+mkdir -p "$SOCKET_DIR"
+chmod 700 "$RUNTIME" "$SOCKET_DIR"
+export XDG_RUNTIME_DIR="$RUNTIME"
+
+required=(xpra ffmpeg ffprobe sox curl ss)
 for cmd in "${required[@]}"; do
-  if ! command -v "$cmd" >/dev/null 2>&1; then
-    if [[ "$cmd" == "ardour" ]] && { command -v ardour8 >/dev/null 2>&1 || command -v ardour9 >/dev/null 2>&1; }; then
-      continue
-    fi
+  command -v "$cmd" >/dev/null 2>&1 || {
     echo "MISSING_COMMAND=$cmd"
     exit 20
+  }
+done
+
+ARDOUR_BIN=""
+for candidate in ardour9 ardour8 ardour7 ardour6 ardour; do
+  if command -v "$candidate" >/dev/null 2>&1; then
+    ARDOUR_BIN="$(command -v "$candidate")"
+    break
   fi
+done
+[[ -n "$ARDOUR_BIN" ]] || {
+  echo "ARDOUR=FAIL"
+  exit 21
+}
+
+for pkg in xpra xpra-x11 xpra-html5 xpra-audio-server lsp-plugins-lv2 x42-plugins dragonfly-reverb-lv2 rubberband-cli; do
+  dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' || {
+    echo "PACKAGE_MISSING=$pkg"
+    exit 22
+  }
 done
 
 curl -fsS "http://127.0.0.1:${PORT}/" >/dev/null || {
   echo "XPRA_HTML5=FAIL"
-  exit 21
+  exit 23
 }
 
 LISTEN_LINE="$(ss -ltn | awk -v p=":${PORT}" '$4 ~ p"$" {print $4; exit}')"
 [[ "$LISTEN_LINE" == "127.0.0.1:${PORT}" ]] || {
   echo "XPRA_BIND=FAIL"
   echo "LISTEN=${LISTEN_LINE:-NONE}"
-  exit 22
+  exit 24
 }
 
-xpra info "$SESSION" >/tmp/hazewave-xpra-info.txt 2>/dev/null || {
+xpra info "$SESSION" --socket-dir="$SOCKET_DIR" >/tmp/hazewave-xpra-info.txt 2>/dev/null || {
   echo "XPRA_SESSION=FAIL"
-  exit 23
+  exit 25
 }
 
-for pkg in lsp-plugins-lv2 x42-plugins dragonfly-reverb-lv2 rubberband-cli; do
-  dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' || {
-    echo "PLUGIN_PACKAGE_MISSING=$pkg"
-    exit 24
-  }
-done
+MEM_AVAILABLE_MB="$(awk '/MemAvailable:/ {printf "%d", $2/1024}' /proc/meminfo)"
+DISK_FREE_MB="$(df -Pm /workspaces | awk 'NR==2 {print $4}')"
 
 echo "HAZEWAVE_PRO_WORKSTATION=PASS"
 echo "XPRA_HTML5=PASS"
+echo "XPRA_X11=PASS"
+echo "XPRA_AUDIO_SERVER=PASS"
 echo "XPRA_BIND=LOOPBACK_ONLY"
 echo "SPEAKER_FORWARDING=CONFIGURED"
 echo "MICROPHONE_FORWARDING=DISABLED"
@@ -50,5 +70,8 @@ echo "X42_LV2=PASS"
 echo "DRAGONFLY_LV2=PASS"
 echo "RUBBERBAND=PASS"
 echo "NOVNC_FALLBACK=PRESERVED"
+echo "MEM_AVAILABLE_MB=$MEM_AVAILABLE_MB"
+echo "WORKSPACE_FREE_MB=$DISK_FREE_MB"
+echo "SCRATCH_POLICY=TMP_EPHEMERAL"
 echo "PAID_FALLBACK=FALSE"
 echo "UNKNOWN_COST_FALLBACK=FALSE"
