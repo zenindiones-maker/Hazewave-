@@ -62,3 +62,17 @@ def test_creative_execution_control_exposes_exact_bound_vertical_proof() -> None
     assert "--fixture-root" in text
     assert "--source-audio" in text
     assert "vertical-proof) shift; cmd_vertical_proof" in text
+
+
+def test_live_vertical_proof_creates_local_fixture_audio_and_restores_tab() -> None:
+    text = CONTROL.read_text(encoding="utf-8")
+
+    assert 'fixture_root="$BRIDGE_ROOT/fixtures"' in text
+    assert "sox -n -r 48000" in text
+    assert "fixture-open" in text
+    assert "vertical-proof" in text
+    assert "fixture-close" in text
+    assert "cleanup_fixture" in text
+    assert "trap cleanup_fixture EXIT" in text
+    assert "LIVE_REAPER_PROOF=PASS" in text
+    assert "SOURCE_AUDIO_REQUIRED" not in text
