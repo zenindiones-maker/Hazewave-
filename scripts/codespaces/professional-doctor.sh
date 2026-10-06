@@ -6,12 +6,14 @@ SESSION=":100"
 RUNTIME="/tmp/hazewave-runtime-${UID}"
 SOCKET_DIR="${RUNTIME}/xpra"
 EXPECTED_REAPER="${HOME}/.local/opt/reaper/7.82/REAPER/reaper"
+REAPER_LINK="${HOME}/.local/bin/reaper"
+ASOUNDRC="${HOME}/.asoundrc"
 
 mkdir -p "$SOCKET_DIR"
 chmod 700 "$RUNTIME" "$SOCKET_DIR"
 export XDG_RUNTIME_DIR="$RUNTIME"
 
-required=(xpra ffmpeg ffprobe sox curl ss gst-inspect-1.0 pactl reaper lv2ls)
+required=(xpra ffmpeg ffprobe sox curl ss gst-inspect-1.0 pactl lv2ls aplay)
 for cmd in "${required[@]}"; do
   command -v "$cmd" >/dev/null 2>&1 || {
     echo "MISSING_COMMAND=$cmd"
@@ -19,10 +21,26 @@ for cmd in "${required[@]}"; do
   }
 done
 
-[[ "$(readlink -f "$(command -v reaper)")" == "$EXPECTED_REAPER" ]] || {
+[[ -x "$REAPER_LINK" ]] || {
+  echo "REAPER_PRIMARY=FAIL_NOT_INSTALLED"
+  exit 21
+}
+[[ "$(readlink -f "$REAPER_LINK")" == "$EXPECTED_REAPER" ]] || {
   echo "REAPER_PRIMARY=FAIL_UNEXPECTED_BINARY"
   echo "EXPECTED=$EXPECTED_REAPER"
-  echo "ACTUAL=$(readlink -f "$(command -v reaper)")"
+  echo "ACTUAL=$(readlink -f "$REAPER_LINK")"
+  exit 21
+}
+[[ -f "$ASOUNDRC" ]] || {
+  echo "REAPER_AUDIO_BRIDGE=FAIL_MISSING_ASOUNDRC"
+  exit 21
+}
+grep -q "type pulse" "$ASOUNDRC" || {
+  echo "REAPER_AUDIO_BRIDGE=FAIL_NOT_PULSE"
+  exit 21
+}
+aplay -L 2>/dev/null | grep -qx 'pulse' || {
+  echo "REAPER_AUDIO_BRIDGE=FAIL_ALSA_PULSE_DEVICE"
   exit 21
 }
 
@@ -30,7 +48,8 @@ for pkg in \
   xpra xpra-x11 xpra-html5 xpra-audio-server \
   pulseaudio pulseaudio-utils \
   gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-pulseaudio \
-  lsp-plugins-lv2 x42-plugins dragonfly-reverb-lv2 rubberband-cli lilv-utils
+  lsp-plugins-lv2 x42-plugins dragonfly-reverb-lv2 rubberband-cli lilv-utils \
+  libasound2-plugins alsa-utils
 do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' || {
     echo "PACKAGE_MISSING=$pkg"
@@ -103,6 +122,7 @@ echo "HAZEWAVE_PRO_WORKSTATION=PASS"
 echo "WORKSTATION_ROLE=HAZE_AUDIO_REAPER"
 echo "REAPER_PRIMARY=PASS"
 echo "REAPER_VERSION_PIN=7.82"
+echo "REAPER_AUDIO_BRIDGE=ALSA_PULSE"
 echo "ARDOUR_FALLBACK=$([[ -n "$ARDOUR_BIN" ]] && echo AVAILABLE || echo NOT_INSTALLED)"
 echo "XPRA_HTML5=PASS"
 echo "XPRA_X11=PASS"
