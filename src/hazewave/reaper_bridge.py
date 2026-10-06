@@ -95,6 +95,17 @@ class ReaperProjectSnapshot:
     project_identity: str
     project_state_change_count: int
     dirty: bool
+    project_path: str = ""
+    sample_rate: int = 0
+    tempo: float = 0.0
+    time_signature: Mapping[str, int] | None = None
+    project_length: float = 0.0
+    markers: tuple[Mapping[str, Any], ...] = ()
+    regions: tuple[Mapping[str, Any], ...] = ()
+    tracks: tuple[Mapping[str, Any], ...] = ()
+    items: tuple[Mapping[str, Any], ...] = ()
+    routing: tuple[Mapping[str, Any], ...] = ()
+    fx: tuple[Mapping[str, Any], ...] = ()
     schema: str = "ReaperProjectSnapshot/v1"
 
     def __post_init__(self) -> None:
@@ -102,13 +113,100 @@ class ReaperProjectSnapshot:
             raise ReaperBridgeError("REAPER_PROJECT_IDENTITY_REQUIRED")
         if self.project_state_change_count < 0:
             raise ReaperBridgeError("REAPER_PROJECT_STATE_INVALID")
+        if self.sample_rate < 0 or self.tempo < 0 or self.project_length < 0:
+            raise ReaperBridgeError("REAPER_SNAPSHOT_MALFORMED")
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "ReaperProjectSnapshot":
+        required = {
+            "schema",
+            "project_identity",
+            "project_path",
+            "project_state_change_count",
+            "dirty",
+            "sample_rate",
+            "tempo",
+            "time_signature",
+            "project_length",
+            "markers",
+            "regions",
+            "tracks",
+            "items",
+            "routing",
+            "fx",
+        }
+        if not isinstance(payload, Mapping) or required.difference(payload):
+            raise ReaperBridgeError("REAPER_SNAPSHOT_MALFORMED")
+        if payload.get("schema") != "ReaperProjectSnapshot/v1":
+            raise ReaperBridgeError("REAPER_SNAPSHOT_MALFORMED")
+
+        collections = ("markers", "regions", "tracks", "items", "routing", "fx")
+        for name in collections:
+            value = payload.get(name)
+            if not isinstance(value, (list, tuple)) or not all(
+                isinstance(item, Mapping) for item in value
+            ):
+                raise ReaperBridgeError("REAPER_SNAPSHOT_MALFORMED", name)
+        time_signature = payload.get("time_signature")
+        if (
+            not isinstance(time_signature, Mapping)
+            or not isinstance(time_signature.get("numerator"), int)
+            or not isinstance(time_signature.get("denominator"), int)
+            or time_signature["numerator"] <= 0
+            or time_signature["denominator"] <= 0
+        ):
+            raise ReaperBridgeError("REAPER_SNAPSHOT_MALFORMED", "time_signature")
+        try:
+            sample_rate = int(payload["sample_rate"])
+            tempo = float(payload["tempo"])
+            project_length = float(payload["project_length"])
+            state_count = int(payload["project_state_change_count"])
+        except (TypeError, ValueError) as exc:
+            raise ReaperBridgeError("REAPER_SNAPSHOT_MALFORMED") from exc
+        if sample_rate <= 0 or tempo <= 0 or project_length < 0 or state_count < 0:
+            raise ReaperBridgeError("REAPER_SNAPSHOT_MALFORMED")
+
+        identity = str(payload["project_identity"] or "").strip()
+        project_path = str(payload["project_path"] or "").strip()
+        if not identity:
+            raise ReaperBridgeError("REAPER_SNAPSHOT_MALFORMED", "project_identity")
+        if not isinstance(payload["dirty"], bool):
+            raise ReaperBridgeError("REAPER_SNAPSHOT_MALFORMED", "dirty")
+
+        return cls(
+            project_identity=identity,
+            project_path=project_path,
+            project_state_change_count=state_count,
+            dirty=payload["dirty"],
+            sample_rate=sample_rate,
+            tempo=tempo,
+            time_signature=dict(time_signature),
+            project_length=project_length,
+            markers=tuple(dict(item) for item in payload["markers"]),
+            regions=tuple(dict(item) for item in payload["regions"]),
+            tracks=tuple(dict(item) for item in payload["tracks"]),
+            items=tuple(dict(item) for item in payload["items"]),
+            routing=tuple(dict(item) for item in payload["routing"]),
+            fx=tuple(dict(item) for item in payload["fx"]),
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "schema": self.schema,
             "project_identity": self.project_identity,
+            "project_path": self.project_path,
             "project_state_change_count": self.project_state_change_count,
             "dirty": self.dirty,
+            "sample_rate": self.sample_rate,
+            "tempo": self.tempo,
+            "time_signature": dict(self.time_signature or {}),
+            "project_length": self.project_length,
+            "markers": [dict(item) for item in self.markers],
+            "regions": [dict(item) for item in self.regions],
+            "tracks": [dict(item) for item in self.tracks],
+            "items": [dict(item) for item in self.items],
+            "routing": [dict(item) for item in self.routing],
+            "fx": [dict(item) for item in self.fx],
         }
 
 
