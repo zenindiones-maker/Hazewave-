@@ -65,6 +65,6 @@
     }
   },
   "postCreateCommand": "bash scripts/codespaces/bootstrap-zero-cost.sh && bash scripts/codespaces/upgrade-professional-v2.sh",
-  "postStartCommand": "bash scripts/codespaces/start-professional-desktop.sh || { echo 'XPRA_START=FAIL_FALLBACK_NOVNC'; bash scripts/codespaces/start-desktop.sh; }",
+  "postStartCommand": "bash scripts/codespaces/start-professional-desktop.sh",
   "remoteUser": "vscode"
 }
