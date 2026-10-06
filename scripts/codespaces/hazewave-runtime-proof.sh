@@ -119,6 +119,23 @@ run_proof() {
   dpkg-query -W -f='DRAGONFLY_PACKAGE=${Status}\n' dragonfly-reverb-lv2
   echo "RUBBERBAND_VERSION=$(rubberband --version 2>&1 | sed -n '1p')"
 
+  TAPE_ECHO_DIR="${HOME}/.vst3/tape-echo-2.vst3"
+  TAPE_ECHO_RECEIPT="${HOME}/.local/state/hazewave-codespace/tape-echo-2-1.0.8.receipt"
+  [[ -d "$TAPE_ECHO_DIR" && -s "$TAPE_ECHO_RECEIPT" ]] || {
+    echo "TAPE_ECHO_2_RUNTIME=FAIL_NOT_INSTALLED"
+    exit 29
+  }
+  grep -Fxq 'TAPE_ECHO_2_VERSION=1.0.8' "$TAPE_ECHO_RECEIPT" || {
+    echo "TAPE_ECHO_2_RUNTIME=FAIL_VERSION"
+    exit 30
+  }
+  grep -Fxq 'ARCHIVE_SHA256=698c8825cac19547b40cd7a893d1b9bfac25587ec79cb30518f64084123b29f3' "$TAPE_ECHO_RECEIPT" || {
+    echo "TAPE_ECHO_2_RUNTIME=FAIL_ARCHIVE_SHA"
+    exit 31
+  }
+  echo "TAPE_ECHO_2_RUNTIME=PASS"
+  echo "TAPE_ECHO_2_VERSION=1.0.8"
+
   echo "REAPER_GUI_PROCESS=PASS"
   echo "REAPER_MINIMAL_PROJECT=AWAITING_HUMAN_UI_PROOF"
   echo "REAPER_PLUGIN_LOAD=AWAITING_HUMAN_UI_PROOF"
