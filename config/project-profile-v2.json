@@ -21,6 +21,14 @@
       {
         "path": "config/project-profile-v2.json",
         "binding_policy": "SAME_REPOSITORY_REVISION"
+      },
+      {
+        "path": "config/creative-specialists-v1.json",
+        "binding_policy": "SAME_REPOSITORY_REVISION"
+      },
+      {
+        "path": "docs/architecture/HAZE_WAVE_SPECIALIST_CHARTER_V1.md",
+        "binding_policy": "SAME_REPOSITORY_REVISION"
       }
     ],
     "scope": [
