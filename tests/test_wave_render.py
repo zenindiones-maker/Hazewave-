@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 import subprocess
 from pathlib import Path
 
@@ -27,7 +28,7 @@ def _manifest(source: Path, *, ambiguous_color: bool = False) -> MediaManifest:
     )
     return MediaManifest(
         source_path=str(source.resolve()),
-        source_sha256="a" * 64,
+        source_sha256=sha256(source.read_bytes()).hexdigest(),
         container_format="mov,mp4,m4a,3gp,3g2,mj2",
         duration_seconds=10.0,
         start_time_seconds=0.0,
@@ -238,6 +239,28 @@ def test_wave_render_requires_manifest_hash_match(tmp_path: Path) -> None:
         render_wave_timeline(
             timeline,
             manifests={},
+            output_root=tmp_path / "render-root",
+            render_id="render-001",
+            expected_revision=0,
+            runner=lambda args: (_ for _ in ()).throw(AssertionError(args)),
+        )
+
+
+def test_wave_render_rejects_source_bytes_changed_after_manifest(tmp_path: Path) -> None:
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"source-v1")
+    manifest = _manifest(source)
+    timeline = WaveEditorialTimeline.create(
+        timeline_id="wave-001",
+        name="Fixture",
+        manifest=manifest,
+    )
+    source.write_bytes(b"source-v2-tampered")
+
+    with pytest.raises(WaveRenderError, match="WAVE_RENDER_SOURCE_HASH_MISMATCH"):
+        render_wave_timeline(
+            timeline,
+            manifests={manifest.source_sha256: manifest},
             output_root=tmp_path / "render-root",
             render_id="render-001",
             expected_revision=0,
