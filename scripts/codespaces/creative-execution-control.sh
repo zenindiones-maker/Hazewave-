@@ -4,6 +4,7 @@ set -euo pipefail
 BRANCH="work/creative-execution-plane-v1"
 REPO_ROOT="/workspaces/Hazewave-"
 BRIDGE_ROOT="${HAZEWAVE_REAPER_BRIDGE_DIR:-${HOME}/.local/state/hazewave/reaper-bridge}"
+CREATIVE_PROOF_ROOT="${HOME}/.local/state/hazewave-codespace/creative-proofs"
 export HAZEWAVE_REAPER_BRIDGE_DIR="$BRIDGE_ROOT"
 export PYTHONPATH="${REPO_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
 
@@ -73,7 +74,7 @@ cmd_render_preview() {
 
 cmd_vertical_proof() {
   require_candidate
-  local fixture_root proof_id source_audio proof_json
+  local fixture_root proof_id source_audio proof_dir proof_json
   local CANDIDATE_HEAD POLICY_DIGEST RUNTIME_IDENTITY
 
   command -v sox >/dev/null 2>&1 || die "SOX=MISSING" 32
@@ -84,10 +85,13 @@ cmd_vertical_proof() {
 
   proof_id="$(python -c 'import uuid; print("vertical-" + uuid.uuid4().hex)')"
   source_audio="$fixture_root/${proof_id}-source.wav"
-  proof_json="$(mktemp --suffix=.hazewave-vertical-proof.json)"
+  proof_dir="$CREATIVE_PROOF_ROOT/$proof_id"
+  proof_json="$proof_dir/reaper-live-proof.json"
+  mkdir -p "$proof_dir"
+  chmod 700 "$CREATIVE_PROOF_ROOT" "$proof_dir" 2>/dev/null || true
 
   cleanup_fixture() {
-    rm -f "$source_audio" "$proof_json"
+    rm -f "$source_audio"
   }
   trap cleanup_fixture EXIT
 
@@ -144,6 +148,7 @@ if not all(Path(str(item)).is_file() for item in receipts):
 PY
 
   cat "$proof_json"
+  echo "VERTICAL_PROOF_JSON=$proof_json"
   echo "fixture-close=RUNNER_VERIFIED"
   echo "LIVE_REAPER_PROOF=PASS"
   echo "HUMAN_APPROVAL=REQUIRED"
