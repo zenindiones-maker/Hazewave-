@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import tempfile
 from typing import Any, Final, Mapping
 
@@ -437,6 +438,78 @@ class BlenderCLIExecutor:
             response_path=response_path,
             command=tuple(command),
         )
+
+    @staticmethod
+    def _default_runner(
+        args: list[str],
+        timeout_seconds: float,
+    ) -> subprocess.CompletedProcess[str]:
+        try:
+            return subprocess.run(
+                args,
+                check=False,
+                text=True,
+                capture_output=True,
+                timeout=timeout_seconds,
+            )
+        except FileNotFoundError as exc:
+            raise BlenderBridgeError("BLENDER_BINARY_NOT_FOUND") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise BlenderBridgeError("BLENDER_EXECUTION_TIMEOUT") from exc
+
+    def execute(
+        self,
+        request: BlenderExecutionRequest,
+        *,
+        blend_path: Path | str | None = None,
+        timeout_seconds: float = 300.0,
+        runner: Any | None = None,
+    ) -> dict[str, Any]:
+        if timeout_seconds <= 0 or timeout_seconds > 3600:
+            raise BlenderBridgeError("BLENDER_EXECUTION_TIMEOUT_INVALID")
+
+        prepared = self.prepare(request, blend_path=blend_path)
+        execute = runner or self._default_runner
+        try:
+            completed = execute(list(prepared.command), timeout_seconds)
+        except BlenderBridgeError:
+            raise
+        except subprocess.TimeoutExpired as exc:
+            raise BlenderBridgeError("BLENDER_EXECUTION_TIMEOUT") from exc
+        except FileNotFoundError as exc:
+            raise BlenderBridgeError("BLENDER_BINARY_NOT_FOUND") from exc
+        except Exception as exc:
+            raise BlenderBridgeError("BLENDER_EXECUTION_RUNNER_FAILED") from exc
+
+        if not prepared.response_path.is_file():
+            raise BlenderBridgeError(
+                "BLENDER_RESPONSE_MISSING",
+                f"exit={getattr(completed, 'returncode', 'UNKNOWN')}",
+            )
+
+        try:
+            payload = json.loads(
+                prepared.response_path.read_text(encoding="utf-8")
+            )
+        except (OSError, json.JSONDecodeError) as exc:
+            raise BlenderBridgeError("BLENDER_RESPONSE_MALFORMED") from exc
+
+        parsed = parse_blender_response(payload, request=request)
+        if parsed["status"] != "PASS":
+            error = parsed.get("error")
+            detail = "UNKNOWN"
+            if isinstance(error, Mapping):
+                value = error.get("code")
+                if isinstance(value, str) and value.strip():
+                    detail = value.strip()
+            raise BlenderBridgeError("BLENDER_EXECUTION_FAILED", detail)
+
+        if getattr(completed, "returncode", 0) != 0:
+            raise BlenderBridgeError(
+                "BLENDER_PROCESS_EXIT_NONZERO",
+                str(completed.returncode),
+            )
+        return parsed
 
 
 def parse_blender_response(
