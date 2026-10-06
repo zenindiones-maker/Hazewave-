@@ -360,3 +360,71 @@ def test_request_includes_executor_safe_epoch_deadline() -> None:
     assert payload["issued_at_epoch_seconds"] == pytest.approx(request.issued_at.timestamp())
     assert payload["deadline_epoch_seconds"] == pytest.approx(request.deadline.timestamp())
     assert payload["deadline_epoch_seconds"] > payload["issued_at_epoch_seconds"]
+
+
+def test_checkpoint_disallows_caller_selected_output_path() -> None:
+    now = datetime.now(timezone.utc)
+    authorization = _authorization("session.checkpoint")
+
+    with pytest.raises(ReaperBridgeError, match="REAPER_CHECKPOINT_PATH_CALLER_CONTROLLED"):
+        build_reaper_request(
+            authorization=authorization,
+            request_id="req-checkpoint-bad",
+            idempotency_key="idem-checkpoint-bad",
+            operation="session.checkpoint",
+            arguments={"path": "/tmp/escape.rpp"},
+            expected_project_identity="/tmp/fixture.rpp",
+            expected_project_state_change_count=7,
+            issued_at=now,
+            deadline=now + timedelta(seconds=10),
+        )
+
+
+def test_rollback_requires_exact_expected_hazewave_undo_description() -> None:
+    now = datetime.now(timezone.utc)
+    authorization = _authorization("session.rollback")
+
+    with pytest.raises(ReaperBridgeError, match="REAPER_ROLLBACK_EXPECTED_UNDO_REQUIRED"):
+        build_reaper_request(
+            authorization=authorization,
+            request_id="req-rollback-bad",
+            idempotency_key="idem-rollback-bad",
+            operation="session.rollback",
+            arguments={},
+            expected_project_identity="/tmp/fixture.rpp",
+            expected_project_state_change_count=8,
+            issued_at=now,
+            deadline=now + timedelta(seconds=10),
+        )
+
+    with pytest.raises(ReaperBridgeError, match="REAPER_ROLLBACK_EXPECTED_UNDO_NOT_HAZEWAVE"):
+        build_reaper_request(
+            authorization=authorization,
+            request_id="req-rollback-human",
+            idempotency_key="idem-rollback-human",
+            operation="session.rollback",
+            arguments={"expected_undo_description": "human edit"},
+            expected_project_identity="/tmp/fixture.rpp",
+            expected_project_state_change_count=8,
+            issued_at=now,
+            deadline=now + timedelta(seconds=10),
+        )
+
+
+def test_rollback_request_binds_exact_hazewave_undo_description() -> None:
+    now = datetime.now(timezone.utc)
+    request = build_reaper_request(
+        authorization=_authorization("session.rollback"),
+        request_id="req-rollback-ok",
+        idempotency_key="idem-rollback-ok",
+        operation="session.rollback",
+        arguments={"expected_undo_description": "Hazewave: fx.parameter.write [req-write-1]"},
+        expected_project_identity="/tmp/fixture.rpp",
+        expected_project_state_change_count=8,
+        issued_at=now,
+        deadline=now + timedelta(seconds=10),
+    )
+
+    assert request.arguments["expected_undo_description"] == (
+        "Hazewave: fx.parameter.write [req-write-1]"
+    )
