@@ -165,6 +165,125 @@ def validate_existing_scene(request: dict, snapshot: dict) -> None:
         raise RuntimeError("BLENDER_BLEND_STATE_STALE")
 
 
+def safe_id(value, code: str) -> str:
+    candidate = str(value or "").strip()
+    if not _FIXTURE_ID_RE.fullmatch(candidate):
+        raise RuntimeError(code)
+    return candidate
+
+
+def ensure_gp_material(grease_pencil, name: str):
+    material = bpy.data.materials.get(name)
+    if material is None:
+        material = bpy.data.materials.new(name=name)
+    if material.grease_pencil is None:
+        bpy.data.materials.create_gpencil_data(material)
+
+    gp_style = material.grease_pencil
+    if gp_style is None:
+        raise RuntimeError("BLENDER_GREASE_PENCIL_MATERIAL_CREATE_FAILED")
+    gp_style.show_stroke = True
+    gp_style.show_fill = False
+    gp_style.stroke_style = "SOLID"
+    gp_style.color = (0.03, 0.04, 0.06, 1.0)
+
+    if grease_pencil.materials.get(material.name) is None:
+        grease_pencil.materials.append(material)
+    return material
+
+
+def make_character_frame(
+    layer,
+    frame_number: int,
+    keyframe_type: str,
+    x_offset: float,
+) -> None:
+    frame = layer.frames.new(frame_number)
+    frame.keyframe_type = keyframe_type
+    drawing = frame.drawing
+    if drawing is None:
+        raise RuntimeError("BLENDER_GREASE_PENCIL_DRAWING_MISSING")
+
+    points = (
+        (x_offset - 0.55, 0.0, 1.20),
+        (x_offset - 0.35, 0.0, 1.70),
+        (x_offset, 0.0, 1.95),
+        (x_offset + 0.35, 0.0, 1.70),
+        (x_offset + 0.55, 0.0, 1.20),
+        (x_offset + 0.30, 0.0, 0.35),
+        (x_offset, 0.0, -0.35),
+        (x_offset - 0.30, 0.0, 0.35),
+        (x_offset - 0.55, 0.0, 1.20),
+    )
+    drawing.add_strokes([len(points)])
+
+    flat_positions = [axis for point in points for axis in point]
+    position_attribute = drawing.attributes["position"]
+    position_attribute.data.foreach_set("vector", flat_positions)
+
+    radius_attribute = drawing.attributes.get("radius")
+    if radius_attribute is None:
+        radius_attribute = drawing.attributes.new("radius", "FLOAT", "POINT")
+    radius_attribute.data.foreach_set(
+        "value",
+        [0.035 for _ in points],
+    )
+
+    opacity_attribute = drawing.attributes.get("opacity")
+    if opacity_attribute is None:
+        opacity_attribute = drawing.attributes.new("opacity", "FLOAT", "POINT")
+    opacity_attribute.data.foreach_set(
+        "value",
+        [1.0 for _ in points],
+    )
+
+    material_attribute = drawing.attributes.get("material_index")
+    if material_attribute is None:
+        material_attribute = drawing.attributes.new(
+            "material_index",
+            "INT",
+            "CURVE",
+        )
+    material_attribute.data.foreach_set("value", [0])
+    drawing.tag_positions_changed()
+
+
+def create_background(name: str):
+    mesh = bpy.data.meshes.new(name + "Mesh")
+    mesh.from_pydata(
+        [
+            (-8.0, 1.5, -4.5),
+            (8.0, 1.5, -4.5),
+            (8.0, 1.5, 4.5),
+            (-8.0, 1.5, 4.5),
+        ],
+        [],
+        [(0, 1, 2, 3)],
+    )
+    mesh.update()
+
+    background = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(background)
+
+    material = bpy.data.materials.new(name=name + "Material")
+    material.diffuse_color = (0.08, 0.12, 0.20, 1.0)
+    mesh.materials.append(material)
+    return background
+
+
+def create_camera():
+    camera_data = bpy.data.cameras.new("HazewaveCameraData")
+    camera_data.type = "ORTHO"
+    camera_data.ortho_scale = 10.0
+
+    camera = bpy.data.objects.new("HazewaveCamera", camera_data)
+    bpy.context.scene.collection.objects.link(camera)
+    camera.location = (0.0, -12.0, 0.0)
+    camera.rotation_euler = (math.radians(90.0), 0.0, 0.0)
+    bpy.context.scene.camera = camera
+    return camera
+
+
 def handle_scene_inspect(request: dict) -> dict:
     before = current_snapshot()
     validate_existing_scene(request, before)
