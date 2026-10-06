@@ -70,6 +70,7 @@ class ProposedFinding:
     domain: str
     claim: str
     confidence: float
+    evidence_excerpt: str | None = None
 
     def __post_init__(self) -> None:
         if not str(self.knowledge_key or "").strip():
@@ -84,6 +85,10 @@ class ProposedFinding:
             raise ValueError("DAILY_INTELLIGENCE_FINDING_CONFIDENCE_INVALID") from exc
         if confidence < 0.0 or confidence > 1.0:
             raise ValueError("DAILY_INTELLIGENCE_FINDING_CONFIDENCE_INVALID")
+        if self.evidence_excerpt is not None:
+            excerpt = str(self.evidence_excerpt).strip()
+            if not excerpt or len(excerpt) > 500:
+                raise ValueError("DAILY_INTELLIGENCE_FINDING_EVIDENCE_INVALID")
 
 
 @dataclass(frozen=True)
@@ -383,6 +388,7 @@ class DailyIntelligenceEngine:
                 "knowledge_key": finding.knowledge_key,
                 "claim": finding.claim,
                 "confidence": float(finding.confidence),
+                "evidence_excerpt": finding.evidence_excerpt,
                 "source_digest": source_digest,
                 "observed_at": observed_at,
                 "supersedes_record_id": supersedes,
