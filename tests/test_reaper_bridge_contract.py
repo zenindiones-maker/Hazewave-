@@ -428,3 +428,38 @@ def test_rollback_request_binds_exact_hazewave_undo_description() -> None:
     assert request.arguments["expected_undo_description"] == (
         "Hazewave: fx.parameter.write [req-write-1]"
     )
+
+
+def test_render_preview_disallows_caller_selected_output_path() -> None:
+    now = datetime.now(timezone.utc)
+
+    with pytest.raises(ReaperBridgeError, match="REAPER_RENDER_PATH_CALLER_CONTROLLED"):
+        build_reaper_request(
+            authorization=_authorization("render.preview"),
+            request_id="req-render-bad",
+            idempotency_key="idem-render-bad",
+            operation="render.preview",
+            arguments={"output_path": "/tmp/escape.wav"},
+            expected_project_identity="/tmp/fixture.rpp",
+            expected_project_state_change_count=8,
+            issued_at=now,
+            deadline=now + timedelta(seconds=30),
+        )
+
+
+def test_render_preview_request_is_bounded_to_project_owned_artifact_root() -> None:
+    now = datetime.now(timezone.utc)
+    request = build_reaper_request(
+        authorization=_authorization("render.preview"),
+        request_id="req-render-ok",
+        idempotency_key="idem-render-ok",
+        operation="render.preview",
+        arguments={},
+        expected_project_identity="/tmp/fixture.rpp",
+        expected_project_state_change_count=8,
+        issued_at=now,
+        deadline=now + timedelta(seconds=30),
+    )
+
+    assert request.operation == "render.preview"
+    assert request.arguments == {}
