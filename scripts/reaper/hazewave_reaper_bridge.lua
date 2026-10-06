@@ -610,6 +610,135 @@ local function configure_preview_render(proj, render_pattern)
   reaper.GetSetProjectInfo_String(proj, "RENDER_FORMAT2", "", true)
 end
 
+local RENDER_SETTINGS_MASTER = 0
+local RENDER_SETTINGS_STEMS_ONLY = 2
+
+local function collect_render_artifacts(prefix)
+  local artifacts = array()
+  local index = 0
+  while true do
+    local name = reaper.EnumerateFiles(render_root, index)
+    if name == nil then break end
+    index = index + 1
+    if name:sub(1, #prefix) == prefix and name:lower():match("%.wav$") then
+      local path = render_root .. "/" .. name
+      local handle = io.open(path, "rb")
+      if handle ~= nil then
+        local size = handle:seek("end") or 0
+        handle:close()
+        if size > 0 then
+          artifacts[#artifacts + 1] = {
+            name = name,
+            path = path,
+            size_bytes = size,
+          }
+        end
+      end
+    end
+  end
+  table.sort(artifacts, function(a, b) return a.name < b.name end)
+  return artifacts
+end
+
+local function capture_track_selection(proj)
+  local values = array()
+  local count = reaper.CountTracks(proj)
+  for index = 0, count - 1 do
+    values[#values + 1] = reaper.IsTrackSelected(reaper.GetTrack(proj, index))
+  end
+  return values
+end
+
+local function restore_track_selection(proj, selection)
+  local count = reaper.CountTracks(proj)
+  for index = 0, count - 1 do
+    local track = reaper.GetTrack(proj, index)
+    reaper.SetTrackSelected(track, selection[index + 1] == true)
+  end
+end
+
+local function select_render_tracks(proj, indices)
+  if type(indices) ~= "table" or #indices < 1 then
+    error("REAPER_RENDER_STEMS_TRACKS_REQUIRED")
+  end
+  local count = reaper.CountTracks(proj)
+  for index = 0, count - 1 do
+    reaper.SetTrackSelected(reaper.GetTrack(proj, index), false)
+  end
+  local seen = {}
+  for _, value in ipairs(indices) do
+    if type(value) ~= "number"
+        or value < 0
+        or value % 1 ~= 0
+        or value >= count then
+      error("REAPER_RENDER_STEMS_TRACK_INDEX_INVALID")
+    end
+    if seen[value] then error("REAPER_RENDER_STEMS_TRACK_DUPLICATE") end
+    seen[value] = true
+    reaper.SetTrackSelected(reaper.GetTrack(proj, value), true)
+  end
+end
+
+local function configure_owned_render(proj, pattern, settings)
+  reaper.GetSetProjectInfo(proj, "RENDER_SETTINGS", settings, true)
+  reaper.GetSetProjectInfo(proj, "RENDER_BOUNDSFLAG", 1, true)
+  reaper.GetSetProjectInfo(proj, "RENDER_CHANNELS", 2, true)
+  reaper.GetSetProjectInfo(proj, "RENDER_SRATE", 48000, true)
+  reaper.GetSetProjectInfo(proj, "RENDER_TAILFLAG", 0, true)
+  reaper.GetSetProjectInfo(proj, "RENDER_ADDTOPROJ", 0, true)
+  reaper.GetSetProjectInfo(proj, "RENDER_DITHER", 0, true)
+  reaper.GetSetProjectInfo(proj, "RENDER_NORMALIZE", 0, true)
+  reaper.GetSetProjectInfo_String(proj, "RENDER_FILE", render_root, true)
+  reaper.GetSetProjectInfo_String(proj, "RENDER_PATTERN", pattern, true)
+  reaper.GetSetProjectInfo_String(proj, "RENDER_FORMAT", "evaw", true)
+  reaper.GetSetProjectInfo_String(proj, "RENDER_FORMAT2", "", true)
+end
+
+local function perform_owned_render(proj, prefix, pattern, settings, track_indices)
+  if #collect_render_artifacts(prefix) > 0 then
+    error("REAPER_RENDER_TARGET_ALREADY_EXISTS")
+  end
+
+  local action_text = reaper.kbd_getTextFromCmd(RENDER_ACTION_ID, 0) or ""
+  local action_lower = string.lower(action_text)
+  if action_lower == ""
+      or not action_lower:find("render project", 1, true)
+      or not action_lower:find("most recent render settings", 1, true) then
+    error("REAPER_RENDER_ACTION_IDENTITY_MISMATCH")
+  end
+
+  local saved_settings = capture_render_settings(proj)
+  local saved_selection = capture_track_selection(proj)
+
+  local ok_prepare, prepare_err = pcall(function()
+    if track_indices ~= nil then select_render_tracks(proj, track_indices) end
+    configure_owned_render(proj, pattern, settings)
+  end)
+  if not ok_prepare then
+    restore_render_settings(proj, saved_settings)
+    restore_track_selection(proj, saved_selection)
+    error(tostring(prepare_err))
+  end
+
+  local ok_render, render_err = pcall(
+    reaper.Main_OnCommandEx,
+    RENDER_ACTION_ID,
+    0,
+    proj
+  )
+
+  restore_render_settings(proj, saved_settings)
+  restore_track_selection(proj, saved_selection)
+
+  if not ok_render then
+    error("REAPER_RENDER_ACTION_FAILED:" .. tostring(render_err))
+  end
+
+  local artifacts = collect_render_artifacts(prefix)
+  if #artifacts < 1 then error("REAPER_RENDER_OUTPUT_MISSING") end
+  return artifacts, action_text
+end
+
 local FIXTURE_NEW_TAB_ACTION_ID = 40859
 local FIXTURE_CLOSE_TAB_ACTION_ID = 40860
 
@@ -1087,6 +1216,74 @@ handlers["audio.pitch"] = function(request, proj)
   }
 end
 
+handlers["render.master"] = function(request, proj)
+  local args = request.arguments or {}
+  for key, _ in pairs(args) do
+    if key == "path"
+        or key == "output_path"
+        or key == "render_path"
+        or key == "destination"
+        or key == "directory" then
+      error("REAPER_RENDER_PATH_CALLER_CONTROLLED")
+    end
+  end
+  local safe_request_id = tostring(request.request_id):gsub("[^A-Za-z0-9_.%-]", "_")
+  local prefix = safe_request_id .. "-master"
+  local artifacts, action_text = perform_owned_render(
+    proj,
+    prefix,
+    prefix,
+    RENDER_SETTINGS_MASTER,
+    nil
+  )
+  if #artifacts ~= 1 then error("REAPER_RENDER_MASTER_ARTIFACT_COUNT_INVALID") end
+  return {
+    render_kind = "MASTER",
+    artifact = artifacts[1],
+    render_action_id = RENDER_ACTION_ID,
+    render_action_text = action_text,
+    sample_rate = 48000,
+    channels = 2,
+    format = "WAV",
+  }
+end
+
+handlers["render.stems"] = function(request, proj)
+  local args = request.arguments or {}
+  for key, _ in pairs(args) do
+    if key == "path"
+        or key == "output_path"
+        or key == "render_path"
+        or key == "destination"
+        or key == "directory" then
+      error("REAPER_RENDER_PATH_CALLER_CONTROLLED")
+    end
+  end
+  local safe_request_id = tostring(request.request_id):gsub("[^A-Za-z0-9_.%-]", "_")
+  local prefix = safe_request_id .. "-stem"
+  local pattern = prefix .. "-$track"
+  local artifacts, action_text = perform_owned_render(
+    proj,
+    prefix,
+    pattern,
+    RENDER_SETTINGS_STEMS_ONLY,
+    args.track_indices
+  )
+  if #artifacts ~= #args.track_indices then
+    error("REAPER_RENDER_STEMS_ARTIFACT_COUNT_INVALID")
+  end
+  return {
+    render_kind = "STEMS",
+    artifacts = artifacts,
+    artifact_count = #artifacts,
+    render_action_id = RENDER_ACTION_ID,
+    render_action_text = action_text,
+    sample_rate = 48000,
+    channels = 2,
+    format = "WAV",
+  }
+end
+
 handlers["track.create"] = function(request, proj)
   local args = request.arguments or {}
   local index = args.index
@@ -1433,6 +1630,8 @@ local special_operations = {
   ["session.checkpoint"] = true,
   ["session.rollback"] = true,
   ["render.preview"] = true,
+  ["render.master"] = true,
+  ["render.stems"] = true,
 }
 
 
