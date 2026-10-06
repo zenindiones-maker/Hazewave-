@@ -130,6 +130,86 @@ class KnowledgeEvidence:
 
 
 @dataclass(frozen=True)
+class KnowledgeFreshnessResolution:
+    knowledge_id: str
+    status: str
+    selected_source: str
+    selected_source_type: str
+    selected_validation_status: str
+    evidence_rank: int
+    selected_version: str
+    selected_platform: str
+    selected_architecture: str
+    stale_sources: tuple[str, ...]
+    incompatible_sources: tuple[str, ...]
+    grants_execution_authority: bool = False
+    can_grant_production_approval: bool = False
+    schema: ClassVar[str] = "KnowledgeFreshnessResolution/v1"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema": self.schema,
+            "knowledge_id": self.knowledge_id,
+            "status": self.status,
+            "selected_source": self.selected_source,
+            "selected_source_type": self.selected_source_type,
+            "selected_validation_status": self.selected_validation_status,
+            "evidence_rank": self.evidence_rank,
+            "selected_version": self.selected_version,
+            "selected_platform": self.selected_platform,
+            "selected_architecture": self.selected_architecture,
+            "stale_sources": list(self.stale_sources),
+            "incompatible_sources": list(self.incompatible_sources),
+            "grants_execution_authority": self.grants_execution_authority,
+            "can_grant_production_approval": self.can_grant_production_approval,
+        }
+
+
+_OFFICIAL_DOCUMENTATION_TYPES = {
+    "OFFICIAL_DOCUMENTATION",
+    "OFFICIAL_API_DOCUMENTATION",
+    "OFFICIAL_STANDARD",
+}
+_OFFICIAL_RELEASE_TYPES = {
+    "OFFICIAL_RELEASE",
+    "OFFICIAL_PACKAGE_RELEASE",
+    "OFFICIAL_PROJECT_RELEASE",
+    "PROJECT_RELEASE",
+}
+_PROJECT_TECHNICAL_TYPES = {
+    "PROJECT_SOURCE",
+    "PROJECT_CHANGELOG",
+    "SOURCE_CODE",
+    "CHANGELOG",
+}
+_INDEPENDENT_TECHNICAL_TYPES = {
+    "INDEPENDENT_TECHNICAL_EVIDENCE",
+    "TRUSTWORTHY_INDEPENDENT_TECHNICAL_EVIDENCE",
+}
+_COMMUNITY_TYPES = {
+    "COMMUNITY_OPINION",
+    "COMMUNITY_DISCUSSION",
+}
+
+
+def _knowledge_evidence_rank(evidence: KnowledgeEvidence) -> int:
+    if evidence.validation_status == KnowledgeValidationStatus.RUNTIME_PROVEN:
+        return 1
+    source_type = evidence.source_type.strip().upper()
+    if source_type in _OFFICIAL_DOCUMENTATION_TYPES:
+        return 2
+    if source_type in _OFFICIAL_RELEASE_TYPES:
+        return 3
+    if source_type in _PROJECT_TECHNICAL_TYPES:
+        return 4
+    if source_type in _INDEPENDENT_TECHNICAL_TYPES:
+        return 5
+    if source_type in _COMMUNITY_TYPES:
+        return 6
+    return 7
+
+
+@dataclass(frozen=True)
 class BaseKnowledge:
     knowledge_id: str
     title: str
@@ -271,6 +351,104 @@ class ProfessionalKnowledgeRegistry:
             "grants_execution_authority": self.grants_execution_authority,
             "entries": [entry.to_dict() for entry in self.entries],
         }
+
+    def resolve_best_evidence(
+        self,
+        knowledge_id: str,
+        *,
+        as_of: datetime,
+        required_version: str | None = None,
+        platform: str | None = None,
+        architecture: str | None = None,
+    ) -> KnowledgeFreshnessResolution:
+        if as_of.tzinfo is None or as_of.utcoffset() is None:
+            raise ValueError("KNOWLEDGE_AS_OF_TIMEZONE_REQUIRED")
+
+        entry = self.get(knowledge_id)
+        stale_sources: list[str] = []
+        incompatible_sources: list[str] = []
+        eligible: list[tuple[int, KnowledgeEvidence]] = []
+
+        required_version_value = (
+            None
+            if required_version is None
+            else str(required_version).strip()
+        )
+        platform_value = None if platform is None else str(platform).strip().casefold()
+        architecture_value = (
+            None if architecture is None else str(architecture).strip().casefold()
+        )
+
+        for evidence in entry.evidence:
+            if evidence.validation_status in {
+                KnowledgeValidationStatus.UNVALIDATED,
+                KnowledgeValidationStatus.INVALIDATED,
+            }:
+                incompatible_sources.append(evidence.source)
+                continue
+
+            if evidence.is_stale(as_of=as_of):
+                stale_sources.append(evidence.source)
+                continue
+
+            if (
+                required_version_value is not None
+                and evidence.version != required_version_value
+            ):
+                incompatible_sources.append(evidence.source)
+                continue
+
+            evidence_platform = evidence.platform.strip().casefold()
+            if (
+                platform_value is not None
+                and evidence_platform
+                not in {platform_value, "any", "all", "platform-independent"}
+            ):
+                incompatible_sources.append(evidence.source)
+                continue
+
+            evidence_architecture = evidence.architecture.strip().casefold()
+            if (
+                architecture_value is not None
+                and evidence_architecture
+                not in {
+                    architecture_value,
+                    "any",
+                    "all",
+                    "architecture-independent",
+                }
+            ):
+                incompatible_sources.append(evidence.source)
+                continue
+
+            eligible.append((_knowledge_evidence_rank(evidence), evidence))
+
+        if not eligible:
+            raise ValueError("KNOWLEDGE_NO_FRESH_COMPATIBLE_EVIDENCE")
+
+        eligible.sort(
+            key=lambda item: (
+                item[0],
+                -float(item[1].confidence),
+                -item[1].retrieved_at.timestamp(),
+                item[1].source,
+            )
+        )
+        rank, selected = eligible[0]
+
+        return KnowledgeFreshnessResolution(
+            knowledge_id=knowledge_id,
+            status="FRESH",
+            selected_source=selected.source,
+            selected_source_type=selected.source_type,
+            selected_validation_status=selected.validation_status.value,
+            evidence_rank=rank,
+            selected_version=selected.version,
+            selected_platform=selected.platform,
+            selected_architecture=selected.architecture,
+            stale_sources=tuple(stale_sources),
+            incompatible_sources=tuple(incompatible_sources),
+        )
 
     @staticmethod
     def _entry_from_dict(payload: Mapping[str, Any]) -> BaseKnowledge:
