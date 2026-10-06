@@ -672,6 +672,14 @@ local function validate_request(request)
   if type(request.expected_project_state_change_count) ~= "number" then
     error("REAPER_REQUEST_EXPECTED_STATE_REQUIRED")
   end
+  if type(request.issued_at_epoch_seconds) ~= "number"
+      or type(request.deadline_epoch_seconds) ~= "number"
+      or request.deadline_epoch_seconds <= request.issued_at_epoch_seconds then
+    error("REAPER_REQUEST_DEADLINE_INVALID")
+  end
+  if os.time() > request.deadline_epoch_seconds then
+    error("REAPER_REQUEST_DEADLINE_EXCEEDED")
+  end
   if handlers[request.operation] == nil then
     error("REAPER_OPERATION_NOT_ALLOWLISTED")
   end
