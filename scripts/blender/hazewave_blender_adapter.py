@@ -411,6 +411,96 @@ def frame_sha256(path: Path) -> str:
     return sha256_file(path)
 
 
+def handle_repair_frames(request: dict) -> dict:
+    before = current_snapshot()
+    validate_existing_scene(request, before)
+    args = request["arguments"]
+    render_id = safe_id(args.get("render_id"), "BLENDER_RENDER_ID_INVALID")
+    if args.get("format") != "PNG":
+        raise RuntimeError("BLENDER_FRAME_RENDER_FORMAT_INVALID")
+
+    frame_numbers = args.get("frame_numbers")
+    if (
+        not isinstance(frame_numbers, list)
+        or not frame_numbers
+        or len(frame_numbers) > 120
+        or any(
+            not isinstance(value, int) or isinstance(value, bool)
+            for value in frame_numbers
+        )
+        or any(value < 1 or value > 10000 for value in frame_numbers)
+        or len(set(frame_numbers)) != len(frame_numbers)
+        or frame_numbers != sorted(frame_numbers)
+    ):
+        raise RuntimeError("BLENDER_FRAME_REPAIR_RANGE_INVALID")
+
+    output_dir = (frame_root / render_id).resolve()
+    try:
+        output_dir.relative_to(frame_root.resolve())
+    except ValueError as exc:
+        raise RuntimeError("BLENDER_FRAME_RENDER_PATH_OUTSIDE_ROOT") from exc
+    if not output_dir.is_dir():
+        raise RuntimeError("ANIMATION_FRAME_REPAIR_RENDER_NOT_FOUND")
+
+    scene = bpy.context.scene
+    saved = {
+        "frame_current": int(scene.frame_current),
+        "filepath": scene.render.filepath,
+        "format": scene.render.image_settings.file_format,
+    }
+    repaired = []
+    try:
+        scene.render.image_settings.file_format = "PNG"
+        for frame_number in frame_numbers:
+            frame_path = output_dir / f"frame-{frame_number:04d}.png"
+            if not frame_path.is_file() or frame_path.stat().st_size <= 0:
+                raise RuntimeError("ANIMATION_FRAME_REPAIR_SOURCE_FRAME_MISSING")
+
+            previous_sha256 = frame_sha256(frame_path)
+            scene.frame_set(frame_number)
+            scene.render.filepath = str(
+                output_dir / f"frame-{frame_number:04d}"
+            )
+            bpy.ops.render.render(write_still=True)
+
+            if not frame_path.is_file() or frame_path.stat().st_size <= 0:
+                raise RuntimeError("ANIMATION_FRAME_REPAIR_OUTPUT_MISSING")
+            new_sha256 = frame_sha256(frame_path)
+            deterministic_match = previous_sha256 == new_sha256
+            if not deterministic_match:
+                raise RuntimeError("ANIMATION_FRAME_RERENDER_NONDETERMINISTIC")
+
+            repaired.append(
+                {
+                    "frame_number": frame_number,
+                    "path": str(frame_path),
+                    "previous_sha256": previous_sha256,
+                    "new_sha256": new_sha256,
+                    "deterministic_match": deterministic_match,
+                    "size_bytes": frame_path.stat().st_size,
+                }
+            )
+    finally:
+        scene.frame_set(saved["frame_current"])
+        scene.render.filepath = saved["filepath"]
+        scene.render.image_settings.file_format = saved["format"]
+
+    after = current_snapshot()
+    if after["blend_sha256"] != before["blend_sha256"]:
+        raise RuntimeError("BLENDER_FRAME_REPAIR_MUTATED_BLEND")
+
+    return {
+        "state_before": before,
+        "state_after": after,
+        "result": {
+            "render_id": render_id,
+            "format": "PNG",
+            "frame_numbers": list(frame_numbers),
+            "repaired_frames": repaired,
+        },
+    }
+
+
 def handle_render_frames(request: dict) -> dict:
     before = current_snapshot()
     validate_existing_scene(request, before)
@@ -502,6 +592,7 @@ handlers = {
     "animation.fixture.create": handle_fixture_create,
     "animation.shot.build": handle_shot_build,
     "animation.render.frames": handle_render_frames,
+    "animation.render.frames.repair": handle_repair_frames,
 }
 
 
