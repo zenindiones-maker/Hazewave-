@@ -412,15 +412,135 @@ class ReaperVerticalProofRunner:
         receipts: list[str] = []
         receipt_step = 0
 
-        snapshot = self.client.snapshot(
-            task_id=f"{proof}-snapshot",
-            request_id=f"{proof}-snapshot",
-            idempotency_key=f"{proof}-snapshot",
+        initial_snapshot = self.client.snapshot(
+            task_id=f"{proof}-snapshot-initial",
+            request_id=f"{proof}-snapshot-initial",
+            idempotency_key=f"{proof}-snapshot-initial",
         )
-        fixture = ensure_disposable_fixture(
-            snapshot,
-            fixture_root=self.fixture_root,
+        original_project_identity = initial_snapshot.project_identity
+        isolated_fixture = False
+        fixture_open_receipt: str | None = None
+
+        raw_initial_project = (
+            initial_snapshot.project_path or initial_snapshot.project_identity
         )
+        initial_inside_fixture_root = False
+        if isinstance(raw_initial_project, str) and raw_initial_project.strip():
+            try:
+                Path(raw_initial_project).expanduser().resolve().relative_to(
+                    self.fixture_root
+                )
+                initial_inside_fixture_root = True
+            except ValueError:
+                initial_inside_fixture_root = False
+
+        if initial_inside_fixture_root:
+            snapshot = initial_snapshot
+            fixture = ensure_disposable_fixture(
+                snapshot,
+                fixture_root=self.fixture_root,
+            )
+        else:
+            fixture_id = proof[:64]
+            open_task = f"{proof}-fixture-open"
+            open_request = open_task
+            open_method = getattr(self.client, "open_fixture", None)
+
+            if callable(open_method):
+                opened = open_method(
+                    fixture_id=fixture_id,
+                    task_id=open_task,
+                    request_id=open_request,
+                    idempotency_key=open_request,
+                )
+                if not isinstance(opened, Mapping):
+                    raise VerticalProofError(
+                        "VERTICAL_PROOF_FIXTURE_OPEN_MALFORMED"
+                    )
+                fixture_value = opened.get("fixture_project")
+                fixture_state_value = opened.get(
+                    "fixture_project_state_change_count"
+                )
+                if (
+                    not isinstance(fixture_value, str)
+                    or not fixture_value.strip()
+                    or not isinstance(fixture_state_value, int)
+                    or fixture_state_value < 0
+                ):
+                    raise VerticalProofError(
+                        "VERTICAL_PROOF_FIXTURE_OPEN_MALFORMED"
+                    )
+                fixture_path_from_open = Path(fixture_value).resolve()
+                open_before = initial_snapshot.project_state_change_count
+                open_after = fixture_state_value
+            else:
+                raw_open = self.client.execute_bound_operation(
+                    task_id=open_task,
+                    request_id=open_request,
+                    idempotency_key=open_request,
+                    operation="session.fixture.open",
+                    arguments={"fixture_id": fixture_id},
+                    expected_project_identity=original_project_identity,
+                    expected_project_state_change_count=(
+                        initial_snapshot.project_state_change_count
+                    ),
+                )
+                open_before, open_after = self._response_state(
+                    raw_open,
+                    expected_before=initial_snapshot.project_state_change_count,
+                )
+                open_result = raw_open.get("result")
+                if not isinstance(open_result, Mapping):
+                    raise VerticalProofError(
+                        "VERTICAL_PROOF_FIXTURE_OPEN_MALFORMED"
+                    )
+                fixture_value = open_result.get("fixture_project")
+                if not isinstance(fixture_value, str) or not fixture_value.strip():
+                    raise VerticalProofError(
+                        "VERTICAL_PROOF_FIXTURE_OPEN_MALFORMED"
+                    )
+                fixture_path_from_open = Path(fixture_value).resolve()
+
+            expected_fixture_path = (
+                self.fixture_root / f"{fixture_id}.rpp"
+            ).resolve()
+            if fixture_path_from_open != expected_fixture_path:
+                raise VerticalProofError(
+                    "VERTICAL_PROOF_FIXTURE_OPEN_OUTSIDE_ROOT"
+                )
+
+            receipt_step += 1
+            fixture_open_receipt = self._persist_receipt(
+                proof_id=proof,
+                step=receipt_step,
+                capability="session.fixture.open",
+                task_id=open_task,
+                project_identity=original_project_identity,
+                state_before=open_before,
+                state_after=open_after,
+                idempotency_key=open_request,
+            )
+            receipts.append(fixture_open_receipt)
+            isolated_fixture = True
+
+            snapshot = self.client.snapshot(
+                task_id=f"{proof}-snapshot-fixture",
+                request_id=f"{proof}-snapshot-fixture",
+                idempotency_key=f"{proof}-snapshot-fixture",
+            )
+            fixture = ensure_disposable_fixture(
+                snapshot,
+                fixture_root=self.fixture_root,
+            )
+            if fixture != expected_fixture_path:
+                raise VerticalProofError(
+                    "VERTICAL_PROOF_FIXTURE_IDENTITY_MISMATCH"
+                )
+            if snapshot.project_state_change_count != open_after:
+                raise VerticalProofError(
+                    "VERTICAL_PROOF_FIXTURE_STATE_MISMATCH"
+                )
+
         project_identity = snapshot.project_identity
         state = snapshot.project_state_change_count
 
@@ -718,12 +838,97 @@ class ReaperVerticalProofRunner:
         if abs(restored - expected_restored) > 1e-6:
             raise VerticalProofError("VERTICAL_PROOF_ROLLBACK_NOT_RESTORED")
 
+        restored_project_identity = project_identity
+        original_project_restored = not isolated_fixture
+        fixture_close_receipt: str | None = None
+
+        if isolated_fixture:
+            close_task = f"{proof}-fixture-close"
+            close_request = close_task
+            close_before = state
+            close_method = getattr(self.client, "close_fixture", None)
+            if callable(close_method):
+                closed = close_method(
+                    task_id=close_task,
+                    request_id=close_request,
+                    idempotency_key=close_request,
+                )
+                if not isinstance(closed, Mapping):
+                    raise VerticalProofError(
+                        "VERTICAL_PROOF_FIXTURE_CLOSE_MALFORMED"
+                    )
+                restored_value = closed.get("restored_project_identity")
+                restored_state_value = closed.get(
+                    "restored_project_state_change_count"
+                )
+                if (
+                    not isinstance(restored_value, str)
+                    or not isinstance(restored_state_value, int)
+                    or restored_state_value < 0
+                ):
+                    raise VerticalProofError(
+                        "VERTICAL_PROOF_FIXTURE_CLOSE_MALFORMED"
+                    )
+                restored_project_identity = restored_value
+                close_after = restored_state_value
+            else:
+                raw_close = self.client.execute_bound_operation(
+                    task_id=close_task,
+                    request_id=close_request,
+                    idempotency_key=close_request,
+                    operation="session.fixture.close",
+                    arguments={},
+                    expected_project_identity=project_identity,
+                    expected_project_state_change_count=state,
+                )
+                _, close_after = self._response_state(
+                    raw_close,
+                    expected_before=state,
+                )
+                close_result = raw_close.get("result")
+                if not isinstance(close_result, Mapping):
+                    raise VerticalProofError(
+                        "VERTICAL_PROOF_FIXTURE_CLOSE_MALFORMED"
+                    )
+                restored_value = close_result.get("restored_project_identity")
+                if not isinstance(restored_value, str):
+                    raise VerticalProofError(
+                        "VERTICAL_PROOF_FIXTURE_CLOSE_MALFORMED"
+                    )
+                restored_project_identity = restored_value
+
+            if restored_project_identity != original_project_identity:
+                raise VerticalProofError(
+                    "VERTICAL_PROOF_ORIGINAL_PROJECT_NOT_RESTORED"
+                )
+            receipt_step += 1
+            fixture_close_receipt = self._persist_receipt(
+                proof_id=proof,
+                step=receipt_step,
+                capability="session.fixture.close",
+                task_id=close_task,
+                project_identity=project_identity,
+                state_before=close_before,
+                state_after=close_after,
+                idempotency_key=close_request,
+            )
+            receipts.append(fixture_close_receipt)
+            original_project_restored = True
+
         return {
             "schema": "ReaperLiveVerticalProof/v1",
             "status": "PASS",
             "authority": "HAZEWAVE_HARNESS",
             "portfolio_authority": "NONE",
             "fixture_project": str(fixture),
+            "fixture_session": {
+                "isolated": isolated_fixture,
+                "original_project_identity": original_project_identity,
+                "original_project_restored": original_project_restored,
+                "restored_project_identity": restored_project_identity,
+                "open_receipt": fixture_open_receipt,
+                "close_receipt": fixture_close_receipt,
+            },
             "source_audio": str(source),
             "checkpoint_path": str(checkpoint_path),
             "plugin": {
