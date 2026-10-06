@@ -279,7 +279,7 @@ cmd_close() {
     echo "HAZEWAVE_CODESPACE=NOT_CREATED"
     return 0
   fi
-  verify_identity "$cs"
+  verify_machine_only "$cs"
   state="$(state_of "$cs")"
   if [ "$state" = "Available" ]; then
     gh codespace stop -c "$cs"
