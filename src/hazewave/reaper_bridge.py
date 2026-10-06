@@ -262,7 +262,7 @@ def build_reaper_request(
         caller_path_keys = {"path", "output_path", "checkpoint_path", "destination"}
         if caller_path_keys.intersection(arguments):
             raise ReaperBridgeError("REAPER_CHECKPOINT_PATH_CALLER_CONTROLLED")
-    if operation == "render.preview":
+    if operation in {"render.preview", "render.master", "render.stems"}:
         caller_path_keys = {"path", "output_path", "render_path", "destination", "directory"}
         if caller_path_keys.intersection(arguments):
             raise ReaperBridgeError("REAPER_RENDER_PATH_CALLER_CONTROLLED")
