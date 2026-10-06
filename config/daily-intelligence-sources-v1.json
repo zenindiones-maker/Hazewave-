@@ -1,0 +1,214 @@
+{
+  "schema": "DailyIntelligenceSourceRegistry/v1",
+  "project_id": "HAZEWAVE",
+  "authority": "HAZEWAVE_HARNESS",
+  "knowledge_authority": "KNOWLEDGE_ONLY",
+  "cadence": "DAILY",
+  "runtime_mutation_authority": false,
+  "auto_install": false,
+  "auto_upgrade": false,
+  "sources": [
+    {
+      "source_id": "reaper-release",
+      "url": "https://www.reaper.fm/download.php",
+      "domains": [
+        "HAZE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_RELEASE_NOTES",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "reaper-reascript",
+      "url": "https://www.reaper.fm/sdk/reascript/reascript.php",
+      "domains": [
+        "HAZE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_API_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "reaper-jsfx",
+      "url": "https://www.reaper.fm/sdk/js/js.php",
+      "domains": [
+        "HAZE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_API_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "reaper-user-guide",
+      "url": "https://www.reaper.fm/userguide.php",
+      "domains": [
+        "HAZE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "itu-bs1770",
+      "url": "https://www.itu.int/rec/R-REC-BS.1770/en",
+      "domains": [
+        "HAZE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_STANDARD",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "ebu-r128",
+      "url": "https://tech.ebu.ch/publications/r128",
+      "domains": [
+        "HAZE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_STANDARD",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "sws-extension",
+      "url": "https://sws-extension.org/",
+      "domains": [
+        "HAZE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "UPSTREAM_RELEASE",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "surge-xt",
+      "url": "https://surge-synthesizer.github.io/downloads/",
+      "domains": [
+        "HAZE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "UPSTREAM_RELEASE",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "ffmpeg-filters",
+      "url": "https://ffmpeg.org/ffmpeg-filters.html",
+      "domains": [
+        "HAZE",
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "blender-lts",
+      "url": "https://www.blender.org/releases/5-2/",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_RELEASE_NOTES",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "blender-python-api",
+      "url": "https://docs.blender.org/api/current/",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_API_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "krita-scripting",
+      "url": "https://docs.krita.org/en/user_manual/python_scripting.html",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_API_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "opentoonz-upstream",
+      "url": "https://github.com/opentoonz/opentoonz/releases",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "UPSTREAM_RELEASE",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "opentimelineio-upstream",
+      "url": "https://github.com/AcademySoftwareFoundation/OpenTimelineIO/releases",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "UPSTREAM_RELEASE",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "pyscenedetect",
+      "url": "https://www.scenedetect.com/",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "w3c-wcag22",
+      "url": "https://www.w3.org/TR/WCAG22/",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_STANDARD",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "playwright-accessibility",
+      "url": "https://playwright.dev/docs/accessibility-testing",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "playwright-visual",
+      "url": "https://playwright.dev/docs/test-snapshots",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "core-web-vitals",
+      "url": "https://web.dev/articles/vitals",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "telegram-bot-api",
+      "url": "https://core.telegram.org/bots/api",
+      "domains": [
+        "HAZE",
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_API_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    }
+  ]
+}

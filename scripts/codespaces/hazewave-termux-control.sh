@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO="zenindiones-maker/Hazewave-"
-BRANCH="work/zero-cost-workstation-v3"
+BRANCH="work/creative-execution-plane-v1"
 DISPLAY_NAME="hazewave-zero-cost"
 MACHINE="basicLinux32gb"
 PRIMARY_PORT="14500"
@@ -139,7 +139,7 @@ cmd_open() {
   local cs url transport
   guard_singleton
   cs="$(resolve_cs)"
-  [ -n "$cs" ] || die "HAZEWAVE_CODESPACE=NOT_CREATED; RUN=hazecreate" 27
+  [ -n "$cs" ] || die "HAZEWAVE_CODESPACE=NOT_FOUND_EXISTING_REUSE_REQUIRED" 27
   verify_identity "$cs"
   start_cs "$cs"
 
@@ -217,18 +217,18 @@ cmd_sync() {
       exit 41
     fi
 
-    git fetch origin work/zero-cost-workstation-v3
+    git fetch origin work/creative-execution-plane-v1
 
-    if git show-ref --verify --quiet refs/heads/work/zero-cost-workstation-v3; then
-      git switch work/zero-cost-workstation-v3
+    if git show-ref --verify --quiet refs/heads/work/creative-execution-plane-v1; then
+      git switch work/creative-execution-plane-v1
     else
-      git switch --track -c work/zero-cost-workstation-v3 origin/work/zero-cost-workstation-v3
+      git switch --track -c work/creative-execution-plane-v1 origin/work/creative-execution-plane-v1
     fi
 
-    git pull --ff-only origin work/zero-cost-workstation-v3
+    git pull --ff-only origin work/creative-execution-plane-v1
 
     HEAD_NOW="$(git rev-parse HEAD)"
-    REMOTE_NOW="$(git rev-parse origin/work/zero-cost-workstation-v3)"
+    REMOTE_NOW="$(git rev-parse origin/work/creative-execution-plane-v1)"
     [ "$HEAD_NOW" = "$REMOTE_NOW" ] || {
       echo "SYNC=BLOCKED_NOT_EXACT_REMOTE"
       exit 42
@@ -289,32 +289,31 @@ cmd_close() {
   echo "CODESPACE_DELETED=FALSE"
 }
 
-cmd_create() {
-  local cs machine_json cpus private
+cmd_creative_remote() {
+  local action="$1" argument="${2:-}" cs remote_action remote_arg
   guard_singleton
   cs="$(resolve_cs)"
-  if [ -n "$cs" ]; then
-    verify_machine_only "$cs"
-    echo "HAZEWAVE_CODESPACE_ALREADY_EXISTS=$cs"
-    echo "EXISTING_CODESPACE_REUSE=TRUE"
-    echo "RUN_NEXT=hazectl sync"
-    return 0
+  [ -n "$cs" ] || die "HAZEWAVE_CODESPACE=NOT_FOUND_EXISTING_REUSE_REQUIRED" 27
+  verify_identity "$cs"
+  start_cs "$cs"
+
+  printf -v remote_action '%q' "$action"
+  remote_arg=""
+  if [ -n "$argument" ]; then
+    printf -v remote_arg ' %q' "$argument"
   fi
 
-  private="$(gh api "repos/$REPO" --jq '.private')"
-  [ "$private" = "false" ] || die "HAZEWAVE_CREATE=BLOCKED_REPOSITORY_NOT_PUBLIC" 28
+  gh codespace ssh -c "$cs" -- bash -lc "
+    set -euo pipefail
+    cd /workspaces/Hazewave-
+    bash scripts/codespaces/creative-execution-control.sh $remote_action$remote_arg
+  "
+}
 
-  machine_json="$(gh api --method GET "repos/$REPO/codespaces/machines" -f ref="$BRANCH")"
-  cpus="$(printf '%s' "$machine_json" | jq -r --arg m "$MACHINE" '.machines[]|select(.name==$m)|.cpus')"
-  [ "$cpus" = "2" ] || die "HAZEWAVE_CREATE=BLOCKED_MACHINE_NOT_2_CORE" 29
-
-  echo "MACHINE_SIZE=PASS_2_CORE"
-  echo "WORKSTATION_ROLE=HAZE_AUDIO_REAPER"
-  echo "ZERO_COST_MODE=INCLUDED_USAGE_ONLY"
-  echo "REPOSITORY_VISIBILITY=PUBLIC"
-  echo "PAID_FALLBACK=FALSE"
-
-  gh codespace create     -R "$REPO"     -b "$BRANCH"     --devcontainer-path ".devcontainer/devcontainer.json"     -m "$MACHINE"     -d "$DISPLAY_NAME"     --idle-timeout 20m     --retention-period 24h     --status
+cmd_create() {
+  echo "EXISTING_CODESPACE_REUSE=REQUIRED"
+  echo "HAZEWAVE_CODESPACE_CREATE=BLOCKED_BY_CREATIVE_PLANE_MISSION"
+  exit 31
 }
 
 require_tools
@@ -325,7 +324,13 @@ case "${1:-status}" in
   sync) cmd_sync ;;
   proof) cmd_proof ;;
   doctor) cmd_doctor ;;
+  producer-doctor) cmd_creative_remote producer-doctor ;;
+  snapshot) cmd_creative_remote snapshot ;;
+  execute) cmd_creative_remote execute "${2:-}" ;;
+  render-preview) cmd_creative_remote render-preview ;;
+  vertical-proof) cmd_creative_remote vertical-proof ;;
+  audition) cmd_creative_remote audition "${2:-}" ;;
   close|stop) cmd_close ;;
   create) cmd_create ;;
-  *) echo "usage: hazectl {open|status|sync|proof|doctor|close|create}"; exit 2 ;;
+  *) echo "usage: hazectl {open|status|sync|proof|doctor|producer-doctor|snapshot|execute|render-preview|vertical-proof|audition|close|create}"; exit 2 ;;
 esac

@@ -30,6 +30,27 @@ Creative canon under `canon/` is authoritative for creative identity and domain 
 
 If two normative sources conflict, stop and report `HAZEWAVE_DOCUMENTATION_DRIFT`. Do not silently choose the more convenient rule.
 
+## Mandatory creative specialist contract
+
+Before any creative-production, tool-selection, Telegram-media, specialist-routing or continuous-learning work, agents MUST load and obey both:
+
+- `config/creative-specialists-v1.json`
+- `docs/architecture/HAZE_WAVE_SPECIALIST_CHARTER_V1.md`
+
+These are binding same-revision Harness policy through `config/project-profile-v2.json`.
+
+Non-negotiable domain identities:
+
+- **HAZE = ALL_AUDIO** — voice, recording, editing, beats, composition, synthesis, sampling, sound design, post-production, mixing, mastering, audio QC and deep REAPER expertise.
+- **WAVE = ALL_VISUAL** — photo, image, illustration, cartoon, 2D/3D animation, rigging, motion graphics, compositing, video, color, rendering, UI/UX, websites, accessibility and visual web performance.
+- **BRIDGE** may translate typed state between HAZE and WAVE but has authority=NONE.
+
+Daily Intelligence is mandatory for both specialists. It means daily evidence-based knowledge refresh, not blind daily software mutation. Daily research has knowledge authority only. Production runtime/tool adoption must preserve the governed sequence `DISCOVER -> VERIFY -> SECURITY_REVIEW -> COMPATIBILITY -> BENCHMARK -> RUNTIME_PROOF -> PRODUCTION_APPROVED`.
+
+Telegram is the shared human transport for both specialists and has authority=TRANSPORT_ONLY. It may submit goals/media to the Harness and return artifacts/evidence; it may not bypass Harness authorization.
+
+No worker, model, prompt, tool, plugin or external source may redefine HAZE/WAVE scope, downgrade the daily-learning requirement, promote itself to production, or claim expertise without runtime/quality evidence. Any conflict with these specialist contracts is `HAZEWAVE_DOCUMENTATION_DRIFT` and is a stop condition.
+
 ## Setup
 
 Development checkout:

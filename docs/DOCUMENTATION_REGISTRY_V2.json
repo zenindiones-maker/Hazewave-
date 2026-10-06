@@ -307,6 +307,40 @@
         "runtime"
       ],
       "description": "Operational reference for the Hazewave-governed zero-cost FreeLLMAPI fabric, supported surfaces, MCP restrictions, data boundaries and runtime adoption gates."
+    },
+    {
+      "id": "creative-specialists-policy-v1",
+      "path": "config/creative-specialists-v1.json",
+      "type": "PROJECT_POLICY",
+      "authority": "NORMATIVE",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE",
+        "harness",
+        "telegram",
+        "daily-intelligence"
+      ],
+      "description": "Machine-readable specialist boundaries, daily intelligence contract, Telegram human loop and truth/promotion policy."
+    },
+    {
+      "id": "haze-wave-specialist-charter-v1",
+      "path": "docs/architecture/HAZE_WAVE_SPECIALIST_CHARTER_V1.md",
+      "type": "ARCHITECTURE_POLICY",
+      "authority": "NORMATIVE",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE",
+        "harness",
+        "telegram",
+        "daily-intelligence"
+      ],
+      "description": "Normative charter defining HAZE as complete audio engineering and WAVE as complete visual production, with daily evidence-based learning."
     }
   ]
 }

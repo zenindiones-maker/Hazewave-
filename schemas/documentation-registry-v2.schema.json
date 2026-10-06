@@ -49,13 +49,15 @@
             "enum": [
               "AGENT_CONTRACT",
               "PROJECT_PROFILE",
+              "PROJECT_POLICY",
               "CANON",
               "ARCHITECTURE_DECISION",
               "EXPLANATION",
               "REFERENCE",
               "RUNBOOK",
               "PUBLISHING_STANDARD",
-              "PROJECT_SPEC"
+              "PROJECT_SPEC",
+              "ARCHITECTURE_POLICY"
             ]
           },
           "authority": {

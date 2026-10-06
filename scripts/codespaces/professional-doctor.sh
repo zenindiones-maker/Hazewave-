@@ -7,6 +7,9 @@ RUNTIME="/tmp/hazewave-runtime-${UID}"
 SOCKET_DIR="${RUNTIME}/xpra"
 EXPECTED_REAPER="${HOME}/.local/opt/reaper/7.82/REAPER/reaper"
 REAPER_LINK="${HOME}/.local/bin/reaper"
+EXPECTED_BLENDER="${HOME}/.local/opt/blender/5.2.2/blender"
+BLENDER_LINK="${HOME}/.local/bin/blender"
+WAVE_RUNTIME_PYTHON="${HOME}/.local/opt/hazewave-wave-runtime/0.18.1-0.7.1/bin/python"
 ASOUNDRC="${HOME}/.asoundrc"
 
 mkdir -p "$SOCKET_DIR"
@@ -23,6 +26,47 @@ done
 
 [[ -x "$REAPER_LINK" ]] || {
   echo "REAPER_PRIMARY=FAIL_NOT_INSTALLED"
+  exit 21
+}
+[[ -x "$BLENDER_LINK" ]] || {
+  echo "BLENDER_RUNTIME=FAIL_NOT_INSTALLED"
+  exit 21
+}
+[[ "$(readlink -f "$BLENDER_LINK")" == "$EXPECTED_BLENDER" ]] || {
+  echo "BLENDER_RUNTIME=FAIL_UNEXPECTED_BINARY"
+  echo "EXPECTED=$EXPECTED_BLENDER"
+  echo "ACTUAL=$(readlink -f "$BLENDER_LINK")"
+  exit 21
+}
+BLENDER_VERSION_LINE="$("$BLENDER_LINK" --background --factory-startup --disable-autoexec --version 2>&1 | sed -n '1p')"
+[[ "$BLENDER_VERSION_LINE" == "Blender 5.2.2 LTS" ]] || {
+  echo "BLENDER_RUNTIME=FAIL_VERSION"
+  echo "ACTUAL=$BLENDER_VERSION_LINE"
+  exit 21
+}
+[[ -x "$WAVE_RUNTIME_PYTHON" ]] || {
+  echo "WAVE_RUNTIME=FAIL_NOT_INSTALLED"
+  exit 21
+}
+WAVE_RUNTIME_VERSIONS="$("$WAVE_RUNTIME_PYTHON" - <<'PY'
+import opentimelineio as otio
+import scenedetect
+
+print(f"OpenTimelineIO={getattr(otio, '__version__', '')}")
+print(f"scenedetect={getattr(scenedetect, '__version__', '')}")
+PY
+)" || {
+  echo "WAVE_RUNTIME=FAIL_IMPORT"
+  exit 21
+}
+grep -Fxq "OpenTimelineIO=0.18.1" <<<"$WAVE_RUNTIME_VERSIONS" || {
+  echo "WAVE_OTIO_RUNTIME=FAIL_VERSION"
+  printf '%s\n' "$WAVE_RUNTIME_VERSIONS"
+  exit 21
+}
+grep -Fxq "scenedetect=0.7.1" <<<"$WAVE_RUNTIME_VERSIONS" || {
+  echo "WAVE_SCENE_RUNTIME=FAIL_VERSION"
+  printf '%s\n' "$WAVE_RUNTIME_VERSIONS"
   exit 21
 }
 [[ "$(readlink -f "$REAPER_LINK")" == "$EXPECTED_REAPER" ]] || {
@@ -122,6 +166,12 @@ echo "HAZEWAVE_PRO_WORKSTATION=PASS"
 echo "WORKSTATION_ROLE=HAZE_AUDIO_REAPER"
 echo "REAPER_PRIMARY=PASS"
 echo "REAPER_VERSION_PIN=7.82"
+echo "BLENDER_RUNTIME=PASS"
+echo "BLENDER_VERSION_PIN=5.2.2"
+echo "WAVE_OTIO_RUNTIME=PASS"
+echo "WAVE_OTIO_VERSION=0.18.1"
+echo "WAVE_SCENE_RUNTIME=PASS"
+echo "WAVE_SCENEDETECT_VERSION=0.7.1"
 echo "REAPER_AUDIO_BRIDGE=ALSA_PULSE"
 echo "ARDOUR_FALLBACK=$([[ -n "$ARDOUR_BIN" ]] && echo AVAILABLE || echo NOT_INSTALLED)"
 echo "XPRA_HTML5=PASS"

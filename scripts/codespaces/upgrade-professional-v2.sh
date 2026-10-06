@@ -9,6 +9,8 @@ cd "$REPO_ROOT"
 bash "$SCRIPT_DIR/install-xpra-stable.sh"
 bash "$SCRIPT_DIR/install-reaper-pinned.sh"
 bash "$SCRIPT_DIR/install-tape-echo-2-pinned.sh"
+bash "$SCRIPT_DIR/install-blender-pinned.sh"
+bash "$SCRIPT_DIR/install-wave-runtime-pinned.sh"
 
 bash "$SCRIPT_DIR/ensure-apt-packages.sh" \
   lsp-plugins-lv2 \

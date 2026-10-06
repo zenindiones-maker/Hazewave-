@@ -1,0 +1,151 @@
+{
+  "schema": "HazewaveCreativeSpecialistsPolicy/v1",
+  "policy_id": "haze-wave-specialists-v1",
+  "status": "DEVELOPMENT_NORMATIVE",
+  "accepted_by": "HUMAN_OWNER",
+  "effective_on": "2026-10-06",
+  "authority": "HAZEWAVE_HARNESS",
+  "charter_ref": "docs/architecture/HAZE_WAVE_SPECIALIST_CHARTER_V1.md",
+  "domains": {
+    "HAZE": {
+      "owns": "ALL_AUDIO",
+      "primary_surface": "REAPER",
+      "expert_target": "WORLD_CLASS_AUDIO_ENGINEERING_AND_PRODUCTION",
+      "includes": [
+        "voice",
+        "recording",
+        "editing",
+        "beatmaking",
+        "composition",
+        "midi",
+        "synthesis",
+        "sampling",
+        "sound_design",
+        "audio_post",
+        "mixing",
+        "mastering",
+        "audio_qc",
+        "critical_listening",
+        "reaper_mastery"
+      ]
+    },
+    "WAVE": {
+      "owns": "ALL_VISUAL",
+      "expert_target": "WORLD_CLASS_VISUAL_PRODUCTION",
+      "includes": [
+        "photo",
+        "image",
+        "illustration",
+        "storyboard",
+        "cartoon",
+        "2d_animation",
+        "3d_animation",
+        "rigging",
+        "motion_graphics",
+        "compositing",
+        "video_editing",
+        "color",
+        "rendering",
+        "websites",
+        "ui_ux",
+        "web_accessibility",
+        "web_performance"
+      ]
+    },
+    "BRIDGE": {
+      "owns": "TYPED_AUDIO_VISUAL_TRANSLATION",
+      "authority": "NONE"
+    }
+  },
+  "daily_intelligence": {
+    "required": true,
+    "cadence": "DAILY",
+    "purpose": "CONTINUOUS_KNOWLEDGE_IMPROVEMENT",
+    "source_priority": [
+      "OFFICIAL_STANDARD",
+      "OFFICIAL_DOCUMENTATION",
+      "OFFICIAL_RELEASE_NOTES",
+      "UPSTREAM_SOURCE",
+      "PRIMARY_RESEARCH",
+      "PROFESSIONAL_SECONDARY",
+      "COMMUNITY_DISCOVERY"
+    ],
+    "required_pipeline": [
+      "DISCOVER",
+      "VERIFY",
+      "CLASSIFY",
+      "DEDUPLICATE",
+      "CONTRADICTION_CHECK",
+      "SUPERSEDE_STALE",
+      "RECORD_EVIDENCE",
+      "UPDATE_KNOWLEDGE_REGISTRY"
+    ],
+    "runtime_mutation_authority": false,
+    "auto_upgrade_production_runtime": false,
+    "auto_install_plugins": false,
+    "production_adoption_pipeline": [
+      "DISCOVER",
+      "VERIFY",
+      "SECURITY_REVIEW",
+      "COMPATIBILITY",
+      "BENCHMARK",
+      "RUNTIME_PROOF",
+      "PRODUCTION_APPROVED"
+    ],
+    "receipt_schema": "DailyIntelligenceReceipt/v1"
+  },
+  "reaper_policy": {
+    "primary_for_haze": true,
+    "single_pinned_runtime": true,
+    "elapsed_evaluation_days_are_runtime_failure": false,
+    "uninstall_on_evaluation_expiry": false,
+    "replace_on_evaluation_expiry": false,
+    "technical_health_separate_from_license_state": true,
+    "current_observed_version_on_2026_10_06": "7.82"
+  },
+  "telegram_human_loop": {
+    "bot_username": "HazewaveAgentBot",
+    "authority": "TRANSPORT_ONLY",
+    "project_authority": "HAZEWAVE_HARNESS",
+    "specialists": [
+      "HAZE",
+      "WAVE"
+    ],
+    "target_ingress_media": [
+      "text",
+      "voice",
+      "audio",
+      "photo",
+      "image",
+      "video",
+      "document"
+    ],
+    "target_egress_media": [
+      "text",
+      "voice",
+      "audio",
+      "photo",
+      "image",
+      "video",
+      "document"
+    ],
+    "media_io_requires_runtime_proof": true,
+    "publication_requires_authorization": true,
+    "ambiguous_destructive_request_policy": "FAIL_CLOSED"
+  },
+  "truth_states": [
+    "KNOWN",
+    "COMPATIBLE",
+    "RUNTIME_PROVEN",
+    "PRODUCTION_APPROVED",
+    "HUMAN_APPROVED"
+  ],
+  "forbidden_claims": [
+    "SELF_DECLARED_EXPERTISE_AS_PROOF",
+    "INSTALLATION_EQUALS_PRODUCTION_READY",
+    "LATEST_EQUALS_BEST",
+    "MOCKED_PASS_AS_RUNTIME_PROOF",
+    "DAILY_INTELLIGENCE_GRANTS_EXECUTION_AUTHORITY",
+    "TELEGRAM_GRANTS_EXECUTION_AUTHORITY"
+  ]
+}
