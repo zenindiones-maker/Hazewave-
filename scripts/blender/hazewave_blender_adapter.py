@@ -116,7 +116,7 @@ def current_snapshot() -> dict:
         "resolution_y": int(scene.render.resolution_y),
         "resolution_percentage": int(scene.render.resolution_percentage),
         "render_engine": str(scene.render.engine),
-        "view_transform": str(scene.view_settings.look),
+        "view_transform": str(scene.view_settings.view_transform),
         "look": str(scene.view_settings.look),
         "display_device": str(scene.display_settings.display_device),
         "objects": objects,
