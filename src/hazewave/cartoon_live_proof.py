@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
@@ -14,6 +15,7 @@ from hazewave.animation_qc import AnimationQCError, analyze_animation_sequence
 from hazewave.blender_bridge import (
     BLENDER_EXPECTED_VERSION,
     BlenderBridgeError,
+    BlenderCLIExecutor,
     BlenderSceneSnapshot,
     build_blender_request,
 )
@@ -744,3 +746,54 @@ class CartoonLiveProofRunner:
         result["proof_path"] = str(proof_path)
         _atomic_write_json(proof_path, result)
         return result
+
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="hazewave-cartoon-live-proof")
+    parser.add_argument("--blender-root", type=Path, required=True)
+    parser.add_argument("--proof-root", type=Path, required=True)
+    parser.add_argument("--blender-binary", type=Path, required=True)
+    parser.add_argument("--adapter-script", type=Path, required=True)
+    parser.add_argument("--haze-audio", type=Path, required=True)
+    parser.add_argument("--proof-id", required=True)
+    parser.add_argument("--candidate-head", required=True)
+    parser.add_argument("--policy-digest", required=True)
+    parser.add_argument("--runtime-identity", required=True)
+    args = parser.parse_args(argv)
+
+    blender_root = args.blender_root.expanduser()
+    proof_root = args.proof_root.expanduser()
+    blender_binary = args.blender_binary.expanduser()
+    adapter_script = args.adapter_script.expanduser()
+    haze_audio = args.haze_audio.expanduser()
+
+    executor = BlenderCLIExecutor(
+        root=blender_root / "execution",
+        blender_binary=blender_binary,
+        adapter_script=adapter_script,
+    )
+    runner = CartoonLiveProofRunner(
+        blender_executor=executor,
+        blender_root=blender_root,
+        proof_root=proof_root,
+        candidate_head=args.candidate_head,
+        policy_digest=args.policy_digest,
+        runtime_identity=args.runtime_identity,
+    )
+
+    try:
+        result = runner.run(
+            proof_id=args.proof_id,
+            haze_audio=haze_audio,
+        )
+    except (CartoonLiveProofError, BlenderBridgeError) as exc:
+        print(f"CARTOON_LIVE_PROOF=FAIL:{exc}")
+        return 20
+
+    print(json.dumps(result, sort_keys=True, indent=2, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
