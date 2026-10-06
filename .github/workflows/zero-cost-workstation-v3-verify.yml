@@ -28,6 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           bash -n scripts/codespaces/install-reaper-pinned.sh
+          bash -n scripts/codespaces/install-tape-echo-2-pinned.sh
           bash -n scripts/codespaces/upgrade-professional-v2.sh
           bash -n scripts/codespaces/start-professional-desktop.sh
           bash -n scripts/codespaces/professional-doctor.sh
@@ -48,6 +49,7 @@ jobs:
           grep -q 'ZERO_COST_MODE=INCLUDED_USAGE_ONLY' scripts/codespaces/hazewave-termux-control.sh
           grep -q 'HAZE_AUDIO_REAPER' .devcontainer/devcontainer.json
           grep -q 'libasound2-plugins' scripts/codespaces/upgrade-professional-v2.sh
+          grep -q 'install-tape-echo-2-pinned.sh' scripts/codespaces/upgrade-professional-v2.sh
           grep -q 'REAPER_AUDIO_BRIDGE=ALSA_PULSE' scripts/codespaces/start-professional-desktop.sh
           grep -q 'REAPER_AUDIO_BRIDGE=ALSA_PULSE' scripts/codespaces/professional-doctor.sh
           grep -q 'XPRA_REQUIRED=TRUE' scripts/codespaces/hazewave-termux-control.sh
@@ -72,6 +74,19 @@ jobs:
           echo "HAZEWAVE_WORKSTATION_V3_STATIC=PASS"
           echo "REAPER_PINNED_INSTALL=PASS"
           echo "PAID_FALLBACK=FALSE"
+
+      - name: Prove pinned Tape Echo 2 installs for REAPER
+        working-directory: repo
+        env:
+          CODESPACES: "true"
+        run: |
+          set -euo pipefail
+          bash scripts/codespaces/install-tape-echo-2-pinned.sh
+          test -d "$HOME/.vst3/tape-echo-2.vst3"
+          test -s "$HOME/.local/state/hazewave-codespace/tape-echo-2-1.0.8.receipt"
+          grep -q 'TAPE_ECHO_2_VERSION=1.0.8' "$HOME/.local/state/hazewave-codespace/tape-echo-2-1.0.8.receipt"
+          grep -q 'ARCHIVE_SHA256=698c8825cac19547b40cd7a893d1b9bfac25587ec79cb30518f64084123b29f3' "$HOME/.local/state/hazewave-codespace/tape-echo-2-1.0.8.receipt"
+          echo "TAPE_ECHO_2_PINNED_INSTALL=PASS"
 
       - name: Prove Hazewave non-GUI audio toolchain
         working-directory: repo
