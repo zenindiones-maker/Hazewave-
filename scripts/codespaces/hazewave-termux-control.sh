@@ -327,8 +327,9 @@ case "${1:-status}" in
   producer-doctor) cmd_creative_remote producer-doctor ;;
   snapshot) cmd_creative_remote snapshot ;;
   execute) cmd_creative_remote execute "${2:-}" ;;
+  render-preview) cmd_creative_remote render-preview ;;
   audition) cmd_creative_remote audition "${2:-}" ;;
   close|stop) cmd_close ;;
   create) cmd_create ;;
-  *) echo "usage: hazectl {open|status|sync|proof|doctor|producer-doctor|snapshot|execute|audition|close|create}"; exit 2 ;;
+  *) echo "usage: hazectl {open|status|sync|proof|doctor|producer-doctor|snapshot|execute|render-preview|audition|close|create}"; exit 2 ;;
 esac
