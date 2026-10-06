@@ -56,7 +56,8 @@
               "REFERENCE",
               "RUNBOOK",
               "PUBLISHING_STANDARD",
-              "PROJECT_SPEC"
+              "PROJECT_SPEC",
+              "ARCHITECTURE_POLICY"
             ]
           },
           "authority": {
