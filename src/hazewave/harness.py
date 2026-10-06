@@ -27,6 +27,8 @@ _CAPABILITY_DOMAINS: Final[dict[str, str]] = {
     "session.inspect": HAZE,
     "session.checkpoint": HAZE,
     "session.rollback": HAZE,
+    "session.fixture.open": HAZE,
+    "session.fixture.close": HAZE,
     "arrangement.structure": HAZE,
     "arrangement.marker": HAZE,
     "arrangement.region": HAZE,
