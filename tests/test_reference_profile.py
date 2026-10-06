@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import math
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from hazewave.reference_profile import (
 def _qc(source: Path) -> AudioQCReport:
     return AudioQCReport(
         source_path=str(source.resolve()),
-        source_sha256="a" * 64,
+        source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
         codec_name="pcm_s24le",
         sample_rate=48000,
         channels=2,
