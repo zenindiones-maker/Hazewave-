@@ -136,6 +136,7 @@ def test_tape_echo_semantics_fail_closed_when_runtime_parameter_is_missing() -> 
         "name": "Tape Echo 2",
         "parameters": [
             {"index": 0, "name": "Mix", "value": 0.5, "min": 0.0, "max": 1.0},
+            {"index": 1, "name": "Repeat Rate", "value": 0.3, "min": 0.0, "max": 1.0},
         ],
     }
 
