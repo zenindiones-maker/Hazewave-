@@ -9,6 +9,7 @@ OUT_DIR="$STATE_ROOT/$STAMP"
 RECEIPT="$OUT_DIR/receipt.txt"
 RECEIPT_SHA_FILE="$OUT_DIR/receipt.sha256"
 EXPECTED_REAPER="${HOME}/.local/opt/reaper/7.82/REAPER/reaper"
+EXPECTED_BLENDER="${HOME}/.local/opt/blender/5.2.2/blender"
 
 mkdir -p "$OUT_DIR"
 
@@ -197,6 +198,129 @@ run_proof() {
     echo "LIVE_REAPER_PROOF=FAIL_HUMAN_REVIEW_MARKER"
     exit 42
   }
+
+  VERTICAL_PROOF_JSON="$(sed -n 's/^VERTICAL_PROOF_JSON=//p' "$VERTICAL_PROOF_LOG" | tail -n 1)"
+  [[ -n "$VERTICAL_PROOF_JSON" && -s "$VERTICAL_PROOF_JSON" ]] || {
+    echo "LIVE_REAPER_PROOF=FAIL_DURABLE_JSON"
+    exit 43
+  }
+
+  HAZE_RENDER_B="$(python - "$VERTICAL_PROOF_JSON" "$HAZEWAVE_REAPER_BRIDGE_DIR/artifacts" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+proof_path = Path(sys.argv[1]).expanduser().resolve()
+artifact_root = Path(sys.argv[2]).expanduser().resolve()
+payload = json.loads(proof_path.read_text(encoding="utf-8"))
+
+if payload.get("schema") != "ReaperLiveVerticalProof/v1":
+    raise SystemExit("LIVE_REAPER_PROOF=FAIL_DURABLE_SCHEMA")
+if payload.get("status") != "PASS":
+    raise SystemExit("LIVE_REAPER_PROOF=FAIL_DURABLE_STATUS")
+
+render_b = payload.get("render_b")
+if not isinstance(render_b, dict):
+    raise SystemExit("LIVE_REAPER_PROOF=FAIL_RENDER_B")
+artifact = Path(str(render_b.get("artifact_path") or "")).expanduser().resolve()
+try:
+    artifact.relative_to(artifact_root)
+except ValueError as exc:
+    raise SystemExit("LIVE_REAPER_PROOF=FAIL_RENDER_B_OUTSIDE_ROOT") from exc
+if not artifact.is_file() or artifact.stat().st_size <= 0:
+    raise SystemExit("LIVE_REAPER_PROOF=FAIL_RENDER_B_MISSING")
+print(artifact)
+PY
+)"
+  [[ -n "$HAZE_RENDER_B" && -s "$HAZE_RENDER_B" ]] || {
+    echo "LIVE_REAPER_PROOF=FAIL_RENDER_B_ARTIFACT"
+    exit 44
+  }
+  echo "VERTICAL_PROOF_JSON=$VERTICAL_PROOF_JSON"
+  echo "HAZE_RENDER_B=$HAZE_RENDER_B"
+
+  [[ -x "$EXPECTED_BLENDER" ]] || {
+    echo "BLENDER_RUNTIME=FAIL_BINARY"
+    exit 45
+  }
+  BLENDER_VERSION_LINE="$("$EXPECTED_BLENDER" --background --factory-startup --disable-autoexec --version 2>&1 | sed -n '1p')"
+  [[ "$BLENDER_VERSION_LINE" == "Blender 5.2.2 LTS" ]] || {
+    echo "BLENDER_RUNTIME=FAIL_VERSION"
+    echo "ACTUAL=$BLENDER_VERSION_LINE"
+    exit 46
+  }
+  echo "BLENDER_RUNTIME=PASS"
+  echo "BLENDER_VERSION_PIN=5.2.2"
+
+  CARTOON_PROOF_ID="cartoon-$STAMP"
+  CARTOON_PROOF_ROOT="$OUT_DIR/cartoon-proofs"
+  CARTOON_PROOF_JSON="$OUT_DIR/cartoon-live-proof.json"
+  BLENDER_ROOT="${HOME}/.local/state/hazewave/blender"
+  POLICY_DIGEST="$(sha256sum "$REPO_ROOT/config/project-profile-v2.json" | awk '{print $1}')"
+  RUNTIME_IDENTITY="codespace:${CODESPACE_NAME:-$(hostname)}"
+  mkdir -p "$CARTOON_PROOF_ROOT" "$BLENDER_ROOT"
+  chmod 700 "$CARTOON_PROOF_ROOT" "$BLENDER_ROOT"
+
+  if ! python -m hazewave.cartoon_live_proof \
+      --blender-root "$BLENDER_ROOT" \
+      --proof-root "$CARTOON_PROOF_ROOT" \
+      --blender-binary "$EXPECTED_BLENDER" \
+      --adapter-script "$REPO_ROOT/scripts/blender/hazewave_blender_adapter.py" \
+      --haze-audio "$HAZE_RENDER_B" \
+      --proof-id "$CARTOON_PROOF_ID" \
+      --candidate-head "$ACTUAL_HEAD" \
+      --policy-digest "$POLICY_DIGEST" \
+      --runtime-identity "$RUNTIME_IDENTITY" \
+      >"$CARTOON_PROOF_JSON"; then
+    echo "CARTOON_LIVE_PROOF=FAIL_EXECUTION"
+    exit 47
+  fi
+
+  python - "$CARTOON_PROOF_JSON" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+payload = json.loads(path.read_text(encoding="utf-8"))
+if payload.get("schema") != "CartoonLiveProof/v1":
+    raise SystemExit("CARTOON_LIVE_PROOF=FAIL_SCHEMA")
+if payload.get("status") != "PASS":
+    raise SystemExit("CARTOON_LIVE_PROOF=FAIL_STATUS")
+if payload.get("final_video_mode") != "ANIMATED_CARTOON":
+    raise SystemExit("CARTOON_LIVE_PROOF=FAIL_VIDEO_MODE")
+
+animation_qc = payload.get("animation_qc")
+if not isinstance(animation_qc, dict) or animation_qc.get("schema") != "AnimationQCReport/v1":
+    raise SystemExit("CARTOON_LIVE_PROOF=FAIL_ANIMATION_QC_SCHEMA")
+if animation_qc.get("technical_status") != "PASS":
+    raise SystemExit("CARTOON_LIVE_PROOF=FAIL_ANIMATION_QC")
+
+video_qc = payload.get("video_qc")
+if not isinstance(video_qc, dict) or video_qc.get("schema") != "VideoQCReport/v1":
+    raise SystemExit("CARTOON_LIVE_PROOF=FAIL_VIDEO_QC_SCHEMA")
+if video_qc.get("encode_integrity") != "PASS":
+    raise SystemExit("CARTOON_LIVE_PROOF=FAIL_VIDEO_QC")
+
+repair = payload.get("repair")
+if not isinstance(repair, dict) or repair.get("deterministic_match") is not True:
+    raise SystemExit("CARTOON_LIVE_PROOF=FAIL_FRAME_REPAIR")
+if payload.get("human_owner_review") != "REQUIRED":
+    raise SystemExit("CARTOON_LIVE_PROOF=FAIL_HUMAN_REVIEW_MARKER")
+
+final_video = payload.get("final_video")
+if not isinstance(final_video, dict):
+    raise SystemExit("CARTOON_LIVE_PROOF=FAIL_FINAL_VIDEO")
+video_path = Path(str(final_video.get("path") or ""))
+if not video_path.is_file() or video_path.stat().st_size <= 0:
+    raise SystemExit("CARTOON_LIVE_PROOF=FAIL_FINAL_VIDEO_ARTIFACT")
+PY
+
+  echo "CARTOON_PROOF_JSON=$CARTOON_PROOF_JSON"
+  echo "CARTOON_LIVE_PROOF=PASS"
+  echo "ANIMATION_QC=PASS"
+  echo "VIDEO_QC=PASS"
+  echo "HUMAN_OWNER_REVIEW=REQUIRED"
 
   echo "LIVE_REAPER_PROOF=PASS"
   echo "REAPER_GUI_PROCESS=PASS"
