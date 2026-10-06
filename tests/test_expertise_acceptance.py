@@ -121,7 +121,7 @@ def test_wave_video_expertise_requires_editorial_scene_color_render_and_qc_cases
             case_id=case_id,
             proof_id=f"wave-{index}",
             decision_digest=f"{index}" * 64,
-            artifact_digest=f"{index + 5}" * 64,
+            artifact_digest=f"{(index + 5) % 16:x}" * 64,
             human_preference_applied=index == 1,
         )
         for index, case_id in enumerate(required, start=1)
