@@ -305,6 +305,10 @@ def build_reaper_request(
         caller_path_keys = {"path", "output_path", "checkpoint_path", "destination"}
         if caller_path_keys.intersection(arguments):
             raise ReaperBridgeError("REAPER_CHECKPOINT_PATH_CALLER_CONTROLLED")
+    if operation == "render.preview":
+        caller_path_keys = {"path", "output_path", "render_path", "destination", "directory"}
+        if caller_path_keys.intersection(arguments):
+            raise ReaperBridgeError("REAPER_RENDER_PATH_CALLER_CONTROLLED")
     if operation == "session.rollback":
         expected_undo = arguments.get("expected_undo_description")
         if not isinstance(expected_undo, str) or not expected_undo.strip():
