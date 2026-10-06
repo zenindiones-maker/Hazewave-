@@ -16,11 +16,13 @@ end
 local requests_dir = bridge_root .. "/requests"
 local processing_dir = bridge_root .. "/processing"
 local responses_dir = bridge_root .. "/responses"
+local checkpoint_root = bridge_root .. "/checkpoints"
 local heartbeat_path = bridge_root .. "/heartbeat.json"
 
 reaper.RecursiveCreateDirectory(requests_dir, 0)
 reaper.RecursiveCreateDirectory(processing_dir, 0)
 reaper.RecursiveCreateDirectory(responses_dir, 0)
+reaper.RecursiveCreateDirectory(checkpoint_root, 0)
 
 local ARRAY_MT = {}
 local JSON_NULL = {}
@@ -508,6 +510,57 @@ handlers["session.inspect"] = function(_request, _proj)
   return {snapshot = project_snapshot()}
 end
 
+
+handlers["session.checkpoint"] = function(request, proj)
+  local safe_request_id = tostring(request.request_id):gsub("[^A-Za-z0-9_.%-]", "_")
+  local checkpoint_path = checkpoint_root .. "/" .. safe_request_id .. ".rpp"
+
+  local existing = io.open(checkpoint_path, "rb")
+  if existing ~= nil then
+    existing:close()
+    error("REAPER_CHECKPOINT_ALREADY_EXISTS")
+  end
+
+  -- options=0 writes a project copy without changing this ReaProject's filename.
+  reaper.Main_SaveProjectEx(proj, checkpoint_path, 0)
+
+  local saved, open_err = io.open(checkpoint_path, "rb")
+  if saved == nil then
+    error("REAPER_CHECKPOINT_SAVE_FAILED:" .. tostring(open_err))
+  end
+  local size = saved:seek("end") or 0
+  saved:close()
+  if size <= 0 then
+    os.remove(checkpoint_path)
+    error("REAPER_CHECKPOINT_EMPTY")
+  end
+
+  return {
+    checkpoint_path = checkpoint_path,
+    checkpoint_size_bytes = size,
+  }
+end
+
+handlers["session.rollback"] = function(request, proj)
+  local args = request.arguments or {}
+  local expected_undo_description = require_string(args, "expected_undo_description")
+  local actual_undo_description = reaper.Undo_CanUndo2(proj)
+
+  if actual_undo_description == nil
+      or actual_undo_description ~= expected_undo_description then
+    error("REAPER_ROLLBACK_UNDO_MISMATCH")
+  end
+
+  local undo_result = reaper.Undo_DoUndo2(proj)
+  if undo_result == 0 then
+    error("REAPER_ROLLBACK_UNDO_FAILED")
+  end
+
+  return {
+    undone_description = actual_undo_description,
+  }
+end
+
 handlers["track.create"] = function(request, proj)
   local args = request.arguments or {}
   local index = args.index
@@ -656,6 +709,12 @@ local readonly_operations = {
   ["fx.parameter.read"] = true,
 }
 
+
+local special_operations = {
+  ["session.checkpoint"] = true,
+  ["session.rollback"] = true,
+}
+
 local function validate_request(request)
   if type(request) ~= "table" then error("REAPER_REQUEST_MALFORMED") end
   if request.schema ~= REQUEST_SCHEMA then error("REAPER_REQUEST_SCHEMA_INVALID") end
@@ -725,6 +784,36 @@ local function execute_request(request)
   end
 
   local proj, before_count
+  if special_operations[request.operation] then
+    local ok_project, project_or_err, state_or_nil = pcall(preflight_project, request)
+    if not ok_project then
+      response.error = {code = tostring(project_or_err)}
+      response.completed_at = utc_now()
+      return response
+    end
+    proj = project_or_err
+    before_count = state_or_nil
+    response.state_before = {project_state_change_count = before_count}
+
+    local ok_handler, result_or_err = pcall(handlers[request.operation], request, proj)
+    if not ok_handler then
+      response.error = {code = tostring(result_or_err)}
+      response.state_after = {
+        project_state_change_count = reaper.GetProjectStateChangeCount(proj)
+      }
+      response.completed_at = utc_now()
+      return response
+    end
+
+    response.status = "PASS"
+    response.result = result_or_err or {}
+    response.state_after = {
+      project_state_change_count = reaper.GetProjectStateChangeCount(proj)
+    }
+    response.completed_at = utc_now()
+    return response
+  end
+
   if readonly_operations[request.operation] then
     local ok_project, project_or_err, state_or_nil = pcall(preflight_project, request)
     if not ok_project then
