@@ -32,6 +32,8 @@ jobs:
           bash -n scripts/codespaces/start-professional-desktop.sh
           bash -n scripts/codespaces/professional-doctor.sh
           bash -n scripts/codespaces/hazewave-termux-control.sh
+          bash -n scripts/codespaces/hazewave-audio-smoke.sh
+          bash -n scripts/codespaces/hazewave-runtime-proof.sh
           python -m json.tool .devcontainer/devcontainer.json >/dev/null
 
       - name: Validate workstation role and zero-cost lifecycle
@@ -48,6 +50,10 @@ jobs:
           grep -q 'libasound2-plugins' scripts/codespaces/upgrade-professional-v2.sh
           grep -q 'REAPER_AUDIO_BRIDGE=ALSA_PULSE' scripts/codespaces/start-professional-desktop.sh
           grep -q 'REAPER_AUDIO_BRIDGE=ALSA_PULSE' scripts/codespaces/professional-doctor.sh
+          grep -q 'XPRA_REQUIRED=TRUE' scripts/codespaces/hazewave-termux-control.sh
+          grep -q 'proof)' scripts/codespaces/hazewave-termux-control.sh
+          ! grep -q 'FALLBACK_NOVNC' .devcontainer/devcontainer.json
+          ! grep -q 'XPRA=WAIT_FALLBACK_NOVNC' scripts/codespaces/hazewave-termux-control.sh
           ! grep -R 'work/zero-cost-codespaces-v1'             .devcontainer scripts/codespaces/hazewave-termux-control.sh
 
       - name: Prove pinned REAPER artifact installs
@@ -64,3 +70,12 @@ jobs:
           echo "HAZEWAVE_WORKSTATION_V3_STATIC=PASS"
           echo "REAPER_PINNED_INSTALL=PASS"
           echo "PAID_FALLBACK=FALSE"
+
+      - name: Prove Hazewave non-GUI audio toolchain
+        working-directory: repo
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ffmpeg sox libsox-fmt-all rubberband-cli
+          bash scripts/codespaces/hazewave-audio-smoke.sh
+          echo "HAZEWAVE_AUDIO_TOOLCHAIN_SMOKE=PASS"
