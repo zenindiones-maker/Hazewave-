@@ -10,8 +10,7 @@ bash "$SCRIPT_DIR/install-xpra-stable.sh"
 bash "$SCRIPT_DIR/install-reaper-pinned.sh"
 bash "$SCRIPT_DIR/install-tape-echo-2-pinned.sh"
 
-sudo apt-get update
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+bash "$SCRIPT_DIR/ensure-apt-packages.sh" \
   lsp-plugins-lv2 \
   x42-plugins \
   dragonfly-reverb-lv2 \
@@ -20,8 +19,6 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
   libasound2-plugins \
   alsa-utils \
   iproute2
-
-sudo apt-get clean
 
 mkdir -p /tmp/hazewave-scratch /tmp/hazewave-cache
 chmod 700 /tmp/hazewave-scratch /tmp/hazewave-cache
