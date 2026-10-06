@@ -351,3 +351,12 @@ def test_full_snapshot_fails_closed_when_required_surface_is_missing(missing: st
 
     with pytest.raises(ReaperBridgeError, match="REAPER_SNAPSHOT_MALFORMED"):
         ReaperProjectSnapshot.from_dict(payload)
+
+
+def test_request_includes_executor_safe_epoch_deadline() -> None:
+    request = _request()
+    payload = request.to_dict()
+
+    assert payload["issued_at_epoch_seconds"] == pytest.approx(request.issued_at.timestamp())
+    assert payload["deadline_epoch_seconds"] == pytest.approx(request.deadline.timestamp())
+    assert payload["deadline_epoch_seconds"] > payload["issued_at_epoch_seconds"]
