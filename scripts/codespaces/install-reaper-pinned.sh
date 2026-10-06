@@ -6,6 +6,7 @@ REAPER_BUILD="782"
 REAPER_ARCH="linux_x86_64"
 REAPER_ARCHIVE="reaper${REAPER_BUILD}_${REAPER_ARCH}.tar.xz"
 REAPER_URL="https://www.reaper.fm/files/7.x/${REAPER_ARCHIVE}"
+REAPER_ARCHIVE_SHA256="a4aa961534f22ae5ae910e4ec0c200dcb4476c9f7556806fe09a9743cd582563"
 INSTALL_ROOT="${HOME}/.local/opt/reaper/${REAPER_VERSION}"
 BINARY="${INSTALL_ROOT}/REAPER/reaper"
 BIN_DIR="${HOME}/.local/bin"
@@ -26,27 +27,32 @@ fi
 
 mkdir -p "$(dirname "$INSTALL_ROOT")" "$BIN_DIR" "$STATE_ROOT"
 
-if [[ -x "$BINARY" ]]; then
-  ln -sfn "$BINARY" "$LINK"
-  echo "REAPER_INSTALL=PASS_ALREADY_PRESENT"
-  echo "REAPER_VERSION=$REAPER_VERSION"
-  echo "REAPER_BINARY=$BINARY"
-  exit 0
+REPAIR_REQUIRED=FALSE
+if [[ -x "$BINARY" && -s "$RECEIPT" ]]; then
+  ACTUAL_BINARY_SHA256="$(sha256sum "$BINARY" | awk '{print $1}')"
+  RECEIPT_BINARY_SHA256="$(awk -F= '$1=="REAPER_BINARY_SHA256" {print $2; exit}' "$RECEIPT")"
+
+  if grep -Fxq "REAPER_VERSION=$REAPER_VERSION" "$RECEIPT"     && grep -Fxq "REAPER_ARCHIVE_SHA256=$REAPER_ARCHIVE_SHA256" "$RECEIPT"     && [[ -n "$RECEIPT_BINARY_SHA256" ]]     && [[ "$ACTUAL_BINARY_SHA256" == "$RECEIPT_BINARY_SHA256" ]]; then
+    ln -sfn "$BINARY" "$LINK"
+    echo "REAPER_INSTALL=PASS_ALREADY_PRESENT"
+    echo "REAPER_VERSION=$REAPER_VERSION"
+    echo "REAPER_ARCHIVE_SHA256=$REAPER_ARCHIVE_SHA256"
+    echo "REAPER_BINARY_SHA256=$ACTUAL_BINARY_SHA256"
+    echo "REAPER_BINARY=$BINARY"
+    exit 0
+  fi
+
+  REPAIR_REQUIRED=TRUE
+  echo "REAPER_INSTALL=REPAIR_REQUIRED"
+elif [[ -e "$INSTALL_ROOT" || -e "$RECEIPT" ]]; then
+  REPAIR_REQUIRED=TRUE
+  echo "REAPER_INSTALL=REPAIR_REQUIRED"
 fi
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-curl \
-  --proto '=https' \
-  --tlsv1.2 \
-  --fail \
-  --location \
-  --retry 3 \
-  --retry-delay 2 \
-  --connect-timeout 20 \
-  --output "$TMP/$REAPER_ARCHIVE" \
-  "$REAPER_URL"
+curl   --proto '=https'   --tlsv1.2   --fail   --location   --retry 3   --retry-delay 2   --connect-timeout 20   --output "$TMP/$REAPER_ARCHIVE"   "$REAPER_URL"
 
 SIZE_BYTES="$(stat -c '%s' "$TMP/$REAPER_ARCHIVE")"
 if (( SIZE_BYTES < 8000000 || SIZE_BYTES > 30000000 )); then
@@ -55,40 +61,55 @@ if (( SIZE_BYTES < 8000000 || SIZE_BYTES > 30000000 )); then
   exit 22
 fi
 
+ACTUAL_ARCHIVE_SHA256="$(sha256sum "$TMP/$REAPER_ARCHIVE" | awk '{print $1}')"
+if [[ "$ACTUAL_ARCHIVE_SHA256" != "$REAPER_ARCHIVE_SHA256" ]]; then
+  echo "REAPER_ARCHIVE=BLOCKED_SHA256_MISMATCH"
+  echo "EXPECTED_SHA256=$REAPER_ARCHIVE_SHA256"
+  echo "ACTUAL_SHA256=$ACTUAL_ARCHIVE_SHA256"
+  exit 23
+fi
+
 ARCHIVE_LIST="$TMP/archive-list.txt"
 tar -tf "$TMP/$REAPER_ARCHIVE" >"$ARCHIVE_LIST"
-if ! grep -Fxq "reaper_linux_x86_64/REAPER/reaper" "$ARCHIVE_LIST" \
-  && ! grep -Fxq "./reaper_linux_x86_64/REAPER/reaper" "$ARCHIVE_LIST"; then
+if ! grep -Fxq "reaper_linux_x86_64/REAPER/reaper" "$ARCHIVE_LIST"   && ! grep -Fxq "./reaper_linux_x86_64/REAPER/reaper" "$ARCHIVE_LIST"; then
   echo "REAPER_ARCHIVE=BLOCKED_UNEXPECTED_LAYOUT"
-  exit 23
+  exit 24
 fi
 
 STAGE="$TMP/stage"
 mkdir -p "$STAGE"
 tar -xf "$TMP/$REAPER_ARCHIVE" -C "$STAGE"
 
-if [[ ! -x "$STAGE/reaper_linux_x86_64/REAPER/reaper" ]]; then
+STAGED_ROOT="$STAGE/reaper_linux_x86_64"
+STAGED_BINARY="$STAGED_ROOT/REAPER/reaper"
+if [[ ! -x "$STAGED_BINARY" ]]; then
   echo "REAPER_BINARY=BLOCKED_NOT_EXECUTABLE"
-  exit 24
+  exit 25
 fi
 
-mkdir -p "$(dirname "$INSTALL_ROOT")"
-mv "$STAGE/reaper_linux_x86_64" "$INSTALL_ROOT"
-ln -sfn "$BINARY" "$LINK"
+REAPER_BINARY_SHA256="$(sha256sum "$STAGED_BINARY" | awk '{print $1}')"
 
-ARCHIVE_SHA256="$(sha256sum "$TMP/$REAPER_ARCHIVE" | awk '{print $1}')"
+rm -rf "$INSTALL_ROOT"
+mv "$STAGED_ROOT" "$INSTALL_ROOT"
+ln -sfn "$BINARY" "$LINK"
 
 cat >"$RECEIPT" <<EOF
 REAPER_VERSION=$REAPER_VERSION
 REAPER_BUILD=$REAPER_BUILD
 REAPER_URL=$REAPER_URL
-REAPER_ARCHIVE_SHA256=$ARCHIVE_SHA256
+REAPER_ARCHIVE_SHA256=$REAPER_ARCHIVE_SHA256
+REAPER_BINARY_SHA256=$REAPER_BINARY_SHA256
 REAPER_BINARY=$BINARY
 EOF
 chmod 600 "$RECEIPT"
 
-echo "REAPER_INSTALL=PASS"
+if [[ "$REPAIR_REQUIRED" == "TRUE" ]]; then
+  echo "REAPER_INSTALL=PASS_REPAIRED"
+else
+  echo "REAPER_INSTALL=PASS"
+fi
 echo "REAPER_VERSION=$REAPER_VERSION"
 echo "REAPER_BUILD=$REAPER_BUILD"
-echo "REAPER_ARCHIVE_SHA256=$ARCHIVE_SHA256"
+echo "REAPER_ARCHIVE_SHA256=$REAPER_ARCHIVE_SHA256"
+echo "REAPER_BINARY_SHA256=$REAPER_BINARY_SHA256"
 echo "REAPER_BINARY=$BINARY"
