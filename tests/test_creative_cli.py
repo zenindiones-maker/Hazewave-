@@ -445,3 +445,133 @@ def test_cli_vertical_proof_runs_exact_bound_runner(
     output = capsys.readouterr().out
     assert '"schema": "ReaperLiveVerticalProof/v1"' in output
     assert '"status": "PASS"' in output
+
+
+def test_open_fixture_submits_only_fixture_id_and_waits_for_owned_project(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _heartbeat(tmp_path, state=2)
+    responses = tmp_path / "responses"
+    responses.mkdir(parents=True, exist_ok=True)
+    fixture = (tmp_path / "fixtures" / "vertical-001.rpp").resolve()
+    now = datetime.now(timezone.utc).isoformat()
+    (responses / "req-fixture-open.json").write_text(
+        json.dumps(
+            {
+                "schema": "ReaperExecutionResponse/v1",
+                "request_id": "req-fixture-open",
+                "task_id": "task-fixture-open",
+                "operation": "session.fixture.open",
+                "status": "PASS",
+                "state_before": {"project_state_change_count": 2},
+                "state_after": {"project_state_change_count": 0},
+                "result": {
+                    "fixture_id": "vertical-001",
+                    "fixture_project": str(fixture),
+                    "previous_project_identity": "/tmp/fixture.rpp",
+                },
+                "error": None,
+                "started_at": now,
+                "completed_at": now,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    client = CreativeBridgeClient(tmp_path)
+    monkeypatch.setattr(
+        client,
+        "_wait_for_project_identity",
+        lambda expected, timeout_seconds: {
+            "project_identity": expected,
+            "project_state_change_count": 0,
+        },
+        raising=False,
+    )
+
+    result = client.open_fixture(
+        fixture_id="vertical-001",
+        task_id="task-fixture-open",
+        request_id="req-fixture-open",
+        idempotency_key="idem-fixture-open",
+        timeout_seconds=0.1,
+    )
+
+    assert result["schema"] == "FixtureSessionOpen/v1"
+    assert result["fixture_project"] == str(fixture)
+    request = json.loads(
+        (tmp_path / "requests" / "req-fixture-open.json").read_text()
+    )
+    assert request["operation"] == "session.fixture.open"
+    assert request["arguments"] == {"fixture_id": "vertical-001"}
+
+
+def test_close_fixture_has_no_force_argument_and_waits_for_previous_project(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = (tmp_path / "fixtures" / "vertical-001.rpp").resolve()
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "heartbeat.json").write_text(
+        json.dumps(
+            {
+                "schema": "ReaperBridgeHeartbeat/v1",
+                "bridge_id": "HAZEWAVE_REAPER_BRIDGE",
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "project_identity": str(fixture),
+                "project_state_change_count": 9,
+            }
+        ),
+        encoding="utf-8",
+    )
+    responses = tmp_path / "responses"
+    responses.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc).isoformat()
+    (responses / "req-fixture-close.json").write_text(
+        json.dumps(
+            {
+                "schema": "ReaperExecutionResponse/v1",
+                "request_id": "req-fixture-close",
+                "task_id": "task-fixture-close",
+                "operation": "session.fixture.close",
+                "status": "PASS",
+                "state_before": {"project_state_change_count": 9},
+                "state_after": {"project_state_change_count": 2},
+                "result": {
+                    "restored_project_identity": "/tmp/user.rpp",
+                    "closed_fixture_project": str(fixture),
+                },
+                "error": None,
+                "started_at": now,
+                "completed_at": now,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    client = CreativeBridgeClient(tmp_path)
+    monkeypatch.setattr(
+        client,
+        "_wait_for_project_identity",
+        lambda expected, timeout_seconds: {
+            "project_identity": expected,
+            "project_state_change_count": 2,
+        },
+        raising=False,
+    )
+
+    result = client.close_fixture(
+        task_id="task-fixture-close",
+        request_id="req-fixture-close",
+        idempotency_key="idem-fixture-close",
+        timeout_seconds=0.1,
+    )
+
+    assert result["schema"] == "FixtureSessionClose/v1"
+    assert result["restored_project_identity"] == "/tmp/user.rpp"
+    request = json.loads(
+        (tmp_path / "requests" / "req-fixture-close.json").read_text()
+    )
+    assert request["operation"] == "session.fixture.close"
+    assert request["arguments"] == {}
