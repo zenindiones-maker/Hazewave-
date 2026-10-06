@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from hazewave.audio_qc import AudioQCReport
+import hazewave.creative_cli as creative_cli
 from hazewave.creative_cli import CreativeBridgeClient, CreativeControlError
 
 
@@ -353,3 +354,94 @@ def test_render_preview_bound_uses_exact_supplied_state_and_runs_qc(
         (tmp_path / "requests" / "req-render-bound.json").read_text()
     )
     assert request["expected_project_state_change_count"] == 10
+
+
+
+def test_cli_vertical_proof_runs_exact_bound_runner(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = tmp_path / "source.wav"
+    source.write_bytes(b"RIFFfixture")
+    fixture_root = tmp_path / "fixtures"
+    fixture_root.mkdir()
+    bridge_root = tmp_path / "bridge"
+    bridge_root.mkdir()
+
+    captured: dict[str, object] = {}
+    fake_client = object()
+    fake_store = object()
+
+    monkeypatch.setattr(
+        creative_cli,
+        "CreativeBridgeClient",
+        lambda root: fake_client,
+    )
+    monkeypatch.setattr(
+        creative_cli,
+        "default_runtime_receipt_store",
+        lambda: fake_store,
+        raising=False,
+    )
+
+    class FakeRunner:
+        def __init__(self, **kwargs):
+            captured["init"] = kwargs
+
+        def run(self, *, source_audio, proof_id):
+            captured["run"] = {
+                "source_audio": source_audio,
+                "proof_id": proof_id,
+            }
+            return {
+                "schema": "ReaperLiveVerticalProof/v1",
+                "status": "PASS",
+            }
+
+    monkeypatch.setattr(
+        creative_cli,
+        "ReaperVerticalProofRunner",
+        FakeRunner,
+        raising=False,
+    )
+
+    rc = creative_cli.main(
+        [
+            "--bridge-root",
+            str(bridge_root),
+            "vertical-proof",
+            "--source-audio",
+            str(source),
+            "--fixture-root",
+            str(fixture_root),
+            "--proof-id",
+            "vertical-001",
+            "--candidate-head",
+            "candidate-sha",
+            "--policy-digest",
+            "policy-sha",
+            "--runtime-identity",
+            "codespace:fixture",
+            "--tape-echo-version",
+            "1.0.8",
+        ]
+    )
+
+    assert rc == 0
+    assert captured["init"] == {
+        "client": fake_client,
+        "receipt_store": fake_store,
+        "fixture_root": fixture_root,
+        "candidate_head": "candidate-sha",
+        "policy_digest": "policy-sha",
+        "runtime_identity": "codespace:fixture",
+        "tape_echo_version": "1.0.8",
+    }
+    assert captured["run"] == {
+        "source_audio": source,
+        "proof_id": "vertical-001",
+    }
+    output = capsys.readouterr().out
+    assert '"schema": "ReaperLiveVerticalProof/v1"' in output
+    assert '"status": "PASS"' in output
