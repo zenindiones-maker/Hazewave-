@@ -17,12 +17,14 @@ local requests_dir = bridge_root .. "/requests"
 local processing_dir = bridge_root .. "/processing"
 local responses_dir = bridge_root .. "/responses"
 local checkpoint_root = bridge_root .. "/checkpoints"
+local render_root = bridge_root .. "/artifacts"
 local heartbeat_path = bridge_root .. "/heartbeat.json"
 
 reaper.RecursiveCreateDirectory(requests_dir, 0)
 reaper.RecursiveCreateDirectory(processing_dir, 0)
 reaper.RecursiveCreateDirectory(responses_dir, 0)
 reaper.RecursiveCreateDirectory(checkpoint_root, 0)
+reaper.RecursiveCreateDirectory(render_root, 0)
 
 local ARRAY_MT = {}
 local JSON_NULL = {}
@@ -504,6 +506,62 @@ local function get_track_by_index(proj, index)
   return track
 end
 
+local RENDER_ACTION_ID = 42230
+
+local render_numeric_keys = {
+  "RENDER_SETTINGS",
+  "RENDER_BOUNDSFLAG",
+  "RENDER_CHANNELS",
+  "RENDER_SRATE",
+  "RENDER_TAILFLAG",
+  "RENDER_ADDTOPROJ",
+  "RENDER_DITHER",
+  "RENDER_NORMALIZE",
+}
+
+local render_string_keys = {
+  "RENDER_FILE",
+  "RENDER_PATTERN",
+  "RENDER_FORMAT",
+  "RENDER_FORMAT2",
+}
+
+local function capture_render_settings(proj)
+  local saved = {numeric = {}, strings = {}}
+  for _, key in ipairs(render_numeric_keys) do
+    saved.numeric[key] = reaper.GetSetProjectInfo(proj, key, 0, false)
+  end
+  for _, key in ipairs(render_string_keys) do
+    local _, value = reaper.GetSetProjectInfo_String(proj, key, "", false)
+    saved.strings[key] = value or ""
+  end
+  return saved
+end
+
+local function restore_render_settings(proj, saved)
+  for _, key in ipairs(render_numeric_keys) do
+    reaper.GetSetProjectInfo(proj, key, saved.numeric[key], true)
+  end
+  for _, key in ipairs(render_string_keys) do
+    reaper.GetSetProjectInfo_String(proj, key, saved.strings[key] or "", true)
+  end
+end
+
+local function configure_preview_render(proj, render_pattern)
+  reaper.GetSetProjectInfo(proj, "RENDER_SETTINGS", 0, true)
+  reaper.GetSetProjectInfo(proj, "RENDER_BOUNDSFLAG", 1, true)
+  reaper.GetSetProjectInfo(proj, "RENDER_CHANNELS", 2, true)
+  reaper.GetSetProjectInfo(proj, "RENDER_SRATE", 48000, true)
+  reaper.GetSetProjectInfo(proj, "RENDER_TAILFLAG", 0, true)
+  reaper.GetSetProjectInfo(proj, "RENDER_ADDTOPROJ", 0, true)
+  reaper.GetSetProjectInfo(proj, "RENDER_DITHER", 0, true)
+  reaper.GetSetProjectInfo(proj, "RENDER_NORMALIZE", 0, true)
+  reaper.GetSetProjectInfo_String(proj, "RENDER_FILE", render_root, true)
+  reaper.GetSetProjectInfo_String(proj, "RENDER_PATTERN", render_pattern, true)
+  reaper.GetSetProjectInfo_String(proj, "RENDER_FORMAT", "evaw", true)
+  reaper.GetSetProjectInfo_String(proj, "RENDER_FORMAT2", "", true)
+end
+
 local handlers = {}
 
 handlers["session.inspect"] = function(_request, _proj)
@@ -558,6 +616,70 @@ handlers["session.rollback"] = function(request, proj)
 
   return {
     undone_description = actual_undo_description,
+  }
+end
+
+
+handlers["render.preview"] = function(request, proj)
+  local args = request.arguments or {}
+  if args.path ~= nil
+      or args.output_path ~= nil
+      or args.render_path ~= nil
+      or args.destination ~= nil
+      or args.directory ~= nil then
+    error("REAPER_RENDER_PATH_CALLER_CONTROLLED")
+  end
+
+  local action_text = reaper.kbd_getTextFromCmd(RENDER_ACTION_ID, 0) or ""
+  local action_lower = string.lower(action_text)
+  if action_lower == ""
+      or not action_lower:find("render project", 1, true)
+      or not action_lower:find("most recent render settings", 1, true) then
+    error("REAPER_RENDER_ACTION_IDENTITY_MISMATCH")
+  end
+
+  local safe_request_id = tostring(request.request_id):gsub("[^A-Za-z0-9_.%-]", "_")
+  local output_path = render_root .. "/" .. safe_request_id .. ".wav"
+  local existing = io.open(output_path, "rb")
+  if existing ~= nil then
+    existing:close()
+    error("REAPER_RENDER_TARGET_ALREADY_EXISTS")
+  end
+
+  local saved = capture_render_settings(proj)
+  configure_preview_render(proj, safe_request_id)
+
+  local ok_render, render_err = pcall(
+    reaper.Main_OnCommandEx,
+    RENDER_ACTION_ID,
+    0,
+    proj
+  )
+
+  restore_render_settings(proj, saved)
+
+  if not ok_render then
+    error("REAPER_RENDER_ACTION_FAILED:" .. tostring(render_err))
+  end
+
+  local rendered, open_err = io.open(output_path, "rb")
+  if rendered == nil then
+    error("REAPER_RENDER_OUTPUT_MISSING:" .. tostring(open_err))
+  end
+  local size = rendered:seek("end") or 0
+  rendered:close()
+  if size <= 0 then
+    error("REAPER_RENDER_OUTPUT_EMPTY")
+  end
+
+  return {
+    artifact_path = output_path,
+    artifact_size_bytes = size,
+    render_action_id = RENDER_ACTION_ID,
+    render_action_text = action_text,
+    sample_rate = 48000,
+    channels = 2,
+    format = "WAV",
   }
 end
 
@@ -713,6 +835,7 @@ local readonly_operations = {
 local special_operations = {
   ["session.checkpoint"] = true,
   ["session.rollback"] = true,
+  ["render.preview"] = true,
 }
 
 local function validate_request(request)
