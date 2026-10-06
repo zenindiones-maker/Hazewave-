@@ -67,3 +67,22 @@ def test_lua_bridge_has_non_destructive_checkpoint_and_guarded_rollback() -> Non
     assert "REAPER_ROLLBACK_UNDO_MISMATCH" in text
     assert "special_operations" in text
     assert '["session.rollback"] = true' in text
+
+
+def test_lua_bridge_render_preview_is_bounded_verified_and_restores_settings() -> None:
+    text = BRIDGE.read_text(encoding="utf-8")
+
+    assert 'handlers["render.preview"]' in text
+    assert "render_root" in text
+    assert "RENDER_FILE" in text
+    assert "RENDER_PATTERN" in text
+    assert "RENDER_FORMAT" in text
+    assert '"evaw"' in text
+    assert "reaper.kbd_getTextFromCmd" in text
+    assert "REAPER_RENDER_ACTION_IDENTITY_MISMATCH" in text
+    assert "reaper.Main_OnCommandEx" in text
+    assert "42230" in text
+    assert "restore_render_settings" in text
+    assert "REAPER_RENDER_OUTPUT_MISSING" in text
+    assert "REAPER_RENDER_OUTPUT_EMPTY" in text
+    assert '["render.preview"] = true' in text
