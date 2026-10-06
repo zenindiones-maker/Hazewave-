@@ -5,8 +5,9 @@ from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import time
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
+from hazewave.audio_qc import AudioQCError, analyze_audio_qc
 from hazewave.harness import HAZE, HazewaveTask, issue_authorization, route_task
 from hazewave.reaper_bridge import (
     BridgeHeartbeat,
@@ -28,6 +29,7 @@ class CreativeBridgeClient:
         bridge_root: Path | str,
         *,
         heartbeat_max_age_seconds: float = 5.0,
+        audio_qc_analyzer: Callable[[Path], Any] = analyze_audio_qc,
     ) -> None:
         self.root = Path(bridge_root)
         self.bridge = FilesystemReaperBridge(
@@ -38,6 +40,7 @@ class CreativeBridgeClient:
             self.root / "heartbeat.json",
             max_age_seconds=heartbeat_max_age_seconds,
         )
+        self.audio_qc_analyzer = audio_qc_analyzer
 
     def _binding(self) -> tuple[dict[str, Any], str, int]:
         try:
@@ -165,6 +168,98 @@ class CreativeBridgeClient:
         except ReaperBridgeError as exc:
             raise CreativeControlError(f"REAPER_SNAPSHOT_INVALID:{exc}") from exc
 
+    def render_preview(
+        self,
+        *,
+        task_id: str,
+        request_id: str,
+        idempotency_key: str,
+        timeout_seconds: float = 180.0,
+    ) -> dict[str, Any]:
+        _, identity, state = self._binding()
+        response = self._submit_and_wait(
+            task_id=task_id,
+            request_id=request_id,
+            idempotency_key=idempotency_key,
+            operation="render.preview",
+            arguments={},
+            expected_project_identity=identity,
+            expected_project_state_change_count=state,
+            deadline_seconds=min(timeout_seconds, 300.0),
+            timeout_seconds=timeout_seconds,
+        )
+
+        result = response.get("result")
+        if not isinstance(result, Mapping):
+            raise CreativeControlError("REAPER_RENDER_RESULT_MALFORMED")
+        artifact_value = result.get("artifact_path")
+        if not isinstance(artifact_value, str) or not artifact_value.strip():
+            raise CreativeControlError("REAPER_RENDER_ARTIFACT_MISSING")
+
+        artifact_path = Path(artifact_value).resolve()
+        artifact_root = (self.root / "artifacts").resolve()
+        try:
+            artifact_path.relative_to(artifact_root)
+        except ValueError as exc:
+            raise CreativeControlError("REAPER_RENDER_ARTIFACT_OUTSIDE_ROOT") from exc
+
+        if not artifact_path.is_file():
+            raise CreativeControlError("REAPER_RENDER_ARTIFACT_MISSING")
+        actual_size = artifact_path.stat().st_size
+        if actual_size <= 0:
+            raise CreativeControlError("REAPER_RENDER_ARTIFACT_EMPTY")
+        reported_size = result.get("artifact_size_bytes")
+        if (
+            isinstance(reported_size, int)
+            and reported_size > 0
+            and reported_size != actual_size
+        ):
+            raise CreativeControlError("REAPER_RENDER_ARTIFACT_SIZE_MISMATCH")
+
+        try:
+            qc_report = self.audio_qc_analyzer(artifact_path)
+        except AudioQCError as exc:
+            raise CreativeControlError(f"AUDIO_QC_FAILED:{exc}") from exc
+        except Exception as exc:
+            raise CreativeControlError("AUDIO_QC_FAILED:UNEXPECTED") from exc
+
+        to_dict = getattr(qc_report, "to_dict", None)
+        if not callable(to_dict):
+            raise CreativeControlError("AUDIO_QC_REPORT_MALFORMED")
+        qc_payload = to_dict()
+        if not isinstance(qc_payload, dict) or qc_payload.get("schema") != "AudioQCReport/v1":
+            raise CreativeControlError("AUDIO_QC_REPORT_MALFORMED")
+
+        state_before = response.get("state_before")
+        state_after = response.get("state_after")
+        before_count = (
+            state_before.get("project_state_change_count")
+            if isinstance(state_before, Mapping)
+            else None
+        )
+        after_count = (
+            state_after.get("project_state_change_count")
+            if isinstance(state_after, Mapping)
+            else None
+        )
+        if not isinstance(before_count, int) or not isinstance(after_count, int):
+            raise CreativeControlError("REAPER_RENDER_STATE_MALFORMED")
+
+        return {
+            "schema": "AuditionRender/v1",
+            "authority": "HAZEWAVE_HARNESS",
+            "portfolio_authority": "NONE",
+            "task_id": task_id,
+            "request_id": request_id,
+            "artifact_path": str(artifact_path),
+            "artifact_size_bytes": actual_size,
+            "state_before": before_count,
+            "state_after": after_count,
+            "render": dict(result),
+            "audio_qc": qc_payload,
+            "human_approval": "REQUIRED",
+        }
+
     def execute_command(
         self,
         command_path: Path | str,
@@ -244,6 +339,11 @@ def main(argv: list[str] | None = None) -> int:
     snapshot_parser.add_argument("--idempotency-key", required=True)
     execute_parser = sub.add_parser("execute")
     execute_parser.add_argument("command_file", type=Path)
+    render_parser = sub.add_parser("render-preview")
+    render_parser.add_argument("--task-id", default="creative-render-preview")
+    render_parser.add_argument("--request-id", required=True)
+    render_parser.add_argument("--idempotency-key", required=True)
+    render_parser.add_argument("--timeout-seconds", type=float, default=180.0)
 
     args = parser.parse_args(argv)
     client = CreativeBridgeClient(args.bridge_root)
@@ -262,6 +362,16 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "execute":
             _print_json(client.execute_command(args.command_file))
+            return 0
+        if args.command == "render-preview":
+            _print_json(
+                client.render_preview(
+                    task_id=args.task_id,
+                    request_id=args.request_id,
+                    idempotency_key=args.idempotency_key,
+                    timeout_seconds=args.timeout_seconds,
+                )
+            )
             return 0
     except CreativeControlError as exc:
         print(f"CREATIVE_CONTROL=FAIL:{exc}")
