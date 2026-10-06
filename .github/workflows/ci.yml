@@ -45,6 +45,7 @@ jobs:
           bash -n scripts/hazewave_9router_control.sh
           bash -n scripts/hazewave_9router_free_probe.sh
           bash -n scripts/codespaces/install-blender-pinned.sh
+          bash -n scripts/codespaces/install-wave-runtime-pinned.sh
           bash -n scripts/codespaces/upgrade-professional-v2.sh
           bash -n scripts/codespaces/professional-doctor.sh
           bash -n scripts/codespaces/creative-execution-control.sh
