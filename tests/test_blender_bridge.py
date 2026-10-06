@@ -213,3 +213,201 @@ def test_response_parser_rejects_cross_request_or_wrong_version() -> None:
     payload["blender_version"] = "5.2.1"
     with pytest.raises(BlenderBridgeError, match="BLENDER_VERSION_MISMATCH"):
         parse_blender_response(payload, request=request)
+
+
+def test_animation_shot_build_request_is_bounded_and_pathless() -> None:
+    now = datetime.now(timezone.utc)
+    request = build_blender_request(
+        authorization=_authorization("animation.shot.build"),
+        request_id="shot-build-001",
+        idempotency_key="shot-build-001",
+        operation="animation.shot.build",
+        arguments={
+            "shot_id": "shot-001",
+            "frame_start": 1,
+            "breakdown_frame": 12,
+            "frame_end": 24,
+            "character_name": "ProofCharacter",
+            "background_name": "ProofBackground",
+        },
+        expected_blender_version="5.2.2",
+        expected_scene_identity="cartoon-fixture",
+        expected_blend_sha256="c" * 64,
+        seed=42,
+        issued_at=now,
+        deadline=now + timedelta(seconds=30),
+    )
+
+    assert request.arguments["shot_id"] == "shot-001"
+    assert "path" not in request.arguments
+    assert "python" not in request.arguments
+
+
+@pytest.mark.parametrize(
+    "arguments,code",
+    [
+        (
+            {
+                "shot_id": "../escape",
+                "frame_start": 1,
+                "breakdown_frame": 12,
+                "frame_end": 24,
+                "character_name": "Character",
+                "background_name": "Background",
+            },
+            "BLENDER_SHOT_ID_INVALID",
+        ),
+        (
+            {
+                "shot_id": "shot-001",
+                "frame_start": 12,
+                "breakdown_frame": 5,
+                "frame_end": 24,
+                "character_name": "Character",
+                "background_name": "Background",
+            },
+            "BLENDER_SHOT_FRAME_RANGE_INVALID",
+        ),
+        (
+            {
+                "shot_id": "shot-001",
+                "frame_start": 1,
+                "breakdown_frame": 12,
+                "frame_end": 24,
+                "character_name": "Character",
+                "background_name": "Background",
+                "script": "malicious",
+            },
+            "BLENDER_SHOT_ARGUMENTS_INVALID",
+        ),
+    ],
+)
+def test_animation_shot_build_rejects_unsafe_contract(arguments: dict, code: str) -> None:
+    now = datetime.now(timezone.utc)
+    with pytest.raises(BlenderBridgeError, match=code):
+        build_blender_request(
+            authorization=_authorization("animation.shot.build"),
+            request_id="shot-bad",
+            idempotency_key="shot-bad",
+            operation="animation.shot.build",
+            arguments=arguments,
+            expected_blender_version="5.2.2",
+            expected_scene_identity="cartoon-fixture",
+            expected_blend_sha256="c" * 64,
+            seed=42,
+            issued_at=now,
+            deadline=now + timedelta(seconds=30),
+        )
+
+
+def test_animation_render_frames_request_is_png_sequence_only() -> None:
+    now = datetime.now(timezone.utc)
+    request = build_blender_request(
+        authorization=_authorization("animation.render.frames"),
+        request_id="render-frames-001",
+        idempotency_key="render-frames-001",
+        operation="animation.render.frames",
+        arguments={
+            "render_id": "shot-001-v1",
+            "frame_start": 1,
+            "frame_end": 24,
+            "format": "PNG",
+        },
+        expected_blender_version="5.2.2",
+        expected_scene_identity="cartoon-fixture",
+        expected_blend_sha256="d" * 64,
+        seed=42,
+        issued_at=now,
+        deadline=now + timedelta(seconds=300),
+    )
+
+    assert request.arguments["format"] == "PNG"
+
+
+def test_animation_render_frames_rejects_non_png_or_caller_path() -> None:
+    now = datetime.now(timezone.utc)
+    auth = _authorization("animation.render.frames")
+    base = {
+        "render_id": "shot-001-v1",
+        "frame_start": 1,
+        "frame_end": 24,
+        "format": "PNG",
+    }
+
+    with pytest.raises(BlenderBridgeError, match="BLENDER_FRAME_RENDER_FORMAT_INVALID"):
+        build_blender_request(
+            authorization=auth,
+            request_id="render-jpg",
+            idempotency_key="render-jpg",
+            operation="animation.render.frames",
+            arguments={**base, "format": "JPEG"},
+            expected_blender_version="5.2.2",
+            expected_scene_identity="cartoon-fixture",
+            expected_blend_sha256="d" * 64,
+            seed=42,
+            issued_at=now,
+            deadline=now + timedelta(seconds=300),
+        )
+
+    with pytest.raises(BlenderBridgeError, match="BLENDER_FRAME_RENDER_ARGUMENTS_INVALID"):
+        build_blender_request(
+            authorization=auth,
+            request_id="render-path",
+            idempotency_key="render-path",
+            operation="animation.render.frames",
+            arguments={**base, "output_path": "/tmp/escape"},
+            expected_blender_version="5.2.2",
+            expected_scene_identity="cartoon-fixture",
+            expected_blend_sha256="d" * 64,
+            seed=42,
+            issued_at=now,
+            deadline=now + timedelta(seconds=300),
+        )
+
+
+def test_cli_executor_loads_existing_blend_for_shot_and_frame_operations(tmp_path: Path) -> None:
+    adapter = tmp_path / "adapter.py"
+    adapter.write_text("# adapter\n", encoding="utf-8")
+    blend = tmp_path / "scene.blend"
+    blend.write_bytes(b"blend")
+
+    executor = BlenderCLIExecutor(
+        root=tmp_path / "runtime",
+        blender_binary=Path("/opt/blender/blender"),
+        adapter_script=adapter,
+    )
+
+    for operation in ("animation.shot.build", "animation.render.frames"):
+        now = datetime.now(timezone.utc)
+        arguments = (
+            {
+                "shot_id": "shot-001",
+                "frame_start": 1,
+                "breakdown_frame": 12,
+                "frame_end": 24,
+                "character_name": "ProofCharacter",
+                "background_name": "ProofBackground",
+            }
+            if operation == "animation.shot.build"
+            else {
+                "render_id": "shot-001-v1",
+                "frame_start": 1,
+                "frame_end": 24,
+                "format": "PNG",
+            }
+        )
+        request = build_blender_request(
+            authorization=_authorization(operation),
+            request_id=f"req-{operation.replace('.', '-')}",
+            idempotency_key=f"idem-{operation.replace('.', '-')}",
+            operation=operation,
+            arguments=arguments,
+            expected_blender_version="5.2.2",
+            expected_scene_identity="cartoon-fixture",
+            expected_blend_sha256="e" * 64,
+            seed=42,
+            issued_at=now,
+            deadline=now + timedelta(seconds=60),
+        )
+        prepared = executor.prepare(request, blend_path=blend)
+        assert prepared.command[2] == str(blend.resolve())
