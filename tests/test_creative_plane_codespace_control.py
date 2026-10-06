@@ -32,3 +32,10 @@ def test_termux_execute_and_audition_forward_one_bounded_argument() -> None:
     assert 'execute) cmd_creative_remote execute "${2:-}" ;;' in text
     assert 'audition) cmd_creative_remote audition "${2:-}" ;;' in text
     assert 'printf -v remote_arg' in text
+
+
+def test_termux_control_can_invoke_render_preview_on_existing_codespace() -> None:
+    text = CONTROL.read_text(encoding="utf-8")
+
+    assert "render-preview) cmd_creative_remote render-preview" in text
+    assert "gh codespace create" not in text
