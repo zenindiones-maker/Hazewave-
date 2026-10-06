@@ -72,3 +72,18 @@ def test_blender_adapter_renders_project_owned_png_frame_sequence() -> None:
     assert "ANIMATION_FRAME_SEQUENCE_MISSING" in text
     assert "ANIMATION_FRAME_SEQUENCE_GAP" in text
     assert "frame_sha256" in text
+
+
+def test_blender_adapter_repairs_only_explicit_existing_frames() -> None:
+    text = ADAPTER.read_text(encoding="utf-8")
+
+    assert '"animation.render.frames.repair"' in text
+    assert "frame_numbers" in text
+    assert "ANIMATION_FRAME_REPAIR_RENDER_NOT_FOUND" in text
+    assert "ANIMATION_FRAME_REPAIR_SOURCE_FRAME_MISSING" in text
+    assert "scene.frame_set(frame_number)" in text
+    assert "bpy.ops.render.render(write_still=True)" in text
+    assert "previous_sha256" in text
+    assert "new_sha256" in text
+    assert "deterministic_match" in text
+    assert "ANIMATION_FRAME_RERENDER_NONDETERMINISTIC" in text
