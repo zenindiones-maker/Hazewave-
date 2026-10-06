@@ -92,7 +92,7 @@ def test_audio_qc_runs_ffprobe_ebur128_and_astats_without_artistic_target(
                 ),
                 stderr="",
             )
-        if "ebur128=peak=true" in args:
+        if any(value.startswith("ebur128=peak=true") for value in args):
             return subprocess.CompletedProcess(args, 0, stdout="", stderr=EBUR128_LOG)
         if any("astats=" in value for value in args):
             return subprocess.CompletedProcess(args, 0, stdout="", stderr=ASTATS_LOG)
@@ -115,7 +115,7 @@ def test_audio_qc_runs_ffprobe_ebur128_and_astats_without_artistic_target(
     assert report.clipping_detected is False
 
     assert calls[0][0] == "ffprobe"
-    assert "ebur128=peak=true" in calls[1]
+    assert "ebur128=peak=true:framelog=info" in calls[1]
     assert any("astats=" in value for value in calls[2])
 
 
@@ -145,7 +145,7 @@ def test_audio_qc_flags_clipping_as_technical_evidence_not_artistic_failure(
                 ),
                 stderr="",
             )
-        if "ebur128=peak=true" in args:
+        if any(value.startswith("ebur128=peak=true") for value in args):
             return subprocess.CompletedProcess(
                 args,
                 0,
@@ -205,7 +205,7 @@ def test_audio_qc_fails_closed_on_unparseable_loudness_output(tmp_path: Path) ->
                 ),
                 stderr="",
             )
-        if "ebur128=peak=true" in args:
+        if any(value.startswith("ebur128=peak=true") for value in args):
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="no summary")
         return subprocess.CompletedProcess(args, 0, stdout="", stderr=ASTATS_LOG)
 
@@ -254,6 +254,3 @@ def test_audio_qc_report_includes_momentary_and_short_term_loudness(tmp_path: Pa
     assert report.momentary_max_lufs == pytest.approx(-18.7)
     assert report.short_term_max_lufs == pytest.approx(-21.8)
     assert report.loudness_timeseries_frames == 3
-    assert "framelog=info" in next(
-        value for value in runner.__closure__[0].cell_contents if False
-    ) if False else True
