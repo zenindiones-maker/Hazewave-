@@ -44,6 +44,9 @@ jobs:
           bash -n scripts/install_hazewave_9router_termux.sh
           bash -n scripts/hazewave_9router_control.sh
           bash -n scripts/hazewave_9router_free_probe.sh
+          bash -n scripts/codespaces/install-blender-pinned.sh
+          bash -n scripts/codespaces/upgrade-professional-v2.sh
+          bash -n scripts/codespaces/professional-doctor.sh
 
       - name: Validate repository contracts
         run: python scripts/validate_repository_contracts.py
