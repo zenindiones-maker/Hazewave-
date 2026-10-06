@@ -39,3 +39,11 @@ def test_termux_control_can_invoke_render_preview_on_existing_codespace() -> Non
 
     assert "render-preview) cmd_creative_remote render-preview" in text
     assert "gh codespace create" not in text
+
+
+
+def test_termux_control_can_invoke_vertical_proof_on_existing_codespace() -> None:
+    text = CONTROL.read_text(encoding="utf-8")
+
+    assert 'vertical-proof) cmd_creative_remote vertical-proof "${2:-}" ;;' in text
+    assert "gh codespace create" not in text
