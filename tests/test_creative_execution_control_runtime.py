@@ -117,3 +117,21 @@ def test_runtime_proof_chains_real_haze_render_into_cartoon_live_proof() -> None
     validate_index = text.index('CartoonLiveProof/v1')
     pass_index = text.index('echo "CARTOON_LIVE_PROOF=PASS"')
     assert validate_index < pass_index
+
+
+def test_runtime_proof_chains_haze_into_wave_before_cartoon() -> None:
+    text = RUNTIME_PROOF.read_text(encoding="utf-8")
+
+    assert 'python -m hazewave.wave_live_proof' in text
+    assert 'WaveLiveProof/v1' in text
+    assert 'SceneDetectionReport/v1' in text
+    assert 'OTIOInterchangeReceipt/v1' in text
+    assert 'VideoQCReport/v1' in text
+    assert 'WAVE_LIVE_PROOF_JSON=' in text
+    assert 'LIVE_WAVE_PROOF=PASS' in text
+    assert 'LIVE_WAVE_PROOF=NOT_PROVEN' not in text
+
+    haze_index = text.index('LIVE_REAPER_PROOF=PASS')
+    wave_index = text.index('WaveLiveProof/v1')
+    cartoon_index = text.index('CartoonLiveProof/v1')
+    assert haze_index < wave_index < cartoon_index
