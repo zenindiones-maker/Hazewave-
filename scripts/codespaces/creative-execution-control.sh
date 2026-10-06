@@ -59,6 +59,17 @@ cmd_execute() {
   python -m hazewave.creative_cli execute "$command_file"
 }
 
+cmd_render_preview() {
+  require_candidate
+  local request_id
+  request_id="$(python -c 'import uuid; print("render-" + uuid.uuid4().hex)')"
+  python -m hazewave.creative_cli render-preview \
+    --task-id "termux-render-preview" \
+    --request-id "$request_id" \
+    --idempotency-key "$request_id"
+  echo "HUMAN_APPROVAL=REQUIRED"
+}
+
 cmd_audition() {
   require_candidate
   local artifact="${1:-}" scratch
@@ -88,7 +99,8 @@ case "${1:-producer-doctor}" in
   producer-doctor) cmd_producer_doctor ;;
   snapshot) cmd_snapshot ;;
   execute) shift; cmd_execute "${1:-}" ;;
+  render-preview) cmd_render_preview ;;
   audition) shift; cmd_audition "${1:-}" ;;
   proof) cmd_proof ;;
-  *) echo "usage: creative-execution-control.sh {producer-doctor|snapshot|execute COMMAND.json|audition AUDIO_FILE|proof}"; exit 2 ;;
+  *) echo "usage: creative-execution-control.sh {producer-doctor|snapshot|execute COMMAND.json|render-preview|audition AUDIO_FILE|proof}"; exit 2 ;;
 esac
