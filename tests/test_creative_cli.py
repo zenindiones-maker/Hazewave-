@@ -257,3 +257,99 @@ def test_render_preview_rejects_bridge_artifact_outside_project_owned_root(
             idempotency_key="idem-render-escape",
             timeout_seconds=0.1,
         )
+
+
+def test_execute_bound_operation_chains_response_state_without_heartbeat_rebind(
+    tmp_path: Path,
+) -> None:
+    _heartbeat(tmp_path, state=9)
+    responses = tmp_path / "responses"
+    responses.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc).isoformat()
+    (responses / "req-bound.json").write_text(
+        json.dumps(
+            {
+                "schema": "ReaperExecutionResponse/v1",
+                "request_id": "req-bound",
+                "task_id": "task-bound",
+                "operation": "track.create",
+                "status": "PASS",
+                "state_before": {"project_state_change_count": 10},
+                "state_after": {"project_state_change_count": 11},
+                "result": {"track_index": 0, "track_guid": "{TRACK}"},
+                "error": None,
+                "started_at": now,
+                "completed_at": now,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    client = CreativeBridgeClient(tmp_path)
+    response = client.execute_bound_operation(
+        task_id="task-bound",
+        request_id="req-bound",
+        idempotency_key="idem-bound",
+        operation="track.create",
+        arguments={"name": "Fixture"},
+        expected_project_identity="/tmp/fixture.rpp",
+        expected_project_state_change_count=10,
+        timeout_seconds=0.1,
+    )
+
+    assert response["state_after"]["project_state_change_count"] == 11
+    request = json.loads((tmp_path / "requests" / "req-bound.json").read_text())
+    assert request["expected_project_state_change_count"] == 10
+
+
+def test_render_preview_bound_uses_exact_supplied_state_and_runs_qc(
+    tmp_path: Path,
+) -> None:
+    _heartbeat(tmp_path, state=9)
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir(parents=True)
+    artifact = artifact_dir / "req-render-bound.wav"
+    artifact.write_bytes(b"RIFFfixture")
+    responses = tmp_path / "responses"
+    responses.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc).isoformat()
+    (responses / "req-render-bound.json").write_text(
+        json.dumps(
+            {
+                "schema": "ReaperExecutionResponse/v1",
+                "request_id": "req-render-bound",
+                "task_id": "task-render-bound",
+                "operation": "render.preview",
+                "status": "PASS",
+                "state_before": {"project_state_change_count": 10},
+                "state_after": {"project_state_change_count": 10},
+                "result": {
+                    "artifact_path": str(artifact),
+                    "artifact_size_bytes": len(artifact.read_bytes()),
+                },
+                "error": None,
+                "started_at": now,
+                "completed_at": now,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    client = CreativeBridgeClient(
+        tmp_path,
+        audio_qc_analyzer=lambda path: _qc_report(path),
+    )
+    result = client.render_preview_bound(
+        task_id="task-render-bound",
+        request_id="req-render-bound",
+        idempotency_key="idem-render-bound",
+        expected_project_identity="/tmp/fixture.rpp",
+        expected_project_state_change_count=10,
+        timeout_seconds=0.1,
+    )
+
+    assert result["state_before"] == 10
+    request = json.loads(
+        (tmp_path / "requests" / "req-render-bound.json").read_text()
+    )
+    assert request["expected_project_state_change_count"] == 10
