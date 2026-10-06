@@ -414,7 +414,7 @@ class BlenderCLIExecutor:
             raise BlenderBridgeError("BLENDER_DUPLICATE_REQUEST_ID")
         self._atomic_write(request_path, request.to_dict())
 
-        command: list[str] = [str(self.blender_binary), "--background"]
+        command: list[str] = [str(self.blender_binary), "--background", "--disable-autoexec"]
         if request.operation in {"animation.scene.inspect", "animation.shot.build", "animation.render.frames", "animation.render.frames.repair"}:
             if blend_path is None:
                 raise BlenderBridgeError("BLENDER_BLEND_PATH_REQUIRED")
