@@ -215,7 +215,7 @@ def make_character_frame(
         (x_offset - 0.30, 0.0, 0.35),
         (x_offset - 0.55, 0.0, 1.20),
     )
-    drawing.add_strokes([len(points)])
+    frame.drawing.add_strokes([len(points)])
 
     flat_positions = [axis for point in points for axis in point]
     position_attribute = drawing.attributes["position"]
