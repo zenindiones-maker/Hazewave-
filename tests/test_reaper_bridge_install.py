@@ -67,3 +67,19 @@ def test_bridge_installer_update_replaces_only_managed_block(tmp_path: Path) -> 
     assert (resource / "Scripts" / "Hazewave" / "hazewave_reaper_bridge.lua").read_text(
         encoding="utf-8"
     ) == "-- bridge v2\n"
+
+
+def test_professional_desktop_installs_exact_bridge_before_reaper_launch() -> None:
+    start = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "codespaces"
+        / "start-professional-desktop.sh"
+    ).read_text(encoding="utf-8")
+
+    installer_at = start.index("python -m hazewave.reaper_bridge_install")
+    reaper_start_at = start.index('--start="$REAPER_BIN"')
+
+    assert installer_at < reaper_start_at
+    assert "scripts/reaper/hazewave_reaper_bridge.lua" in start
+    assert "--receipt" in start
