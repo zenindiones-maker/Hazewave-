@@ -174,9 +174,10 @@ def test_cli_executor_builds_background_command_with_project_owned_adapter(
 
     assert prepared.request_path.is_file()
     assert prepared.response_path.parent == (tmp_path / "runtime" / "responses")
-    assert prepared.command[:3] == (
+    assert prepared.command[:4] == (
         "/opt/blender-5.2.2/blender",
         "--background",
+        "--disable-autoexec",
         str(blend.resolve()),
     )
     assert "--python" in prepared.command
@@ -603,3 +604,25 @@ def test_cli_executor_surfaces_typed_adapter_failure(tmp_path: Path) -> None:
             timeout_seconds=10.0,
             runner=runner,
         )
+
+
+def test_cli_executor_disables_blend_autoexec_before_loading_project(
+    tmp_path: Path,
+) -> None:
+    adapter = tmp_path / "adapter.py"
+    adapter.write_text("# adapter\n", encoding="utf-8")
+    blend = tmp_path / "scene.blend"
+    blend.write_bytes(b"blend")
+    request = _request()
+
+    executor = BlenderCLIExecutor(
+        root=tmp_path / "runtime",
+        blender_binary=Path("/opt/blender/blender"),
+        adapter_script=adapter,
+    )
+    prepared = executor.prepare(request, blend_path=blend)
+
+    disable_index = prepared.command.index("--disable-autoexec")
+    blend_index = prepared.command.index(str(blend.resolve()))
+    python_index = prepared.command.index("--python")
+    assert disable_index < blend_index < python_index
