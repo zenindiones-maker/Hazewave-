@@ -73,59 +73,32 @@ cmd_render_preview() {
 
 cmd_vertical_proof() {
   require_candidate
-  command -v sox >/dev/null 2>&1 || die "SOX=MISSING" 32
-
-  local fixture_root proof_id source_audio
+  local fixture_root proof_id source_audio proof_json
   local CANDIDATE_HEAD POLICY_DIGEST RUNTIME_IDENTITY
-  local fixture_opened=0 open_request close_request
+
+  command -v sox >/dev/null 2>&1 || die "SOX=MISSING" 32
+  command -v python >/dev/null 2>&1 || die "PYTHON=MISSING" 33
 
   fixture_root="$BRIDGE_ROOT/fixtures"
   mkdir -p "$fixture_root"
-  chmod 700 "$fixture_root"
+
+  proof_id="$(python -c 'import uuid; print("vertical-" + uuid.uuid4().hex)')"
+  source_audio="$fixture_root/${proof_id}-source.wav"
+  proof_json="$(mktemp --suffix=.hazewave-vertical-proof.json)"
+
+  cleanup_fixture() {
+    rm -f "$source_audio" "$proof_json"
+  }
+  trap cleanup_fixture EXIT
+
+  sox -n -r 48000 -c 2 -b 24 "$source_audio" \
+    synth 2 sine 220 sine 440 vol 0.05
 
   CANDIDATE_HEAD="$(git rev-parse HEAD)"
   POLICY_DIGEST="$(sha256sum "$REPO_ROOT/config/project-profile-v2.json" | awk '{print $1}')"
   RUNTIME_IDENTITY="codespace:${CODESPACE_NAME:-$(hostname)}"
-  proof_id="$(python -c 'import uuid; print("vertical-" + uuid.uuid4().hex)')"
-  source_audio="$fixture_root/${proof_id}.wav"
 
-  sox -n -r 48000 -c 2 -b 24 "$source_audio" synth 2 sine 220 vol 0.12
-  [ -s "$source_audio" ] || die "VERTICAL_PROOF=BLOCKED_FIXTURE_AUDIO_EMPTY" 33
-
-  cleanup_fixture() {
-    local original_status=$? cleanup_status=0 cleanup_request
-    trap - EXIT
-    set +e
-    if [ "$fixture_opened" = "1" ]; then
-      cleanup_request="${proof_id}-fixture-close-cleanup"
-      python -m hazewave.creative_cli fixture-close \
-        --task-id "${proof_id}-fixture-close-cleanup" \
-        --request-id "$cleanup_request" \
-        --idempotency-key "$cleanup_request" \
-        --timeout-seconds 30
-      cleanup_status=$?
-      if [ "$cleanup_status" -ne 0 ]; then
-        echo "VERTICAL_PROOF_FIXTURE_CLEANUP=FAIL"
-        if [ "$original_status" -eq 0 ]; then
-          original_status=44
-        fi
-      else
-        echo "VERTICAL_PROOF_FIXTURE_CLEANUP=PASS"
-      fi
-    fi
-    exit "$original_status"
-  }
-  trap cleanup_fixture EXIT
-
-  open_request="${proof_id}-fixture-open"
-  python -m hazewave.creative_cli fixture-open \
-    --fixture-id "$proof_id" \
-    --task-id "${proof_id}-fixture-open" \
-    --request-id "$open_request" \
-    --idempotency-key "$open_request" \
-    --timeout-seconds 30
-  fixture_opened=1
-
+  echo "fixture-open=RUNNER_MANAGED"
   python -m hazewave.creative_cli vertical-proof \
     --source-audio "$source_audio" \
     --fixture-root "$fixture_root" \
@@ -133,19 +106,46 @@ cmd_vertical_proof() {
     --candidate-head "$CANDIDATE_HEAD" \
     --policy-digest "$POLICY_DIGEST" \
     --runtime-identity "$RUNTIME_IDENTITY" \
-    --tape-echo-version "1.0.8"
+    --tape-echo-version "1.0.8" \
+    >"$proof_json"
 
-  close_request="${proof_id}-fixture-close"
-  python -m hazewave.creative_cli fixture-close \
-    --task-id "${proof_id}-fixture-close" \
-    --request-id "$close_request" \
-    --idempotency-key "$close_request" \
-    --timeout-seconds 30
-  fixture_opened=0
-  trap - EXIT
+  python - "$proof_json" <<'PY'
+import json
+from pathlib import Path
+import sys
 
+path = Path(sys.argv[1])
+payload = json.loads(path.read_text(encoding="utf-8"))
+if payload.get("schema") != "ReaperLiveVerticalProof/v1":
+    raise SystemExit("VERTICAL_PROOF=FAIL_SCHEMA")
+if payload.get("status") != "PASS":
+    raise SystemExit("VERTICAL_PROOF=FAIL_STATUS")
+
+session = payload.get("fixture_session")
+if not isinstance(session, dict) or not session.get("isolated"):
+    raise SystemExit("VERTICAL_PROOF=FAIL_FIXTURE_NOT_ISOLATED")
+if session.get("original_project_restored") is not True:
+    raise SystemExit("VERTICAL_PROOF=FAIL_ORIGINAL_PROJECT_NOT_RESTORED")
+
+render_a = payload.get("render_a")
+render_b = payload.get("render_b")
+if not isinstance(render_a, dict) or not isinstance(render_b, dict):
+    raise SystemExit("VERTICAL_PROOF=FAIL_RENDERS_MISSING")
+path_a = Path(str(render_a.get("artifact_path", "")))
+path_b = Path(str(render_b.get("artifact_path", "")))
+if path_a == path_b or not path_a.is_file() or not path_b.is_file():
+    raise SystemExit("VERTICAL_PROOF=FAIL_RENDER_ARTIFACTS")
+
+receipts = payload.get("durable_receipts")
+if not isinstance(receipts, list) or len(receipts) < 10:
+    raise SystemExit("VERTICAL_PROOF=FAIL_RECEIPTS")
+if not all(Path(str(item)).is_file() for item in receipts):
+    raise SystemExit("VERTICAL_PROOF=FAIL_RECEIPT_FILES")
+PY
+
+  cat "$proof_json"
+  echo "fixture-close=RUNNER_VERIFIED"
   echo "LIVE_REAPER_PROOF=PASS"
-  echo "FIXTURE_PROJECT_CLOSED=PASS"
   echo "HUMAN_APPROVAL=REQUIRED"
 }
 
@@ -179,8 +179,8 @@ case "${1:-producer-doctor}" in
   snapshot) cmd_snapshot ;;
   execute) shift; cmd_execute "${1:-}" ;;
   render-preview) cmd_render_preview ;;
-  vertical-proof) shift; cmd_vertical_proof "${1:-}" ;;
+  vertical-proof) shift; cmd_vertical_proof ;;
   audition) shift; cmd_audition "${1:-}" ;;
   proof) cmd_proof ;;
-  *) echo "usage: creative-execution-control.sh {producer-doctor|snapshot|execute COMMAND.json|render-preview|vertical-proof SOURCE_AUDIO|audition AUDIO_FILE|proof}"; exit 2 ;;
+  *) echo "usage: creative-execution-control.sh {producer-doctor|snapshot|execute COMMAND.json|render-preview|vertical-proof|audition AUDIO_FILE|proof}"; exit 2 ;;
 esac
