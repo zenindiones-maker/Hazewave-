@@ -44,3 +44,12 @@ def test_lua_bridge_dispatch_is_static_and_bounded_for_first_vertical_slice() ->
 
     assert "handlers[request.operation]" in text
     assert "REAPER_OPERATION_NOT_ALLOWLISTED" in text
+
+
+def test_lua_bridge_rejects_expired_request_before_dispatch() -> None:
+    text = BRIDGE.read_text(encoding="utf-8")
+
+    assert "deadline_epoch_seconds" in text
+    assert "issued_at_epoch_seconds" in text
+    assert "REAPER_REQUEST_DEADLINE_EXCEEDED" in text
+    assert "os.time() > request.deadline_epoch_seconds" in text
