@@ -71,9 +71,10 @@ with zipfile.ZipFile(archive) as zf:
     zf.extractall(dest)
 PY
 
-SOURCE_DIR="$EXTRACT_ROOT/VST3/tape-echo-2.vst3"
-if [[ ! -d "$SOURCE_DIR" ]]; then
+SOURCE_DIR="$(find "$EXTRACT_ROOT" -type d -path '*/VST3/tape-echo-2.vst3' -print -quit)"
+if [[ -z "$SOURCE_DIR" || ! -d "$SOURCE_DIR" ]]; then
   echo "TAPE_ECHO_2_ARCHIVE=BLOCKED_UNEXPECTED_LAYOUT"
+  find "$EXTRACT_ROOT" -maxdepth 4 -mindepth 1 -print | sort | head -80
   exit 24
 fi
 
