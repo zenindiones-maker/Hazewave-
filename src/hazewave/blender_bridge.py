@@ -20,6 +20,8 @@ BLENDER_OPERATION_ALLOWLIST: Final[frozenset[str]] = frozenset(
     {
         "animation.scene.inspect",
         "animation.fixture.create",
+        "animation.shot.build",
+        "animation.render.frames",
     }
 )
 
@@ -263,6 +265,55 @@ def build_blender_request(
         if not isinstance(fixture_id, str) or not _FIXTURE_ID_RE.fullmatch(fixture_id):
             raise BlenderBridgeError("BLENDER_FIXTURE_ID_INVALID")
 
+    if operation == "animation.shot.build":
+        required = {
+            "shot_id",
+            "frame_start",
+            "breakdown_frame",
+            "frame_end",
+            "character_name",
+            "background_name",
+        }
+        if set(arguments) != required:
+            raise BlenderBridgeError("BLENDER_SHOT_ARGUMENTS_INVALID")
+        shot_id = arguments.get("shot_id")
+        if not isinstance(shot_id, str) or not _FIXTURE_ID_RE.fullmatch(shot_id):
+            raise BlenderBridgeError("BLENDER_SHOT_ID_INVALID")
+        for name in ("character_name", "background_name"):
+            value = arguments.get(name)
+            if (
+                not isinstance(value, str)
+                or not value.strip()
+                or len(value) > 128
+                or any(ch in value for ch in "\n\r\x00")
+            ):
+                raise BlenderBridgeError("BLENDER_SHOT_NAME_INVALID")
+        try:
+            frame_start = int(arguments["frame_start"])
+            breakdown_frame = int(arguments["breakdown_frame"])
+            frame_end = int(arguments["frame_end"])
+        except (TypeError, ValueError) as exc:
+            raise BlenderBridgeError("BLENDER_SHOT_FRAME_RANGE_INVALID") from exc
+        if not (1 <= frame_start < breakdown_frame < frame_end <= 10000):
+            raise BlenderBridgeError("BLENDER_SHOT_FRAME_RANGE_INVALID")
+
+    if operation == "animation.render.frames":
+        required = {"render_id", "frame_start", "frame_end", "format"}
+        if set(arguments) != required:
+            raise BlenderBridgeError("BLENDER_FRAME_RENDER_ARGUMENTS_INVALID")
+        render_id = arguments.get("render_id")
+        if not isinstance(render_id, str) or not _FIXTURE_ID_RE.fullmatch(render_id):
+            raise BlenderBridgeError("BLENDER_RENDER_ID_INVALID")
+        if arguments.get("format") != "PNG":
+            raise BlenderBridgeError("BLENDER_FRAME_RENDER_FORMAT_INVALID")
+        try:
+            frame_start = int(arguments["frame_start"])
+            frame_end = int(arguments["frame_end"])
+        except (TypeError, ValueError) as exc:
+            raise BlenderBridgeError("BLENDER_FRAME_RENDER_RANGE_INVALID") from exc
+        if not (1 <= frame_start <= frame_end <= 10000):
+            raise BlenderBridgeError("BLENDER_FRAME_RENDER_RANGE_INVALID")
+
     issued = _require_aware(issued_at, "BLENDER_ISSUED_AT_INVALID")
     due = _require_aware(deadline, "BLENDER_DEADLINE_INVALID")
     if due <= issued:
@@ -338,7 +389,7 @@ class BlenderCLIExecutor:
         self._atomic_write(request_path, request.to_dict())
 
         command: list[str] = [str(self.blender_binary), "--background"]
-        if request.operation == "animation.scene.inspect":
+        if request.operation in {"animation.scene.inspect", "animation.shot.build", "animation.render.frames"}:
             if blend_path is None:
                 raise BlenderBridgeError("BLENDER_BLEND_PATH_REQUIRED")
             source = Path(blend_path).expanduser().resolve()
