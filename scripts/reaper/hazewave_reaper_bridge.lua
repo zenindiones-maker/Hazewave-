@@ -18,6 +18,7 @@ local processing_dir = bridge_root .. "/processing"
 local responses_dir = bridge_root .. "/responses"
 local checkpoint_root = bridge_root .. "/checkpoints"
 local render_root = bridge_root .. "/artifacts"
+local fixture_root = bridge_root .. "/fixtures"
 local heartbeat_path = bridge_root .. "/heartbeat.json"
 
 reaper.RecursiveCreateDirectory(requests_dir, 0)
@@ -25,9 +26,11 @@ reaper.RecursiveCreateDirectory(processing_dir, 0)
 reaper.RecursiveCreateDirectory(responses_dir, 0)
 reaper.RecursiveCreateDirectory(checkpoint_root, 0)
 reaper.RecursiveCreateDirectory(render_root, 0)
+reaper.RecursiveCreateDirectory(fixture_root, 0)
 
 local ARRAY_MT = {}
 local JSON_NULL = {}
+local fixture_session = nil
 
 local function array(values)
   return setmetatable(values or {}, ARRAY_MT)
@@ -562,6 +565,30 @@ local function configure_preview_render(proj, render_pattern)
   reaper.GetSetProjectInfo_String(proj, "RENDER_FORMAT2", "", true)
 end
 
+local FIXTURE_NEW_TAB_ACTION_ID = 40859
+local FIXTURE_CLOSE_TAB_ACTION_ID = 40860
+
+local function count_project_tabs()
+  local count = 0
+  while true do
+    local project = reaper.EnumProjects(count, "")
+    if project == nil then break end
+    count = count + 1
+  end
+  return count
+end
+
+local function fixture_id_valid(value)
+  return type(value) == "string"
+    and #value >= 1
+    and #value <= 64
+    and value:match("^[A-Za-z0-9][A-Za-z0-9_.%-]*$") ~= nil
+end
+
+local function action_text_lower(action_id)
+  return string.lower(reaper.kbd_getTextFromCmd(action_id, 0) or "")
+end
+
 local handlers = {}
 
 handlers["session.inspect"] = function(_request, _proj)
@@ -616,6 +643,129 @@ handlers["session.rollback"] = function(request, proj)
 
   return {
     undone_description = actual_undo_description,
+  }
+end
+
+
+handlers["session.fixture.open"] = function(request, proj)
+  if fixture_session ~= nil then
+    error("REAPER_FIXTURE_SESSION_ALREADY_ACTIVE")
+  end
+
+  local args = request.arguments or {}
+  local fixture_id = args.fixture_id
+  if not fixture_id_valid(fixture_id) then
+    error("REAPER_FIXTURE_ID_INVALID")
+  end
+  for key, _ in pairs(args) do
+    if key ~= "fixture_id" then
+      error("REAPER_FIXTURE_ARGUMENTS_INVALID")
+    end
+  end
+
+  local fixture_path = fixture_root .. "/" .. fixture_id .. ".rpp"
+  local existing = io.open(fixture_path, "rb")
+  if existing ~= nil then
+    existing:close()
+    error("REAPER_FIXTURE_ALREADY_EXISTS")
+  end
+
+  local new_tab_text = action_text_lower(FIXTURE_NEW_TAB_ACTION_ID)
+  if not new_tab_text:find("new project tab", 1, true) then
+    error("REAPER_FIXTURE_NEW_TAB_ACTION_MISMATCH")
+  end
+
+  local previous_project, previous_identity = current_project()
+  if previous_project ~= proj then
+    error("REAPER_FIXTURE_PREVIOUS_PROJECT_MISMATCH")
+  end
+  local tabs_before = count_project_tabs()
+
+  reaper.Main_OnCommandEx(FIXTURE_NEW_TAB_ACTION_ID, 0, previous_project)
+
+  local fixture_project = reaper.EnumProjects(-1, "")
+  if fixture_project == nil or fixture_project == previous_project then
+    error("REAPER_FIXTURE_NEW_TAB_FAILED")
+  end
+  if count_project_tabs() ~= tabs_before + 1 then
+    error("REAPER_FIXTURE_TAB_COUNT_MISMATCH")
+  end
+
+  reaper.Main_SaveProjectEx(fixture_project, fixture_path, 8)
+
+  local active_project, active_identity = current_project()
+  if active_project ~= fixture_project or active_identity ~= fixture_path then
+    error("REAPER_FIXTURE_SAVE_IDENTITY_MISMATCH")
+  end
+  if reaper.IsProjectDirty(fixture_project) ~= 0 then
+    reaper.Main_SaveProject(fixture_project, false)
+  end
+  if reaper.IsProjectDirty(fixture_project) ~= 0 then
+    error("REAPER_FIXTURE_INITIAL_SAVE_DIRTY")
+  end
+
+  fixture_session = {
+    previous_project = previous_project,
+    previous_identity = previous_identity,
+    fixture_project = fixture_project,
+    fixture_path = fixture_path,
+  }
+
+  return {
+    fixture_id = fixture_id,
+    fixture_project = fixture_path,
+    previous_project_identity = previous_identity,
+    tabs_before = tabs_before,
+    tabs_after = tabs_before + 1,
+  }
+end
+
+handlers["session.fixture.close"] = function(request, proj)
+  local args = request.arguments or {}
+  if next(args) ~= nil then
+    error("REAPER_FIXTURE_CLOSE_ARGUMENTS_FORBIDDEN")
+  end
+  if fixture_session == nil then
+    error("REAPER_FIXTURE_SESSION_NOT_ACTIVE")
+  end
+
+  local current, identity = current_project()
+  if current ~= proj
+      or current ~= fixture_session.fixture_project
+      or identity ~= fixture_session.fixture_path then
+    error("REAPER_FIXTURE_ACTIVE_PROJECT_MISMATCH")
+  end
+
+  reaper.Main_SaveProject(current, false)
+  if reaper.IsProjectDirty(current) ~= 0 then
+    error("REAPER_FIXTURE_CLOSE_SAVE_FAILED")
+  end
+
+  local close_text = action_text_lower(FIXTURE_CLOSE_TAB_ACTION_ID)
+  if not close_text:find("close current project", 1, true)
+      or not close_text:find("tab", 1, true) then
+    error("REAPER_FIXTURE_CLOSE_TAB_ACTION_MISMATCH")
+  end
+
+  local tabs_before = count_project_tabs()
+  local previous_project = fixture_session.previous_project
+  local previous_identity = fixture_session.previous_identity
+  reaper.Main_OnCommandEx(FIXTURE_CLOSE_TAB_ACTION_ID, 0, current)
+
+  local restored_project, restored_identity = current_project()
+  if restored_project ~= previous_project or restored_identity ~= previous_identity then
+    error("REAPER_FIXTURE_PREVIOUS_PROJECT_NOT_RESTORED")
+  end
+  if count_project_tabs() ~= tabs_before - 1 then
+    error("REAPER_FIXTURE_CLOSE_TAB_COUNT_MISMATCH")
+  end
+
+  fixture_session = nil
+  return {
+    restored_project_identity = restored_identity,
+    closed_fixture_project = identity,
+    tabs_before = tabs_before,
+    tabs_after = tabs_before - 1,
   }
 end
 
@@ -838,6 +988,12 @@ local special_operations = {
   ["render.preview"] = true,
 }
 
+
+local context_switch_operations = {
+  ["session.fixture.open"] = true,
+  ["session.fixture.close"] = true,
+}
+
 local function validate_request(request)
   if type(request) ~= "table" then error("REAPER_REQUEST_MALFORMED") end
   if request.schema ~= REQUEST_SCHEMA then error("REAPER_REQUEST_SCHEMA_INVALID") end
@@ -907,6 +1063,38 @@ local function execute_request(request)
   end
 
   local proj, before_count
+  if context_switch_operations[request.operation] then
+    local ok_project, project_or_err, state_or_nil = pcall(preflight_project, request)
+    if not ok_project then
+      response.error = {code = tostring(project_or_err)}
+      response.completed_at = utc_now()
+      return response
+    end
+    proj = project_or_err
+    before_count = state_or_nil
+    response.state_before = {project_state_change_count = before_count}
+
+    local ok_handler, result_or_err = pcall(handlers[request.operation], request, proj)
+    local active_after = reaper.EnumProjects(-1, "")
+    local after_count = 0
+    if active_after ~= nil then
+      after_count = reaper.GetProjectStateChangeCount(active_after)
+    end
+
+    if not ok_handler then
+      response.error = {code = tostring(result_or_err)}
+      response.state_after = {project_state_change_count = after_count}
+      response.completed_at = utc_now()
+      return response
+    end
+
+    response.status = "PASS"
+    response.result = result_or_err or {}
+    response.state_after = {project_state_change_count = after_count}
+    response.completed_at = utc_now()
+    return response
+  end
+
   if special_operations[request.operation] then
     local ok_project, project_or_err, state_or_nil = pcall(preflight_project, request)
     if not ok_project then
