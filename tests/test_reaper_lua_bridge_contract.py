@@ -105,3 +105,65 @@ def test_lua_bridge_fixture_session_uses_isolated_project_tab_and_owned_root() -
     assert "context_switch_operations" in text
     assert '["session.fixture.open"] = true' in text
     assert '["session.fixture.close"] = true' in text
+
+
+def test_lua_bridge_professional_editing_primitives_use_reascript_state_apis() -> None:
+    text = BRIDGE.read_text(encoding="utf-8")
+
+    assert 'handlers["arrangement.marker"]' in text
+    assert 'handlers["arrangement.region"]' in text
+    assert "reaper.AddProjectMarker2" in text
+
+    assert 'handlers["audio.split"]' in text
+    assert "reaper.SplitMediaItem" in text
+    assert 'handlers["audio.trim"]' in text
+    assert "reaper.SetMediaItemPosition" in text
+    assert "reaper.SetMediaItemLength" in text
+    assert '"D_STARTOFFS"' in text
+    assert 'handlers["audio.fade"]' in text
+    assert '"D_FADEINLEN"' in text
+    assert '"D_FADEOUTLEN"' in text
+    assert 'handlers["audio.align"]' in text
+    assert 'handlers["audio.time_stretch"]' in text
+    assert '"D_PLAYRATE"' in text
+    assert '"B_PPITCH"' in text
+    assert 'handlers["audio.pitch"]' in text
+    assert '"D_PITCH"' in text
+
+
+def test_lua_bridge_professional_track_and_fx_primitives_are_explicit() -> None:
+    text = BRIDGE.read_text(encoding="utf-8")
+
+    assert 'handlers["track.configure"]' in text
+    assert 'handlers["track.folder"]' in text
+    assert "reaper.SetMediaTrackInfo_Value" in text
+    assert '"D_VOL"' in text
+    assert '"D_PAN"' in text
+    assert '"D_WIDTH"' in text
+    assert '"I_NCHAN"' in text
+    assert '"I_FOLDERDEPTH"' in text
+
+    assert 'handlers["fx.remove"]' in text
+    assert "reaper.TrackFX_Delete" in text
+    assert 'handlers["fx.bypass"]' in text
+    assert "reaper.TrackFX_SetEnabled" in text
+    assert 'handlers["fx.preset"]' in text
+    assert "reaper.TrackFX_SetPreset" in text
+    assert 'handlers["fx.automation"]' in text
+    assert "reaper.GetFXEnvelope" in text
+    assert "reaper.InsertEnvelopePointEx" in text
+    assert "reaper.Envelope_SortPointsEx" in text
+
+
+def test_lua_bridge_master_and_stem_render_modes_are_project_owned() -> None:
+    text = BRIDGE.read_text(encoding="utf-8")
+
+    assert 'handlers["render.master"]' in text
+    assert 'handlers["render.stems"]' in text
+    assert "RENDER_SETTINGS_MASTER = 0" in text
+    assert "RENDER_SETTINGS_STEMS_ONLY = 2" in text
+    assert "collect_render_artifacts" in text
+    assert "capture_track_selection" in text
+    assert "restore_track_selection" in text
+    assert '["render.master"] = true' in text
+    assert '["render.stems"] = true' in text
