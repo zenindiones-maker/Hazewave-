@@ -89,3 +89,31 @@ def test_runtime_proof_preserves_live_vertical_proof_evidence() -> None:
     assert "tee" in text
     assert "fixture-close=RUNNER_VERIFIED" in text
     assert "HUMAN_APPROVAL=REQUIRED" in text
+
+
+def test_vertical_proof_persists_machine_readable_receipt() -> None:
+    text = CONTROL.read_text(encoding="utf-8")
+
+    assert 'CREATIVE_PROOF_ROOT="${HOME}/.local/state/hazewave-codespace/creative-proofs"' in text
+    assert 'proof_dir="$CREATIVE_PROOF_ROOT/$proof_id"' in text
+    assert 'proof_json="$proof_dir/reaper-live-proof.json"' in text
+    assert 'echo "VERTICAL_PROOF_JSON=$proof_json"' in text
+    assert 'rm -f "$source_audio" "$proof_json"' not in text
+
+
+def test_runtime_proof_chains_real_haze_render_into_cartoon_live_proof() -> None:
+    text = RUNTIME_PROOF.read_text(encoding="utf-8")
+
+    assert 'VERTICAL_PROOF_JSON=' in text
+    assert 'render_b' in text
+    assert 'artifact_path' in text
+    assert 'python -m hazewave.cartoon_live_proof' in text
+    assert 'CartoonLiveProof/v1' in text
+    assert 'AnimationQCReport/v1' in text
+    assert 'VideoQCReport/v1' in text
+    assert 'CARTOON_LIVE_PROOF=PASS' in text
+    assert 'CARTOON_LIVE_PROOF=NOT_PROVEN' not in text
+
+    validate_index = text.index('CartoonLiveProof/v1')
+    pass_index = text.index('echo "CARTOON_LIVE_PROOF=PASS"')
+    assert validate_index < pass_index
