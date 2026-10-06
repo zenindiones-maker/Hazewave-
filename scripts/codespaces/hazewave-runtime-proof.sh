@@ -86,18 +86,18 @@ run_proof() {
 
   CREATIVE_DOCTOR_JSON="$OUT_DIR/creative-producer-doctor.json"
   if ! python -m hazewave.creative_cli doctor >"$CREATIVE_DOCTOR_JSON"; then
-    echo "REAPER_BRIDGE=NOT_PROVEN"
-    echo "LIVE_REAPER_PROOF=NOT_PROVEN"
+    echo "REAPER_BRIDGE=FAIL_DOCTOR"
+    echo "LIVE_REAPER_PROOF=FAIL_BRIDGE"
     exit 32
   fi
   grep -Fq '"schema": "CreativeProducerDoctor/v1"' "$CREATIVE_DOCTOR_JSON" || {
     echo "REAPER_BRIDGE=FAIL_DOCTOR_SCHEMA"
-    echo "LIVE_REAPER_PROOF=NOT_PROVEN"
+    echo "LIVE_REAPER_PROOF=FAIL_BRIDGE"
     exit 33
   }
   grep -Fq '"bridge_id": "HAZEWAVE_REAPER_BRIDGE"' "$CREATIVE_DOCTOR_JSON" || {
     echo "REAPER_BRIDGE=FAIL_BRIDGE_IDENTITY"
-    echo "LIVE_REAPER_PROOF=NOT_PROVEN"
+    echo "LIVE_REAPER_PROOF=FAIL_BRIDGE"
     exit 34
   }
   echo "REAPER_BRIDGE=PASS_RUNTIME_HEARTBEAT"
@@ -105,17 +105,16 @@ run_proof() {
   SNAPSHOT_JSON="$OUT_DIR/reaper-project-snapshot.json"
   SNAPSHOT_REQUEST_ID="runtime-snapshot-$STAMP"
   if ! python -m hazewave.creative_cli snapshot       --task-id "runtime-proof-snapshot"       --request-id "$SNAPSHOT_REQUEST_ID"       --idempotency-key "$SNAPSHOT_REQUEST_ID" >"$SNAPSHOT_JSON"; then
-    echo "REAPER_SNAPSHOT=NOT_PROVEN"
-    echo "LIVE_REAPER_PROOF=NOT_PROVEN"
+    echo "REAPER_SNAPSHOT=FAIL_RUNTIME"
+    echo "LIVE_REAPER_PROOF=FAIL_SNAPSHOT"
     exit 35
   fi
   grep -Fq '"schema": "ReaperProjectSnapshot/v1"' "$SNAPSHOT_JSON" || {
     echo "REAPER_SNAPSHOT=FAIL_SCHEMA"
-    echo "LIVE_REAPER_PROOF=NOT_PROVEN"
+    echo "LIVE_REAPER_PROOF=FAIL_SNAPSHOT"
     exit 36
   }
   echo "REAPER_SNAPSHOT=PASS_RUNTIME"
-  echo "LIVE_REAPER_PROOF=NOT_PROVEN"
 
   pactl info >"$OUT_DIR/pactl-info.txt"
   pactl list short sinks >"$OUT_DIR/pulse-sinks.txt"
@@ -172,9 +171,37 @@ run_proof() {
   echo "TAPE_ECHO_2_RUNTIME=PASS"
   echo "TAPE_ECHO_2_VERSION=1.0.8"
 
+  VERTICAL_PROOF_LOG="$OUT_DIR/reaper-live-vertical-proof.txt"
+  if ! bash scripts/codespaces/creative-execution-control.sh vertical-proof | tee "$VERTICAL_PROOF_LOG"; then
+    echo "LIVE_REAPER_PROOF=FAIL_EXECUTION"
+    exit 37
+  fi
+
+  grep -Fq '"schema": "ReaperLiveVerticalProof/v1"' "$VERTICAL_PROOF_LOG" || {
+    echo "LIVE_REAPER_PROOF=FAIL_SCHEMA"
+    exit 38
+  }
+  grep -Fq '"status": "PASS"' "$VERTICAL_PROOF_LOG" || {
+    echo "LIVE_REAPER_PROOF=FAIL_STATUS"
+    exit 39
+  }
+  grep -Fq 'fixture-close=RUNNER_VERIFIED' "$VERTICAL_PROOF_LOG" || {
+    echo "LIVE_REAPER_PROOF=FAIL_FIXTURE_RESTORE"
+    exit 40
+  }
+  grep -Fq 'LIVE_REAPER_PROOF=PASS' "$VERTICAL_PROOF_LOG" || {
+    echo "LIVE_REAPER_PROOF=FAIL_PASS_MARKER"
+    exit 41
+  }
+  grep -Fq 'HUMAN_APPROVAL=REQUIRED' "$VERTICAL_PROOF_LOG" || {
+    echo "LIVE_REAPER_PROOF=FAIL_HUMAN_REVIEW_MARKER"
+    exit 42
+  }
+
+  echo "LIVE_REAPER_PROOF=PASS"
   echo "REAPER_GUI_PROCESS=PASS"
-  echo "REAPER_MINIMAL_PROJECT=AWAITING_HUMAN_UI_PROOF"
-  echo "REAPER_PLUGIN_LOAD=AWAITING_HUMAN_UI_PROOF"
+  echo "REAPER_MINIMAL_PROJECT=PASS_LIVE_FIXTURE"
+  echo "REAPER_PLUGIN_LOAD=PASS_LIVE_TAPE_ECHO_2"
   echo "BROWSER_END_TO_END_AUDIO=AWAITING_HUMAN_LISTENING_PROOF"
   echo "XPRA_REQUIRED=TRUE"
   echo "PAID_FALLBACK=FALSE"
