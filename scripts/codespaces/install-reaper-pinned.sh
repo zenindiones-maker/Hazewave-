@@ -56,7 +56,41 @@ SIZE_BYTES="$(stat -c '%s' "$TMP/$REAPER_ARCHIVE")"
 }
 
 tar -tf "$TMP/$REAPER_ARCHIVE" |
-  grep -qx 'reaper_linux_x86_64/REAPER/reaper' || {
+  grep -Eq '(^|\\./)reaper_linux_x86_64/REAPER/reaper || {
+    echo "REAPER_ARCHIVE=BLOCKED_UNEXPECTED_LAYOUT"
+    exit 23
+  }
+
+STAGE="$TMP/stage"
+mkdir -p "$STAGE"
+tar -xf "$TMP/$REAPER_ARCHIVE" -C "$STAGE"
+
+[[ -x "$STAGE/reaper_linux_x86_64/REAPER/reaper" ]] || {
+  echo "REAPER_BINARY=BLOCKED_NOT_EXECUTABLE"
+  exit 24
+}
+
+mkdir -p "$(dirname "$INSTALL_ROOT")"
+mv "$STAGE/reaper_linux_x86_64" "$INSTALL_ROOT"
+ln -sfn "$BINARY" "$LINK"
+
+ARCHIVE_SHA256="$(sha256sum "$TMP/$REAPER_ARCHIVE" | awk '{print $1}')"
+
+cat >"$RECEIPT" <<EOF
+REAPER_VERSION=$REAPER_VERSION
+REAPER_BUILD=$REAPER_BUILD
+REAPER_URL=$REAPER_URL
+REAPER_ARCHIVE_SHA256=$ARCHIVE_SHA256
+REAPER_BINARY=$BINARY
+EOF
+chmod 600 "$RECEIPT"
+
+echo "REAPER_INSTALL=PASS"
+echo "REAPER_VERSION=$REAPER_VERSION"
+echo "REAPER_BUILD=$REAPER_BUILD"
+echo "REAPER_ARCHIVE_SHA256=$ARCHIVE_SHA256"
+echo "REAPER_BINARY=$BINARY"
+ || {
     echo "REAPER_ARCHIVE=BLOCKED_UNEXPECTED_LAYOUT"
     exit 23
   }
