@@ -509,6 +509,51 @@ local function get_track_by_index(proj, index)
   return track
 end
 
+
+local function require_boolean(args, key)
+  local value = args[key]
+  if type(value) ~= "boolean" then
+    error("REAPER_ARGUMENT_REQUIRED_BOOLEAN:" .. key)
+  end
+  return value
+end
+
+local function get_item_by_guid(proj, guid)
+  if type(guid) ~= "string" or guid == "" then
+    error("REAPER_ITEM_GUID_REQUIRED")
+  end
+  local count = reaper.CountMediaItems(proj)
+  for index = 0, count - 1 do
+    local item = reaper.GetMediaItem(proj, index)
+    local _, actual = reaper.GetSetMediaItemInfo_String(item, "GUID", "", false)
+    if actual == guid then return item end
+  end
+  error("REAPER_ITEM_NOT_FOUND")
+end
+
+local function get_take_from_args(item, args)
+  local take_index = args.take_index
+  if take_index == nil then take_index = 0 end
+  if type(take_index) ~= "number"
+      or take_index < 0
+      or take_index % 1 ~= 0 then
+    error("REAPER_TAKE_INDEX_INVALID")
+  end
+  local take = reaper.GetTake(item, take_index)
+  if take == nil then error("REAPER_TAKE_NOT_FOUND") end
+  return take, take_index
+end
+
+local function validate_fx_index(track, fx_index)
+  if type(fx_index) ~= "number"
+      or fx_index < 0
+      or fx_index % 1 ~= 0
+      or fx_index >= reaper.TrackFX_GetCount(track) then
+    error("REAPER_FX_INDEX_INVALID")
+  end
+  return fx_index
+end
+
 local RENDER_ACTION_ID = 42230
 
 local render_numeric_keys = {
@@ -833,6 +878,215 @@ handlers["render.preview"] = function(request, proj)
   }
 end
 
+handlers["arrangement.marker"] = function(request, proj)
+  local args = request.arguments or {}
+  local position = require_number(args, "position")
+  if position < 0 then error("REAPER_MARKER_POSITION_INVALID") end
+  local name = require_string(args, "name")
+  local wantidx = args.marker_id or -1
+  local color = args.color or 0
+  if type(wantidx) ~= "number" or wantidx % 1 ~= 0 then
+    error("REAPER_MARKER_ID_INVALID")
+  end
+  if type(color) ~= "number" or color % 1 ~= 0 then
+    error("REAPER_MARKER_COLOR_INVALID")
+  end
+  local marker_id = reaper.AddProjectMarker2(
+    proj, false, position, 0.0, name, wantidx, color
+  )
+  if marker_id < 0 then error("REAPER_MARKER_CREATE_FAILED") end
+  return {marker_id = marker_id, position = position, name = name, color = color}
+end
+
+handlers["arrangement.region"] = function(request, proj)
+  local args = request.arguments or {}
+  local start_time = require_number(args, "start")
+  local end_time = require_number(args, "end")
+  if start_time < 0 or end_time <= start_time then
+    error("REAPER_REGION_RANGE_INVALID")
+  end
+  local name = require_string(args, "name")
+  local wantidx = args.region_id or -1
+  local color = args.color or 0
+  if type(wantidx) ~= "number" or wantidx % 1 ~= 0 then
+    error("REAPER_REGION_ID_INVALID")
+  end
+  if type(color) ~= "number" or color % 1 ~= 0 then
+    error("REAPER_REGION_COLOR_INVALID")
+  end
+  local region_id = reaper.AddProjectMarker2(
+    proj, true, start_time, end_time, name, wantidx, color
+  )
+  if region_id < 0 then error("REAPER_REGION_CREATE_FAILED") end
+  return {
+    region_id = region_id,
+    start = start_time,
+    ["end"] = end_time,
+    name = name,
+    color = color,
+  }
+end
+
+handlers["audio.split"] = function(request, proj)
+  local args = request.arguments or {}
+  local item = get_item_by_guid(proj, require_string(args, "item_guid"))
+  local split_position = require_number(args, "position")
+  local item_position = reaper.GetMediaItemInfo_Value(item, "D_POSITION")
+  local item_length = reaper.GetMediaItemInfo_Value(item, "D_LENGTH")
+  local item_end = item_position + item_length
+  if split_position <= item_position or split_position >= item_end then
+    error("REAPER_AUDIO_SPLIT_POSITION_INVALID")
+  end
+
+  local right = reaper.SplitMediaItem(item, split_position)
+  if right == nil then error("REAPER_AUDIO_SPLIT_FAILED") end
+  local _, left_guid = reaper.GetSetMediaItemInfo_String(item, "GUID", "", false)
+  local _, right_guid = reaper.GetSetMediaItemInfo_String(right, "GUID", "", false)
+  return {
+    left_item_guid = left_guid or "",
+    right_item_guid = right_guid or "",
+    split_position = split_position,
+  }
+end
+
+handlers["audio.trim"] = function(request, proj)
+  local args = request.arguments or {}
+  local item = get_item_by_guid(proj, require_string(args, "item_guid"))
+  local new_position = require_number(args, "new_position")
+  local new_length = require_number(args, "new_length")
+  local old_position = reaper.GetMediaItemInfo_Value(item, "D_POSITION")
+  local old_length = reaper.GetMediaItemInfo_Value(item, "D_LENGTH")
+  local old_end = old_position + old_length
+  local new_end = new_position + new_length
+
+  if new_length <= 0
+      or new_position < old_position
+      or new_end > old_end + 0.0000001 then
+    error("REAPER_AUDIO_TRIM_RANGE_INVALID")
+  end
+
+  local delta = new_position - old_position
+  local take_count = reaper.CountTakes(item)
+  for take_index = 0, take_count - 1 do
+    local take = reaper.GetTake(item, take_index)
+    if take ~= nil and delta > 0 then
+      local rate = reaper.GetMediaItemTakeInfo_Value(take, "D_PLAYRATE")
+      local old_offset = reaper.GetMediaItemTakeInfo_Value(take, "D_STARTOFFS")
+      local new_offset = old_offset + delta * rate
+      if new_offset < 0 then error("REAPER_AUDIO_TRIM_SOURCE_OFFSET_INVALID") end
+      if not reaper.SetMediaItemTakeInfo_Value(take, "D_STARTOFFS", new_offset) then
+        error("REAPER_AUDIO_TRIM_SOURCE_OFFSET_FAILED")
+      end
+    end
+  end
+
+  if not reaper.SetMediaItemPosition(item, new_position, false) then
+    error("REAPER_AUDIO_TRIM_POSITION_FAILED")
+  end
+  if not reaper.SetMediaItemLength(item, new_length, false) then
+    error("REAPER_AUDIO_TRIM_LENGTH_FAILED")
+  end
+  return {
+    item_guid = args.item_guid,
+    old_position = old_position,
+    old_length = old_length,
+    new_position = new_position,
+    new_length = new_length,
+  }
+end
+
+handlers["audio.fade"] = function(request, proj)
+  local args = request.arguments or {}
+  local item = get_item_by_guid(proj, require_string(args, "item_guid"))
+  local fade_in = require_number(args, "fade_in")
+  local fade_out = require_number(args, "fade_out")
+  local length = reaper.GetMediaItemInfo_Value(item, "D_LENGTH")
+  if fade_in < 0 or fade_out < 0 or fade_in + fade_out > length then
+    error("REAPER_AUDIO_FADE_RANGE_INVALID")
+  end
+  if not reaper.SetMediaItemInfo_Value(item, "D_FADEINLEN", fade_in) then
+    error("REAPER_AUDIO_FADE_IN_FAILED")
+  end
+  if not reaper.SetMediaItemInfo_Value(item, "D_FADEOUTLEN", fade_out) then
+    error("REAPER_AUDIO_FADE_OUT_FAILED")
+  end
+  return {item_guid = args.item_guid, fade_in = fade_in, fade_out = fade_out}
+end
+
+handlers["audio.align"] = function(request, proj)
+  local args = request.arguments or {}
+  local item = get_item_by_guid(proj, require_string(args, "item_guid"))
+  local position = require_number(args, "position")
+  if position < 0 then error("REAPER_AUDIO_ALIGN_POSITION_INVALID") end
+  local old_position = reaper.GetMediaItemInfo_Value(item, "D_POSITION")
+  if not reaper.SetMediaItemPosition(item, position, false) then
+    error("REAPER_AUDIO_ALIGN_FAILED")
+  end
+  return {
+    item_guid = args.item_guid,
+    old_position = old_position,
+    new_position = position,
+  }
+end
+
+handlers["audio.time_stretch"] = function(request, proj)
+  local args = request.arguments or {}
+  local item = get_item_by_guid(proj, require_string(args, "item_guid"))
+  local take, take_index = get_take_from_args(item, args)
+  local rate = require_number(args, "rate")
+  if rate < 0.125 or rate > 8.0 then
+    error("REAPER_AUDIO_PLAYRATE_RANGE_INVALID")
+  end
+  local preserve_pitch = true
+  if args.preserve_pitch ~= nil then
+    preserve_pitch = require_boolean(args, "preserve_pitch")
+  end
+  local old_rate = reaper.GetMediaItemTakeInfo_Value(take, "D_PLAYRATE")
+  local old_length = reaper.GetMediaItemInfo_Value(item, "D_LENGTH")
+  if not reaper.SetMediaItemTakeInfo_Value(take, "D_PLAYRATE", rate) then
+    error("REAPER_AUDIO_PLAYRATE_WRITE_FAILED")
+  end
+  if not reaper.SetMediaItemTakeInfo_Value(
+      take, "B_PPITCH", preserve_pitch and 1 or 0
+    ) then
+    error("REAPER_AUDIO_PRESERVE_PITCH_WRITE_FAILED")
+  end
+  if args.adjust_item_length == true then
+    local adjusted = old_length * old_rate / rate
+    if adjusted <= 0
+        or not reaper.SetMediaItemLength(item, adjusted, false) then
+      error("REAPER_AUDIO_STRETCH_LENGTH_FAILED")
+    end
+  end
+  return {
+    item_guid = args.item_guid,
+    take_index = take_index,
+    old_rate = old_rate,
+    new_rate = rate,
+    preserve_pitch = preserve_pitch,
+  }
+end
+
+handlers["audio.pitch"] = function(request, proj)
+  local args = request.arguments or {}
+  local item = get_item_by_guid(proj, require_string(args, "item_guid"))
+  local take, take_index = get_take_from_args(item, args)
+  local semitones = require_number(args, "semitones")
+  if semitones < -48 or semitones > 48 then
+    error("REAPER_AUDIO_PITCH_RANGE_INVALID")
+  end
+  local old_pitch = reaper.GetMediaItemTakeInfo_Value(take, "D_PITCH")
+  if not reaper.SetMediaItemTakeInfo_Value(take, "D_PITCH", semitones) then
+    error("REAPER_AUDIO_PITCH_WRITE_FAILED")
+  end
+  return {
+    item_guid = args.item_guid,
+    take_index = take_index,
+    old_pitch = old_pitch,
+    new_pitch = semitones,
+  }
+end
+
 handlers["track.create"] = function(request, proj)
   local args = request.arguments or {}
   local index = args.index
@@ -847,6 +1101,95 @@ handlers["track.create"] = function(request, proj)
     reaper.GetSetMediaTrackInfo_String(track, "P_NAME", args.name, true)
   end
   return {track_index = index, track_guid = track_guid(track)}
+end
+
+handlers["track.configure"] = function(request, proj)
+  local args = request.arguments or {}
+  local track = get_track_by_index(proj, require_number(args, "track_index"))
+
+  if args.name ~= nil then
+    if type(args.name) ~= "string" or args.name == "" then
+      error("REAPER_TRACK_NAME_INVALID")
+    end
+    reaper.GetSetMediaTrackInfo_String(track, "P_NAME", args.name, true)
+  end
+
+  local numeric = {
+    volume = {"D_VOL", 0.0, 16.0},
+    pan = {"D_PAN", -1.0, 1.0},
+    width = {"D_WIDTH", -1.0, 1.0},
+  }
+  for key, spec in pairs(numeric) do
+    if args[key] ~= nil then
+      if type(args[key]) ~= "number"
+          or args[key] < spec[2]
+          or args[key] > spec[3] then
+        error("REAPER_TRACK_PARAMETER_RANGE:" .. key)
+      end
+      if not reaper.SetMediaTrackInfo_Value(track, spec[1], args[key]) then
+        error("REAPER_TRACK_PARAMETER_WRITE_FAILED:" .. key)
+      end
+    end
+  end
+
+  local bools = {
+    mute = "B_MUTE",
+    record_arm = "I_RECARM",
+  }
+  for key, parm in pairs(bools) do
+    if args[key] ~= nil then
+      local value = require_boolean(args, key)
+      if not reaper.SetMediaTrackInfo_Value(track, parm, value and 1 or 0) then
+        error("REAPER_TRACK_PARAMETER_WRITE_FAILED:" .. key)
+      end
+    end
+  end
+
+  if args.solo ~= nil then
+    local solo = require_boolean(args, "solo")
+    if not reaper.SetMediaTrackInfo_Value(track, "I_SOLO", solo and 1 or 0) then
+      error("REAPER_TRACK_PARAMETER_WRITE_FAILED:solo")
+    end
+  end
+
+  if args.channel_count ~= nil then
+    local channels = args.channel_count
+    if type(channels) ~= "number"
+        or channels < 2
+        or channels > 64
+        or channels % 2 ~= 0 then
+      error("REAPER_TRACK_CHANNEL_COUNT_INVALID")
+    end
+    if not reaper.SetMediaTrackInfo_Value(track, "I_NCHAN", channels) then
+      error("REAPER_TRACK_CHANNEL_COUNT_WRITE_FAILED")
+    end
+  end
+
+  return {
+    track_guid = track_guid(track),
+    track_index = args.track_index,
+    volume = reaper.GetMediaTrackInfo_Value(track, "D_VOL"),
+    pan = reaper.GetMediaTrackInfo_Value(track, "D_PAN"),
+    width = reaper.GetMediaTrackInfo_Value(track, "D_WIDTH"),
+    channel_count = reaper.GetMediaTrackInfo_Value(track, "I_NCHAN"),
+  }
+end
+
+handlers["track.folder"] = function(request, proj)
+  local args = request.arguments or {}
+  local track = get_track_by_index(proj, require_number(args, "track_index"))
+  local depth = require_number(args, "folder_depth")
+  if depth % 1 ~= 0 or depth < -16 or depth > 1 then
+    error("REAPER_TRACK_FOLDER_DEPTH_INVALID")
+  end
+  if not reaper.SetMediaTrackInfo_Value(track, "I_FOLDERDEPTH", depth) then
+    error("REAPER_TRACK_FOLDER_WRITE_FAILED")
+  end
+  return {
+    track_guid = track_guid(track),
+    track_index = args.track_index,
+    folder_depth = depth,
+  }
 end
 
 handlers["audio.import"] = function(request, proj)
@@ -928,6 +1271,110 @@ handlers["fx.add"] = function(request, proj)
   if fx_index < 0 then error("REAPER_PLUGIN_NOT_FOUND") end
   local _, actual_name = reaper.TrackFX_GetFXName(track, fx_index, "")
   return {track_guid = track_guid(track), fx_index = fx_index, name = actual_name or ""}
+end
+
+handlers["fx.remove"] = function(request, proj)
+  local args = request.arguments or {}
+  local track = get_track_by_index(proj, require_number(args, "track_index"))
+  local fx_index = validate_fx_index(track, require_number(args, "fx_index"))
+  local _, name = reaper.TrackFX_GetFXName(track, fx_index, "")
+  if not reaper.TrackFX_Delete(track, fx_index) then
+    error("REAPER_FX_REMOVE_FAILED")
+  end
+  return {
+    track_guid = track_guid(track),
+    removed_fx_index = fx_index,
+    removed_name = name or "",
+  }
+end
+
+handlers["fx.bypass"] = function(request, proj)
+  local args = request.arguments or {}
+  local track = get_track_by_index(proj, require_number(args, "track_index"))
+  local fx_index = validate_fx_index(track, require_number(args, "fx_index"))
+  local bypass = require_boolean(args, "bypass")
+  reaper.TrackFX_SetEnabled(track, fx_index, not bypass)
+  local enabled = reaper.TrackFX_GetEnabled(track, fx_index)
+  if enabled == bypass then error("REAPER_FX_BYPASS_VERIFY_FAILED") end
+  return {
+    track_guid = track_guid(track),
+    fx_index = fx_index,
+    bypass = bypass,
+    enabled = enabled,
+  }
+end
+
+handlers["fx.preset"] = function(request, proj)
+  local args = request.arguments or {}
+  local track = get_track_by_index(proj, require_number(args, "track_index"))
+  local fx_index = validate_fx_index(track, require_number(args, "fx_index"))
+  local preset = require_string(args, "preset")
+  if not reaper.TrackFX_SetPreset(track, fx_index, preset) then
+    error("REAPER_FX_PRESET_NOT_FOUND")
+  end
+  local _, actual = reaper.TrackFX_GetPreset(track, fx_index, "")
+  return {
+    track_guid = track_guid(track),
+    fx_index = fx_index,
+    requested_preset = preset,
+    active_preset = actual or "",
+  }
+end
+
+handlers["fx.automation"] = function(request, proj)
+  local args = request.arguments or {}
+  local track = get_track_by_index(proj, require_number(args, "track_index"))
+  local fx_index = validate_fx_index(track, require_number(args, "fx_index"))
+  local param_index = require_number(args, "parameter_index")
+  if param_index < 0
+      or param_index % 1 ~= 0
+      or param_index >= reaper.TrackFX_GetNumParams(track, fx_index) then
+    error("REAPER_FX_PARAMETER_INDEX_INVALID")
+  end
+  local points = args.points
+  if type(points) ~= "table" or #points < 1 then
+    error("REAPER_FX_AUTOMATION_POINTS_REQUIRED")
+  end
+  local envelope = reaper.GetFXEnvelope(track, fx_index, param_index, true)
+  if envelope == nil then error("REAPER_FX_AUTOMATION_ENVELOPE_FAILED") end
+  local scaling_mode = reaper.GetEnvelopeScalingMode(envelope)
+  local inserted = 0
+  for _, point in ipairs(points) do
+    if type(point) ~= "table" then
+      error("REAPER_FX_AUTOMATION_POINT_MALFORMED")
+    end
+    local time = point.time
+    local normalized = point.normalized_value
+    local shape = point.shape or 0
+    local tension = point.tension or 0.0
+    if type(time) ~= "number" or time < 0 then
+      error("REAPER_FX_AUTOMATION_TIME_INVALID")
+    end
+    if type(normalized) ~= "number"
+        or normalized < 0
+        or normalized > 1 then
+      error("REAPER_FX_AUTOMATION_VALUE_INVALID")
+    end
+    if type(shape) ~= "number" or shape % 1 ~= 0 or shape < 0 or shape > 5 then
+      error("REAPER_FX_AUTOMATION_SHAPE_INVALID")
+    end
+    if type(tension) ~= "number" or tension < -1 or tension > 1 then
+      error("REAPER_FX_AUTOMATION_TENSION_INVALID")
+    end
+    local envelope_value = reaper.ScaleToEnvelopeMode(scaling_mode, normalized)
+    local ok = reaper.InsertEnvelopePointEx(
+      envelope, -1, time, envelope_value, shape, tension, false, true
+    )
+    if not ok then error("REAPER_FX_AUTOMATION_INSERT_FAILED") end
+    inserted = inserted + 1
+  end
+  reaper.Envelope_SortPointsEx(envelope, -1)
+  return {
+    track_guid = track_guid(track),
+    fx_index = fx_index,
+    parameter_index = param_index,
+    inserted_points = inserted,
+  }
 end
 
 handlers["fx.parameter.read"] = function(request, proj)
