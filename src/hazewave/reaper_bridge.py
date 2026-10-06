@@ -237,6 +237,8 @@ class ReaperExecutionRequest:
             "expected_project_state_change_count": self.expected_project_state_change_count,
             "deadline": self.deadline.isoformat(),
             "issued_at": self.issued_at.isoformat(),
+            "deadline_epoch_seconds": self.deadline.timestamp(),
+            "issued_at_epoch_seconds": self.issued_at.timestamp(),
         }
 
 
