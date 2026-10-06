@@ -10,6 +10,7 @@ RECEIPT="$OUT_DIR/receipt.txt"
 RECEIPT_SHA_FILE="$OUT_DIR/receipt.sha256"
 EXPECTED_REAPER="${HOME}/.local/opt/reaper/7.82/REAPER/reaper"
 EXPECTED_BLENDER="${HOME}/.local/opt/blender/5.2.2/blender"
+WAVE_RUNTIME_PYTHON="${HOME}/.local/opt/hazewave-wave-runtime/0.18.1-0.7.1/bin/python"
 
 mkdir -p "$OUT_DIR"
 
@@ -247,7 +248,7 @@ PY
   mkdir -p "$WAVE_PROOF_ROOT"
   chmod 700 "$WAVE_PROOF_ROOT"
 
-  if ! python -m hazewave.wave_live_proof \
+  if ! "$WAVE_RUNTIME_PYTHON" -m hazewave.wave_live_proof \
       --proof-root "$WAVE_PROOF_ROOT" \
       --proof-id "$WAVE_PROOF_ID" \
       --candidate-head "$ACTUAL_HEAD" \
