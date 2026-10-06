@@ -463,3 +463,68 @@ def test_render_preview_request_is_bounded_to_project_owned_artifact_root() -> N
 
     assert request.operation == "render.preview"
     assert request.arguments == {}
+
+
+def test_fixture_open_rejects_caller_path_and_requires_safe_fixture_id() -> None:
+    now = datetime.now(timezone.utc)
+    authorization = _authorization("session.fixture.open")
+
+    with pytest.raises(ReaperBridgeError, match="REAPER_FIXTURE_PATH_CALLER_CONTROLLED"):
+        build_reaper_request(
+            authorization=authorization,
+            request_id="req-fixture-path",
+            idempotency_key="idem-fixture-path",
+            operation="session.fixture.open",
+            arguments={"fixture_id": "proof-001", "path": "/tmp/user.rpp"},
+            expected_project_identity="/tmp/user.rpp",
+            expected_project_state_change_count=2,
+            issued_at=now,
+            deadline=now + timedelta(seconds=10),
+        )
+
+    with pytest.raises(ReaperBridgeError, match="REAPER_FIXTURE_ID_INVALID"):
+        build_reaper_request(
+            authorization=authorization,
+            request_id="req-fixture-id",
+            idempotency_key="idem-fixture-id",
+            operation="session.fixture.open",
+            arguments={"fixture_id": "../escape"},
+            expected_project_identity="/tmp/user.rpp",
+            expected_project_state_change_count=2,
+            issued_at=now,
+            deadline=now + timedelta(seconds=10),
+        )
+
+
+def test_fixture_open_request_contains_only_owned_fixture_identifier() -> None:
+    now = datetime.now(timezone.utc)
+    request = build_reaper_request(
+        authorization=_authorization("session.fixture.open"),
+        request_id="req-fixture-ok",
+        idempotency_key="idem-fixture-ok",
+        operation="session.fixture.open",
+        arguments={"fixture_id": "vertical-001"},
+        expected_project_identity="/tmp/user.rpp",
+        expected_project_state_change_count=2,
+        issued_at=now,
+        deadline=now + timedelta(seconds=10),
+    )
+
+    assert request.arguments == {"fixture_id": "vertical-001"}
+
+
+def test_fixture_close_accepts_no_caller_arguments() -> None:
+    now = datetime.now(timezone.utc)
+
+    with pytest.raises(ReaperBridgeError, match="REAPER_FIXTURE_CLOSE_ARGUMENTS_FORBIDDEN"):
+        build_reaper_request(
+            authorization=_authorization("session.fixture.close"),
+            request_id="req-fixture-close-bad",
+            idempotency_key="idem-fixture-close-bad",
+            operation="session.fixture.close",
+            arguments={"force": True},
+            expected_project_identity="/tmp/fixture.rpp",
+            expected_project_state_change_count=9,
+            issued_at=now,
+            deadline=now + timedelta(seconds=10),
+        )
