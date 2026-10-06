@@ -56,6 +56,7 @@ jobs:
           grep -q 'proof)' scripts/codespaces/hazewave-termux-control.sh
           grep -q 'WORKTREE=BLOCKED_DIRTY_PRESERVE_WIP' scripts/codespaces/hazewave-termux-control.sh
           grep -q 'receipt.sha256' scripts/codespaces/hazewave-runtime-proof.sh
+          grep -q 'TAPE_ECHO_2_RUNTIME=PASS' scripts/codespaces/hazewave-runtime-proof.sh
           ! grep -q 'FALLBACK_NOVNC' .devcontainer/devcontainer.json
           ! grep -q 'XPRA=WAIT_FALLBACK_NOVNC' scripts/codespaces/hazewave-termux-control.sh
           ! grep -R 'work/zero-cost-codespaces-v1'             .devcontainer scripts/codespaces/hazewave-termux-control.sh
@@ -69,10 +70,21 @@ jobs:
           bash scripts/codespaces/install-reaper-pinned.sh
           test -x "$HOME/.local/bin/reaper"
           test "$(readlink -f "$HOME/.local/bin/reaper")" =             "$HOME/.local/opt/reaper/7.82/REAPER/reaper"
-          test -s "$HOME/.local/state/hazewave-codespace/reaper-7.82.receipt"
+          RECEIPT="$HOME/.local/state/hazewave-codespace/reaper-7.82.receipt"
+          test -s "$RECEIPT"
+          FIRST_BINARY_SHA="$(sha256sum "$HOME/.local/bin/reaper" | awk '{print $1}')"
+          grep -Fxq 'REAPER_ARCHIVE_SHA256=a4aa961534f22ae5ae910e4ec0c200dcb4476c9f7556806fe09a9743cd582563' "$RECEIPT"
+          grep -Fxq "REAPER_BINARY_SHA256=$FIRST_BINARY_SHA" "$RECEIPT"
+          SECOND_RUN="$(bash scripts/codespaces/install-reaper-pinned.sh)"
+          grep -q 'REAPER_INSTALL=PASS_ALREADY_PRESENT' <<<"$SECOND_RUN"
+          printf 'tamper' >> "$HOME/.local/opt/reaper/7.82/REAPER/reaper"
+          REPAIR_RUN="$(bash scripts/codespaces/install-reaper-pinned.sh)"
+          grep -q 'REAPER_INSTALL=PASS_REPAIRED' <<<"$REPAIR_RUN"
+          test "$(sha256sum "$HOME/.local/bin/reaper" | awk '{print $1}')" = "$FIRST_BINARY_SHA"
           file "$HOME/.local/bin/reaper"
           echo "HAZEWAVE_WORKSTATION_V3_STATIC=PASS"
           echo "REAPER_PINNED_INSTALL=PASS"
+          echo "REAPER_INTEGRITY_REPAIR=PASS"
           echo "PAID_FALLBACK=FALSE"
 
       - name: Prove pinned Tape Echo 2 installs for REAPER
