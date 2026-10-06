@@ -122,7 +122,8 @@ def test_runtime_proof_chains_real_haze_render_into_cartoon_live_proof() -> None
 def test_runtime_proof_chains_haze_into_wave_before_cartoon() -> None:
     text = RUNTIME_PROOF.read_text(encoding="utf-8")
 
-    assert 'python -m hazewave.wave_live_proof' in text
+    assert '"$WAVE_RUNTIME_PYTHON" -m hazewave.wave_live_proof' in text
+    assert 'python -m hazewave.wave_live_proof' not in text
     assert 'WaveLiveProof/v1' in text
     assert 'SceneDetectionReport/v1' in text
     assert 'OTIOInterchangeReceipt/v1' in text
