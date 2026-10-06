@@ -141,6 +141,30 @@ class CreativeBridgeClient:
                 raise CreativeControlError("REAPER_RESPONSE_TIMEOUT")
             time.sleep(0.01)
 
+    def execute_bound_operation(
+        self,
+        *,
+        task_id: str,
+        request_id: str,
+        idempotency_key: str,
+        operation: str,
+        arguments: Mapping[str, Any],
+        expected_project_identity: str,
+        expected_project_state_change_count: int,
+        timeout_seconds: float = 30.0,
+    ) -> dict[str, Any]:
+        return self._submit_and_wait(
+            task_id=task_id,
+            request_id=request_id,
+            idempotency_key=idempotency_key,
+            operation=operation,
+            arguments=arguments,
+            expected_project_identity=expected_project_identity,
+            expected_project_state_change_count=expected_project_state_change_count,
+            deadline_seconds=min(timeout_seconds, 300.0),
+            timeout_seconds=timeout_seconds,
+        )
+
     def snapshot(
         self,
         *,
@@ -168,27 +192,13 @@ class CreativeBridgeClient:
         except ReaperBridgeError as exc:
             raise CreativeControlError(f"REAPER_SNAPSHOT_INVALID:{exc}") from exc
 
-    def render_preview(
+    def _audition_from_render_response(
         self,
+        response: Mapping[str, Any],
         *,
         task_id: str,
         request_id: str,
-        idempotency_key: str,
-        timeout_seconds: float = 180.0,
     ) -> dict[str, Any]:
-        _, identity, state = self._binding()
-        response = self._submit_and_wait(
-            task_id=task_id,
-            request_id=request_id,
-            idempotency_key=idempotency_key,
-            operation="render.preview",
-            arguments={},
-            expected_project_identity=identity,
-            expected_project_state_change_count=state,
-            deadline_seconds=min(timeout_seconds, 300.0),
-            timeout_seconds=timeout_seconds,
-        )
-
         result = response.get("result")
         if not isinstance(result, Mapping):
             raise CreativeControlError("REAPER_RENDER_RESULT_MALFORMED")
@@ -227,7 +237,10 @@ class CreativeBridgeClient:
         if not callable(to_dict):
             raise CreativeControlError("AUDIO_QC_REPORT_MALFORMED")
         qc_payload = to_dict()
-        if not isinstance(qc_payload, dict) or qc_payload.get("schema") != "AudioQCReport/v1":
+        if (
+            not isinstance(qc_payload, dict)
+            or qc_payload.get("schema") != "AudioQCReport/v1"
+        ):
             raise CreativeControlError("AUDIO_QC_REPORT_MALFORMED")
 
         state_before = response.get("state_before")
@@ -259,6 +272,50 @@ class CreativeBridgeClient:
             "audio_qc": qc_payload,
             "human_approval": "REQUIRED",
         }
+
+    def render_preview_bound(
+        self,
+        *,
+        task_id: str,
+        request_id: str,
+        idempotency_key: str,
+        expected_project_identity: str,
+        expected_project_state_change_count: int,
+        timeout_seconds: float = 180.0,
+    ) -> dict[str, Any]:
+        response = self.execute_bound_operation(
+            task_id=task_id,
+            request_id=request_id,
+            idempotency_key=idempotency_key,
+            operation="render.preview",
+            arguments={},
+            expected_project_identity=expected_project_identity,
+            expected_project_state_change_count=expected_project_state_change_count,
+            timeout_seconds=timeout_seconds,
+        )
+        return self._audition_from_render_response(
+            response,
+            task_id=task_id,
+            request_id=request_id,
+        )
+
+    def render_preview(
+        self,
+        *,
+        task_id: str,
+        request_id: str,
+        idempotency_key: str,
+        timeout_seconds: float = 180.0,
+    ) -> dict[str, Any]:
+        _, identity, state = self._binding()
+        return self.render_preview_bound(
+            task_id=task_id,
+            request_id=request_id,
+            idempotency_key=idempotency_key,
+            expected_project_identity=identity,
+            expected_project_state_change_count=state,
+            timeout_seconds=timeout_seconds,
+        )
 
     def execute_command(
         self,
