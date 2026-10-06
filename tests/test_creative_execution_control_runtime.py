@@ -34,7 +34,10 @@ def test_candidate_runtime_proof_binds_to_creative_branch_and_bridge() -> None:
     assert 'BRANCH="work/creative-execution-plane-v1"' in text
     assert "CreativeProducerDoctor/v1" in text
     assert "HAZEWAVE_REAPER_BRIDGE" in text
-    assert "LIVE_REAPER_PROOF=NOT_PROVEN" in text
+    assert "creative-execution-control.sh vertical-proof" in text
+    assert "ReaperLiveVerticalProof/v1" in text
+    assert "LIVE_REAPER_PROOF=PASS" in text
+    assert "LIVE_REAPER_PROOF=NOT_PROVEN" not in text
 
 
 def test_creative_execution_control_exposes_render_preview_with_qc() -> None:
@@ -76,3 +79,13 @@ def test_live_vertical_proof_creates_local_fixture_audio_and_restores_tab() -> N
     assert "trap cleanup_fixture EXIT" in text
     assert "LIVE_REAPER_PROOF=PASS" in text
     assert "SOURCE_AUDIO_REQUIRED" not in text
+
+
+
+def test_runtime_proof_preserves_live_vertical_proof_evidence() -> None:
+    text = RUNTIME_PROOF.read_text(encoding="utf-8")
+
+    assert "reaper-live-vertical-proof.txt" in text
+    assert "tee" in text
+    assert "fixture-close=RUNNER_VERIFIED" in text
+    assert "HUMAN_APPROVAL=REQUIRED" in text
