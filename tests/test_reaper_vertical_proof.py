@@ -369,6 +369,114 @@ class _FakeVerticalClient:
         }
 
 
+
+class _FakeIsolatedVerticalClient(_FakeVerticalClient):
+    def __init__(self, root: Path, fixture: Path, original: Path) -> None:
+        super().__init__(root, fixture)
+        self.original = original.resolve()
+        self.active = "original"
+        self.original_state = 1
+        self.state = self.original_state
+
+    def snapshot(self, **kwargs):
+        if self.active == "original":
+            return ReaperProjectSnapshot(
+                project_identity=str(self.original),
+                project_path=str(self.original),
+                project_state_change_count=self.original_state,
+                dirty=True,
+                sample_rate=48000,
+                tempo=120.0,
+                time_signature={"numerator": 4, "denominator": 4},
+                project_length=120.0,
+            )
+        return super().snapshot(**kwargs)
+
+    def execute_bound_operation(self, **kwargs):
+        operation = kwargs["operation"]
+        if operation == "session.fixture.open":
+            self.calls.append(dict(kwargs))
+            assert self.active == "original"
+            assert kwargs["expected_project_identity"] == str(self.original)
+            assert kwargs["expected_project_state_change_count"] == self.original_state
+            assert kwargs["arguments"] == {"fixture_id": "vertical-isolated"}
+            self.fixture.write_text("<REAPER_PROJECT 0.1\n>\n", encoding="utf-8")
+            self.active = "fixture"
+            self.state = 0
+            return self._response(
+                operation,
+                self.original_state,
+                self.state,
+                {
+                    "fixture_id": "vertical-isolated",
+                    "fixture_path": str(self.fixture.resolve()),
+                    "original_project_identity": str(self.original),
+                    "active_project_identity": str(self.fixture.resolve()),
+                },
+            )
+        if operation == "session.fixture.close":
+            self.calls.append(dict(kwargs))
+            assert self.active == "fixture"
+            assert kwargs["arguments"] == {}
+            before = self.state
+            self.active = "original"
+            self.state = self.original_state
+            return self._response(
+                operation,
+                before,
+                self.original_state,
+                {
+                    "closed_fixture_path": str(self.fixture.resolve()),
+                    "restored_project_identity": str(self.original),
+                },
+            )
+        return super().execute_bound_operation(**kwargs)
+
+
+def test_vertical_runner_opens_isolated_fixture_and_restores_original_project(
+    tmp_path: Path,
+) -> None:
+    fixture_root = tmp_path / "bridge" / "fixtures"
+    fixture_root.mkdir(parents=True)
+    fixture = fixture_root / "vertical-isolated.rpp"
+    source = fixture_root / "source.wav"
+    source.write_bytes(b"RIFFsource")
+    original = tmp_path / "valuable-user-project.rpp"
+    original.write_text("<REAPER_PROJECT 0.1\n>\n", encoding="utf-8")
+
+    client = _FakeIsolatedVerticalClient(
+        tmp_path / "bridge",
+        fixture,
+        original,
+    )
+    receipts = RuntimeReceiptStore(
+        config_root=tmp_path / "config",
+        state_root=tmp_path / "state",
+    )
+
+    result = ReaperVerticalProofRunner(
+        client=client,
+        receipt_store=receipts,
+        fixture_root=fixture_root,
+        candidate_head="candidate-sha",
+        policy_digest="policy-sha256",
+        runtime_identity="codespace:fixture",
+        tape_echo_version="1.0.8",
+    ).run(
+        source_audio=source,
+        proof_id="vertical-isolated",
+    )
+
+    operations = [call.get("operation") for call in client.calls]
+    assert operations[0] == "session.fixture.open"
+    assert operations[1] == "session.checkpoint"
+    assert operations[-1] == "session.fixture.close"
+    assert client.active == "original"
+    assert result["fixture_project"] == str(fixture.resolve())
+    assert result["fixture_session"]["isolated"] is True
+    assert result["fixture_session"]["original_project_identity"] == str(original.resolve())
+    assert result["fixture_session"]["original_project_restored"] is True
+
 def test_vertical_runner_executes_complete_fixture_ab_loop_with_receipts(
     tmp_path: Path,
 ) -> None:
