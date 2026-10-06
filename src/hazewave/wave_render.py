@@ -105,6 +105,8 @@ def _bound_manifest(
         raise WaveRenderError("WAVE_RENDER_SOURCE_NOT_FOUND")
     if source.stat().st_size <= 0:
         raise WaveRenderError("WAVE_RENDER_SOURCE_EMPTY")
+    if _sha256_file(source) != manifest.source_sha256:
+        raise WaveRenderError("WAVE_RENDER_SOURCE_HASH_MISMATCH")
     return manifest
 
 
