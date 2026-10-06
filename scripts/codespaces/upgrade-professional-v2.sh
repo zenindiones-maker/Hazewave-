@@ -8,6 +8,7 @@ cd "$REPO_ROOT"
 
 bash "$SCRIPT_DIR/install-xpra-stable.sh"
 bash "$SCRIPT_DIR/install-reaper-pinned.sh"
+bash "$SCRIPT_DIR/install-tape-echo-2-pinned.sh"
 
 sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
