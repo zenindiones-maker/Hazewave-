@@ -337,7 +337,12 @@ def govern_reflex_result(
 
     mode = str(profile.get("acceptance_mode") or "")
     reject_action = str(profile.get("reject_action") or "")
-    if mode == "SHADOW_ONLY":
+    production_calibrated = profile.get("production_calibrated") is True
+    if not production_calibrated:
+        disposition = "SHADOW_RECOMMENDATION"
+        reasons.insert(0, "HAZEWAVE_CALIBRATION_REQUIRED")
+        escalation_target = reject_action
+    elif mode == "SHADOW_ONLY":
         disposition = "SHADOW_RECOMMENDATION"
         reasons.insert(0, "PROFILE_SHADOW_ONLY")
         escalation_target = reject_action
