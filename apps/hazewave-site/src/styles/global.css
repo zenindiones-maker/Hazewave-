@@ -1840,7 +1840,8 @@ body{background:transparent}
 }
 .deck-wheel{
   position:absolute;z-index:6;left:50%;top:50%;width:190px;height:190px;
-  transform:translate(-50%,-50%);border-radius:50%;touch-action:none;user-select:none;
+  transform:translate(-50%,-50%);border-radius:50%;
+  pointer-events:auto;touch-action:none;user-select:none;
   background:
     radial-gradient(circle at 50% 50%,#0d100f 0 27%,transparent 27.5%),
     radial-gradient(circle at 42% 34%,rgba(255,255,255,.16),transparent 13%),
@@ -1860,7 +1861,7 @@ body{background:transparent}
     0 10px 24px rgba(0,0,0,.24)
 }
 .wheel-key{
-  position:absolute;z-index:3;border:0;background:transparent;color:#161817;
+  position:absolute;z-index:3;pointer-events:auto;border:0;background:transparent;color:#161817;
   font:800 9px/1 ui-monospace,monospace;letter-spacing:.04em;cursor:pointer;
   opacity:.72;padding:8px
 }
@@ -1915,7 +1916,8 @@ body{background:transparent}
 }
 
 .wheel-ring-control{
-  position:absolute;z-index:1;inset:0;border-radius:50%;touch-action:none;outline:none
+  position:absolute;z-index:1;inset:0;border-radius:50%;
+  pointer-events:auto;touch-action:none;outline:none
 }
 .wheel-ring-control:focus-visible{
   box-shadow:0 0 0 3px color-mix(in srgb,var(--world-accent),transparent 58%);
