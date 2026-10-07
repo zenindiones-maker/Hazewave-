@@ -57,6 +57,9 @@ uniform float uArtistLight;
 uniform float uArtistParticles;
 uniform float uArtistSignature;
 uniform float uArtistPhase;
+uniform float uArtistFocus;
+uniform float uArtistFocusZoom;
+uniform vec2 uArtistFocusPoint;
 
 float hash21(vec2 p) {
   p = fract(p * vec2(123.34, 345.45));
@@ -132,8 +135,21 @@ void main() {
   float screenTop = 1.0 - screenUv.y;
 
   float artistDepth = uArtistInfluence * (0.018 + uArtistSignature * 0.006);
-  float zoom = 1.0 + uDepth * 0.052 + uProgress * 0.012 + artistDepth;
+  float focusDepth = uArtistFocus * uArtistFocusZoom;
+  float zoom =
+    1.0 +
+    uDepth * 0.052 +
+    uProgress * 0.012 +
+    artistDepth +
+    focusDepth;
+
   vec2 cameraUv = (screenUv - 0.5) / zoom + 0.5;
+
+  vec2 focusDelta = uArtistFocusPoint - vec2(0.5);
+  cameraUv +=
+    focusDelta *
+    uArtistFocus *
+    (0.028 + uDepth * 0.012);
 
   // Pseudo-depth bands keep the owner's exact artwork authoritative while
   // allowing different regions of the same image to breathe at different
@@ -504,6 +520,8 @@ export class LivingWorldStage {
   private artistProgress = 0;
   private artistPhase: ArtistJourneyPhase = "EMERGE";
   private artistFocus = 0;
+  private artistFocusPoint: [number, number] = [0.5, 0.45];
+  private artistFocusZoom = 0;
   private artistAccent: [number, number, number] = [0.72, 1.0, 0.42];
   private renderScale = 1;
   private frameWindow: number[] = [];
@@ -599,6 +617,8 @@ export class LivingWorldStage {
     this.artistProgress = Math.max(0, Math.min(1, progress));
     this.artistPhase = phase;
     this.artistAccent = hexToRgb(world.accent);
+    this.artistFocusPoint = [world.focusPoint[0], world.focusPoint[1]];
+    this.artistFocusZoom = world.focusZoom;
   }
 
   setArtistFocus(active: boolean): void {
@@ -915,6 +935,8 @@ export class LivingWorldStage {
             ? 3
             : 0
     );
+    this.uniform1("uArtistFocus", this.artistFocus);
+    this.uniform1("uArtistFocusZoom", this.artistFocusZoom);
     this.uniform1(
       "uViewportAspect",
       this.canvas.width / Math.max(this.canvas.height, 1)
@@ -934,6 +956,15 @@ export class LivingWorldStage {
         this.artistAccent[0],
         this.artistAccent[1],
         this.artistAccent[2]
+      );
+    }
+
+    const focusLocation = this.uniformLocation("uArtistFocusPoint");
+    if (focusLocation !== null) {
+      gl.uniform2f(
+        focusLocation,
+        this.artistFocusPoint[0],
+        this.artistFocusPoint[1]
       );
     }
 
