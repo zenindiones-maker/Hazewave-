@@ -448,6 +448,7 @@ export class LivingWorldStage {
   private gl: GL | null = null;
   private program: WebGLProgram | null = null;
   private texture: WebGLTexture | null = null;
+  private readonly uniformLocations = new Map<string, WebGLUniformLocation | null>();
   private vao: WebGLVertexArrayObject | null = null;
   private raf = 0;
   private startedAt = performance.now();
@@ -584,6 +585,7 @@ export class LivingWorldStage {
     this.texture = null;
     this.vao = null;
     this.program = null;
+    this.uniformLocations.clear();
     this.canvas.remove();
     this.host.dataset.worldRuntime = "fallback";
   }
@@ -646,6 +648,7 @@ export class LivingWorldStage {
     if (this.program) gl.deleteProgram(this.program);
 
     this.program = createProgram(gl);
+    this.uniformLocations.clear();
     this.vao = gl.createVertexArray();
     this.texture = gl.createTexture();
 
@@ -692,11 +695,24 @@ export class LivingWorldStage {
     gl.viewport(0, 0, width, height);
   }
 
-  private uniform1(name: string, value: number): void {
+  private uniformLocation(name: string): WebGLUniformLocation | null {
     const gl = this.gl;
     const program = this.program;
-    if (!gl || !program) return;
+    if (!gl || !program) return null;
+
+    if (this.uniformLocations.has(name)) {
+      return this.uniformLocations.get(name) ?? null;
+    }
+
     const location = gl.getUniformLocation(program, name);
+    this.uniformLocations.set(name, location);
+    return location;
+  }
+
+  private uniform1(name: string, value: number): void {
+    const gl = this.gl;
+    if (!gl) return;
+    const location = this.uniformLocation(name);
     if (location !== null) gl.uniform1f(location, value);
   }
 
@@ -816,12 +832,12 @@ export class LivingWorldStage {
     this.uniform1("uImageAspect", this.imageAspect);
     this.uniform1("uContain", 1);
 
-    const pointerLocation = gl.getUniformLocation(program, "uPointer");
+    const pointerLocation = this.uniformLocation("uPointer");
     if (pointerLocation !== null) {
       gl.uniform2f(pointerLocation, this.pointerX, this.pointerY);
     }
 
-    const accentLocation = gl.getUniformLocation(program, "uArtistAccent");
+    const accentLocation = this.uniformLocation("uArtistAccent");
     if (accentLocation !== null) {
       gl.uniform3f(
         accentLocation,
