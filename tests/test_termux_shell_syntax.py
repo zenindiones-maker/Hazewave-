@@ -187,3 +187,13 @@ def test_reflex_laya_profiler_v3_separates_qi_gemm_pack_kernel_and_bias_costs() 
     assert "AGGREGATE_PROBABILITY_DRIFT" in remote
     assert '"diagnostic_only": True' in remote
     assert '"activatable": False' in remote
+
+
+def test_reflex_engine_ab_uses_explicit_engine_bin_contract_not_ambient_env() -> None:
+    remote = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
+
+    assert '--engine-bin "$engine"' in remote
+    assert 'COLI_ENGINE="$engine"' not in remote
+    assert 'REFLEX_LATENCY_ENGINE_SHA256=' in (
+        ROOT / "src" / "hazewave" / "reflex_latency.py"
+    ).read_text(encoding="utf-8")
