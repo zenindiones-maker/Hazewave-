@@ -230,6 +230,10 @@ export function bootHazewaveSite(): void {
       panel.dataset.open = String(panel.dataset.artistFocusPanel === artistId);
     });
 
+    document.querySelectorAll<HTMLElement>("[data-video-portal]").forEach((portal) => {
+      portal.dataset.open = String(portal.dataset.videoPortal === artistId);
+    });
+
     document.querySelectorAll<HTMLElement>("[data-artist-chapter]").forEach((chapter) => {
       chapter.dataset.focused = String(chapter.dataset.artistChapter === artistId);
     });
