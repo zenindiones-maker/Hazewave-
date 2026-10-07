@@ -2248,7 +2248,7 @@ body{background:transparent}
 .deck-wheel{
   position:absolute;z-index:6;left:50%;top:50%;width:190px;height:190px;
   transform:translate(-50%,-50%);border-radius:50%;
-  pointer-events:auto;touch-action:none;user-select:none;
+  pointer-events:none;touch-action:none;user-select:none;
   background:
     radial-gradient(circle at 50% 50%,#0d100f 0 27%,transparent 27.5%),
     radial-gradient(circle at 42% 34%,rgba(255,255,255,.16),transparent 13%),
@@ -2340,7 +2340,7 @@ body{background:transparent}
 .deck-wheel[data-mode="tracks"] .wheel-menu{color:var(--hz-acid)!important}
 .wheel-ring-control{
   position:absolute;z-index:1;inset:0;border-radius:50%;
-  pointer-events:none;touch-action:none;outline:none
+  pointer-events:auto;touch-action:none;outline:none
 }
 .wheel-ring-control:focus-visible{
   box-shadow:0 0 0 3px color-mix(in srgb,var(--world-accent),transparent 58%);
