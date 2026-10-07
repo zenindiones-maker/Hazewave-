@@ -556,6 +556,36 @@ def selected_profile(
     return str(profile)
 
 
+def runtime_profile(
+    *,
+    state_root: Path = DEFAULT_STATE,
+    policy: Mapping[str, Any] | None = None,
+) -> str:
+    selected = dict(policy) if policy is not None else load_latency_policy()
+    default = str(selected["runtime"]["persistent_profile_default"])
+    try:
+        return selected_profile(state_root=state_root, policy=selected)
+    except ReflexLatencyError as exc:
+        reason = str(exc)
+        if reason != "REFLEX_LATENCY_SELECTION_RUNTIME_DRIFT":
+            raise
+        row = (selected.get("profiles") or {}).get(default)
+        if not isinstance(row, Mapping) or row.get("persistent_eligible") is not True:
+            raise ReflexLatencyError("REFLEX_LATENCY_DEFAULT_NOT_PERSISTENT") from exc
+        print(
+            "REFLEX_LATENCY_SELECTION_INVALIDATED="
+            "REFLEX_LATENCY_SELECTION_RUNTIME_DRIFT",
+            file=sys.stderr,
+            flush=True,
+        )
+        print(
+            f"REFLEX_LATENCY_RUNTIME_PROFILE_FALLBACK={default}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return default
+
+
 def exec_server(
     *,
     source_root: Path,
@@ -566,7 +596,7 @@ def exec_server(
     state_root: Path,
 ) -> None:
     policy = load_latency_policy()
-    chosen = profile or selected_profile(state_root=state_root, policy=policy)
+    chosen = profile or runtime_profile(state_root=state_root, policy=policy)
     profile_env = profile_environment(chosen, policy=policy)
     secret = _read_secret(secret_file)
     launcher = source_root / "c" / "coli"
@@ -620,6 +650,9 @@ def _main(argv: list[str] | None = None) -> int:
     p_selected = sub.add_parser("selected")
     p_selected.add_argument("--state-root", type=Path, default=DEFAULT_STATE)
 
+    p_resolved = sub.add_parser("resolved")
+    p_resolved.add_argument("--state-root", type=Path, default=DEFAULT_STATE)
+
     p_server = sub.add_parser("server")
     p_server.add_argument("--source-root", type=Path, default=DEFAULT_SOURCE)
     p_server.add_argument("--model-root", type=Path, default=DEFAULT_MODEL)
@@ -657,6 +690,9 @@ def _main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "selected":
         print(selected_profile(state_root=args.state_root, policy=policy))
+        return 0
+    if args.command == "resolved":
+        print(runtime_profile(state_root=args.state_root, policy=policy))
         return 0
     if args.command == "server":
         exec_server(
