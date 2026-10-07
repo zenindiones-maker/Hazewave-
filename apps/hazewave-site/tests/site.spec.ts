@@ -564,7 +564,7 @@ test("living world keeps the owner artwork as authoritative fallback", async ({ 
   }
 });
 
-test("WebGL world context loss falls back instead of blanking essential content", async ({ page }) => {
+test("WebGL world context loss falls back and restores without blanking essential content", async ({ page }) => {
   const viewport = page.viewportSize();
   test.skip(!viewport || viewport.width <= 430, "WebGL world is intentionally disabled on LOW mobile tier");
 
@@ -580,11 +580,33 @@ test("WebGL world context loss falls back instead of blanking essential content"
   const canvas = page.locator(".living-world-canvas");
   if (await canvas.count() === 0) test.skip(true, "WebGL2 unavailable in this browser runtime");
 
-  await canvas.evaluate((element) => {
-    element.dispatchEvent(new Event("webglcontextlost", { cancelable: true }));
+  const extensionAvailable = await canvas.evaluate((element) => {
+    const gl = (element as HTMLCanvasElement).getContext("webgl2");
+    return Boolean(gl?.getExtension("WEBGL_lose_context"));
   });
 
-  await expect(host).toHaveAttribute("data-world-runtime", "fallback-context-lost");
+  test.skip(!extensionAvailable, "WEBGL_lose_context unavailable in this browser runtime");
+
+  await canvas.evaluate((element) => {
+    const gl = (element as HTMLCanvasElement).getContext("webgl2");
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+  });
+
+  await expect(host).toHaveAttribute("data-world-runtime", "fallback-context-lost", {
+    timeout: 3_000
+  });
+  await expect(host.locator("img")).toBeVisible();
+
+  await canvas.evaluate((element) => {
+    const gl = (element as HTMLCanvasElement).getContext("webgl2");
+    gl?.getExtension("WEBGL_lose_context")?.restoreContext();
+  });
+
+  await expect(host).toHaveAttribute(
+    "data-world-runtime",
+    /webgl2|fallback-restore-failed/,
+    { timeout: 4_000 }
+  );
   await expect(host.locator("img")).toBeVisible();
 });
 
