@@ -4,6 +4,7 @@ import { bridgeFixtureManifest } from "./bridge/visualManifest";
 import { detectQuality } from "./quality/quality";
 import { PlayerMachine, type PlayerPhase } from "./state/playerMachine";
 import { ScrollConductor, type StoryRuntimeState } from "./story/ScrollConductor";
+import { ArtistJourneyConductor } from "./story/ArtistJourneyConductor";
 
 interface StageController {
   select(trackId: string): Promise<void>;
@@ -86,6 +87,7 @@ export function bootHazewaveSite(): void {
       livingWorld?.setStoryState(state);
     }
   );
+  const artistJourney = new ArtistJourneyConductor();
 
   const livingWorldEligible =
     !quality.reducedMotion &&
@@ -893,6 +895,7 @@ export function bootHazewaveSite(): void {
       experience?.dispose();
       atmosphere?.dispose();
       livingWorld?.dispose();
+      artistJourney.dispose();
       conductor.dispose();
     },
     { once: true }
