@@ -37,8 +37,8 @@ from hazewave.reflex import (
 from hazewave.reflex_robustness import execute_robust_reflex_route
 
 EXPECTED_CODESPACE = os.getenv("HAZEWAVE_REFLEX_EXPECTED_CODESPACE", "redesigned-space-bassoon-gxp67g5g7r739w59")
-BASE_REFLEX_HEAD = "1047f90bdf7516adbedeffb4ffa3982c7b0220ee"
-CANDIDATE_REF = "refs/remotes/origin/work/reflex-robustness-risk-v3"
+BASE_REFLEX_HEAD = "c90e482266e2ee3a39763354e8172c1df484c3a7"
+CANDIDATE_REF = "refs/remotes/origin/work/reflex-latency-v1"
 DEFAULT_SOURCE = Path.home() / ".local/share/hazewave/providers/colibri/source"
 DEFAULT_MODEL = Path.home() / ".local/share/hazewave/models/colibri/laya"
 DEFAULT_STATE = Path.home() / ".local/state/hazewave/reflex"
