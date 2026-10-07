@@ -107,7 +107,7 @@ def test_order_ensemble_runs_all_three_domain_permutations_in_one_model_request(
     )
 
     assert len(calls) == 1
-    assert len(calls[0]["questions"]) == 3
+    assert len(calls[0]["questions"]) == 6
     orders = [
         tuple(item["criteria"])
         for item in calls[0]["questions"].values()
