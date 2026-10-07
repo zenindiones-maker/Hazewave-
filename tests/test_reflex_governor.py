@@ -225,7 +225,7 @@ def test_outcome_ledger_persists_digest_and_labels_not_raw_state(tmp_path: Path)
     append_reflex_outcome(path, outcome)
 
     raw = path.read_text(encoding="utf-8")
-    assert "raw_state" not in raw
+    assert '"raw_state":' not in raw
     assert '"raw_state_persisted":false' in raw
     restored = load_reflex_outcomes(path)
     assert len(restored) == 1
