@@ -209,8 +209,16 @@ export function bootHazewaveSite(): void {
 
     if (artistId) {
       document.documentElement.dataset.focusedArtist = artistId;
+      const focusedChapter = artistChapterById.get(artistId);
+      if (focusedChapter) {
+        document.documentElement.style.setProperty(
+          "--focused-artist-accent",
+          focusedChapter.world.accent
+        );
+      }
     } else {
       delete document.documentElement.dataset.focusedArtist;
+      document.documentElement.style.removeProperty("--focused-artist-accent");
     }
 
     livingWorld?.setArtistFocus(Boolean(artistId));
