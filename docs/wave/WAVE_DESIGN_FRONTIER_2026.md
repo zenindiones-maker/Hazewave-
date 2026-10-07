@@ -868,3 +868,135 @@ Rules:
 - authored foreground interactions must remain legible over both the purple and acid-green regions of the artwork.
 
 The current repository contains a lightweight exact-image derivative for runtime proof. Replace it with the owner-supplied full-resolution source before publication; do not change composition.
+
+
+## 22. Immersive Scroll World V2 research and architecture decision
+
+Research refreshed on 2026-10-07 against current studio work and upstream documentation before continuing the V2 implementation.
+
+### REFERENCE_PATTERN — persistent visual world synchronized with semantic DOM
+
+References:
+- Lusion WebGL Scroll Sync demo: https://webgl-scroll-sync.lusion.co/
+- Lusion Zero Tech: https://lusion.co/projects/zero_tech/
+- Immersive Garden Rain Forest Food: https://immersive-g.com/projects/rain-forest-food/
+- Immersive Garden EQT Ventures: https://immersive-g.com/projects/eqt-ventures/
+- Dogstudio Tomorrowland: https://dogstudio.co/cases/tomorrowland/
+- Dogstudio Zoox: https://dogstudio.co/cases/zoox/
+
+Observed pattern:
+- the world remains persistent while DOM content carries readable semantics;
+- art direction is established before technical spectacle;
+- small environmental details make a world feel alive;
+- camera/visual state follows the story rather than resetting per section;
+- hybrid DOM + WebGL is preferable when essential content must remain accessible.
+
+### HAZEWAVE_IMPLEMENTATION_DECISION
+
+Hazewave keeps one owner-supplied lighthouse artwork as the authoritative visual substrate.
+
+The same image is transformed continuously by:
+- deterministic scroll state;
+- bounded 2.5D region parallax;
+- water-only displacement;
+- fog;
+- lighthouse light;
+- particles;
+- artist palette influence;
+- audio envelope;
+- capability-based quality tier.
+
+The GPU layer is enhancement only. Semantic content, controls, music and merch remain DOM-accessible.
+
+### REFERENCE_PATTERN — scroll synchronization
+
+Official GSAP reference:
+https://gsap.com/docs/v3/Plugins/ScrollTrigger/
+
+ScrollTrigger is optimized for scrub/pin/velocity work and current guidance emphasizes responsive recalculation, matchMedia and avoiding animation of the pinned element itself.
+
+Current Hazewave decision:
+KEEP the native ScrollConductor as the authoritative global journey controller for V2.
+
+Reason:
+- the current conductor already maps the exact browser scroll position to deterministic global/chapter progress;
+- it batches visual work through requestAnimationFrame;
+- it caches chapter geometry and refreshes on layout changes;
+- it separates authoritative target state from damped render state;
+- forward/back/reload behavior stays reversible;
+- no pinning is required for the persistent fixed world;
+- the A15 should not pay for a second scroll authority without measured benefit.
+
+GSAP remains ADOPTED for local physical choreography where timeline authoring materially improves the interaction.
+
+ScrollTrigger remains OPTIONAL for a future bounded chapter effect if native progress mapping becomes insufficient.
+
+### REFERENCE_PATTERN — Lenis + GSAP
+
+Official Lenis reference:
+https://github.com/darkroomengineering/lenis
+
+Current Lenis guidance supports native-scroll semantics and documents the correct GSAP bridge:
+- Lenis scroll event -> ScrollTrigger.update;
+- Lenis raf -> gsap.ticker;
+- lag smoothing disabled when using that integration.
+
+HAZEWAVE_IMPLEMENTATION_DECISION:
+LENIS = REJECT_FOR_NOW.
+
+Reason:
+the current V2 already has deterministic native scrolling, keyboard/anchor behavior and A15 fallback behavior. Smooth scrolling is not a quality feature by itself. It will only be admitted after a measured spike proves better feel without regressions in touch, anchors, nested controls, accessibility or frame pacing.
+
+### REFERENCE_PATTERN — resource discipline
+
+Official Three.js references:
+- https://threejs.org/manual/pages/cleanup.html
+- https://threejs.org/manual/pages/how-to-dispose-of-objects.html
+
+HAZEWAVE_IMPLEMENTATION_DECISION:
+GPU resources must have explicit lifecycle authority.
+
+Current V2:
+- raw WebGL2 world texture/program/VAO are explicitly deleted;
+- context loss keeps the owner artwork visible immediately;
+- context restore rebuilds resources;
+- optional HIGH/ULTRA GPU enhancement is dynamically imported and disposable;
+- LOW never requires a functioning GPU context.
+
+### REFERENCE_PATTERN — 2026 creative development
+
+Codrops 2026 reference:
+https://tympanus.net/codrops/2026/02/02/building-a-scroll-revealed-webgl-gallery-with-gsap-three-js-astro-and-barba-js/
+
+The useful lesson is not the gallery layout. It is:
+- DOM/WebGL synchronization;
+- lazy creative runtime;
+- shader progress driven from scroll state;
+- Astro as a lightweight semantic shell;
+- transitions as enhancement rather than authority.
+
+HAZEWAVE_IMPLEMENTATION_DECISION:
+use those engineering patterns while rejecting template/gallery visual language.
+
+## 23. V2 current architecture spine
+
+The evidence-based V2 spine is now:
+
+OWNER WORLD ARTWORK
+-> persistent fixed substrate
+-> native deterministic ScrollConductor
+-> one reversible scene ledger
+-> layered WebGL2 water/depth/fog/light treatment on MEDIUM/HIGH/ULTRA
+-> CSS living-world fallback on LOW/reduced motion
+-> artist chapter conductor
+-> user-gesture audio
+-> restrained persistent now-playing UI
+-> fail-closed lazy video portals
+-> final-act merch with no fabricated commerce authority
+-> direct owner-confirmed social handles
+-> multi-viewport visual proof
+-> A15 physical proof before production confidence
+
+The target is not maximum effect count.
+
+The target is maximum continuity per byte and per frame.
