@@ -41,6 +41,9 @@ uniform float uSaturation;
 uniform float uContrast;
 uniform float uVignette;
 uniform float uAudio;
+uniform float uLow;
+uniform float uMid;
+uniform float uHigh;
 uniform float uViewportAspect;
 uniform float uImageAspect;
 uniform float uContain;
@@ -199,7 +202,7 @@ void main() {
   float waterDrive =
     uWater *
     mix(1.0, 0.72 + uArtistWater * 0.68, uArtistInfluence) *
-    (0.76 + uAudio * 0.36) *
+    (0.76 + uAudio * 0.30 + uLow * 0.16) *
     (1.0 + phaseMusic * 0.16 + phaseTransition * 0.05);
 
   vec2 waterCoord = vec2(
@@ -286,7 +289,7 @@ void main() {
   float fogDrive =
     uFog *
     mix(1.0, 0.78 + uArtistFog * 8.0, uArtistInfluence) *
-    (1.0 + phaseVisual * 0.14);
+    (1.0 + phaseVisual * 0.14 + uHigh * 0.05);
   float fogAmount = fogRegion * fogNoise * fogDrive * 0.105;
 
   vec3 fogColor = mix(
@@ -304,7 +307,7 @@ void main() {
   float lightDrive =
     uLighthouse *
     mix(1.0, 0.80 + uArtistLight * 0.62, uArtistInfluence) *
-    (1.0 + phaseVisual * 0.20 + phaseTransition * 0.08);
+    (1.0 + phaseVisual * 0.20 + phaseTransition * 0.08 + uMid * 0.08);
 
   float lighthouseGlow =
     exp(-lightDistance * 20.0) *
@@ -335,7 +338,7 @@ void main() {
   float particleDrive =
     uParticles *
     mix(1.0, 0.52 + uArtistParticles * 0.96, uArtistInfluence) *
-    (1.0 + phaseVisual * 0.34);
+    (1.0 + phaseVisual * 0.34 + uHigh * 0.18);
 
   vec2 particleFlow = vec2(
     screenUv.x * 17.0 + uTime * 0.008,
@@ -456,6 +459,9 @@ export class LivingWorldStage {
   private contextLost = false;
   private story: StoryRuntimeState | null = null;
   private audioEnergy = 0;
+  private spectralLow = 0;
+  private spectralMid = 0;
+  private spectralHigh = 0;
   private pointerX = 0.5;
   private pointerY = 0.42;
   private imageAspect = 2 / 3;
@@ -562,6 +568,23 @@ export class LivingWorldStage {
 
   setAudioEnergy(value: number): void {
     this.audioEnergy = Math.max(0, Math.min(1, value));
+  }
+
+  setSpectrum(values: readonly number[]): void {
+    const average = (from: number, to: number) => {
+      let sum = 0;
+      let count = 0;
+      for (let index = from; index < Math.min(to, values.length); index += 1) {
+        const value = values[index] ?? 0;
+        sum += Math.max(0, Math.min(1, value));
+        count += 1;
+      }
+      return count === 0 ? 0 : sum / count;
+    };
+
+    this.spectralLow = average(0, 3);
+    this.spectralMid = average(3, 6);
+    this.spectralHigh = average(6, 8);
   }
 
   dispose(): void {
@@ -806,6 +829,9 @@ export class LivingWorldStage {
     this.uniform1("uContrast", world?.contrast ?? 1);
     this.uniform1("uVignette", world?.vignette ?? 0.18);
     this.uniform1("uAudio", this.audioEnergy);
+    this.uniform1("uLow", this.spectralLow);
+    this.uniform1("uMid", this.spectralMid);
+    this.uniform1("uHigh", this.spectralHigh);
     this.uniform1("uArtistInfluence", artistInfluence);
     this.uniform1("uArtistWater", artistWorld?.waterResponse ?? 0.5);
     this.uniform1("uArtistFog", artistWorld?.fogDensity ?? 0.025);
