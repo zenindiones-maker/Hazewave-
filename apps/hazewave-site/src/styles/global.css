@@ -1548,6 +1548,24 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
 .site-backdrop[data-world-runtime="webgl2"] .site-backdrop-light{
   display:none
 }
+
+/* Deterministic artist micro-beats also drive the LOW/CSS world fallback. */
+:root[data-artist-phase="MUSIC"] .site-backdrop[data-world-runtime="css-fallback"] .site-backdrop-water,
+:root[data-artist-phase="MUSIC"] .site-backdrop[data-world-runtime^="fallback"] .site-backdrop-water{
+  filter:blur(.5px) saturate(1.14) brightness(1.05)
+}
+:root[data-artist-phase="VISUAL"] .site-backdrop[data-world-runtime="css-fallback"] .site-backdrop-fog,
+:root[data-artist-phase="VISUAL"] .site-backdrop[data-world-runtime^="fallback"] .site-backdrop-fog{
+  filter:blur(24px) saturate(1.12)
+}
+:root[data-artist-phase="VISUAL"] .site-backdrop[data-world-runtime="css-fallback"] .site-backdrop-light,
+:root[data-artist-phase="VISUAL"] .site-backdrop[data-world-runtime^="fallback"] .site-backdrop-light{
+  filter:blur(.8px) brightness(1.18)
+}
+:root[data-artist-phase="TRANSITION"] .site-backdrop[data-world-runtime="css-fallback"] .site-backdrop-water,
+:root[data-artist-phase="TRANSITION"] .site-backdrop[data-world-runtime^="fallback"] .site-backdrop-water{
+  filter:blur(.8px) saturate(.94)
+}
 .living-world-canvas{
   position:absolute;z-index:1;inset:0;width:100%;height:100%;display:block;
   opacity:0;transition:opacity 320ms ease;
@@ -2606,6 +2624,15 @@ body{background:transparent}
   background:var(--chapter-accent);
   box-shadow:0 0 18px color-mix(in srgb,var(--chapter-accent),transparent 38%);
 }
+
+/* Artist chapters are one continuous micro-narrative: emerge -> music -> visual -> transition. */
+:root[data-artist-phase="EMERGE"] .artist-chapter-copy{opacity:.72}
+:root[data-artist-phase="MUSIC"] .artist-chapter-tracks{opacity:1}
+:root[data-artist-phase="VISUAL"] .artist-chapter-status i{
+  transform:scale(1.28);
+  box-shadow:0 0 28px color-mix(in srgb,var(--chapter-accent),transparent 30%)
+}
+:root[data-artist-phase="TRANSITION"] .artist-chapter-mark{opacity:.54}
 .artist-focus-portal{
   grid-column:2;
   width:min(520px,100%);
