@@ -36,7 +36,7 @@ from hazewave.reflex import (
 )
 from hazewave.reflex_robustness import execute_robust_reflex_route
 
-EXPECTED_CODESPACE = "redesigned-space-bassoon-gxp67g5g7r739w59"
+EXPECTED_CODESPACE = os.getenv("HAZEWAVE_REFLEX_EXPECTED_CODESPACE", "redesigned-space-bassoon-gxp67g5g7r739w59")
 BASE_REFLEX_HEAD = "1047f90bdf7516adbedeffb4ffa3982c7b0220ee"
 CANDIDATE_REF = "refs/remotes/origin/work/reflex-robustness-risk-v3"
 DEFAULT_SOURCE = Path.home() / ".local/share/hazewave/providers/colibri/source"
