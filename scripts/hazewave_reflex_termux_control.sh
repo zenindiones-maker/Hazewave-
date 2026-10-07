@@ -317,7 +317,13 @@ case "$action" in
         echo "REFLEX_TARGET_CODESPACE=$CS"
         ;;
 
-    doctor|prepare|serve-stop|reconcile|runtime-status|smoke|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report)
+    smoke)
+        gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
+        ensure_codespace_available
+        run_remote "$action"
+        ;;
+
+    doctor|prepare|serve-stop|reconcile|runtime-status|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report)
         gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
         run_remote "$action"
         ;;
