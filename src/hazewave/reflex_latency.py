@@ -287,8 +287,43 @@ def ensemble_probe_diagnostics(
         })
         ordered_answers.append(answer)
 
+    if len(ordered_answers) == 1:
+        answer = ordered_answers[0]
+        probabilities = answer.get("probabilities")
+        winner = str(answer.get("choice") or "")
+        if not isinstance(probabilities, Mapping) or not winner:
+            raise ReflexLatencyError("REFLEX_SINGLE_PROBE_ANSWER_INVALID")
+        parsed = {
+            str(label): float(value)
+            for label, value in probabilities.items()
+        }
+        if winner not in parsed or any(
+            not math.isfinite(value) or value < 0.0
+            for value in parsed.values()
+        ):
+            raise ReflexLatencyError("REFLEX_SINGLE_PROBE_PROBABILITY_INVALID")
+        total = sum(parsed.values())
+        if total <= 0.0:
+            raise ReflexLatencyError("REFLEX_SINGLE_PROBE_PROBABILITY_MASS_INVALID")
+        normalized = {
+            label: value / total
+            for label, value in parsed.items()
+        }
+        if max(normalized, key=normalized.get) != winner:
+            raise ReflexLatencyError("REFLEX_SINGLE_PROBE_WINNER_NOT_ARGMAX")
+        return {
+            "mode": "SINGLE_DECISION",
+            "aggregate_winner": winner,
+            "aggregate_probabilities": normalized,
+            "aggregate_peak_probability": normalized[winner],
+            "winner_agreement": None,
+            "normalized_jsd": None,
+            "permutation_answers": permutation_answers,
+        }
+
     ensemble = aggregate_choice_answers(ordered_answers)
     return {
+        "mode": "ORDER_ENSEMBLE",
         "aggregate_winner": ensemble.aggregate_winner,
         "aggregate_probabilities": dict(ensemble.aggregate_probabilities),
         "aggregate_peak_probability": ensemble.aggregate_peak_probability,
