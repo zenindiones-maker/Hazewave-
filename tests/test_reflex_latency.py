@@ -72,6 +72,65 @@ def test_latency_policy_validates_against_schema() -> None:
     assert loaded["provider_authority"] == "NONE"
 
 
+def test_exec_server_routes_explicit_engine_binary_through_coli_engine_flag(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source_root = tmp_path / "source"
+    c_root = source_root / "c"
+    c_root.mkdir(parents=True)
+    launcher = c_root / "coli"
+    stock = c_root / "laya"
+    launcher.write_text("#!/bin/sh\n", encoding="utf-8")
+    stock.write_text("stock", encoding="utf-8")
+    launcher.chmod(0o755)
+    stock.chmod(0o755)
+
+    derived = tmp_path / "derived" / "laya"
+    derived.parent.mkdir()
+    derived.write_text("derived-engine", encoding="utf-8")
+    derived.chmod(0o755)
+
+    model_root = tmp_path / "model"
+    model_root.mkdir()
+    secret_file = tmp_path / "secret"
+    secret_file.write_text("ignored", encoding="utf-8")
+
+    captured: dict[str, object] = {}
+
+    def fake_execvpe(file: str, argv: list[str], env: dict[str, str]) -> None:
+        captured["file"] = file
+        captured["argv"] = argv
+        captured["env"] = env
+        raise RuntimeError("EXEC_CAPTURED")
+
+    monkeypatch.setattr(latency, "_read_secret", lambda _path: "secret")
+    monkeypatch.setattr(latency.os, "execvpe", fake_execvpe)
+
+    with pytest.raises(RuntimeError, match="EXEC_CAPTURED"):
+        latency.exec_server(
+            source_root=source_root,
+            model_root=model_root,
+            secret_file=secret_file,
+            port=28080,
+            profile="baseline_2t",
+            state_root=tmp_path / "state",
+            engine_bin=derived,
+        )
+
+    argv = captured["argv"]
+    assert isinstance(argv, list)
+    assert argv[argv.index("--engine") + 1] == str(derived.resolve())
+    env = captured["env"]
+    assert isinstance(env, dict)
+    assert "COLI_ENGINE" not in env
+
+    stderr = capsys.readouterr().err
+    assert f"REFLEX_LATENCY_ENGINE_BIN={derived.resolve()}" in stderr
+    assert "REFLEX_LATENCY_ENGINE_SHA256=" in stderr
+
+
 def test_latency_benchmark_observation_timeout_covers_live_route_transport_window() -> None:
     latency_policy = latency.load_latency_policy()
     reflex_policy = load_reflex_policy()
