@@ -138,6 +138,8 @@ export class PremiumResonanceStage {
       const ny = ((event.clientY - bounds.top) / Math.max(bounds.height, 1) - 0.5) * 2;
       this.host.style.setProperty("--parallax-x", `${(nx * 9).toFixed(2)}px`);
       this.host.style.setProperty("--parallax-y", `${(ny * 6).toFixed(2)}px`);
+      this.host.style.setProperty("--pointer-x", `${(((nx + 1) * 0.5) * 100).toFixed(1)}%`);
+      this.host.style.setProperty("--pointer-y", `${(((ny + 1) * 0.5) * 100).toFixed(1)}%`);
       this.host.style.setProperty("--world-parallax-x", `${(nx * -5).toFixed(2)}px`);
       this.host.style.setProperty("--world-parallax-y", `${(ny * -3).toFixed(2)}px`);
     };
@@ -147,6 +149,8 @@ export class PremiumResonanceStage {
       this.host.style.setProperty("--parallax-y", "0px");
       this.host.style.setProperty("--world-parallax-x", "0px");
       this.host.style.setProperty("--world-parallax-y", "0px");
+      this.host.style.setProperty("--pointer-x", "50%");
+      this.host.style.setProperty("--pointer-y", "42%");
     };
 
     this.host.addEventListener("pointermove", this.pointerMoveHandler, { passive: true });
