@@ -341,6 +341,54 @@
         "daily-intelligence"
       ],
       "description": "Normative charter defining HAZE as complete audio engineering and WAVE as complete visual production, with daily evidence-based learning."
+    },
+    {
+      "id": "colibri-local-provider-policy-v1",
+      "path": "config/colibri-local-provider-v1.json",
+      "type": "PROJECT_POLICY",
+      "authority": "NORMATIVE",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "providers",
+        "harness",
+        "runtime",
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "description": "Fail-closed policy for the pinned, loopback-only Colibri local decision provider and workstation resource admission."
+    },
+    {
+      "id": "adr-0007-colibri-local-decision-plane",
+      "path": "docs/architecture/decisions/ADR-0007-colibri-local-decision-plane.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "providers",
+        "harness",
+        "runtime",
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "description": "Records Colibri as a subordinate local decision provider, with System One, resource, language, security and authority boundaries."
+    },
+    {
+      "id": "colibri-local-provider-runbook-v1",
+      "path": "docs/runbooks/COLIBRI_LOCAL_PROVIDER_V1.md",
+      "type": "RUNBOOK",
+      "authority": "OPERATIONAL",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "providers",
+        "runtime",
+        "codespaces"
+      ],
+      "description": "Operational steps for pinned Colibri source/model setup, loopback serving, zero-cost proof and runtime promotion."
     }
   ]
 }
