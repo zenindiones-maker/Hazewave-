@@ -154,6 +154,25 @@ button{appearance:none}
 @keyframes worldSpin{to{transform:rotate(360deg)}}
 @keyframes worldSpinReverse{to{transform:rotate(-360deg)}}
 
+.world-signature{
+  position:absolute;z-index:3;left:50%;top:38%;transform:translate(-50%,-50%);
+  width:100%;pointer-events:none;text-align:center;overflow:hidden
+}
+.world-signature span{
+  display:inline-block;max-width:100%;
+  font-size:clamp(110px,17vw,300px);line-height:.72;letter-spacing:-.075em;font-weight:800;
+  color:transparent;
+  -webkit-text-stroke:1px color-mix(in srgb,var(--world-accent),transparent 82%);
+  text-shadow:0 0 44px color-mix(in srgb,var(--world-accent),transparent 92%);
+  opacity:.58;white-space:nowrap;
+  transform:scaleX(.92);
+  transition:-webkit-text-stroke-color 420ms ease,text-shadow 420ms ease,opacity 420ms ease
+}
+.premium-stage[data-playing="true"] .world-signature span{
+  -webkit-text-stroke-color:color-mix(in srgb,var(--world-accent),transparent 68%);
+  opacity:.72
+}
+
 .world-meta{
   position:absolute;z-index:5;right:clamp(24px,4.2vw,72px);top:50%;
   transform:translateY(-50%);
@@ -711,6 +730,12 @@ h1{
   .artist-world-monolith .slab-b{left:16%;width:17%}
   .artist-world-monolith .slab-c{right:-7%;width:25%}
   .artist-world-monolith .slab-d{right:16%;width:17%}
+  .world-signature{top:32%;opacity:.72}
+  .world-signature span{
+    font-size:24vw;letter-spacing:-.08em;
+    -webkit-text-stroke-width:.8px;
+    opacity:.5
+  }
   .world-meta{
     top:80px;right:18px;width:150px;transform:none;gap:4px
   }
