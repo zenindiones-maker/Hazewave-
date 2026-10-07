@@ -242,7 +242,19 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
                 <h3>{artist.name.replace(" / DEMO", "")}</h3>
                 <p>{artist.releaseTitle}</p>
                 <ul>
-                  {artist.tracks.map((track) => <li>{track.title}<small>{track.visual.bpm} BPM</small></li>)}
+                  {artist.tracks.map((track) => (
+                    <li>
+                      <button
+                        class="archive-track"
+                        type="button"
+                        data-archive-track-id={track.id}
+                        aria-label={`Tocar ${track.title} no Resonance Deck`}
+                      >
+                        <span>{track.title}</span>
+                        <small>{track.visual.bpm} BPM</small>
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </article>
