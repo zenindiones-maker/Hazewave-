@@ -210,3 +210,51 @@ def test_selected_profile_fails_closed_on_policy_drift(tmp_path: Path) -> None:
 
 def test_default_profile_is_baseline_without_measurement(tmp_path: Path) -> None:
     assert latency.selected_profile(state_root=tmp_path) == "baseline_2t"
+
+
+def test_runtime_profile_falls_back_to_baseline_on_runtime_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state = tmp_path / "state"
+    target = state / "latency" / "selected-profile.json"
+    target.parent.mkdir(parents=True)
+    current = latency._runtime_fingerprint()
+    drifted = dict(current)
+    drifted["fingerprint_sha256"] = "f" * 64
+    policy = latency.load_latency_policy()
+    target.write_text(
+        json.dumps(
+            {
+                "schema": "HazewaveReflexLatencySelection/v1",
+                "policy_sha256": latency.policy_digest(policy),
+                "profile": "close_2t",
+                "runtime_fingerprint": drifted,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(latency.ReflexLatencyError, match="RUNTIME_DRIFT"):
+        latency.selected_profile(state_root=state, policy=policy)
+
+    assert latency.runtime_profile(state_root=state, policy=policy) == "baseline_2t"
+
+
+def test_runtime_profile_does_not_fallback_on_policy_drift(tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    target = state / "latency" / "selected-profile.json"
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        json.dumps(
+            {
+                "schema": "HazewaveReflexLatencySelection/v1",
+                "policy_sha256": "0" * 64,
+                "profile": "baseline_2t",
+                "runtime_fingerprint": latency._runtime_fingerprint(),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(latency.ReflexLatencyError, match="POLICY_DRIFT"):
+        latency.runtime_profile(state_root=state)
