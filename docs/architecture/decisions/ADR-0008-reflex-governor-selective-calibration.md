@@ -81,6 +81,8 @@ The ledger stores:
 - probability distribution;
 - whether the governor would have accepted the decision;
 - label source;
+- label-evidence digest tying the label to a human/deterministic/QC receipt;
+- whether the sample would have passed the current selective thresholds even while the profile is still shadow-only;
 - latency;
 - timestamp.
 
@@ -91,8 +93,8 @@ Accepted label sources are human review, deterministic ground truth and runtime 
 The calibration harness reports:
 
 - accuracy;
-- coverage;
-- selective risk;
+- shadow coverage (the fraction that would pass current thresholds);
+- selective risk if those threshold-eligible samples were activated;
 - Expected Calibration Error;
 - multiclass Brier score;
 - p50 latency;
