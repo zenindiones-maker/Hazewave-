@@ -7,11 +7,13 @@ on:
     paths:
       - "apps/hazewave-site/**"
       - "docs/wave/WAVE_SITE_DEPENDENCY_DECISIONS_V1.md"
+      - "docs/wave/WAVE_DESIGN_FRONTIER_2026.md"
       - ".github/workflows/wave-site-ci.yml"
   pull_request:
     paths:
       - "apps/hazewave-site/**"
       - "docs/wave/WAVE_SITE_DEPENDENCY_DECISIONS_V1.md"
+      - "docs/wave/WAVE_DESIGN_FRONTIER_2026.md"
       - ".github/workflows/wave-site-ci.yml"
 
 permissions:
