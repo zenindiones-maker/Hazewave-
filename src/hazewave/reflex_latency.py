@@ -19,7 +19,7 @@ from hazewave.colibri import (
     execute_colibri_system_one,
 )
 from hazewave.harness import HAZE, HazewaveTask, issue_authorization, route_task
-from hazewave.reflex_robustness import execute_robust_reflex_route
+from hazewave.reflex_robustness import complete_choice_permutations, execute_robust_reflex_route
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -256,6 +256,112 @@ def _proof_question() -> dict[str, Any]:
             ),
         },
     }
+
+def question_scale_probe_questions(
+    question: Mapping[str, Any],
+) -> dict[int, dict[str, dict[str, Any]]]:
+    full = complete_choice_permutations(
+        question_id="route",
+        question=question,
+        max_rotations=6,
+    )
+    rows = list(full.items())
+    return {
+        count: dict(rows[:count])
+        for count in (1, 2, 3, 6)
+    }
+
+
+def measure_question_scale(
+    *,
+    secret: str,
+    timeout_seconds: float = 90.0,
+) -> dict[str, Any]:
+    if timeout_seconds <= 0.0 or timeout_seconds > 120.0:
+        raise ReflexLatencyError("REFLEX_SCALE_PROBE_TIMEOUT_INVALID")
+
+    question = _proof_question()
+    probes = question_scale_probe_questions(question)
+    state = {
+        "deliverable": "typed audiovisual synchronization",
+        "work": (
+            "translate approved music section markers amplitude envelopes and timing metadata "
+            "from HAZE into WAVE WebGL scene transitions without transferring authority "
+            "between domains"
+        ),
+        "audio_component": "analysis metadata",
+        "visual_component": "scroll scene behavior",
+        "cross_domain_coordination": "required",
+    }
+    hardware = detect_colibri_hardware(DEFAULT_MODEL)
+    auth = _authorization()
+    samples: list[dict[str, Any]] = []
+
+    for count in (1, 2, 3, 6):
+        started = datetime.now(timezone.utc)
+        wall_started = __import__("time").monotonic()
+        try:
+            result = execute_colibri_system_one(
+                authorization=auth,
+                model_id="laya",
+                state=state,
+                questions=probes[count],
+                api_key=secret,
+                data_classification="INTERNAL_NON_SECRET",
+                state_language="en",
+                model_installed=True,
+                model_revision_verified=True,
+                hardware=hardware,
+                timeout_seconds=timeout_seconds,
+            )
+            winners = {
+                key: str(answer.get("choice") or "")
+                for key, answer in result.answers.items()
+                if isinstance(answer, Mapping)
+            }
+            samples.append({
+                "question_count": count,
+                "status": "PASS",
+                "wall_ms": result.latency_ms,
+                "health_ms": result.health_ms,
+                "system_one_ms": result.system_one_ms,
+                "engine_ms": result.engine_ms,
+                "server_elapsed_ms": result.server_elapsed_ms,
+                "queue_wait_ms": result.queue_wait_ms,
+                "input_tokens": result.usage.get("input_tokens"),
+                "request_sha256": result.request_sha256,
+                "response_sha256": result.response_sha256,
+                "winners": winners,
+                "observed_at": started.isoformat(),
+            })
+        except Exception as exc:
+            elapsed_ms = (__import__("time").monotonic() - wall_started) * 1000.0
+            samples.append({
+                "question_count": count,
+                "status": "FAIL",
+                "wall_ms": elapsed_ms,
+                "reason": type(exc).__name__ + ":" + str(exc),
+                "observed_at": started.isoformat(),
+            })
+
+    status = "PASS" if all(row["status"] == "PASS" for row in samples) else "EVIDENCE_ONLY"
+    report = {
+        "schema": "HazewaveReflexQuestionScaleProbe/v1",
+        "status": status,
+        "profile": runtime_profile(),
+        "question_counts": [1, 2, 3, 6],
+        "timeout_seconds": timeout_seconds,
+        "state_sha256": _digest(state),
+        "question_sha256": _digest(question),
+        "samples": samples,
+        "provider_authority": "NONE",
+        "production_calibrated": False,
+        "grants_execution_authority": False,
+        "persists_calibration_outcomes": False,
+    }
+    report["report_sha256"] = _digest(report)
+    return report
+
 
 def _read_secret(path: Path) -> str:
     if path.is_symlink() or not path.is_file():
@@ -649,6 +755,10 @@ def _main(argv: list[str] | None = None) -> int:
     p_profiles = sub.add_parser("profiles")
     p_profiles.add_argument("--json", action="store_true")
 
+    p_scale = sub.add_parser("scale-probe")
+    p_scale.add_argument("--secret-file", type=Path, required=True)
+    p_scale.add_argument("--timeout", type=float, default=90.0)
+
     p_measure = sub.add_parser("measure")
     p_measure.add_argument("--profile", required=True)
     p_measure.add_argument("--secret-file", type=Path, required=True)
@@ -685,6 +795,14 @@ def _main(argv: list[str] | None = None) -> int:
             for name in names:
                 print(name)
         return 0
+    if args.command == "scale-probe":
+        secret = _read_secret(args.secret_file)
+        report = measure_question_scale(
+            secret=secret,
+            timeout_seconds=float(args.timeout),
+        )
+        print(json.dumps(report, sort_keys=True))
+        return 0 if report["status"] == "PASS" else 4
     if args.command == "measure":
         secret = _read_secret(args.secret_file)
         report = measure_profile(
