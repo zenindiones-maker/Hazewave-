@@ -47,6 +47,22 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
       <span class="site-backdrop-scrim"></span>
     </div>
 
+    <nav class="world-focus-controls" aria-label="Entrar nos mundos de artistas demonstrativos">
+      {artistChapters.map((chapter, index) => (
+        <button
+          type="button"
+          data-world-focus-control={chapter.id}
+          aria-controls={`artist-focus-${chapter.id}`}
+          aria-pressed="false"
+          style={`--world-focus-accent:${chapter.world.accent};--world-focus-index:${index};`}
+        >
+          <span>0{index + 1}</span>
+          <strong>{chapter.displayName}</strong>
+          <i aria-hidden="true">ENTER ↗</i>
+        </button>
+      ))}
+    </nav>
+
     <nav class="story-rail" aria-label="Capítulos do arquivo Hazewave">
       <span class="story-progress" aria-hidden="true"><i></i></span>
       <a href="#threshold" data-story-link="threshold"><b>00</b><span>THRESHOLD</span></a>
