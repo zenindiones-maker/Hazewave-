@@ -2,24 +2,22 @@ import type { Track } from "../../data/catalog";
 
 export type AudioStatus = "IDLE" | "PLAYING" | "PAUSED" | "ERROR";
 
-export class SyntheticAudioEngine {
+export class HazewaveAudioEngine {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
   private analyser: AnalyserNode | null = null;
   private nodes: AudioScheduledSourceNode[] = [];
+  private mediaElement: HTMLAudioElement | null = null;
+  private mediaSource: MediaElementAudioSourceNode | null = null;
+  private preparedTrackId: string | null = null;
   private currentTrack: Track | null = null;
   private status: AudioStatus = "IDLE";
   private startedAt = 0;
   private pausedAt = 0;
   private energyBuffer: Uint8Array<ArrayBuffer> | null = null;
 
-  get state(): AudioStatus {
-    return this.status;
-  }
-
-  get track(): Track | null {
-    return this.currentTrack;
-  }
+  get state(): AudioStatus { return this.status; }
+  get track(): Track | null { return this.currentTrack; }
 
   async unlock(): Promise<void> {
     if (!this.context) {
@@ -35,54 +33,60 @@ export class SyntheticAudioEngine {
     if (this.context.state === "suspended") await this.context.resume();
   }
 
-  async play(track: Track, offsetSeconds = 0): Promise<void> {
+  async prepare(track: Track): Promise<void> {
     await this.unlock();
-    this.stopNodes();
+    if (track.audio.kind !== "media" || !track.audio.src) {
+      this.preparedTrackId = track.id;
+      return;
+    }
+    if (this.preparedTrackId === track.id && this.mediaElement) return;
+
+    this.disposeMedia();
+    const element = new Audio();
+    element.preload = "auto";
+    element.src = track.audio.src;
+    element.crossOrigin = "anonymous";
+    element.playsInline = true;
+
+    const source = this.context!.createMediaElementSource(element);
+    source.connect(this.master!);
+
+    this.mediaElement = element;
+    this.mediaSource = source;
+    this.preparedTrackId = track.id;
+    element.load();
+  }
+
+  async play(track: Track, offsetSeconds = 0): Promise<void> {
+    await this.prepare(track);
+    this.stopSynthetic();
     this.currentTrack = track;
     this.pausedAt = Math.max(0, offsetSeconds);
-    const ctx = this.context!;
-    const master = this.master!;
-    const base = track.audio.synthHz ?? 110;
-    const beat = 60 / track.visual.bpm;
 
-    const carrier = ctx.createOscillator();
-    carrier.type = "triangle";
-    carrier.frequency.value = base;
+    if (track.audio.kind === "media" && track.audio.src) {
+      const element = this.mediaElement;
+      if (!element) throw new Error("MEDIA_NOT_PREPARED");
+      if (Number.isFinite(element.duration)) {
+        element.currentTime = Math.min(this.pausedAt, Math.max(0, element.duration - 0.05));
+      } else if (this.pausedAt > 0) {
+        element.addEventListener("loadedmetadata", () => {
+          element.currentTime = Math.min(this.pausedAt, Math.max(0, element.duration - 0.05));
+        }, { once: true });
+      }
+      await element.play();
+      this.startedAt = this.context!.currentTime - this.pausedAt;
+      this.status = "PLAYING";
+      return;
+    }
 
-    const upper = ctx.createOscillator();
-    upper.type = "sine";
-    upper.frequency.value = base * 1.5;
-
-    const carrierGain = ctx.createGain();
-    carrierGain.gain.value = 0.62;
-    const upperGain = ctx.createGain();
-    upperGain.gain.value = 0.22;
-
-    const pulse = ctx.createOscillator();
-    pulse.type = "sine";
-    pulse.frequency.value = 1 / beat;
-    const pulseGain = ctx.createGain();
-    pulseGain.gain.value = 0.12;
-
-    pulse.connect(pulseGain);
-    pulseGain.connect(carrierGain.gain);
-    carrier.connect(carrierGain).connect(master);
-    upper.connect(upperGain).connect(master);
-
-    const now = ctx.currentTime;
-    carrier.start(now);
-    upper.start(now);
-    pulse.start(now);
-
-    this.nodes = [carrier, upper, pulse];
-    this.startedAt = now - offsetSeconds;
-    this.status = "PLAYING";
+    this.startSynthetic(track, this.pausedAt);
   }
 
   pause(): void {
     if (!this.context || this.status !== "PLAYING") return;
-    this.pausedAt = Math.max(0, this.context.currentTime - this.startedAt);
-    this.stopNodes();
+    this.pausedAt = this.positionSeconds();
+    if (this.mediaElement && this.currentTrack?.audio.kind === "media") this.mediaElement.pause();
+    this.stopSynthetic();
     this.status = "PAUSED";
   }
 
@@ -92,22 +96,32 @@ export class SyntheticAudioEngine {
   }
 
   stop(): void {
-    this.stopNodes();
+    this.stopSynthetic();
+    if (this.mediaElement) {
+      this.mediaElement.pause();
+      this.mediaElement.currentTime = 0;
+    }
     this.status = "IDLE";
     this.pausedAt = 0;
   }
 
   positionSeconds(): number {
     if (!this.context) return 0;
+    if (this.currentTrack?.audio.kind === "media" && this.mediaElement) return this.mediaElement.currentTime || 0;
     if (this.status === "PAUSED") return this.pausedAt;
     if (this.status === "PLAYING") return Math.max(0, this.context.currentTime - this.startedAt);
     return 0;
   }
 
-  seek(seconds: number): Promise<void> {
-    if (!this.currentTrack) return Promise.resolve();
+  async seek(seconds: number): Promise<void> {
+    if (!this.currentTrack) return;
     const clamped = Math.max(0, Math.min(seconds, this.currentTrack.durationSeconds));
-    return this.play(this.currentTrack, clamped);
+    if (this.currentTrack.audio.kind === "media" && this.mediaElement) {
+      this.mediaElement.currentTime = clamped;
+      this.pausedAt = clamped;
+      return;
+    }
+    await this.play(this.currentTrack, clamped);
   }
 
   energy(): number {
@@ -118,11 +132,57 @@ export class SyntheticAudioEngine {
     return total / this.energyBuffer.length / 255;
   }
 
-  private stopNodes(): void {
+  private startSynthetic(track: Track, offsetSeconds: number): void {
+    const ctx = this.context!;
+    const base = track.audio.synthHz ?? 110;
+    const beat = 60 / track.visual.bpm;
+
+    const carrier = ctx.createOscillator();
+    carrier.type = "triangle";
+    carrier.frequency.value = base;
+    const upper = ctx.createOscillator();
+    upper.type = "sine";
+    upper.frequency.value = base * 1.5;
+    const carrierGain = ctx.createGain();
+    carrierGain.gain.value = 0.62;
+    const upperGain = ctx.createGain();
+    upperGain.gain.value = 0.22;
+    const pulse = ctx.createOscillator();
+    pulse.type = "sine";
+    pulse.frequency.value = 1 / beat;
+    const pulseGain = ctx.createGain();
+    pulseGain.gain.value = 0.12;
+
+    pulse.connect(pulseGain);
+    pulseGain.connect(carrierGain.gain);
+    carrier.connect(carrierGain).connect(this.master!);
+    upper.connect(upperGain).connect(this.master!);
+
+    const now = ctx.currentTime;
+    carrier.start(now);
+    upper.start(now);
+    pulse.start(now);
+    this.nodes = [carrier, upper, pulse];
+    this.startedAt = now - offsetSeconds;
+    this.status = "PLAYING";
+  }
+
+  private stopSynthetic(): void {
     for (const node of this.nodes) {
-      try { node.stop(); } catch { /* already stopped */ }
-      try { node.disconnect(); } catch { /* already disconnected */ }
+      try { node.stop(); } catch {}
+      try { node.disconnect(); } catch {}
     }
     this.nodes = [];
+  }
+
+  private disposeMedia(): void {
+    if (this.mediaElement) {
+      this.mediaElement.pause();
+      this.mediaElement.removeAttribute("src");
+      this.mediaElement.load();
+    }
+    try { this.mediaSource?.disconnect(); } catch {}
+    this.mediaElement = null;
+    this.mediaSource = null;
   }
 }
