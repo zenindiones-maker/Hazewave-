@@ -439,6 +439,263 @@ latency_report() {
   fi
 }
 
+
+build_scheduler_engine_variant() {
+  local variant="$1"
+  local root="$HOME/.local/share/hazewave/providers/colibri/derived/$variant"
+  local binary="$root/c/laya"
+  local meta="$root/build.json"
+  local expected_sha="bf2442915d6e3dd4cdfd2eb9c2a3d2aa44a25850"
+
+  [[ "$(git -C "$SOURCE_ROOT" rev-parse HEAD)" == "$expected_sha" ]] || die "ENGINE_TUNE_UPSTREAM_SHA_MISMATCH"
+  [[ -z "$(git -C "$SOURCE_ROOT" status --porcelain)" ]] || die "ENGINE_TUNE_UPSTREAM_SOURCE_DIRTY"
+
+  if [[ -x "$binary" && -f "$meta" ]]; then
+    local recorded current
+    recorded="$("$PYTHON_BIN" -c 'import json,sys; print(json.load(open(sys.argv[1]))["binary_sha256"])' "$meta" 2>/dev/null || true)"
+    current="$(sha256sum "$binary" | awk '{print $1}')"
+    [[ -n "$recorded" && "$recorded" == "$current" ]] || die "ENGINE_TUNE_DERIVED_BINARY_METADATA_MISMATCH:$variant"
+    printf '%s\n' "$binary"
+    return 0
+  fi
+
+  [[ ! -e "$root" ]] || die "ENGINE_TUNE_DERIVED_ROOT_OCCUPIED:$variant"
+  local stage
+  stage="$(mktemp -d "$root.stage.XXXXXX")"
+  mkdir -p "$stage"
+  git -C "$SOURCE_ROOT" archive HEAD c | tar -x -C "$stage" || die "ENGINE_TUNE_SOURCE_ARCHIVE_FAILED:$variant"
+
+  "$PYTHON_BIN" - "$stage/c" "$variant" <<'PY'
+import sys
+from pathlib import Path
+root = Path(sys.argv[1])
+variant = sys.argv[2]
+if variant in {"static_attention_v1", "static_all_v1"}:
+    p = root / "laya.c"
+    text = p.read_text(encoding="utf-8")
+    old = "#pragma omp for schedule(dynamic, 8)"
+    if text.count(old) != 1:
+        raise SystemExit("ENGINE_TUNE_ATTENTION_PATCH_ANCHOR_INVALID")
+    p.write_text(text.replace(old, "#pragma omp for schedule(static)"), encoding="utf-8")
+if variant in {"static_gemm_v1", "static_all_v1"}:
+    p = root / "qi_gemm.h"
+    text = p.read_text(encoding="utf-8")
+    old = "#pragma omp for schedule(dynamic, 1) collapse(2)"
+    if text.count(old) != 1:
+        raise SystemExit("ENGINE_TUNE_GEMM_PATCH_ANCHOR_INVALID")
+    p.write_text(text.replace(old, "#pragma omp for schedule(static) collapse(2)"), encoding="utf-8")
+PY
+
+  make -C "$stage/c" laya >/dev/null || { rm -rf "$stage"; die "ENGINE_TUNE_BUILD_FAILED:$variant"; }
+  [[ -x "$stage/c/laya" ]] || { rm -rf "$stage"; die "ENGINE_TUNE_BINARY_MISSING:$variant"; }
+
+  local patch_sha binary_sha
+  patch_sha="$(
+    {
+      git -C "$SOURCE_ROOT" show HEAD:c/laya.c
+      git -C "$SOURCE_ROOT" show HEAD:c/qi_gemm.h
+      cat "$stage/c/laya.c" "$stage/c/qi_gemm.h"
+      printf '%s\n' "$variant"
+    } | sha256sum | awk '{print $1}'
+  )"
+  binary_sha="$(sha256sum "$stage/c/laya" | awk '{print $1}')"
+
+  mkdir -p "$(dirname "$root")"
+  mv "$stage" "$root"
+
+  "$PYTHON_BIN" - "$meta" "$variant" "$expected_sha" "$patch_sha" "$binary_sha" <<'PY'
+import json, os, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+row = {
+    "schema": "HazewaveReflexDerivedEngineBuild/v1",
+    "variant": sys.argv[2],
+    "upstream_commit": sys.argv[3],
+    "patch_sha256": sys.argv[4],
+    "binary_sha256": sys.argv[5],
+    "changes_model_or_precision": False,
+    "scheduling_only": True,
+    "provider_authority": "NONE",
+}
+fd = os.open(p, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as out:
+    json.dump(row, out, sort_keys=True, separators=(",", ":"))
+    out.write("\n")
+PY
+  printf '%s\n' "$binary"
+}
+
+latency_engine_tune() {
+  ensure_checkout
+  "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE" >/dev/null || die "RUNTIME_DOCTOR_BLOCKED"
+  [[ -f "$SECRET_FILE" && ! -L "$SECRET_FILE" ]] || die "COLIBRI_SECRET_MISSING"
+  [[ "$(stat -c %a "$SECRET_FILE")" == "600" ]] || die "COLIBRI_SECRET_PERMISSIONS_INVALID"
+  port_is_free || die "ENGINE_TUNE_PORT_BUSY_STOP_SERVE_FIRST"
+
+  local stamp run_dir
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  run_dir="$STATE_ROOT/latency/engine-runs/$stamp"
+  mkdir -p "$run_dir"
+  chmod 700 "$STATE_ROOT/latency" "$STATE_ROOT/latency/engine-runs" "$run_dir" 2>/dev/null || true
+  echo "REFLEX_ENGINE_TUNE_RUN_DIR=$run_dir"
+  echo "REFLEX_ENGINE_TUNE_MODE=STOCK_VS_SCHEDULER_DERIVATIVES"
+
+  local attn gemm all
+  attn="$(build_scheduler_engine_variant static_attention_v1)"
+  gemm="$(build_scheduler_engine_variant static_gemm_v1)"
+  all="$(build_scheduler_engine_variant static_all_v1)"
+
+  stop_engine_case() {
+    local owned_pid="$1"
+    "$SOURCE_ROOT/c/coli" stop --port "$PORT" >/dev/null 2>&1 || true
+    for _ in $(seq 1 20); do
+      kill -0 "$owned_pid" 2>/dev/null || break
+      sleep 0.25
+    done
+    kill -0 "$owned_pid" 2>/dev/null && kill -TERM "$owned_pid" 2>/dev/null || true
+    for _ in $(seq 1 20); do
+      kill -0 "$owned_pid" 2>/dev/null || break
+      sleep 0.25
+    done
+    kill -0 "$owned_pid" 2>/dev/null && kill -KILL "$owned_pid" 2>/dev/null || true
+    wait "$owned_pid" 2>/dev/null || true
+    port_is_free || die "ENGINE_TUNE_SERVER_DID_NOT_RELEASE_PORT"
+  }
+
+  run_case() {
+    local label="$1"
+    local engine="$2"
+    local pid rc
+    echo "=== REFLEX ENGINE CASE: $label ==="
+    port_is_free || die "ENGINE_TUNE_PORT_NOT_FREE:$label"
+
+    COLI_ENGINE="$engine" "$PYTHON_BIN" -m hazewave.reflex_latency server \
+      --source-root "$SOURCE_ROOT" --model-root "$MODEL_ROOT" \
+      --secret-file "$SECRET_FILE" --state-root "$STATE_ROOT" \
+      --port "$PORT" --profile baseline_2t \
+      >"$run_dir/$label.server.log" 2>&1 &
+    pid=$!
+
+    if ! wait_health 180; then
+      tail -n 60 "$run_dir/$label.server.log" >&2 || true
+      stop_engine_case "$pid"
+      die "ENGINE_TUNE_SERVER_START_FAILED:$label"
+    fi
+
+    set +e
+    "$PYTHON_BIN" -m hazewave.reflex_latency measure \
+      --profile baseline_2t --secret-file "$SECRET_FILE" >"$run_dir/$label.json"
+    rc=$?
+    set -e
+    stop_engine_case "$pid"
+    [[ "$rc" -eq 0 ]] || die "ENGINE_TUNE_MEASURE_FAILED:$label:$rc"
+
+    "$PYTHON_BIN" - "$run_dir/$label.json" "$label" <<'PY'
+import json, sys
+row = json.load(open(sys.argv[1], encoding="utf-8"))
+lat = row["latency"]
+print(
+    "REFLEX_ENGINE_CASE_RESULT="
+    f"{sys.argv[2]}:"
+    f"p50={lat['wall']['p50_ms']:.3f}:"
+    f"p95={lat['wall']['p95_ms']:.3f}:"
+    f"engine_p50={lat['engine']['p50_ms']}:"
+    f"failures={row['failed_requests']}:"
+    f"robust={row['all_robust_eligible']}"
+)
+PY
+  }
+
+  run_case stock "$SOURCE_ROOT/c/laya"
+  run_case static_attention_v1 "$attn"
+  run_case static_gemm_v1 "$gemm"
+  run_case static_all_v1 "$all"
+
+  "$PYTHON_BIN" - "$run_dir" <<'PY'
+import hashlib, json, os, sys
+from pathlib import Path
+root = Path(sys.argv[1])
+names = ["stock", "static_attention_v1", "static_gemm_v1", "static_all_v1"]
+rows = {n: json.load(open(root / f"{n}.json", encoding="utf-8")) for n in names}
+base = rows["stock"]
+bs = [x for x in base["samples"] if x.get("status") == "PASS"]
+bp50 = float(base["latency"]["wall"]["p50_ms"])
+bp95 = float(base["latency"]["wall"]["p95_ms"])
+base_req = [x["request_sha256"] for x in bs]
+base_probs = [x["aggregate_probabilities"] for x in bs]
+evaluated, accepted = [], []
+for name in names[1:]:
+    row = rows[name]
+    ss = [x for x in row["samples"] if x.get("status") == "PASS"]
+    p50 = float(row["latency"]["wall"]["p50_ms"])
+    p95 = float(row["latency"]["wall"]["p95_ms"])
+    reasons = []
+    if len(ss) != row["measured_requests"] or row.get("failed_requests") != 0:
+        reasons.append("FAILURES_OR_INCOMPLETE")
+    if row.get("all_robust_eligible") is not True:
+        reasons.append("ROBUST_ELIGIBILITY_FAILED")
+    if [x["request_sha256"] for x in ss] != base_req:
+        reasons.append("REQUEST_SEQUENCE_DRIFT")
+    exact_probs = [x["aggregate_probabilities"] for x in ss] == base_probs
+    if not exact_probs:
+        reasons.append("AGGREGATE_PROBABILITY_DRIFT")
+    improvement = (bp50 - p50) / bp50
+    p95_ratio = p95 / bp95
+    if improvement < 0.05:
+        reasons.append("P50_IMPROVEMENT_BELOW_5_PERCENT")
+    if p95_ratio > 1.03:
+        reasons.append("P95_REGRESSION")
+    item = {
+        "variant": name,
+        "p50_ms": p50,
+        "p95_ms": p95,
+        "p50_improvement_fraction": improvement,
+        "p95_ratio": p95_ratio,
+        "exact_aggregate_probability_match": exact_probs,
+        "reasons": reasons,
+    }
+    evaluated.append(item)
+    if not reasons:
+        accepted.append(item)
+accepted.sort(key=lambda x: (x["p50_ms"], x["p95_ms"], x["variant"]))
+winner = accepted[0]["variant"] if accepted else "stock"
+report = {
+    "schema": "HazewaveReflexEngineTuneReport/v1",
+    "status": "ENGINE_CANDIDATE_MEETS_GATE" if accepted else "STOCK_ENGINE_RETAINED",
+    "winner": winner,
+    "baseline_p50_ms": bp50,
+    "baseline_p95_ms": bp95,
+    "evaluated": evaluated,
+    "requires_manual_activation": True,
+    "changes_model_or_precision": False,
+    "provider_authority": "NONE",
+    "production_calibrated": False,
+}
+raw = json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
+report["report_sha256"] = hashlib.sha256(raw).hexdigest()
+target = root / "engine-selection.json"
+fd = os.open(target, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as out:
+    json.dump(report, out, sort_keys=True, separators=(",", ":"))
+    out.write("\n")
+print(json.dumps(report, sort_keys=True))
+PY
+  echo "REFLEX_ENGINE_TUNE=PASS"
+  echo "REFLEX_ENGINE_TUNE_ACTIVATION=NOT_AUTOMATIC"
+}
+
+latency_engine_report() {
+  ensure_checkout
+  local latest
+  latest="$(find "$STATE_ROOT/latency/engine-runs" -mindepth 2 -maxdepth 2 -name engine-selection.json -type f 2>/dev/null | sort | tail -n 1 || true)"
+  if [[ -z "$latest" ]]; then
+    echo "REFLEX_ENGINE_TUNE_LATEST=NONE"
+  else
+    echo "REFLEX_ENGINE_TUNE_LATEST=$latest"
+    cat "$latest"
+  fi
+}
+
 smoke() {
   ensure_checkout
   "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime smoke \
@@ -469,5 +726,7 @@ case "${1:-}" in
   serve-stop) serve_stop ;;
   latency-tune) latency_tune ;;
   latency-report) latency_report ;;
-  *) echo "usage: $0 {doctor|prepare|serve|serve-stop|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report}" >&2; exit 2 ;;
+  latency-engine-tune) latency_engine_tune ;;
+  latency-engine-report) latency_engine_report ;;
+  *) echo "usage: $0 {doctor|prepare|serve|serve-stop|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report}" >&2; exit 2 ;;
 esac
