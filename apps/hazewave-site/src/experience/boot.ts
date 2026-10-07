@@ -1,3 +1,4 @@
+import { artistChapters, type ArtistChapterWorld } from "../data/artistChapters";
 import { getArtist, getTrack, tracks, type ArtistId } from "../data/catalog";
 import { HazewaveAudioEngine } from "./audio/SyntheticAudioEngine";
 import { bridgeFixtureManifest } from "./bridge/visualManifest";
@@ -27,6 +28,7 @@ interface AtmosphereController {
 
 interface LivingWorldController {
   setStoryState(state: StoryRuntimeState): void;
+  setArtistWorld(world: ArtistChapterWorld, progress: number): void;
   setAudioEnergy(value: number): void;
   dispose(): void;
 }
@@ -80,6 +82,18 @@ export function bootHazewaveSite(): void {
   let livingWorld: LivingWorldController | null = null;
   let pendingStoryState: StoryRuntimeState | null = null;
 
+  const artistChapterById = new Map(
+    artistChapters.map((chapter) => [chapter.id, chapter] as const)
+  );
+  const firstArtistChapter = artistChapters[0]!;
+  let pendingArtistWorld: {
+    world: ArtistChapterWorld;
+    progress: number;
+  } = {
+    world: firstArtistChapter.world,
+    progress: 0
+  };
+
   const conductor = new ScrollConductor(
     quality.reducedMotion,
     (state) => {
@@ -87,7 +101,17 @@ export function bootHazewaveSite(): void {
       livingWorld?.setStoryState(state);
     }
   );
-  const artistJourney = new ArtistJourneyConductor();
+
+  const artistJourney = new ArtistJourneyConductor(({ artistId, progress }) => {
+    const chapter = artistChapterById.get(artistId);
+    if (!chapter) return;
+
+    pendingArtistWorld = {
+      world: chapter.world,
+      progress
+    };
+    livingWorld?.setArtistWorld(chapter.world, progress);
+  });
 
   const livingWorldEligible =
     !quality.reducedMotion &&
@@ -102,6 +126,10 @@ export function bootHazewaveSite(): void {
       .then((created) => {
         livingWorld = created;
         if (pendingStoryState) created.setStoryState(pendingStoryState);
+        created.setArtistWorld(
+          pendingArtistWorld.world,
+          pendingArtistWorld.progress
+        );
       })
       .catch((error) => {
         backdropHost.dataset.worldRuntime = "fallback";
