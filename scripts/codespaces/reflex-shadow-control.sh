@@ -1000,8 +1000,8 @@ smoke() {
 }
 
 observe() {
-  ensure_checkout
   [[ -n "${1:-}" && -f "$1" ]] || die "OBSERVE_EVENT_FILE_REQUIRED"
+  reconcile
   "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime observe \
     --repository-root "$WORKTREE" --secret-file "$SECRET_FILE" --event-file "$1"
 }
