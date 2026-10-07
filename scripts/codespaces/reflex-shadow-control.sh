@@ -556,6 +556,144 @@ PY
   printf '%s\n' "$binary"
 }
 
+build_pack_reuse_engine_variant() {
+  local variant="reuse_packed_w_v1"
+  local root="$HOME/.local/share/hazewave/providers/colibri/derived/$variant"
+  local binary="$root/c/laya"
+  local meta="$root/build.json"
+  local expected_sha="bf2442915d6e3dd4cdfd2eb9c2a3d2aa44a25850"
+
+  [[ "$(git -C "$SOURCE_ROOT" rev-parse HEAD)" == "$expected_sha" ]] || die "ENGINE_PACK_REUSE_UPSTREAM_SHA_MISMATCH"
+  [[ -z "$(git -C "$SOURCE_ROOT" status --porcelain)" ]] || die "ENGINE_PACK_REUSE_UPSTREAM_SOURCE_DIRTY"
+
+  if [[ -x "$binary" && -f "$meta" ]]; then
+    "$PYTHON_BIN" - "$meta" "$binary" <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+meta = json.load(open(sys.argv[1], encoding="utf-8"))
+binary = Path(sys.argv[2])
+actual = hashlib.sha256(binary.read_bytes()).hexdigest()
+if meta.get("binary_sha256") != actual:
+    raise SystemExit("ENGINE_PACK_REUSE_DERIVED_BINARY_METADATA_MISMATCH")
+if meta.get("weight_panel_reuse_only") is not True:
+    raise SystemExit("ENGINE_PACK_REUSE_DERIVED_METADATA_INVALID")
+PY
+    printf '%s\n' "$binary"
+    return 0
+  fi
+
+  [[ ! -e "$root" ]] || die "ENGINE_PACK_REUSE_DERIVED_ROOT_OCCUPIED"
+  mkdir -p "$(dirname "$root")"
+  local stage
+  stage="$(mktemp -d "$root.stage.XXXXXX")"
+  git -C "$SOURCE_ROOT" archive HEAD c | tar -x -C "$stage" || die "ENGINE_PACK_REUSE_SOURCE_ARCHIVE_FAILED"
+
+  if ! "$PYTHON_BIN" - "$stage/c/qi_gemm.h" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+
+start = text.index("static void qi_gemm_ld(")
+end = text.index("\nstatic inline void qi_gemm(", start)
+block = text[start:end]
+
+old = """        #pragma omp for schedule(dynamic, 1) collapse(2)
+        for (int mb = 0; mb < mblocks; mb++)
+            for (int nb = 0; nb < nblocks; nb++) {
+                int m0 = mb * QI_MC, mc = M - m0 < QI_MC ? M - m0 : QI_MC;
+                int n0 = nb * QI_NR, nr = N - n0 < QI_NR ? N - n0 : QI_NR;
+                for (int k0 = 0; k0 < K; k0 += QI_KC) {
+                    int kc = K - k0 < QI_KC ? K - k0 : QI_KC;
+                    qi_pack_w(panel, W, n0, nr, k0, kc);
+                    for (int i = 0; i < mc; i += QI_MR) {
+                        int mr = mc - i < QI_MR ? mc - i : QI_MR;
+                        qi_kernel(Y + (int64_t)(m0 + i) * ldy + n0, ldy,
+                                  X + (int64_t)(m0 + i) * ldx + k0, ldx,
+                                  panel, kc, mr, nr, k0 > 0);
+                    }
+                }
+                if (bias)
+                    for (int i = 0; i < mc; i++)
+                        for (int j = 0; j < nr; j++) Y[(int64_t)(m0 + i) * ldy + n0 + j] += bias[n0 + j];
+            }"""
+
+new = """        #pragma omp for schedule(dynamic, 1)
+        for (int nb = 0; nb < nblocks; nb++) {
+            int n0 = nb * QI_NR, nr = N - n0 < QI_NR ? N - n0 : QI_NR;
+            for (int k0 = 0; k0 < K; k0 += QI_KC) {
+                int kc = K - k0 < QI_KC ? K - k0 : QI_KC;
+                qi_pack_w(panel, W, n0, nr, k0, kc);
+                for (int mb = 0; mb < mblocks; mb++) {
+                    int m0 = mb * QI_MC, mc = M - m0 < QI_MC ? M - m0 : QI_MC;
+                    for (int i = 0; i < mc; i += QI_MR) {
+                        int mr = mc - i < QI_MR ? mc - i : QI_MR;
+                        qi_kernel(Y + (int64_t)(m0 + i) * ldy + n0, ldy,
+                                  X + (int64_t)(m0 + i) * ldx + k0, ldx,
+                                  panel, kc, mr, nr, k0 > 0);
+                    }
+                }
+            }
+            if (bias)
+                for (int mb = 0; mb < mblocks; mb++) {
+                    int m0 = mb * QI_MC, mc = M - m0 < QI_MC ? M - m0 : QI_MC;
+                    for (int i = 0; i < mc; i++)
+                        for (int j = 0; j < nr; j++)
+                            Y[(int64_t)(m0 + i) * ldy + n0 + j] += bias[n0 + j];
+                }
+        }"""
+
+if block.count(old) != 1:
+    raise SystemExit(f"ENGINE_PACK_REUSE_PATCH_ANCHOR_INVALID:{block.count(old)}")
+patched = block.replace(old, new, 1)
+text = text[:start] + patched + text[end:]
+path.write_text(text, encoding="utf-8")
+PY
+  then
+    rm -rf "$stage"
+    die "ENGINE_PACK_REUSE_SOURCE_PATCH_FAILED"
+  fi
+
+  make -C "$stage/c" laya >/dev/null || { rm -rf "$stage"; die "ENGINE_PACK_REUSE_BUILD_FAILED"; }
+  [[ -x "$stage/c/laya" ]] || { rm -rf "$stage"; die "ENGINE_PACK_REUSE_BINARY_MISSING"; }
+
+  local patch_sha binary_sha
+  patch_sha="$(
+    {
+      git -C "$SOURCE_ROOT" show HEAD:c/qi_gemm.h
+      cat "$stage/c/qi_gemm.h"
+      printf '%s\n' "$variant"
+    } | sha256sum | awk '{print $1}'
+  )"
+  binary_sha="$(sha256sum "$stage/c/laya" | awk '{print $1}')"
+
+  mv "$stage" "$root"
+
+  "$PYTHON_BIN" - "$meta" "$variant" "$expected_sha" "$patch_sha" "$binary_sha" <<'PY'
+import json, os, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+row = {
+    "schema": "HazewaveReflexDerivedEngineBuild/v1",
+    "variant": sys.argv[2],
+    "upstream_commit": sys.argv[3],
+    "patch_sha256": sys.argv[4],
+    "binary_sha256": sys.argv[5],
+    "changes_model_or_precision": False,
+    "weight_panel_reuse_only": True,
+    "preserves_k_accumulation_order": True,
+    "requires_exact_output_gate": True,
+    "provider_authority": "NONE",
+}
+fd = os.open(p, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as out:
+    json.dump(row, out, sort_keys=True, separators=(",", ":"))
+    out.write("\n")
+PY
+  printf '%s\n' "$binary"
+}
+
 build_phase_profile_engine_variant() {
   local variant="phase_profile_v2"
   local root="$HOME/.local/share/hazewave/providers/colibri/derived/$variant"
@@ -1160,10 +1298,11 @@ latency_engine_tune() {
   echo "REFLEX_ENGINE_TUNE_MODE=STOCK_VS_SCHEDULER_DERIVATIVES"
   echo "REFLEX_ENGINE_TUNE_PATCH_POLICY=F32_GEMM_ONLY_FAIL_CLOSED"
 
-  local attn gemm all
+  local attn gemm all reuse
   attn="$(build_scheduler_engine_variant static_attention_v2)"
   gemm="$(build_scheduler_engine_variant static_gemm_f32_v2)"
   all="$(build_scheduler_engine_variant static_all_f32_v2)"
+  reuse="$(build_pack_reuse_engine_variant)"
 
   stop_engine_case() {
     local owned_pid="$1"
@@ -1230,12 +1369,13 @@ PY
   run_case static_attention_v2 "$attn"
   run_case static_gemm_f32_v2 "$gemm"
   run_case static_all_f32_v2 "$all"
+  run_case reuse_packed_w_v1 "$reuse"
 
   "$PYTHON_BIN" - "$run_dir" <<'PY'
 import hashlib, json, os, sys
 from pathlib import Path
 root = Path(sys.argv[1])
-names = ["stock", "static_attention_v2", "static_gemm_f32_v2", "static_all_f32_v2"]
+names = ["stock", "static_attention_v2", "static_gemm_f32_v2", "static_all_f32_v2", "reuse_packed_w_v1"]
 rows = {n: json.load(open(root / f"{n}.json", encoding="utf-8")) for n in names}
 base = rows["stock"]
 bs = [x for x in base["samples"] if x.get("status") == "PASS"]
