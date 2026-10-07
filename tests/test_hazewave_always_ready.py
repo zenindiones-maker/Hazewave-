@@ -109,3 +109,19 @@ def test_remote_smoke_reconciles_runtime_before_live_inference() -> None:
     inference_pos = smoke.find("hazewave.reflex_shadow_runtime smoke")
     assert reconcile_pos >= 0
     assert inference_pos > reconcile_pos
+
+
+def test_termux_observe_lazy_wakes_existing_codespace() -> None:
+    controller = TERMUX.read_text(encoding="utf-8")
+    observe_case = controller.split("    observe)", 1)[1].split("        ;;", 1)[0]
+    assert "ensure_codespace_available" in observe_case
+    assert "gh codespace create" not in observe_case
+
+
+def test_remote_observe_reconciles_runtime_before_live_inference() -> None:
+    remote = REMOTE.read_text(encoding="utf-8")
+    observe = remote.split("observe() {", 1)[1].split("report() {", 1)[0]
+    reconcile_pos = observe.find("reconcile")
+    inference_pos = observe.find("hazewave.reflex_shadow_runtime observe")
+    assert reconcile_pos >= 0
+    assert inference_pos > reconcile_pos
