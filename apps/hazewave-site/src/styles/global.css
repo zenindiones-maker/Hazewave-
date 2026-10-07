@@ -342,6 +342,15 @@ button{appearance:none}
 .premium-stage[data-performance="reduced"] .artist-world{
   transition-duration:260ms
 }
+.premium-stage[data-visibility="hidden"] .artist-world *,
+.premium-stage[data-visibility="hidden"] .resonance-artifact *,
+.premium-stage[data-visibility="hidden"] .deck-orbit,
+.premium-stage[data-visibility="hidden"] .screen-meter i{
+  animation-play-state:paused!important
+}
+.premium-stage[data-visibility="hidden"] .gpu-atmosphere{
+  opacity:0!important
+}
 
 .scene-copy{
   position:absolute;z-index:20;top:clamp(28px,4vw,62px);left:clamp(24px,4.2vw,72px);
