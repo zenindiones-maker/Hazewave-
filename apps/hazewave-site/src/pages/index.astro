@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import { artists, tracks } from "../data/catalog";
+import { merchItems, siteIdentity, socials } from "../data/site";
 
 const artistById = new Map(artists.map((artist) => [artist.id, artist]));
 ---
@@ -14,6 +15,19 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
     <title>Hazewave — Resonance World</title>
   </head>
   <body>
+    <div class="site-backdrop" aria-hidden="true">
+      <img src={siteIdentity.backgroundAsset} alt="" decoding="async" fetchpriority="high" />
+      <span class="site-backdrop-scrim"></span>
+    </div>
+
+    <div id="site-loader" class="site-loader" data-state="loading" aria-hidden="true">
+      <span class="loader-noise"></span>
+      <span class="loader-reel loader-reel-a"></span>
+      <span class="loader-reel loader-reel-b"></span>
+      <strong>HAZEWAVE</strong>
+      <small>LOADING ARCHIVE / TAPE SIGNAL</small>
+    </div>
+
     <main class="shell">
       <header class="masthead">
         <a class="brand" href="/" aria-label="Hazewave início">
@@ -26,7 +40,23 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
         </div>
       </header>
 
-      <section class="experience" aria-labelledby="experience-title">
+      <section class="archive-hero" aria-labelledby="archive-hero-title">
+        <div class="archive-hero-copy">
+          <p class="eyebrow">SANTOS / 2021— / INDEPENDENT SOUND</p>
+          <h1 id="archive-hero-title" class="sr-only">Hazewave</h1>
+          <p class="archive-tagline">{siteIdentity.tagline}</p>
+          <button id="enter-archive" class="archive-enter" type="button" data-scroll-target="#archive">
+            <span>{siteIdentity.archiveCta}</span>
+            <i aria-hidden="true">↘</i>
+          </button>
+        </div>
+        <div class="archive-hero-index" aria-hidden="true">
+          <span>01</span>
+          <span>ARCHIVE WORLD</span>
+        </div>
+      </section>
+
+      <section id="archive" class="experience" aria-labelledby="experience-title">
         <div class="scene-frame">
           <div id="premium-stage" class="premium-stage" data-playing="false" data-phase="idle">
             <div class="world-glow" aria-hidden="true"></div>
@@ -84,9 +114,9 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
             </div>
 
             <div class="scene-copy">
-              <p class="eyebrow">HAZEWAVE / RESONANCE OBJECTS</p>
-              <h1 id="experience-title">Música em estado físico.</h1>
-              <p class="intro">Escolha um objeto. O Deck faz o resto.</p>
+              <p class="eyebrow">ACERVO / FITAS DE ARTISTA</p>
+              <h2 id="experience-title">Escolha a fita.</h2>
+              <p class="intro">Um toque leva o som da estante até a mesa.</p>
             </div>
 
             <div class="deck-stage" aria-hidden="true">
@@ -182,6 +212,10 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
                       <span class="artifact-signal">
                         <i></i><i></i><i></i>
                       </span>
+                      <span class="cassette-reels">
+                        <i></i><i></i>
+                      </span>
+                      <span class="cassette-window"></span>
                       <span class="artifact-number">0{index + 1}</span>
                       <span class="artifact-face-copy">
                         <strong>{track.title}</strong>
@@ -280,6 +314,88 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
           ))}
         </div>
       </section>
+
+      <section class="dossier-zone" aria-labelledby="dossier-title">
+        <header class="section-heading">
+          <p class="eyebrow">DOSSIER / ARTIST ARCHIVE</p>
+          <h2 id="dossier-title">Som, imagem e contexto no mesmo lugar.</h2>
+        </header>
+
+        <div class="dossier-grid">
+          {artists.map((artist, index) => (
+            <article class="artist-dossier" style={`--dossier-accent:${artist.identity.accent};--dossier-index:${index};`}>
+              <div class="dossier-portrait" aria-hidden="true">
+                <span class="portrait-index">0{index + 1}</span>
+                <strong>{artist.name.replace(" / DEMO", "").slice(0, 1)}</strong>
+                <span>FINAL PHOTO SLOT</span>
+              </div>
+              <div class="dossier-copy">
+                <span class="dossier-kicker">ARTIST / DEMO IDENTITY</span>
+                <h3>{artist.name.replace(" / DEMO", "")}</h3>
+                <p>{artist.releaseTitle}</p>
+                <div class="dossier-tracks">
+                  {artist.tracks.map((track) => (
+                    <button type="button" data-archive-track-id={track.id} aria-label={`Tocar ${track.title} no player`}>
+                      <span>{track.title}</span>
+                      <small>{track.visual.bpm} BPM</small>
+                      <i aria-hidden="true"></i>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div class="dossier-video" aria-label="Espaço reservado para clipe autorizado">
+                <span>AUTHORIZED VIDEO SLOT</span>
+                <strong>CLIP / VISUAL</strong>
+                <small>data-driven embed ready</small>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section class="merch-zone" aria-labelledby="merch-title">
+        <header class="section-heading merch-heading">
+          <p class="eyebrow">BANCA / OBJECTS</p>
+          <h2 id="merch-title">Merch como objeto, não como catálogo genérico.</h2>
+        </header>
+
+        <div class="merch-stand">
+          {merchItems.map((item, index) => (
+            <article class="merch-object" data-merch-id={item.id} style={`--merch-accent:${item.accent};--merch-index:${index};`}>
+              <div class:list={["merch-model", `merch-model-${item.category.toLowerCase()}`]} aria-hidden="true">
+                <span class="merch-model-core"></span>
+                <span class="merch-model-mark">HZ</span>
+              </div>
+              <div class="merch-copy">
+                <span>{item.category} / {item.status}</span>
+                <h3>{item.name}</h3>
+                <button
+                  type="button"
+                  class="merch-contact"
+                  data-merch-message={item.message}
+                  data-merch-href={siteIdentity.merchContactHref}
+                >
+                  COMPRAR VIA DM
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+        <p class="merch-note">O botão copia a mensagem pronta e abre o Direct. O @ oficial da Hazewave entra por dado, sem reescrever o layout.</p>
+      </section>
+
+      <footer class="social-footer">
+        <div class="social-footer-title">
+          <span>HAZEWAVE / NETWORK</span>
+          <strong>Santos ↗ mundo</strong>
+        </div>
+        <nav aria-label="Redes sociais">
+          {socials.map((social) => (
+            <a href={social.href} target="_blank" rel="noreferrer" aria-label={social.label}>{social.handle}</a>
+          ))}
+        </nav>
+        <span class="social-footer-meta">NO ICONS / DIRECT SIGNAL</span>
+      </footer>
 
       <noscript>
         <p class="fallback-note">JavaScript está desativado. O catálogo continua acessível, mas a experiência interativa precisa de JavaScript.</p>
