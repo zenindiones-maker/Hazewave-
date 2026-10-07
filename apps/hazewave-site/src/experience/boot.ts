@@ -47,15 +47,34 @@ export function bootHazewaveSite(): void {
   let experience: StageController | null = null;
   let selectionToken = 0;
 
-  const commitUiState = (update: () => void) => {
+  const commitUiState = (update: () => void, transitionType?: string) => {
     const transitionDocument = document as Document & {
-      startViewTransition?: (callback: () => void) => { finished: Promise<void> };
+      startViewTransition?: (
+        input:
+          | (() => void)
+          | { update: () => void; types?: string[] }
+      ) => { finished: Promise<void> };
     };
-    if (!quality.reducedMotion && transitionDocument.startViewTransition) {
-      transitionDocument.startViewTransition(update);
-    } else {
+
+    if (quality.reducedMotion || !transitionDocument.startViewTransition) {
       update();
+      return;
     }
+
+    if (transitionType) {
+      try {
+        transitionDocument.startViewTransition({
+          update,
+          types: [transitionType]
+        });
+        return;
+      } catch {
+        // Older implementations may expose startViewTransition() without
+        // supporting the 2026 typed options object yet.
+      }
+    }
+
+    transitionDocument.startViewTransition(update);
   };
 
   const showPhase = (phase: PlayerPhase) => {
@@ -121,7 +140,7 @@ export function bootHazewaveSite(): void {
         if (worldArtistName) worldArtistName.textContent = artist.name.replace(" / DEMO", "").toUpperCase();
         if (worldRelease) worldRelease.textContent = artist.releaseTitle.toUpperCase();
         if (worldTrack) worldTrack.textContent = track.title.toUpperCase();
-      });
+      }, `artist-${artist.id}`);
 
       await audio.prepare(track);
 
