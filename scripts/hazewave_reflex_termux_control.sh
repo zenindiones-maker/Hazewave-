@@ -209,15 +209,25 @@ ensure_codespace_available() {
     current_state="$(gh codespace view -c "$CS" --json state --jq '.state')" \
       || fail "CODESPACE_VIEW_FAILED"
 
-    if [[ "$current_state" != "Available" ]]; then
-        echo "REFLEX_CODESPACE_WAKE_REASON=$current_state"
-        gh api \
-          --method POST \
-          -H "Accept: application/vnd.github+json" \
-          -H "X-GitHub-Api-Version: 2026-03-10" \
-          "/user/codespaces/$CS/start" >/dev/null \
-          || fail "CODESPACE_START_FAILED"
-    fi
+    case "$current_state" in
+        Available)
+            ;;
+        Shutdown)
+            echo "REFLEX_CODESPACE_WAKE_REASON=$current_state"
+            gh api \
+              --method POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2026-03-10" \
+              "/user/codespaces/$CS/start" >/dev/null \
+              || fail "CODESPACE_START_FAILED"
+            ;;
+        Starting|Provisioning|Rebuilding)
+            echo "REFLEX_CODESPACE_WAKE_REASON=WAIT_TRANSITION:$current_state"
+            ;;
+        *)
+            fail "CODESPACE_STATE_NOT_STARTABLE:$current_state"
+            ;;
+    esac
 
     for _ in $(seq 1 60); do
         current_state="$(gh codespace view -c "$CS" --json state --jq '.state')" \
