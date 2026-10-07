@@ -16,17 +16,19 @@ License/cost: Astro upstream is MIT and locally buildable. No paid hosted servic
 
 Decision: ADOPT.
 
-## ADOPT — Three.js r186 / npm 0.186.0
+## ADOPT — Three.js r186 / npm 0.186.0 as a tiered visual capability, not core interaction authority
 
-Problem: production 3D scene graph, camera, materials, raycasting and WebGL rendering.
+Problem: advanced 3D scene graph, materials, shaders, GLB assets, camera work and future WebGPU/TSL layers.
 
-Why native WebGL is insufficient: direct WebGL would require rebuilding scene graph, geometry/material abstractions, loaders, color management and raycasting without a product-quality advantage.
+Evidence update: the first A15 proof showed the initial WebGL LOW scene running only around 23–55 FPS with poor frame pacing while still looking materially below the target art direction. Replacing the core mobile interaction with semantic DOM + CSS + GSAP reduced the shipped JS from roughly 680 kB to about 91 kB and produced a substantially stronger visual composition.
+
+Decision: ADOPT Three.js for bounded HIGH/ULTRA visual layers, GLB/product assets and later measured WebGPU/TSL work. DO NOT require it for the core music-object interaction on LOW/MEDIUM.
+
+Core selection/insertion/playback choreography is now renderer-independent and lives in the DOM/GSAP layer. This preserves clarity, accessibility and performance while allowing Three.js to enhance—not own—the experience.
 
 License/cost: MIT. Client-side runtime. No SaaS requirement.
 
-Decision: ADOPT.
-
-Renderer note: the first slice deliberately uses `WebGLRenderer` behind a local `RendererAdapter`. Upstream's `WebGPURenderer` can automatically use WebGPU with a WebGL2 backend fallback, but upstream still describes it as experimental. WebGPU is therefore a later measured migration, not a launch dependency.
+Renderer note: `WebGPURenderer` remains a measured enhancement behind an adapter. WebGPU must never be required for correctness.
 
 ## ADOPT — GSAP 3.15.0 primary authored choreography
 
