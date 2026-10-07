@@ -37,7 +37,8 @@ from hazewave.reflex import (
 )
 
 EXPECTED_CODESPACE = "redesigned-space-bassoon-gxp67g5g7r739w59"
-EXPECTED_HEAD = "1fe4f275aadd1d6e720a0ad25a4b880ab9e614cc"
+BASE_REFLEX_HEAD = "1fe4f275aadd1d6e720a0ad25a4b880ab9e614cc"
+CANDIDATE_REF = "refs/remotes/origin/work/reflex-shadow-runtime-v1"
 DEFAULT_SOURCE = Path.home() / ".local/share/hazewave/providers/colibri/source"
 DEFAULT_MODEL = Path.home() / ".local/share/hazewave/models/colibri/laya"
 DEFAULT_STATE = Path.home() / ".local/state/hazewave/reflex"
@@ -97,6 +98,22 @@ def verify_runtime_material(
     snapshot = hardware if hardware is not None else detect_colibri_hardware(model_root)
     plan = plan_colibri_model(model_id="laya", hardware=snapshot, policy=policy)
     root_head = _git_head(repository_root)
+    try:
+        remote_head = subprocess.run(
+            ["git", "-C", str(repository_root), "rev-parse", CANDIDATE_REF],
+            capture_output=True, text=True, timeout=8, check=True,
+        ).stdout.strip()
+        ancestry_ok = subprocess.run(
+            ["git", "-C", str(repository_root), "merge-base",
+             "--is-ancestor", BASE_REFLEX_HEAD, root_head or ""],
+            capture_output=True, timeout=8,
+        ).returncode == 0
+        worktree_clean = not subprocess.run(
+            ["git", "-C", str(repository_root), "status", "--porcelain"],
+            capture_output=True, text=True, timeout=8, check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        remote_head, ancestry_ok, worktree_clean = None, False, False
     source_head = _git_head(source_root)
     weights = model_root / "model.safetensors"
     layout = (
@@ -115,7 +132,7 @@ def verify_runtime_material(
     model_verified = layout and weight_sha == model["primary_weight_sha256"]
     engine_verified = source_head == upstream["source_commit"] and (source_root / "c/laya").is_file()
     codespace_verified = codespace == EXPECTED_CODESPACE
-    workspace_verified = root_head is not None and root_head == EXPECTED_HEAD
+    workspace_verified = bool(root_head and root_head == remote_head and ancestry_ok and worktree_clean)
     # Snapshot admission is not a claim that real inference, a restart test or
     # Codespaces billing/quota were verified.
     available_ok = (
@@ -132,7 +149,10 @@ def verify_runtime_material(
         "status": "READY_FOR_LIVE_PROBE" if allowed else "BLOCKED",
         "codespace_expected": EXPECTED_CODESPACE,
         "codespace_match": codespace_verified,
-        "worktree_head_expected": EXPECTED_HEAD,
+        "worktree_head": root_head,
+        "worktree_remote_head": remote_head,
+        "base_reflex_ancestry": ancestry_ok,
+        "worktree_clean": worktree_clean,
         "worktree_head_match": workspace_verified,
         "upstream_commit_match": source_head == upstream["source_commit"],
         "laya_engine_built": (source_root / "c/laya").is_file(),
@@ -231,7 +251,7 @@ def _live_proof(
         "schema": "HazewaveReflexLiveSmokeReceipt/v1",
         "status": "LIVE_INFERENCE_PASS",
         "runtime_identity": "codespace:" + EXPECTED_CODESPACE,
-        "worktree_head": EXPECTED_HEAD,
+        "worktree_head": audit["worktree_head"],
         "observed_at": datetime.now(timezone.utc).isoformat(),
         "model_id": result.model_id,
         "model_sha256_verified": True,
