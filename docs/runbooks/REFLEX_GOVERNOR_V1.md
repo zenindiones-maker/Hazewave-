@@ -86,7 +86,7 @@ Recommended runtime path:
 
     ~/.local/state/hazewave/reflex/outcomes-v1.jsonl
 
-The ledger contains no raw state. It stores request digest plus labels/probabilities/evidence identity.
+The ledger contains no raw state. It stores request digest plus labels/probabilities/evidence identity. Every label also requires a 64-hex evidence digest that points to the human, deterministic or runtime-QC evidence used as ground truth.
 
 Permitted label sources:
 
@@ -101,8 +101,8 @@ Do not label a result from another model as HUMAN or deterministic truth.
 Use evaluate_reflex_outcomes() over the durable ledger and track:
 
 - accuracy;
-- coverage;
-- selective risk;
+- shadow coverage (threshold-eligible fraction);
+- selective risk if those threshold-eligible samples were activated;
 - ECE;
 - multiclass Brier;
 - p50 latency;
