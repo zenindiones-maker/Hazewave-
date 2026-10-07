@@ -430,3 +430,25 @@ test("production content stays fail-closed until owner-authorized assets arrive"
     "@indionesbala"
   ]);
 });
+
+
+test("wheel LIST mode exposes the loaded artist tracklist", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#archive").scrollIntoViewIfNeeded();
+  await page.locator("[data-track-id='aether-01']").click();
+  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 7_000 });
+
+  await page.locator("[data-wheel-action='archive']").click();
+  await expect(page.locator("#player-wheel")).toHaveAttribute("data-mode", "tracks");
+  await expect(page.locator("#deck-screen")).toHaveAttribute("data-view", "list");
+  await expect(page.locator("#deck-tracklist button")).toHaveCount(2);
+  await expect(page.locator("#deck-tracklist [data-deck-track-id='aether-01']")).toHaveAttribute("data-active", "true");
+
+  await page.locator("[data-wheel-action='next']").click();
+  await expect(page.locator("#player-title")).toHaveText("Soft Voltage", { timeout: 7_000 });
+  await expect(page.locator("#deck-tracklist [data-deck-track-id='aether-02']")).toHaveAttribute("data-active", "true");
+
+  await page.locator("[data-wheel-action='archive']").click();
+  await expect(page.locator("#player-wheel")).toHaveAttribute("data-mode", "volume");
+  await expect(page.locator("#deck-screen")).toHaveAttribute("data-view", "now");
+});
