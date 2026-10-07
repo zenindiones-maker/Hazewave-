@@ -104,3 +104,26 @@ test("seek transport is wired to audio state", async ({ page }) => {
   expect(value).toBeGreaterThan(4.8);
   await expect(page.locator("#player-time-total")).toHaveText("0:24");
 });
+
+
+test("cinematic object remains visible during mobile travel", async ({ page }, testInfo) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /Tocar Pale Current/ }).click();
+
+  await expect(page.locator("#state-label")).toHaveText("TRAVEL", { timeout: 2_000 });
+  const clone = page.locator(".cinematic-artifact-clone");
+  await expect(clone).toHaveCount(1);
+  await expect(clone).toBeVisible();
+
+  const box = await clone.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.width).toBeGreaterThan(40);
+  expect(box!.height).toBeGreaterThan(40);
+  expect(box!.x + box!.width).toBeGreaterThan(0);
+  expect(box!.x).toBeLessThan(await page.evaluate(() => window.innerWidth));
+  expect(box!.y + box!.height).toBeGreaterThan(0);
+  expect(box!.y).toBeLessThan(await page.evaluate(() => window.innerHeight));
+
+  await page.screenshot({ path: testInfo.outputPath("travel-visible.png"), fullPage: false });
+  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
+});
