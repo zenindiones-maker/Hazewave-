@@ -74,3 +74,13 @@ def test_reflex_termux_forwards_latency_scale_probe_to_remote_controller() -> No
     assert "latency-scale-probe" in text
     remote_case = text.split('case "$action" in', 1)[1].split('esac', 1)[0]
     assert "latency-scale-probe" in remote_case
+
+
+def test_reflex_engine_tuner_uses_semantic_stability_not_production_latency_eligibility() -> None:
+    text = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
+    start = text.index("latency_engine_tune() {")
+    end = text.index("latency_scale_probe() {", start)
+    block = text[start:end]
+
+    assert 'row.get("all_semantically_stable") is not True' in block
+    assert 'row.get("all_robust_eligible") is not True' not in block
