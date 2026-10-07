@@ -39,6 +39,10 @@ SCHEMA_INSTANCE_PAIRS = (
         "schemas/reflex-robustness-v1.schema.json",
         "config/reflex-robustness-v1.json",
     ),
+    (
+        "schemas/reflex-latency-v1.schema.json",
+        "config/reflex-latency-v1.json",
+    ),
 )
 
 ALLOWED_DOCUMENT_TYPES = {
