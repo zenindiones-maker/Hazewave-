@@ -814,7 +814,7 @@ write_service_metadata() {
   stamp="$(date -u +%Y%m%dT%H%M%SZ)"
   mkdir -p "$SERVICE_ROOT" "$SERVICE_RECEIPT_ROOT"
   chmod 700 "$SERVICE_ROOT" "$SERVICE_RECEIPT_ROOT"
-  receipt="$SERVICE_RECEIPT_ROOT/${stamp}-${head:0:12}.json"
+  receipt="$SERVICE_RECEIPT_ROOT/${stamp}-${pid}-${head:0:12}.json"
 
   "$PYTHON_BIN" - "$SERVICE_META_FILE" "$receipt" "$action" "$pid" "$profile" "$head" "$source_sha" "$model_sha" "$PORT" <<'PY'
 import json, os, sys
@@ -879,6 +879,17 @@ runtime_status() {
   return 18
 }
 
+
+tracked_runtime_pid_matches() {
+  local pid="$1"
+  [[ "$pid" =~ ^[0-9]+$ && -r "/proc/$pid/cmdline" ]] || return 1
+  local cmdline
+  cmdline="$(tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null || true)"
+  [[ "$cmdline" == *"$SOURCE_ROOT/c/coli"* ]] || return 1
+  [[ "$cmdline" == *" serve "* || "$cmdline" == *" serve" ]] || return 1
+  [[ "$cmdline" == *"--port $PORT"* ]] || return 1
+}
+
 reconcile() {
   ensure_checkout
   command -v flock >/dev/null || die "FLOCK_MISSING"
@@ -895,7 +906,7 @@ reconcile() {
   model_material_ready || die "MODEL_MATERIAL_NOT_PREPARED"
   [[ -x "$SOURCE_ROOT/c/coli" && -x "$SOURCE_ROOT/c/laya" ]] || die "COLIBRI_RUNTIME_NOT_PREPARED"
 
-  local profile current_head meta_head pid
+  local profile current_head meta_head meta_profile pid
   profile="$("$PYTHON_BIN" -m hazewave.reflex_latency selected --state-root "$STATE_ROOT")" \
     || die "REFLEX_SELECTED_PROFILE_INVALID"
   current_head="$(git -C "$WORKTREE" rev-parse HEAD)"
@@ -906,13 +917,15 @@ reconcile() {
     fi
 
     meta_head=""
+    meta_profile=""
     pid=""
     if [[ -f "$SERVICE_META_FILE" ]]; then
       meta_head="$("$PYTHON_BIN" -c 'import json,sys; print(json.load(open(sys.argv[1],encoding="utf-8")).get("worktree_head",""))' "$SERVICE_META_FILE" 2>/dev/null || true)"
+      meta_profile="$("$PYTHON_BIN" -c 'import json,sys; print(json.load(open(sys.argv[1],encoding="utf-8")).get("profile",""))' "$SERVICE_META_FILE" 2>/dev/null || true)"
       pid="$("$PYTHON_BIN" -c 'import json,sys; print(json.load(open(sys.argv[1],encoding="utf-8")).get("pid",""))' "$SERVICE_META_FILE" 2>/dev/null || true)"
     fi
 
-    if [[ "$meta_head" == "$current_head" && "$pid" =~ ^[0-9]+$ && -d "/proc/$pid" ]]; then
+    if [[ "$meta_head" == "$current_head" && "$meta_profile" == "$profile" ]] && tracked_runtime_pid_matches "$pid"; then
       echo "REFLEX_RECONCILE_ACTION=REUSE_HEALTHY"
       echo "REFLEX_RUNTIME_PID=$pid"
       echo "REFLEX_RUNTIME_PROFILE=$profile"
@@ -928,7 +941,7 @@ reconcile() {
       sleep 0.25
     done
     port_is_free || die "REFLEX_STALE_RUNTIME_DID_NOT_RELEASE_PORT"
-    echo "REFLEX_RECONCILE_ACTION=RESTART_FOR_HEAD_DRIFT"
+    echo "REFLEX_RECONCILE_ACTION=RESTART_FOR_TRACKED_DRIFT"
   else
     echo "REFLEX_RECONCILE_ACTION=START_MISSING"
   fi
@@ -954,10 +967,13 @@ reconcile() {
   if ! wait_health 180; then
     restart_budget_record_failure
     tail -n 80 "$SERVICE_LOG_FILE" >&2 || true
-    if kill -0 "$pid" 2>/dev/null; then
-      "$SOURCE_ROOT/c/coli" stop --port "$PORT" >/dev/null 2>&1 || true
-    fi
+    "$SOURCE_ROOT/c/coli" stop --port "$PORT" >/dev/null 2>&1 || true
+    for _ in $(seq 1 40); do
+      port_is_free && break
+      sleep 0.25
+    done
     echo "REFLEX_RUNTIME=DEGRADED"
+    port_is_free || die "REFLEX_FAILED_START_PORT_STILL_BOUND"
     die "REFLEX_BACKGROUND_START_FAILED"
   fi
 
