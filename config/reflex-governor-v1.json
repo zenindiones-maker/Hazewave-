@@ -1,0 +1,89 @@
+{
+  "schema": "HazewaveReflexGovernorPolicy/v1",
+  "project_id": "HAZEWAVE",
+  "authority": "HAZEWAVE_HARNESS",
+  "provider_authority": "NONE",
+  "role": "LOCAL_REFLEX_GOVERNOR",
+  "mode": "SELECTIVE_CASCADE",
+  "source_provider": "colibri",
+  "source_model": "laya",
+  "safety": {
+    "deterministic_rules_first": true,
+    "raw_system_one_confidence_is_correctness_probability": false,
+    "raw_system_one_confidence_automation_authority": "NONE",
+    "credentials_forbidden": true,
+    "raw_private_media_forbidden": true,
+    "auto_threshold_mutation": false,
+    "auto_model_promotion": false,
+    "security_self_approval": false,
+    "publication_self_approval": false
+  },
+  "request_limits": {
+    "max_questions_per_request": 4,
+    "max_choice_labels": 8,
+    "max_state_bytes": 32768,
+    "max_question_bytes": 16384,
+    "max_response_bytes": 1048576
+  },
+  "profiles": {
+    "decision.route": {
+      "question_type": "choice",
+      "acceptance_mode": "SELECTIVE",
+      "min_peak_probability": 0.8,
+      "min_top2_margin": 0.3,
+      "max_normalized_entropy": 0.6,
+      "max_latency_ms": 3000,
+      "reject_action": "ESCALATE_9ROUTER_REASON_DEEP"
+    },
+    "decision.gate": {
+      "question_type": "choice",
+      "acceptance_mode": "SHADOW_ONLY",
+      "min_peak_probability": 0.93,
+      "min_top2_margin": 0.6,
+      "max_normalized_entropy": 0.35,
+      "max_latency_ms": 3000,
+      "reject_action": "REQUIRE_HUMAN_OR_DETERMINISTIC_RULE"
+    },
+    "decision.score": {
+      "question_type": "score",
+      "acceptance_mode": "SHADOW_ONLY",
+      "min_peak_probability": 0.9,
+      "min_top2_margin": 0.5,
+      "max_normalized_entropy": 0.4,
+      "max_latency_ms": 3000,
+      "reject_action": "ESCALATE_9ROUTER_REASON_DEEP"
+    }
+  },
+  "cascade": [
+    "DETERMINISTIC_RULE",
+    "COLIBRI_LAYA_SELECTIVE",
+    "9ROUTER_ZERO_COST_REASONING",
+    "HUMAN_REVIEW"
+  ],
+  "learning": {
+    "outcome_ledger_schema": "HazewaveReflexOutcome/v1",
+    "raw_state_persistence": false,
+    "persist_request_digest_only": true,
+    "append_only": true,
+    "minimum_labeled_samples_for_recalibration": 500,
+    "minimum_labeled_samples_per_decision_key": 50,
+    "holdout_fraction": 0.2,
+    "required_metrics": [
+      "accuracy",
+      "coverage",
+      "selective_risk",
+      "ece",
+      "multiclass_brier",
+      "latency_p50_ms",
+      "latency_p95_ms"
+    ],
+    "promotion_requires_human_review": true,
+    "promotion_requires_runtime_proof": true
+  },
+  "specialization": {
+    "hazewave_specialist_model_status": "NOT_TRAINED",
+    "training_data_source": "LABELED_REFLEX_OUTCOMES_ONLY",
+    "zero_shot_base_is_production_specialist": false,
+    "target": "HAZEWAVE_DOMAIN_SPECIFIC_LAYA_CHECKPOINT"
+  }
+}
