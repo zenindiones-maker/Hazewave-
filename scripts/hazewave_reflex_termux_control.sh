@@ -342,7 +342,7 @@ case "$action" in
             echo "usage: hazewave-reflex observe /caminho/event.json" >&2
             exit 2
         }
-        ensure_codespace
+        ensure_codespace_available
         attest_codespace_control_plane
         copy_controller
         remote_event="/tmp/hazewave-reflex-event-${BASHPID}.json"
