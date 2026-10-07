@@ -6,7 +6,8 @@ import {
 
 interface ResolvedChapter {
   chapter: StoryChapter;
-  anchor: number;
+  top: number;
+  bottom: number;
 }
 
 export interface StoryRuntimeState {
@@ -133,14 +134,12 @@ export class ScrollConductor {
         const element = document.querySelector<HTMLElement>(chapter.selector);
         if (!element) return null;
         const rect = element.getBoundingClientRect();
-        const anchor =
-          scrollY +
-          rect.top +
-          Math.min(rect.height * 0.44, window.innerHeight * 0.54);
-        return { chapter, anchor };
+        const top = scrollY + rect.top;
+        const bottom = top + Math.max(1, rect.height);
+        return { chapter, top, bottom };
       })
       .filter((value): value is ResolvedChapter => value !== null)
-      .sort((a, b) => a.anchor - b.anchor);
+      .sort((a, b) => a.top - b.top);
 
     this.updateTarget();
   };
@@ -173,47 +172,40 @@ export class ScrollConductor {
 
     this.globalProgress = clamp01(window.scrollY / this.maxScroll);
 
-    const storyPosition = window.scrollY + window.innerHeight * 0.52;
-    let left = this.chapters[0]!;
-    let right = this.chapters[this.chapters.length - 1]!;
+    const storyPosition = window.scrollY + window.innerHeight * 0.5;
 
-    for (let index = 0; index < this.chapters.length - 1; index += 1) {
-      const current = this.chapters[index]!;
-      const next = this.chapters[index + 1]!;
-      if (storyPosition >= current.anchor && storyPosition <= next.anchor) {
-        left = current;
-        right = next;
-        break;
-      }
-      if (storyPosition < this.chapters[0]!.anchor) {
-        left = right = this.chapters[0]!;
-        break;
-      }
-      if (storyPosition > this.chapters[this.chapters.length - 1]!.anchor) {
-        left = right = this.chapters[this.chapters.length - 1]!;
-        break;
+    let activeIndex = 0;
+    if (storyPosition <= this.chapters[0]!.top) {
+      activeIndex = 0;
+    } else {
+      for (let index = 0; index < this.chapters.length; index += 1) {
+        const current = this.chapters[index]!;
+        if (storyPosition >= current.top) activeIndex = index;
+        if (storyPosition >= current.top && storyPosition < current.bottom) break;
       }
     }
 
-    const span = Math.max(1, right.anchor - left.anchor);
-    const local =
-      left === right
+    const active = this.chapters[activeIndex]!;
+    const next = this.chapters[Math.min(activeIndex + 1, this.chapters.length - 1)]!;
+    const span = Math.max(1, active.bottom - active.top);
+    const local = clamp01((storyPosition - active.top) / span);
+
+    // Keep chapter authority exact and reversible. Visual interpolation begins
+    // only near the end of the current chapter, so a scroll position inside a
+    // semantic section never gets mislabeled as the following chapter.
+    const transition =
+      active === next
         ? 0
-        : clamp01((storyPosition - left.anchor) / span);
+        : clamp01((local - 0.58) / 0.42);
 
     this.chapterProgress = local;
-    this.target = mixWorld(left.chapter.world, right.chapter.world, local);
+    this.target = mixWorld(active.chapter.world, next.chapter.world, transition);
 
-    const nextActive = local < 0.5 ? left.chapter : right.chapter;
-    if (nextActive.id !== this.activeId) {
-      this.activeId = nextActive.id;
-      this.root.dataset.storyChapter = nextActive.id;
-      this.root.dataset.storyLabel = nextActive.label;
-    }
-    if (nextActive.narrativeBeat !== this.activeBeat) {
-      this.activeBeat = nextActive.narrativeBeat;
-      this.root.dataset.storyBeat = nextActive.narrativeBeat;
-    }
+    this.activeId = active.chapter.id;
+    this.activeBeat = active.chapter.narrativeBeat;
+    this.root.dataset.storyChapter = active.chapter.id;
+    this.root.dataset.storyLabel = active.chapter.label;
+    this.root.dataset.storyBeat = active.chapter.narrativeBeat;
 
     this.root.style.setProperty(
       "--story-global-progress",
