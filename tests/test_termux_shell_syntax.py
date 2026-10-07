@@ -137,7 +137,7 @@ def test_reflex_termux_supports_persistent_ref_pin_without_weakening_env_overrid
 def test_reflex_laya_phase_profiler_breaks_encoder_hotspots_into_lossless_subphases() -> None:
     remote = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
 
-    assert 'local variant="phase_profile_v2"' in remote
+    assert 'local variant="phase_profile_v3"' in remote
     assert "REFLEX_LAYA_SUBPHASES" in remote
     for field in (
         "encoder_qkv_gemm_ms",
