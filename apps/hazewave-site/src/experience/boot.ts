@@ -284,6 +284,7 @@ export function bootHazewaveSite(): void {
         renderPixelRatio: quality.pixelRatio,
         fps: stageHost.dataset.fps ?? "warming",
         frameP95Ms: stageHost.dataset.frameP95Ms ?? "warming",
+        performanceMode: stageHost.dataset.performance ?? "standard",
         audioState: audio.state,
         appState: machine.phase,
         hardwareConcurrency: navigator.hardwareConcurrency,
