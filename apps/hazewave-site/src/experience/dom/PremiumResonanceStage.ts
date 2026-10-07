@@ -101,7 +101,12 @@ export class PremiumResonanceStage {
         return;
       }
 
-      await this.animateSelection(source, track.title, artist.name.replace(" / DEMO", ""));
+      await this.animateSelection(
+        source,
+        track.title,
+        artist.name.replace(" / DEMO", ""),
+        artist.identity.world.motionSignature
+      );
     } finally {
       this.busy = false;
     }
@@ -230,7 +235,12 @@ export class PremiumResonanceStage {
     );
   }
 
-  private async animateSelection(source: HTMLButtonElement, title: string, artist: string): Promise<void> {
+  private async animateSelection(
+    source: HTMLButtonElement,
+    title: string,
+    artist: string,
+    motionSignature: "FLOAT" | "MASS" | "GROW"
+  ): Promise<void> {
     const sourceRect = source.getBoundingClientRect();
     const slotRect = this.slot.getBoundingClientRect();
     const sourceCenter = center(sourceRect);
@@ -294,23 +304,64 @@ export class PremiumResonanceStage {
 
     const lift = Math.min(128, Math.max(72, window.innerHeight * 0.12));
 
+    const travelProfile =
+      motionSignature === "MASS"
+        ? {
+            path: [
+              { x: dx * 0.22, y: dy * 0.18 - lift * 0.24 },
+              { x: dx * 0.58, y: dy * 0.5 - lift * 0.32 },
+              { x: dx * 0.84, y: dy * 0.78 - lift * 0.12 },
+              { x: dx * 0.95, y: dy * 0.92 - 8 }
+            ],
+            curviness: 0.72,
+            scale: 0.94,
+            rotateZ: direction * 1.1,
+            rotateY: direction * 2.2,
+            duration: 0.72,
+            ease: "power4.inOut"
+          }
+        : motionSignature === "GROW"
+          ? {
+              path: [
+                { x: dx * 0.12 + direction * 18, y: dy * 0.06 - lift * 0.5 },
+                { x: dx * 0.4 - direction * 24, y: dy * 0.3 - lift * 0.9 },
+                { x: dx * 0.72 + direction * 16, y: dy * 0.64 - lift * 0.44 },
+                { x: dx * 0.94, y: dy * 0.91 - 12 }
+              ],
+              curviness: 1.8,
+              scale: 0.92,
+              rotateZ: direction * 4.2,
+              rotateY: direction * 5.2,
+              duration: 0.88,
+              ease: "power3.inOut"
+            }
+          : {
+              path: [
+                { x: dx * 0.18, y: dy * 0.08 - lift * 0.72 },
+                { x: dx * 0.48, y: dy * 0.34 - lift },
+                { x: dx * 0.78, y: dy * 0.7 - lift * 0.38 },
+                { x: dx * 0.94, y: dy * 0.91 - 12 }
+              ],
+              curviness: 1.55,
+              scale: 0.88,
+              rotateZ: direction * 2.4,
+              rotateY: direction * 4,
+              duration: 0.82,
+              ease: "power3.inOut"
+            };
+
     await this.timeline((tl) => {
       tl.to(clone, {
         motionPath: {
-          path: [
-            { x: dx * 0.18, y: dy * 0.08 - lift * 0.72 },
-            { x: dx * 0.48, y: dy * 0.34 - lift },
-            { x: dx * 0.78, y: dy * 0.7 - lift * 0.38 },
-            { x: dx * 0.94, y: dy * 0.91 - 12 }
-          ],
-          curviness: 1.55,
+          path: travelProfile.path,
+          curviness: travelProfile.curviness,
           autoRotate: false
         },
-        scale: 0.88,
-        rotateZ: direction * 2.4,
-        rotateY: direction * 4,
-        duration: 0.82,
-        ease: "power3.inOut"
+        scale: travelProfile.scale,
+        rotateZ: travelProfile.rotateZ,
+        rotateY: travelProfile.rotateY,
+        duration: travelProfile.duration,
+        ease: travelProfile.ease
       }, 0);
       tl.fromTo(
         clone,
