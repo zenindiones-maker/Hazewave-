@@ -313,14 +313,16 @@ export class PremiumResonanceStage {
     this.deck.dataset.state = "travel";
 
     const lift = Math.min(128, Math.max(72, window.innerHeight * 0.12));
+    const compactTravel = window.innerWidth <= 680;
+    const cinematicLift = lift * (compactTravel ? 0.52 : 1);
 
     const travelProfile =
       motionSignature === "MASS"
         ? {
             path: [
-              { x: dx * 0.22, y: dy * 0.18 - lift * 0.24 },
-              { x: dx * 0.58, y: dy * 0.5 - lift * 0.32 },
-              { x: dx * 0.84, y: dy * 0.78 - lift * 0.12 },
+              { x: dx * 0.22, y: dy * 0.18 - cinematicLift * 0.24 },
+              { x: dx * 0.58, y: dy * 0.5 - cinematicLift * 0.32 },
+              { x: dx * 0.84, y: dy * 0.78 - cinematicLift * 0.12 },
               { x: dx * 0.95, y: dy * 0.92 - 8 }
             ],
             curviness: 0.72,
@@ -333,9 +335,9 @@ export class PremiumResonanceStage {
         : motionSignature === "GROW"
           ? {
               path: [
-                { x: dx * 0.12 + direction * 18, y: dy * 0.06 - lift * 0.5 },
-                { x: dx * 0.4 - direction * 24, y: dy * 0.3 - lift * 0.9 },
-                { x: dx * 0.72 + direction * 16, y: dy * 0.64 - lift * 0.44 },
+                { x: dx * 0.12 + direction * 18, y: dy * 0.06 - cinematicLift * 0.5 },
+                { x: dx * 0.4 - direction * 24, y: dy * 0.3 - cinematicLift * 0.9 },
+                { x: dx * 0.72 + direction * 16, y: dy * 0.64 - cinematicLift * 0.44 },
                 { x: dx * 0.94, y: dy * 0.91 - 12 }
               ],
               curviness: 1.8,
@@ -347,17 +349,17 @@ export class PremiumResonanceStage {
             }
           : {
               path: [
-                { x: dx * 0.18, y: dy * 0.08 - lift * 0.72 },
+                { x: dx * 0.18, y: dy * 0.08 - cinematicLift * 0.72 },
                 { x: dx * 0.48, y: dy * 0.34 - lift },
-                { x: dx * 0.78, y: dy * 0.7 - lift * 0.38 },
+                { x: dx * 0.78, y: dy * 0.7 - cinematicLift * 0.38 },
                 { x: dx * 0.94, y: dy * 0.91 - 12 }
               ],
-              curviness: 1.55,
+              curviness: compactTravel ? 1.18 : 1.55,
               scale: 0.88,
               rotateZ: direction * 2.4,
               rotateY: direction * 4,
-              duration: 0.82,
-              ease: "power2.out"
+              duration: compactTravel ? 0.78 : 0.82,
+              ease: compactTravel ? "power2.inOut" : "power2.out"
             };
 
     await this.timeline((tl) => {
