@@ -410,6 +410,21 @@ h1{
   content:"";position:absolute;inset:13px;border-radius:106px 106px 36px 36px;
   border:1px solid rgba(255,255,255,.07)
 }
+.deck-arch{
+  --deck-fin-span:254px;
+}
+.deck-arch::after{
+  content:"";position:absolute;left:-18px;top:96px;width:14px;height:128px;
+  border-radius:8px 3px 3px 8px;
+  background:
+    linear-gradient(90deg,rgba(255,255,255,.18),rgba(255,255,255,.025)),
+    color-mix(in srgb,var(--world-secondary),#090c0b 70%);
+  border:1px solid rgba(255,255,255,.1);
+  box-shadow:
+    var(--deck-fin-span) 0 0 color-mix(in srgb,var(--world-secondary),#090c0b 70%),
+    0 16px 32px rgba(0,0,0,.26);
+  opacity:.9
+}
 .deck-arch-line{
   position:absolute;left:50%;top:20px;width:82px;height:3px;transform:translateX(-50%);
   border-radius:4px;background:var(--world-accent);
@@ -1169,6 +1184,8 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
   .resonance-deck{width:250px;height:430px}
   .deck-outer-halo{top:69px;width:212px;height:212px}
   .deck-arch{top:24px;width:196px;height:257px;border-radius:100px 100px 40px 40px}
+  .deck-arch{--deck-fin-span:218px}
+  .deck-arch::after{left:-16px;top:80px;width:12px;height:108px}
   .deck-core{top:83px;width:166px;height:166px}
   .deck-gate{width:18px;height:70px;margin-top:-35px;border-radius:6px}
   .deck-gate-left{left:34px}.deck-gate-right{right:34px}
