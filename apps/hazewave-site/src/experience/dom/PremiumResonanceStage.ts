@@ -1,4 +1,7 @@
 import { gsap } from "gsap";
+import { MotionPathPlugin } from "gsap/MotionPathPlugin";
+
+gsap.registerPlugin(MotionPathPlugin);
 import type { QualityProfile } from "../quality/quality";
 import type { PlayerPhase } from "../state/playerMachine";
 import { getArtist, getTrack } from "../../data/catalog";
@@ -31,6 +34,8 @@ export class PremiumResonanceStage {
   private frameSamples: number[] = [];
   private lastFrame = performance.now();
   private metricCounter = 0;
+  private pointerMoveHandler: ((event: PointerEvent) => void) | null = null;
+  private pointerLeaveHandler: (() => void) | null = null;
 
   constructor(host: HTMLElement, quality: QualityProfile, onPhase: PhaseSink) {
     this.host = host;
@@ -46,6 +51,7 @@ export class PremiumResonanceStage {
 
     this.host.dataset.runtime = "DOM_CINEMATIC";
     this.host.dataset.quality = quality.tier;
+    this.installPointerParallax();
     this.reveal();
     this.frame();
   }
@@ -109,6 +115,32 @@ export class PremiumResonanceStage {
   dispose(): void {
     cancelAnimationFrame(this.raf);
     gsap.killTweensOf(".cinematic-artifact-clone");
+    if (this.pointerMoveHandler) this.host.removeEventListener("pointermove", this.pointerMoveHandler);
+    if (this.pointerLeaveHandler) this.host.removeEventListener("pointerleave", this.pointerLeaveHandler);
+  }
+
+  private installPointerParallax(): void {
+    if (this.quality.reducedMotion || !window.matchMedia("(pointer:fine)").matches) return;
+
+    this.pointerMoveHandler = (event: PointerEvent) => {
+      const bounds = this.host.getBoundingClientRect();
+      const nx = ((event.clientX - bounds.left) / Math.max(bounds.width, 1) - 0.5) * 2;
+      const ny = ((event.clientY - bounds.top) / Math.max(bounds.height, 1) - 0.5) * 2;
+      this.host.style.setProperty("--parallax-x", `${(nx * 9).toFixed(2)}px`);
+      this.host.style.setProperty("--parallax-y", `${(ny * 6).toFixed(2)}px`);
+      this.host.style.setProperty("--world-parallax-x", `${(nx * -5).toFixed(2)}px`);
+      this.host.style.setProperty("--world-parallax-y", `${(ny * -3).toFixed(2)}px`);
+    };
+
+    this.pointerLeaveHandler = () => {
+      this.host.style.setProperty("--parallax-x", "0px");
+      this.host.style.setProperty("--parallax-y", "0px");
+      this.host.style.setProperty("--world-parallax-x", "0px");
+      this.host.style.setProperty("--world-parallax-y", "0px");
+    };
+
+    this.host.addEventListener("pointermove", this.pointerMoveHandler, { passive: true });
+    this.host.addEventListener("pointerleave", this.pointerLeaveHandler, { passive: true });
   }
 
   private reveal(): void {
@@ -198,25 +230,32 @@ export class PremiumResonanceStage {
     this.onPhase("TRAVEL");
     this.deck.dataset.state = "travel";
 
+    const lift = Math.min(128, Math.max(72, window.innerHeight * 0.12));
+
     await this.timeline((tl) => {
       tl.to(clone, {
-        x: dx * 0.56,
-        y: dy * 0.42 - Math.min(120, window.innerHeight * 0.12),
-        scale: 1.12,
-        rotateZ: direction * -8,
-        rotateY: direction * 14,
-        duration: 0.46,
+        motionPath: {
+          path: [
+            { x: dx * 0.18, y: dy * 0.08 - lift * 0.72 },
+            { x: dx * 0.48, y: dy * 0.34 - lift },
+            { x: dx * 0.78, y: dy * 0.7 - lift * 0.38 },
+            { x: dx * 0.94, y: dy * 0.91 - 12 }
+          ],
+          curviness: 1.55,
+          autoRotate: false
+        },
+        scale: 0.88,
+        rotateZ: direction * 2.4,
+        rotateY: direction * 4,
+        duration: 0.82,
         ease: "power3.inOut"
-      });
-      tl.to(clone, {
-        x: dx * 0.88,
-        y: dy * 0.82 - 18,
-        scale: 0.86,
-        rotateZ: direction * 2,
-        rotateY: direction * 5,
-        duration: 0.34,
-        ease: "power2.inOut"
-      });
+      }, 0);
+      tl.fromTo(
+        clone,
+        { filter: "brightness(1) saturate(1)" },
+        { filter: "brightness(1.08) saturate(1.06)", duration: 0.48, ease: "sine.inOut" },
+        0.18
+      );
     });
 
     this.onPhase("ALIGN");
@@ -355,25 +394,26 @@ export class PremiumResonanceStage {
     });
 
     this.onPhase("RETURN");
+    const returnLift = Math.min(96, Math.max(54, window.innerHeight * 0.08));
     await this.timeline((tl) => {
       tl.to(clone, {
-        x: dx * 0.62,
-        y: dy * 0.58 - 26,
-        scale: 0.92,
-        rotateZ: dx < 0 ? -5 : 5,
-        duration: 0.3,
-        ease: "power2.inOut"
-      });
-      tl.to(clone, {
-        x: dx,
-        y: dy,
+        motionPath: {
+          path: [
+            { x: dx * 0.2, y: dy * 0.12 - returnLift * 0.55 },
+            { x: dx * 0.58, y: dy * 0.5 - returnLift },
+            { x: dx * 0.86, y: dy * 0.82 - returnLift * 0.3 },
+            { x: dx, y: dy }
+          ],
+          curviness: 1.4,
+          autoRotate: false
+        },
         width: sourceRect.width,
         height: sourceRect.height,
         scale: 1,
         rotateZ: 0,
         opacity: 0,
-        duration: 0.28,
-        ease: "power3.out"
+        duration: 0.58,
+        ease: "power3.inOut"
       });
     });
 
