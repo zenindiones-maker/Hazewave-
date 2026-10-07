@@ -1300,13 +1300,14 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
   
 @media(min-aspect-ratio:4/3){
   .site-backdrop::before{
+    display:block;
     opacity:.46;
     filter:blur(34px) saturate(.92) brightness(.62);
     transform:scale(1.14)
   }
 }
 @media(max-width:520px){
-  .site-backdrop::before{opacity:.12}
+  .site-backdrop::before{display:none}
 }
 
 .story-rail{display:none}
@@ -1490,6 +1491,7 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
   background-position:center;
   filter:blur(28px) saturate(.88) brightness(.68);
   transform:scale(1.11);
+  display:none;
   opacity:.24;
   pointer-events:none
 }
