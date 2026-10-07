@@ -104,6 +104,10 @@ export function bootHazewaveSite(): void {
     }
     stateLabel.textContent = phase;
 
+    if (phase === "SELECTED" || phase === "CONTACT" || phase === "EJECT") {
+      audio.cue(phase);
+    }
+
     if ("vibrate" in navigator) {
       if (phase === "SELECTED") navigator.vibrate(4);
       if (phase === "CONTACT") navigator.vibrate([12, 18, 7]);
