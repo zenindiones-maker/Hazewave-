@@ -197,3 +197,20 @@ def test_reflex_engine_ab_uses_explicit_engine_bin_contract_not_ambient_env() ->
     assert 'REFLEX_LATENCY_ENGINE_SHA256=' in (
         ROOT / "src" / "hazewave" / "reflex_latency.py"
     ).read_text(encoding="utf-8")
+
+
+def test_reflex_qi_profiler_patch_is_scoped_to_phase_profile_builder_and_binary_verified() -> None:
+    remote = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
+
+    pack_start = remote.index("build_pack_reuse_engine_variant() {")
+    phase_start = remote.index("build_phase_profile_engine_variant() {")
+    profile_start = remote.index("latency_engine_profile() {", phase_start)
+    pack_block = remote[pack_start:phase_start]
+    phase_block = remote[phase_start:profile_start]
+
+    assert "REFLEX_QI_GEMM" not in pack_block
+    assert 'local variant="phase_profile_v4"' in phase_block
+    assert "REFLEX_QI_GEMM" in phase_block
+    assert 'qi_path.write_text(qi_text, encoding="utf-8")' in phase_block
+    assert 'grep -Fq "REFLEX_QI_GEMM" "$stage/c/qi_gemm.h"' in phase_block
+    assert 'strings "$stage/c/laya" | grep -Fq "REFLEX_QI_GEMM"' in phase_block
