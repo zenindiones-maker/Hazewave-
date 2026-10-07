@@ -95,6 +95,11 @@ export function bootHazewaveSite(): void {
   let livingWorld: LivingWorldController | null = null;
   let pendingStoryState: StoryRuntimeState | null = null;
 
+  // Product state belongs to the shared world host, not to the optional
+  // renderer. CSS/reduced-motion/failure fallbacks must expose exactly the
+  // same artist-focus contract as WebGL.
+  if (backdropHost) backdropHost.dataset.worldArtistFocus = "false";
+
   const artistChapterById = new Map(
     artistChapters.map((chapter) => [chapter.id, chapter] as const)
   );
@@ -281,7 +286,11 @@ export function bootHazewaveSite(): void {
       document.documentElement.style.removeProperty("--focused-artist-accent");
     }
 
-    livingWorld?.setArtistFocus(Boolean(artistId));
+    const focusActive = Boolean(artistId);
+    if (backdropHost) {
+      backdropHost.dataset.worldArtistFocus = String(focusActive);
+    }
+    livingWorld?.setArtistFocus(focusActive);
 
     if (historyMode !== "none") {
       writeFocusUrl(artistId, historyMode);
