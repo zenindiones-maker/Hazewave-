@@ -148,11 +148,24 @@ export class HazewaveAudioEngine {
   async seek(seconds: number): Promise<void> {
     if (!this.currentTrack) return;
     const clamped = Math.max(0, Math.min(seconds, this.currentTrack.durationSeconds));
+    const priorState = this.status;
+
     if (this.currentTrack.audio.kind === "media" && this.mediaElement) {
       this.mediaElement.currentTime = clamped;
       this.pausedAt = clamped;
+      if (priorState === "ENDED" && clamped < this.currentTrack.durationSeconds) {
+        this.status = "PAUSED";
+      }
       return;
     }
+
+    if (priorState === "PAUSED" || priorState === "ENDED") {
+      this.stopSynthetic();
+      this.pausedAt = clamped;
+      this.status = clamped >= this.currentTrack.durationSeconds ? "ENDED" : "PAUSED";
+      return;
+    }
+
     await this.play(this.currentTrack, clamped);
   }
 
