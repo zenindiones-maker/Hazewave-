@@ -148,7 +148,11 @@ export function bootHazewaveSite(): void {
 
     if (phase === "SELECTED" || phase === "CONTACT" || phase === "EJECT") {
       const cuePan = phase === "SELECTED" ? cuePanForActiveObject() : 0;
-      audio.cue(phase, cuePan);
+      const activeTrack = machine.activeTrackId ? getTrack(machine.activeTrackId) : null;
+      const motion = activeTrack
+        ? getArtist(activeTrack.artistId).world.motionSignature
+        : "FLOAT";
+      audio.cue(phase, cuePan, motion);
     }
 
     if ("vibrate" in navigator) {
