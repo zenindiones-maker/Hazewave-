@@ -179,6 +179,31 @@ export function bootHazewaveSite(): void {
   if (archiveSection) archivePlayerObserver?.observe(archiveSection);
 
   let focusedArtist: ArtistId | null = null;
+  let focusHistoryOwned = false;
+
+  const focusFromLocation = (): ArtistId | null => {
+    const candidate = new URL(window.location.href).searchParams.get("artist");
+    return candidate && artistChapterById.has(candidate as ArtistId)
+      ? (candidate as ArtistId)
+      : null;
+  };
+
+  const writeFocusUrl = (
+    artistId: ArtistId | null,
+    mode: "push" | "replace"
+  ) => {
+    const url = new URL(window.location.href);
+    if (artistId) url.searchParams.set("artist", artistId);
+    else url.searchParams.delete("artist");
+
+    const state = {
+      ...(history.state && typeof history.state === "object" ? history.state : {}),
+      hazewaveArtist: artistId
+    };
+
+    if (mode === "push") history.pushState(state, "", url);
+    else history.replaceState(state, "", url);
+  };
 
   const unmountAuthorizedVideo = (artistId: ArtistId) => {
     const mount = document.querySelector<HTMLElement>(`[data-video-mount="${artistId}"]`);
@@ -206,7 +231,11 @@ export function bootHazewaveSite(): void {
       ?.remove();
   };
 
-  const setArtistFocus = (artistId: ArtistId | null, restoreFocus = false) => {
+  const setArtistFocus = (
+    artistId: ArtistId | null,
+    restoreFocus = false,
+    historyMode: "push" | "replace" | "none" = "none"
+  ) => {
     const previous = focusedArtist;
     focusedArtist = artistId;
 
@@ -253,6 +282,11 @@ export function bootHazewaveSite(): void {
     }
 
     livingWorld?.setArtistFocus(Boolean(artistId));
+
+    if (historyMode !== "none") {
+      writeFocusUrl(artistId, historyMode);
+      focusHistoryOwned = historyMode === "push" && Boolean(artistId);
+    }
 
     if (restoreFocus && previous) {
       document
@@ -341,13 +375,30 @@ export function bootHazewaveSite(): void {
     if (!focusButton || !artistId) return;
 
     const next = focusedArtist === artistId ? null : artistId;
-    setArtistFocus(next);
+    if (next) {
+      setArtistFocus(next, false, "push");
+    } else if (focusHistoryOwned) {
+      focusHistoryOwned = false;
+      history.back();
+    } else {
+      setArtistFocus(null, false, "replace");
+    }
+  };
+
+  const closeFocusedArtist = (restoreFocus = true) => {
+    if (!focusedArtist) return;
+    if (focusHistoryOwned) {
+      focusHistoryOwned = false;
+      history.back();
+      return;
+    }
+    setArtistFocus(null, restoreFocus, "replace");
   };
 
   const onArtistJourneyKeydown = (event: KeyboardEvent) => {
     if (event.key !== "Escape" || !focusedArtist) return;
     event.preventDefault();
-    setArtistFocus(null, true);
+    closeFocusedArtist(true);
   };
 
   const onWorldFocusControlClick = (event: Event) => {
@@ -358,11 +409,19 @@ export function bootHazewaveSite(): void {
     if (!artistId) return;
 
     const next = focusedArtist === artistId ? null : artistId;
-    setArtistFocus(next);
 
     if (next) {
+      setArtistFocus(next, false, "push");
       conductor.scrollTo(`[data-artist-chapter="${next}"]`);
+    } else {
+      closeFocusedArtist(false);
     }
+  };
+
+  const onArtistFocusPopState = () => {
+    focusHistoryOwned = false;
+    const next = focusFromLocation();
+    setArtistFocus(next, Boolean(!next), "none");
   };
 
   worldFocusControls.forEach((button) =>
@@ -371,6 +430,12 @@ export function bootHazewaveSite(): void {
 
   artistJourneyRoot?.addEventListener("click", onArtistJourneyClick);
   document.addEventListener("keydown", onArtistJourneyKeydown);
+  window.addEventListener("popstate", onArtistFocusPopState);
+
+  const initialFocusedArtist = focusFromLocation();
+  if (initialFocusedArtist) {
+    setArtistFocus(initialFocusedArtist, false, "replace");
+  }
 
   if (loader) {
     let loaderSettled = false;
@@ -1170,6 +1235,7 @@ export function bootHazewaveSite(): void {
       );
       artistJourneyRoot?.removeEventListener("click", onArtistJourneyClick);
       document.removeEventListener("keydown", onArtistJourneyKeydown);
+      window.removeEventListener("popstate", onArtistFocusPopState);
       document.querySelectorAll<HTMLVideoElement>("[data-video-mount] video").forEach((video) => {
         video.pause();
         video.removeAttribute("src");
