@@ -193,10 +193,15 @@ export class ScrollConductor {
     if (storyPosition <= this.chapters[0]!.top) {
       activeIndex = 0;
     } else {
+      // Section starts are the semantic authority. Visual sections can
+      // intentionally overlap in a cinematic layout, so stopping at the first
+      // earlier section whose bottom still contains the viewport center can
+      // mislabel the newly entered chapter. The latest chapter start at or
+      // before the story position wins; gaps naturally retain the prior one.
       for (let index = 0; index < this.chapters.length; index += 1) {
         const current = this.chapters[index]!;
         if (storyPosition >= current.top) activeIndex = index;
-        if (storyPosition >= current.top && storyPosition < current.bottom) break;
+        else break;
       }
     }
 
