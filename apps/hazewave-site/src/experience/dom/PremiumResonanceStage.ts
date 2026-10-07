@@ -315,15 +315,30 @@ export class PremiumResonanceStage {
     const lift = Math.min(128, Math.max(72, window.innerHeight * 0.12));
     const compactTravel = window.innerWidth <= 680;
     const cinematicLift = lift * (compactTravel ? 0.52 : 1);
+    const travelMargin = compactTravel ? 14 : 24;
+    const halfHeight = sourceRect.height / 2;
+    const minCenterY = travelMargin + halfHeight;
+    const maxCenterY = Math.max(
+      minCenterY,
+      window.innerHeight - travelMargin - halfHeight
+    );
+    const safePoint = (x: number, y: number) => {
+      const absoluteCenterY = sourceCenter.y + y;
+      const clampedCenterY = Math.min(
+        maxCenterY,
+        Math.max(minCenterY, absoluteCenterY)
+      );
+      return { x, y: clampedCenterY - sourceCenter.y };
+    };
 
     const travelProfile =
       motionSignature === "MASS"
         ? {
             path: [
-              { x: dx * 0.22, y: dy * 0.18 - cinematicLift * 0.24 },
-              { x: dx * 0.58, y: dy * 0.5 - cinematicLift * 0.32 },
-              { x: dx * 0.84, y: dy * 0.78 - cinematicLift * 0.12 },
-              { x: dx * 0.95, y: dy * 0.92 - 8 }
+              safePoint(dx * 0.22, dy * 0.18 - cinematicLift * 0.24),
+              safePoint(dx * 0.58, dy * 0.5 - cinematicLift * 0.32),
+              safePoint(dx * 0.84, dy * 0.78 - cinematicLift * 0.12),
+              safePoint(dx * 0.95, dy * 0.92 - 8)
             ],
             curviness: 0.72,
             scale: 0.94,
@@ -335,10 +350,10 @@ export class PremiumResonanceStage {
         : motionSignature === "GROW"
           ? {
               path: [
-                { x: dx * 0.12 + direction * 18, y: dy * 0.06 - cinematicLift * 0.5 },
-                { x: dx * 0.4 - direction * 24, y: dy * 0.3 - cinematicLift * 0.9 },
-                { x: dx * 0.72 + direction * 16, y: dy * 0.64 - cinematicLift * 0.44 },
-                { x: dx * 0.94, y: dy * 0.91 - 12 }
+                safePoint(dx * 0.12 + direction * 18, dy * 0.06 - cinematicLift * 0.5),
+                safePoint(dx * 0.4 - direction * 24, dy * 0.3 - cinematicLift * 0.9),
+                safePoint(dx * 0.72 + direction * 16, dy * 0.64 - cinematicLift * 0.44),
+                safePoint(dx * 0.94, dy * 0.91 - 12)
               ],
               curviness: 1.8,
               scale: 0.92,
@@ -349,10 +364,10 @@ export class PremiumResonanceStage {
             }
           : {
               path: [
-                { x: dx * 0.18, y: dy * 0.08 - cinematicLift * 0.72 },
-                { x: dx * 0.48, y: dy * 0.34 - lift },
-                { x: dx * 0.78, y: dy * 0.7 - cinematicLift * 0.38 },
-                { x: dx * 0.94, y: dy * 0.91 - 12 }
+                safePoint(dx * 0.18, dy * 0.08 - cinematicLift * 0.72),
+                safePoint(dx * 0.48, dy * 0.34 - cinematicLift),
+                safePoint(dx * 0.78, dy * 0.7 - cinematicLift * 0.38),
+                safePoint(dx * 0.94, dy * 0.91 - 12)
               ],
               curviness: compactTravel ? 1.18 : 1.55,
               scale: 0.88,
