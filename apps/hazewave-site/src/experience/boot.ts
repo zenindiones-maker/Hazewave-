@@ -1130,6 +1130,10 @@ export function bootHazewaveSite(): void {
         storyBeat: pendingStoryState?.narrativeBeat ?? "WORLD_SLEEP",
         artistPhase: document.documentElement.dataset.artistPhase ?? "EMERGE",
         worldDepthModel: backdropHost?.dataset.worldDepthModel ?? "css-fallback",
+        worldPixelCount: Number(backdropHost?.dataset.worldPixelCount ?? 0),
+        worldPixelBudget: Number(backdropHost?.dataset.worldPixelBudget ?? 0),
+        worldRenderScale: Number(backdropHost?.dataset.worldRenderScale ?? 1),
+        worldPerformance: backdropHost?.dataset.worldPerformance ?? "fallback",
         selectionToContactMs:
           lastSelectionToContactMs === null ? null : Number(lastSelectionToContactMs.toFixed(1)),
         contactToAudioMs:
