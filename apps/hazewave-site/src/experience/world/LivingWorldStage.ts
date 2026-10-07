@@ -530,6 +530,13 @@ export class LivingWorldStage {
   private recoveryWindows = 0;
   private restoreWatchdog = 0;
 
+  private readonly onContextCreationError = (event: Event) => {
+    const contextEvent = event as WebGLContextEvent;
+    this.host.dataset.worldRuntime = "fallback-context-creation-error";
+    this.host.dataset.worldContextError =
+      contextEvent.statusMessage?.slice(0, 120) || "WEBGL2_CONTEXT_CREATION_FAILED";
+  };
+
   private readonly onPointerMove = (event: PointerEvent) => {
     if (this.quality.reducedMotion) return;
     this.pointerX = Math.max(0, Math.min(1, event.clientX / Math.max(innerWidth, 1)));
@@ -655,6 +662,10 @@ export class LivingWorldStage {
     this.resizeObserver?.disconnect();
     window.removeEventListener("pointermove", this.onPointerMove);
     document.removeEventListener("visibilitychange", this.onVisibility);
+    this.canvas.removeEventListener(
+      "webglcontextcreationerror",
+      this.onContextCreationError
+    );
     this.canvas.removeEventListener("webglcontextlost", this.onContextLost);
     this.canvas.removeEventListener("webglcontextrestored", this.onContextRestored);
 
@@ -695,6 +706,12 @@ export class LivingWorldStage {
       4;
     this.host.dataset.worldDecodedImageMib =
       (decodedImageBytes / 1_048_576).toFixed(2);
+
+    this.canvas.addEventListener(
+      "webglcontextcreationerror",
+      this.onContextCreationError,
+      false
+    );
 
     const gl = this.canvas.getContext("webgl2", {
       alpha: false,
@@ -784,13 +801,34 @@ export class LivingWorldStage {
         this.quality.tier === "MEDIUM" ? 1.12 : 1.32,
         Math.max(1, this.quality.pixelRatio)
       ) * this.renderScale;
-    const width = Math.max(1, Math.round(innerWidth * dpr));
-    const height = Math.max(1, Math.round(innerHeight * dpr));
+
+    let width = Math.max(1, Math.round(innerWidth * dpr));
+    let height = Math.max(1, Math.round(innerHeight * dpr));
+
+    // Cap absolute fill cost as well as DPR. High-DPR tablets/desktop displays
+    // can otherwise allocate a disproportionate color buffer even after DPR
+    // clamping. The owner image remains visible underneath at native CSS size.
+    const maxPixels =
+      this.quality.tier === "MEDIUM"
+        ? 1_450_000
+        : this.quality.tier === "HIGH"
+          ? 2_200_000
+          : 2_650_000;
+
+    const requestedPixels = width * height;
+    if (requestedPixels > maxPixels) {
+      const pixelScale = Math.sqrt(maxPixels / requestedPixels);
+      width = Math.max(1, Math.round(width * pixelScale));
+      height = Math.max(1, Math.round(height * pixelScale));
+    }
 
     if (this.canvas.width !== width) this.canvas.width = width;
     if (this.canvas.height !== height) this.canvas.height = height;
 
-    const colorBufferBytes = width * height * 4;
+    const actualPixels = width * height;
+    const colorBufferBytes = actualPixels * 4;
+    this.host.dataset.worldPixelCount = String(actualPixels);
+    this.host.dataset.worldPixelBudget = String(maxPixels);
     this.host.dataset.worldColorBufferMib =
       (colorBufferBytes / 1_048_576).toFixed(2);
     this.host.dataset.worldRenderScale = this.renderScale.toFixed(2);
