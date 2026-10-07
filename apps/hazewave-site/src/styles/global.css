@@ -3002,6 +3002,136 @@ body{background:transparent}
   backdrop-filter:blur(5px)
 }
 
+/* Owner-authorized media gate: no repeated cards, no invented dossier content. */
+#dossiers.dossier-transition{
+  min-height:104svh;
+  display:grid;
+  grid-template-columns:minmax(260px,.72fr) minmax(420px,1.28fr);
+  align-items:center;
+  gap:clamp(46px,8vw,120px);
+  padding-top:12vh;
+  padding-bottom:12vh
+}
+#dossiers .dossier-transition-heading{
+  margin:0;
+  max-width:520px
+}
+#dossiers .dossier-transition-heading h2{
+  font-size:clamp(38px,5.2vw,72px)
+}
+#dossiers .dossier-transition-heading>p{
+  margin:18px 0 0;
+  max-width:46ch;
+  color:rgba(245,242,233,.46);
+  font-size:12px;
+  line-height:1.7
+}
+.dossier-signal-list{
+  display:grid;
+  border-top:1px solid rgba(245,242,233,.12)
+}
+.dossier-signal{
+  --dossier-accent:#b7ff4a;
+  display:grid;
+  grid-template-columns:52px minmax(180px,1fr) minmax(220px,.8fr);
+  align-items:center;
+  gap:20px;
+  min-height:132px;
+  border-bottom:1px solid rgba(245,242,233,.1);
+  color:rgba(245,242,233,.78);
+  background:linear-gradient(
+    90deg,
+    color-mix(in srgb,var(--dossier-accent),transparent 98%),
+    transparent 34%
+  );
+  transition:background 220ms ease,color 220ms ease
+}
+.dossier-signal:hover,
+.dossier-signal:focus-within{
+  color:#fff;
+  background:linear-gradient(
+    90deg,
+    color-mix(in srgb,var(--dossier-accent),transparent 93%),
+    transparent 54%
+  )
+}
+.dossier-signal-index{
+  color:var(--dossier-accent);
+  font:760 8px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.14em
+}
+.dossier-signal-name{
+  min-width:0;
+  display:grid;
+  gap:4px
+}
+.dossier-signal-name small{
+  color:rgba(245,242,233,.3);
+  font:700 6px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.16em
+}
+.dossier-signal-name h3{
+  margin:0;
+  font-size:clamp(26px,3vw,42px);
+  line-height:.9;
+  letter-spacing:-.045em;
+  font-weight:580
+}
+.dossier-signal-name p{
+  margin:0;
+  color:rgba(245,242,233,.36);
+  font:700 7px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.1em;
+  text-transform:uppercase
+}
+.dossier-signal dl{
+  margin:0;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px
+}
+.dossier-signal dl div{
+  display:grid;
+  gap:5px;
+  padding-left:10px;
+  border-left:1px solid rgba(245,242,233,.1)
+}
+.dossier-signal dt,
+.dossier-signal dd{
+  margin:0;
+  font:700 6px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.12em
+}
+.dossier-signal dt{color:rgba(245,242,233,.26)}
+.dossier-signal dd{color:color-mix(in srgb,var(--dossier-accent),#fff 12%)}
+
+@media(max-width:980px){
+  #dossiers.dossier-transition{
+    min-height:100svh;
+    grid-template-columns:1fr;
+    gap:7vh;
+    padding-top:10vh;
+    padding-bottom:10vh
+  }
+  #dossiers .dossier-transition-heading{max-width:390px}
+  #dossiers .dossier-transition-heading h2{font-size:40px}
+  .dossier-signal{
+    grid-template-columns:32px minmax(0,1fr);
+    gap:12px;
+    min-height:118px;
+    padding:14px 0
+  }
+  .dossier-signal dl{
+    grid-column:2;
+    grid-template-columns:repeat(3,minmax(0,1fr))
+  }
+  .dossier-signal-name h3{font-size:30px}
+}
+@media(max-width:520px){
+  .dossier-signal dl{gap:6px}
+  .dossier-signal dl div{padding-left:7px}
+}
+
 /* Merch is the final destination: two objects on one quiet stage. */
 #objects{
   min-height:105svh;
