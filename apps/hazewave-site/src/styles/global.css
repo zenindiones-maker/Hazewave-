@@ -1524,6 +1524,30 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
   position:absolute;z-index:2;inset:0;pointer-events:none;opacity:0;
   transition:opacity 160ms linear,filter 160ms linear
 }
+.site-backdrop-water-image{
+  position:absolute;z-index:2;inset:0;pointer-events:none;
+  background-image:var(--world-art);
+  background-repeat:no-repeat;
+  background-size:contain;
+  background-position:center center;
+  opacity:calc(var(--story-world-water,0) * .16);
+  transform:
+    translate3d(
+      calc(var(--story-water-shift-x,0px) * .72),
+      calc(var(--story-water-shift-y,0px) * .52),
+      0
+    )
+    scale(calc(1 + var(--story-world-water,0) * .0035));
+  filter:saturate(1.04) brightness(1.015);
+  mix-blend-mode:screen;
+  -webkit-mask-image:linear-gradient(180deg,transparent 0 53%,rgba(0,0,0,.12) 59%,#000 70%,#000 100%);
+  mask-image:linear-gradient(180deg,transparent 0 53%,rgba(0,0,0,.12) 59%,#000 70%,#000 100%);
+  transition:opacity 140ms linear;
+  will-change:transform,opacity
+}
+.site-backdrop[data-world-runtime="webgl2"] .site-backdrop-water-image{
+  opacity:0
+}
 .site-backdrop-water{
   inset:58% -5% -5%;
   background:
@@ -2208,7 +2232,7 @@ body{background:transparent}
 }
 
 @media(prefers-reduced-motion:reduce){
-  .living-world-canvas{display:none!important}
+  .living-world-canvas,.site-backdrop-water-image{display:none!important}
   .site-backdrop-water,.site-backdrop-fog,.site-backdrop-light{
     transform:none!important;transition:none!important
   }
