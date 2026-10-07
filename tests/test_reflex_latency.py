@@ -21,6 +21,7 @@ def _report(
     p95: float,
     label: str = "HAZE",
     robust: bool = True,
+    semantic_stable: bool | None = None,
     failures: int = 0,
     probabilities: dict[str, float] | None = None,
     runtime_fingerprint: dict | None = None,
@@ -34,6 +35,7 @@ def _report(
         "failed_requests": failures,
         "selected_labels": [label],
         "all_robust_eligible": robust,
+        "all_semantically_stable": robust if semantic_stable is None else semantic_stable,
         "aggregate_probability_signature": probabilities
         or {"HAZE": 0.91, "WAVE": 0.05, "BRIDGE": 0.04},
         "runtime_fingerprint": runtime_fingerprint or latency._runtime_fingerprint(),
@@ -286,6 +288,39 @@ def test_selector_rejects_probability_or_runtime_drift(tmp_path: Path) -> None:
     }
     assert "AGGREGATE_PROBABILITY_DRIFT" in reasons["close_2t"]
     assert "RUNTIME_FINGERPRINT_DRIFT" in reasons["spread_2t"]
+
+
+def test_selector_can_optimize_slow_but_semantically_stable_shadow_baseline(
+    tmp_path: Path,
+) -> None:
+    run = tmp_path / "run"
+    state = tmp_path / "state"
+    _write_report(
+        run,
+        _report(
+            profile="baseline_2t",
+            p50=13_400.0,
+            p95=13_800.0,
+            robust=False,
+            semantic_stable=True,
+        ),
+    )
+    _write_report(
+        run,
+        _report(
+            profile="close_2t",
+            p50=11_900.0,
+            p95=12_200.0,
+            robust=False,
+            semantic_stable=True,
+        ),
+    )
+
+    selected = latency.select_profile(run_dir=run, state_root=state)
+
+    assert selected["profile"] == "close_2t"
+    assert selected["grants_execution_authority"] is False
+    assert selected["production_calibrated"] is False
 
 
 def test_selector_refuses_non_robust_baseline(tmp_path: Path) -> None:
