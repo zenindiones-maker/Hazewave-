@@ -566,3 +566,120 @@ The result passes only when:
 - no technology is present only to impress engineers.
 
 **The purpose of advanced technology is to make the experience feel inevitable, not to make the stack look complicated.**
+
+
+## 19. Research refresh — 2026-10-07
+
+Current upstream research was refreshed before the next implementation pass.
+
+### GSAP MotionPath — ADOPTED FOR THE CORE INSERTION ARC
+
+Official reference:
+https://gsap.com/docs/v3/Plugins/MotionPathPlugin/
+
+Why:
+- supports authored curved trajectories rather than generic linear x/y travel;
+- keeps timing deterministic;
+- allows the media object to move through a designed path while application state stays independent;
+- does not require physics or drag precision.
+
+Implementation consequence:
+the selected music object now travels through a controlled multi-point path, aligns, inserts and docks. Ejection uses a deliberate return path.
+
+### GSAP Flip — APPROVED FOR A FUTURE BOUNDED STATE SWAP
+
+Official reference:
+https://gsap.com/docs/v3/Plugins/Flip/
+
+Useful for:
+- future artist/release layout morphs;
+- continuity between archive and focused views;
+- interruption-safe state changes.
+
+Status:
+OPTIONAL. Do not add until a concrete layout transition benefits from it.
+
+### Browser View Transitions — ADOPTED AS PROGRESSIVE ENHANCEMENT
+
+Official references:
+https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API
+https://developer.mozilla.org/en-US/docs/Web/API/Document/startViewTransition
+
+Current platform status:
+document-scoped same-document transitions are broadly available in current browsers, with newer typed transition capabilities continuing to mature.
+
+Rule:
+never make correctness depend on View Transitions. The DOM update path must remain normal and accessible without them.
+
+### CSS scroll-driven animation — ADOPTED FOR NON-CRITICAL EDITORIAL MOTION
+
+Official reference:
+https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Scroll-driven_animations
+
+Why:
+- declarative;
+- progressive;
+- avoids unnecessary scroll listeners;
+- suitable for the artist archive below the interactive stage.
+
+Rule:
+music selection/insertion remains GSAP/state-machine driven. Scroll timelines are only for editorial/progressive motion.
+
+### Three.js WebGPURenderer / TSL — HIGH/ULTRA ONLY
+
+Official reference:
+https://threejs.org/manual/pages/webgpurenderer
+
+Current upstream reality:
+- WebGPU-first with WebGL2 backend fallback;
+- TSL/node materials and newer post-processing are strong;
+- upstream still describes the renderer as experimental and acknowledges cases where WebGLRenderer is faster or more complete.
+
+Decision:
+keep the renderer-independent DOM/GSAP core. Use WebGPU/TSL only for optional measured visual enhancement on capable hardware.
+
+### AudioWorklet — OPTIONAL, NOT REQUIRED YET
+
+Official references:
+https://developer.mozilla.org/en-US/docs/Web/API/AudioWorklet
+https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode
+
+Current need:
+the present interaction only needs stable playback, semantic HAZE section data, BPM timing and lightweight real-time energy.
+
+Decision:
+AnalyserNode remains sufficient for V1. AudioWorklet becomes ADOPT only when custom low-latency processing or analysis must leave the main thread.
+
+### Creative-development benchmark scan
+
+Current 2026 Codrops work reinforces several useful patterns without becoming code authority:
+
+- selective WebGPU/TSL for advanced effects;
+- GSAP MotionPath/Flip for authored continuity;
+- Blender-authored camera/path work for cinematic 3D;
+- audio-reactive systems that combine Web Audio with deliberate art direction;
+- persistent GPU scenes only where they materially improve continuity;
+- progressive rather than mandatory GPU complexity.
+
+Evidence source:
+https://tympanus.net/codrops/hub/tutorials/
+
+WAVE rule:
+study techniques, not templates. No demo or showcase becomes a dependency or visual identity source by default.
+
+## 20. Current design consequence
+
+The site is no longer being treated as a 3D-engine showcase.
+
+The premium path is:
+
+semantic Astro shell
++ typed artist/music content
++ deterministic GSAP physical choreography
++ real Web Audio state
++ HAZE BPM/section semantics
++ artist-specific procedural art direction
++ progressive browser-native transitions
++ optional higher-tier GPU enhancement
+
+This is the current evidence-based design spine.
