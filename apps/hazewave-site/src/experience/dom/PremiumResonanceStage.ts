@@ -34,6 +34,8 @@ export class PremiumResonanceStage {
   private frameSamples: number[] = [];
   private lastFrame = performance.now();
   private metricCounter = 0;
+  private slowFrameWindows = 0;
+  private recoveryFrameWindows = 0;
   private pointerMoveHandler: ((event: PointerEvent) => void) | null = null;
   private pointerLeaveHandler: (() => void) | null = null;
 
@@ -459,6 +461,23 @@ export class PremiumResonanceStage {
         const average = this.frameSamples.reduce((sum, value) => sum + value, 0) / this.frameSamples.length;
         this.host.dataset.fps = (1000 / average).toFixed(1);
         this.host.dataset.frameP95Ms = p95.toFixed(1);
+
+        if (p95 > 34) {
+          this.slowFrameWindows += 1;
+          this.recoveryFrameWindows = 0;
+        } else if (p95 < 24) {
+          this.recoveryFrameWindows += 1;
+          this.slowFrameWindows = Math.max(0, this.slowFrameWindows - 1);
+        } else {
+          this.slowFrameWindows = Math.max(0, this.slowFrameWindows - 1);
+          this.recoveryFrameWindows = 0;
+        }
+
+        if (this.slowFrameWindows >= 2) {
+          this.host.dataset.performance = "reduced";
+        } else if (this.recoveryFrameWindows >= 4) {
+          this.host.dataset.performance = "standard";
+        }
       }
     }
 
