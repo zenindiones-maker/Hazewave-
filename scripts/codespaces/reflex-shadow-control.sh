@@ -439,6 +439,12 @@ PY
   echo "REFLEX_LATENCY_RESTART_REQUIRED=TRUE"
 }
 
+latency_retire_stale_selection() {
+  ensure_checkout
+  "$PYTHON_BIN" -m hazewave.reflex_latency retire-stale-selection \
+    --state-root "$STATE_ROOT"
+}
+
 latency_report() {
   ensure_checkout
   local active latest
@@ -1031,6 +1037,7 @@ case "${1:-}" in
   report) report ;;
   latency-profiles) latency_profiles ;;
   latency-selected) latency_selected ;;
+  latency-retire-stale-selection) latency_retire_stale_selection ;;
   serve-stop) serve_stop ;;
   latency-tune) latency_tune ;;
   latency-report) latency_report ;;
