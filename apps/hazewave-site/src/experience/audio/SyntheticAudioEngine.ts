@@ -169,7 +169,11 @@ export class HazewaveAudioEngine {
     await this.play(this.currentTrack, clamped);
   }
 
-  cue(kind: "SELECTED" | "CONTACT" | "EJECT", pan = 0): void {
+  cue(
+    kind: "SELECTED" | "CONTACT" | "EJECT",
+    pan = 0,
+    motion: "FLOAT" | "MASS" | "GROW" = "FLOAT"
+  ): void {
     if (!this.context || !this.uiMaster) return;
 
     const ctx = this.context;
@@ -196,35 +200,45 @@ export class HazewaveAudioEngine {
     click.buffer = noise;
     filter.type = "bandpass";
 
+    const signature =
+      motion === "MASS"
+        ? { pitch: 0.72, filter: 0.7, tone: "triangle" as OscillatorType, click: 1.08 }
+        : motion === "GROW"
+          ? { pitch: 1.18, filter: 1.12, tone: "sine" as OscillatorType, click: 0.86 }
+          : { pitch: 1, filter: 1, tone: "sine" as OscillatorType, click: 1 };
+
     if (kind === "SELECTED") {
-      tone.type = "sine";
-      tone.frequency.setValueAtTime(190, now);
-      tone.frequency.exponentialRampToValueAtTime(260, now + 0.12);
+      tone.type = signature.tone;
+      tone.frequency.setValueAtTime(190 * signature.pitch, now);
+      tone.frequency.exponentialRampToValueAtTime(260 * signature.pitch, now + 0.12);
       toneGain.gain.setValueAtTime(0.0001, now);
-      toneGain.gain.exponentialRampToValueAtTime(0.09, now + 0.018);
+      toneGain.gain.exponentialRampToValueAtTime(motion === "MASS" ? 0.075 : 0.09, now + 0.018);
       toneGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
-      filter.frequency.value = 2200;
-      clickGain.gain.setValueAtTime(0.035, now);
+      filter.frequency.value = 2200 * signature.filter;
+      clickGain.gain.setValueAtTime(0.035 * signature.click, now);
       clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
     } else if (kind === "CONTACT") {
-      tone.type = "triangle";
-      tone.frequency.setValueAtTime(92, now);
-      tone.frequency.exponentialRampToValueAtTime(62, now + 0.12);
+      tone.type = motion === "FLOAT" ? "sine" : "triangle";
+      tone.frequency.setValueAtTime(92 * signature.pitch, now);
+      tone.frequency.exponentialRampToValueAtTime(62 * signature.pitch, now + 0.12);
       toneGain.gain.setValueAtTime(0.0001, now);
-      toneGain.gain.exponentialRampToValueAtTime(0.16, now + 0.008);
+      toneGain.gain.exponentialRampToValueAtTime(
+        motion === "MASS" ? 0.19 : motion === "GROW" ? 0.145 : 0.16,
+        now + 0.008
+      );
       toneGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-      filter.frequency.value = 3800;
-      clickGain.gain.setValueAtTime(0.085, now);
+      filter.frequency.value = 3800 * signature.filter;
+      clickGain.gain.setValueAtTime(0.085 * signature.click, now);
       clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
     } else {
-      tone.type = "sine";
-      tone.frequency.setValueAtTime(165, now);
-      tone.frequency.exponentialRampToValueAtTime(118, now + 0.09);
+      tone.type = signature.tone;
+      tone.frequency.setValueAtTime(165 * signature.pitch, now);
+      tone.frequency.exponentialRampToValueAtTime(118 * signature.pitch, now + 0.09);
       toneGain.gain.setValueAtTime(0.0001, now);
       toneGain.gain.exponentialRampToValueAtTime(0.07, now + 0.01);
       toneGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
-      filter.frequency.value = 1600;
-      clickGain.gain.setValueAtTime(0.045, now);
+      filter.frequency.value = 1600 * signature.filter;
+      clickGain.gain.setValueAtTime(0.045 * signature.click, now);
       clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
     }
 
