@@ -58,8 +58,9 @@ button{appearance:none}
   --pointer-x:50%;
   --pointer-y:42%;
   background:
-    radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--world-accent),transparent 94%) 0%,transparent 28%),
-    linear-gradient(180deg,color-mix(in srgb,var(--world-bg),#000 22%) 0%,#030504 78%)
+    radial-gradient(circle at 50% 38%,color-mix(in srgb,var(--world-accent),transparent 86%) 0%,transparent 24%),
+    radial-gradient(circle at 50% 80%,color-mix(in srgb,var(--world-secondary),transparent 90%) 0%,transparent 32%),
+    linear-gradient(180deg,color-mix(in srgb,var(--world-bg),#000 14%) 0%,#030504 80%)
 }
 .premium-stage::after{
   content:"";position:absolute;inset:0;z-index:4;pointer-events:none;
@@ -104,21 +105,21 @@ button{appearance:none}
 .premium-stage[data-artist="aether"] .artist-world-aether,
 .premium-stage[data-artist="monolith"] .artist-world-monolith,
 .premium-stage[data-artist="flora"] .artist-world-flora{
-  opacity:.72;transform:scale(1)
+  opacity:.88;transform:scale(1)
 }
 .artist-world svg{width:100%;height:100%;overflow:visible}
 .artist-world-aether{filter:blur(.1px)}
 .artist-world-aether .world-ring{
-  fill:none;stroke:#a7ffe0;stroke-width:1;opacity:.2;
+  fill:none;stroke:#a7ffe0;stroke-width:1.2;opacity:.32;
   transform-origin:450px 450px
 }
 .artist-world-aether .ring-a{animation:worldSpin 30s linear infinite}
 .artist-world-aether .ring-b{animation:worldSpinReverse 42s linear infinite}
 .artist-world-aether .world-curve{
-  fill:none;stroke:#a7ffe0;stroke-width:1.1;opacity:.18;
+  fill:none;stroke:#a7ffe0;stroke-width:1.15;opacity:.28;
   stroke-dasharray:4 12
 }
-.artist-world-aether .world-scan{fill:none;stroke-width:1;opacity:.26}
+.artist-world-aether .world-scan{fill:none;stroke-width:1.2;opacity:.42}
 .artist-world-monolith{mix-blend-mode:normal}
 .artist-world-monolith .slab{
   position:absolute;display:block;
@@ -249,13 +250,15 @@ h1{
   position:absolute;left:50%;top:32px;width:232px;height:306px;transform:translateX(-50%);
   border-radius:118px 118px 46px 46px;
   background:
-    linear-gradient(108deg,rgba(255,255,255,.12),rgba(255,255,255,.015) 28%,rgba(255,255,255,.04) 60%,rgba(255,255,255,.11)),
-    #0b100f;
-  border:1px solid rgba(255,255,255,.13);
+    radial-gradient(circle at 34% 18%,rgba(255,255,255,.16),transparent 20%),
+    linear-gradient(108deg,rgba(255,255,255,.14),rgba(255,255,255,.02) 28%,rgba(255,255,255,.055) 60%,rgba(255,255,255,.12)),
+    color-mix(in srgb,var(--world-secondary),#070a09 84%);
+  border:1px solid rgba(255,255,255,.16);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.1),
-    inset 0 -22px 44px rgba(0,0,0,.46),
-    0 36px 80px rgba(0,0,0,.35)
+    inset 0 1px 0 rgba(255,255,255,.13),
+    inset 10px 0 30px rgba(255,255,255,.018),
+    inset -12px -24px 48px rgba(0,0,0,.48),
+    0 36px 90px rgba(0,0,0,.44)
 }
 .deck-arch::before{
   content:"";position:absolute;inset:13px;border-radius:106px 106px 36px 36px;
@@ -458,6 +461,42 @@ h1{
     radial-gradient(circle at 50% 44%,color-mix(in srgb,var(--accent),transparent 72%),transparent 31%),
     rgba(0,0,0,.18)
 }
+.artifact-shell::after{
+  content:"";position:absolute;z-index:5;left:9%;right:9%;bottom:4px;height:4px;
+  border-radius:999px;
+  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--accent),#fff 10%),transparent);
+  opacity:.54;filter:blur(.2px)
+}
+.resonance-artifact[data-artist="aether"] .artifact-shell{
+  background:
+    linear-gradient(145deg,rgba(255,255,255,.24),rgba(255,255,255,.035) 28%,rgba(167,255,224,.08) 60%,rgba(255,255,255,.025)),
+    linear-gradient(155deg,#527d75,#10201d 70%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.28),
+    inset 0 -24px 38px rgba(0,0,0,.32),
+    0 18px 42px rgba(0,0,0,.42),
+    0 0 26px rgba(167,255,224,.07)
+}
+.resonance-artifact[data-artist="monolith"] .artifact-shell{
+  background:
+    linear-gradient(90deg,rgba(255,255,255,.04) 0 2%,transparent 2% 7%,rgba(255,255,255,.025) 7% 9%,transparent 9%),
+    linear-gradient(145deg,#6d625a,#211e1c 72%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.18),
+    inset 12px 0 24px rgba(255,255,255,.025),
+    inset -8px -24px 36px rgba(0,0,0,.42),
+    0 20px 42px rgba(0,0,0,.5)
+}
+.resonance-artifact[data-artist="flora"] .artifact-shell{
+  background:
+    radial-gradient(circle at 32% 24%,rgba(216,255,122,.17),transparent 22%),
+    linear-gradient(145deg,#7d934d,#1a2412 70%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.2),
+    inset 0 -22px 38px rgba(0,0,0,.38),
+    0 18px 42px rgba(0,0,0,.42),
+    0 0 28px rgba(216,255,122,.06)
+}
 .artifact-glass{
   position:absolute;inset:0;z-index:3;pointer-events:none;
   background:linear-gradient(115deg,rgba(255,255,255,.2),transparent 26%,transparent 68%,rgba(255,255,255,.07));
@@ -511,6 +550,17 @@ h1{
   color:#fff;background:transparent;border:0
 }
 .cinematic-artifact-clone .artifact-copy{display:none}
+.cinematic-artifact-clone{
+  filter:
+    drop-shadow(0 18px 18px rgba(0,0,0,.48))
+    drop-shadow(0 0 24px color-mix(in srgb,var(--world-accent),transparent 78%))
+}
+.cinematic-artifact-clone::after{
+  content:"";position:absolute;left:50%;top:88%;width:2px;height:56px;
+  transform:translateX(-50%);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--world-accent),transparent 38%),transparent);
+  filter:blur(2px);opacity:.72
+}
 
 .runtime-badge{
   position:absolute;z-index:22;right:24px;top:24px;
@@ -676,7 +726,7 @@ h1{
   .deck-core{top:83px;width:166px;height:166px}
   .deck-gate{width:18px;height:70px;margin-top:-35px;border-radius:6px}
   .deck-gate-left{left:34px}.deck-gate-right{right:34px}
-  .deck-slot{width:74px;height:94px}
+  .deck-slot{width:82px;height:102px}
   .deck-neck{top:239px;width:68px;height:60px}
   .deck-console{top:286px;width:236px;height:112px;padding:12px;grid-template-columns:1fr 44px}
   .deck-screen{padding:9px 10px}
@@ -691,14 +741,14 @@ h1{
   .artifact-field::-webkit-scrollbar{display:none}
   .resonance-artifact{
     position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;
-    flex:0 0 88px;width:88px;height:132px;grid-template-rows:88px auto;gap:7px;
+    flex:0 0 96px;width:96px;height:142px;grid-template-rows:96px auto;gap:8px;
     transform:none!important;scroll-snap-align:center
   }
   .resonance-artifact:hover,.resonance-artifact:focus-visible{transform:translateY(-6px)!important}
   .resonance-artifact[data-focus="selected"]{transform:translateY(-7px) scale(1.035)!important}
-  .artifact-shell{height:88px}
-  .artifact-signal{width:44px;height:44px}
-  .artifact-copy strong{font-size:9px}
+  .artifact-shell{height:96px}
+  .artifact-signal{width:48px;height:48px}
+  .artifact-copy strong{font-size:10px}
   .artifact-copy small,.artifact-copy span{font-size:6px}
   .player{
     position:fixed;z-index:60;left:12px;right:12px;bottom:12px;margin:0;
