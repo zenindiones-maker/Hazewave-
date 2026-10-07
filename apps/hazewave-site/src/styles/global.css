@@ -605,6 +605,38 @@ h1{
   font:650 8px/1.2 ui-monospace,monospace;letter-spacing:.1em;color:rgba(255,255,255,.4);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
+#player-title{view-transition-name:hazewave-player-title}
+#world-track{view-transition-name:hazewave-world-track}
+#world-artist-name{view-transition-name:hazewave-artist-signature}
+
+::view-transition-old(hazewave-player-title),
+::view-transition-old(hazewave-world-track){
+  animation:hazewaveTextOut 180ms cubic-bezier(.4,0,1,1) both
+}
+::view-transition-new(hazewave-player-title),
+::view-transition-new(hazewave-world-track){
+  animation:hazewaveTextIn 360ms cubic-bezier(.16,1,.3,1) both
+}
+::view-transition-old(hazewave-artist-signature){
+  animation:hazewaveSignatureOut 260ms cubic-bezier(.4,0,1,1) both
+}
+::view-transition-new(hazewave-artist-signature){
+  animation:hazewaveSignatureIn 620ms cubic-bezier(.16,1,.3,1) both
+}
+@keyframes hazewaveTextOut{
+  to{opacity:0;filter:blur(5px);transform:translateY(-6px)}
+}
+@keyframes hazewaveTextIn{
+  from{opacity:0;filter:blur(7px);transform:translateY(8px)}
+  to{opacity:1;filter:blur(0);transform:translateY(0)}
+}
+@keyframes hazewaveSignatureOut{
+  to{opacity:0;filter:blur(10px);transform:scale(.985)}
+}
+@keyframes hazewaveSignatureIn{
+  from{opacity:0;filter:blur(14px);transform:scale(1.025)}
+  to{opacity:1;filter:blur(0);transform:scale(1)}
+}
 .player-timeline{
   flex:1;min-width:120px;max-width:620px;display:grid;gap:6px
 }
@@ -920,6 +952,7 @@ h1{
 }
 
 @media(prefers-reduced-motion:reduce){
+  #player-title,#world-track,#world-artist-name{view-transition-name:none}
   *,*::before,*::after{
     animation-duration:.01ms!important;
     animation-iteration-count:1!important;
