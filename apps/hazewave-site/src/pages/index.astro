@@ -169,12 +169,18 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
                 <div class="deck-neck"></div>
 
                 <div class="deck-console">
-                  <div class="deck-screen">
-                    <span class="screen-kicker">HAZEWAVE / ACTIVE OBJECT</span>
-                    <strong id="deck-screen-title">Awaiting signal</strong>
-                    <span id="deck-screen-artist">Select a resonance object</span>
-                    <div class="screen-meter" aria-hidden="true">
-                      <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  <div id="deck-screen" class="deck-screen" data-view="now">
+                    <div class="deck-screen-now">
+                      <span class="screen-kicker">HAZEWAVE / ACTIVE OBJECT</span>
+                      <strong id="deck-screen-title">Awaiting signal</strong>
+                      <span id="deck-screen-artist">Select a resonance object</span>
+                      <div class="screen-meter" aria-hidden="true">
+                        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                      </div>
+                    </div>
+                    <div class="deck-screen-list" aria-label="Faixas da fita selecionada">
+                      <span class="screen-kicker">TAPE / TRACKLIST</span>
+                      <ol id="deck-tracklist"></ol>
                     </div>
                   </div>
                   <div class="deck-control" aria-hidden="true">
