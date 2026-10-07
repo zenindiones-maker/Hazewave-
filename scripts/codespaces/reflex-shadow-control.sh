@@ -77,6 +77,11 @@ ensure_checkout() {
   if [[ ! -e "$WORKTREE/.git" ]]; then
     [[ ! -e "$WORKTREE" ]] || die "WORKTREE_PATH_OCCUPIED"
     git -C "$MAIN_REPO" worktree add --detach "$WORKTREE" "$remote_sha" || die "WORKTREE_ADD_FAILED"
+  else
+    [[ -z "$(git -C "$WORKTREE" status --porcelain)" ]] || die "ISOLATED_CHECKOUT_DIRTY"
+    if [[ "$(git -C "$WORKTREE" rev-parse HEAD)" != "$remote_sha" ]]; then
+      git -C "$WORKTREE" checkout --detach "$remote_sha" || die "WORKTREE_FAST_RECONCILE_FAILED"
+    fi
   fi
   [[ "$(git -C "$WORKTREE" rev-parse HEAD)" == "$remote_sha" ]] || die "CHECKOUT_HEAD_DIFFERS_FROM_CURRENT_REMOTE"
   [[ -z "$(git -C "$WORKTREE" status --porcelain)" ]] || die "ISOLATED_CHECKOUT_DIRTY"
