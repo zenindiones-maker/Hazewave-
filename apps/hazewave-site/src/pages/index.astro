@@ -201,6 +201,7 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
         </div>
 
         <div class="player-timeline">
+          <div id="player-sections" class="player-sections" aria-hidden="true"></div>
           <input
             id="player-seek"
             type="range"
@@ -213,6 +214,7 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
           />
           <div class="player-time" aria-hidden="true">
             <span id="player-time-current">0:00</span>
+            <span id="player-section-label">SIGNAL MAP</span>
             <span id="player-time-total">0:24</span>
           </div>
         </div>
