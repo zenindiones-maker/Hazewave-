@@ -29,6 +29,14 @@ export function bootHazewaveSite(): void {
       return;
     }
     stateLabel.textContent = phase;
+
+    // Progressive tactile feedback: Android browsers that expose the
+    // Vibration API get a tiny confirmation at selection and a firmer
+    // pulse exactly on the mechanical contact frame.
+    if ("vibrate" in navigator) {
+      if (phase === "SELECTED") navigator.vibrate(4);
+      if (phase === "CONTACT") navigator.vibrate([12, 18, 7]);
+    }
   };
 
   let selectTrack: (trackId: string) => Promise<void>;
