@@ -89,6 +89,11 @@ export class ScrollConductor {
   private lastScrollAt = performance.now();
   private maxScroll = 1;
   private resizeTimer = 0;
+  private layoutRefreshRaf = 0;
+  private readonly layoutObserver = new ResizeObserver(() => {
+    cancelAnimationFrame(this.layoutRefreshRaf);
+    this.layoutRefreshRaf = requestAnimationFrame(this.refresh);
+  });
 
   constructor(reducedMotion: boolean, onFrame?: StoryFrameSink) {
     this.reducedMotion = reducedMotion;
@@ -99,6 +104,7 @@ export class ScrollConductor {
     window.addEventListener("resize", this.onResize, { passive: true });
     window.addEventListener("orientationchange", this.refresh, { passive: true });
     document.addEventListener("visibilitychange", this.onVisibility);
+    this.layoutObserver.observe(document.body);
 
     this.updateTarget();
     this.render(performance.now());
@@ -107,14 +113,23 @@ export class ScrollConductor {
   scrollTo(selector: string): void {
     const target = document.querySelector<HTMLElement>(selector);
     if (!target) return;
-    target.scrollIntoView({
-      behavior: this.reducedMotion ? "auto" : "smooth",
-      block: "start"
+
+    this.refresh();
+    const top =
+      window.scrollY +
+      target.getBoundingClientRect().top -
+      Math.min(72, window.innerHeight * 0.08);
+
+    window.scrollTo({
+      top: Math.max(0, top),
+      behavior: this.reducedMotion ? "auto" : "smooth"
     });
   }
 
   dispose(): void {
     cancelAnimationFrame(this.raf);
+    cancelAnimationFrame(this.layoutRefreshRaf);
+    this.layoutObserver.disconnect();
     window.clearTimeout(this.resizeTimer);
     window.removeEventListener("scroll", this.onScroll);
     window.removeEventListener("resize", this.onResize);
@@ -300,6 +315,22 @@ export class ScrollConductor {
     this.root.style.setProperty(
       "--story-scroll-velocity",
       this.smoothVelocity.toFixed(4)
+    );
+    this.root.style.setProperty(
+      "--story-water-shift-x",
+      `${(this.smoothVelocity * 14 + Math.sin(this.globalProgress * 15) * this.smooth.water * 4).toFixed(2)}px`
+    );
+    this.root.style.setProperty(
+      "--story-water-shift-y",
+      `${(Math.sin(this.globalProgress * 21) * this.smooth.water * 3.2).toFixed(2)}px`
+    );
+    this.root.style.setProperty(
+      "--story-fog-shift",
+      `${(this.smooth.translateX * 2.8 + this.smoothVelocity * 8).toFixed(2)}px`
+    );
+    this.root.style.setProperty(
+      "--story-light-angle",
+      `${(this.globalProgress * 210 + this.smooth.lighthouse * 18).toFixed(2)}deg`
     );
 
     this.onFrame?.({
