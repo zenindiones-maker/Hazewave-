@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hazewave.local/schemas/reflex-shadow-event-v1.schema.json",
+  "title": "Hazewave Reflex Shadow Event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "task_id",
+    "requested_domain",
+    "data_classification",
+    "state_language",
+    "precheck_status",
+    "decision_key",
+    "state"
+  ],
+  "properties": {
+    "schema": {
+      "const": "HazewaveReflexShadowEvent/v1"
+    },
+    "task_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "requested_domain": {
+      "enum": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ]
+    },
+    "data_classification": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL_NON_SECRET"
+      ]
+    },
+    "state_language": {
+      "const": "en"
+    },
+    "precheck_status": {
+      "const": "UNRESOLVED_PERMITTED_AMBIGUITY"
+    },
+    "decision_key": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "state": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 32
+    },
+    "ground_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actual_label",
+        "label_source",
+        "label_evidence_digest"
+      ],
+      "properties": {
+        "actual_label": {
+          "enum": [
+            "HAZE",
+            "WAVE",
+            "BRIDGE"
+          ]
+        },
+        "label_source": {
+          "enum": [
+            "HUMAN",
+            "DETERMINISTIC",
+            "RUNTIME_QC"
+          ]
+        },
+        "label_evidence_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}
