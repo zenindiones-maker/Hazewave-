@@ -183,6 +183,10 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
                         <i></i><i></i><i></i>
                       </span>
                       <span class="artifact-number">0{index + 1}</span>
+                      <span class="artifact-face-copy">
+                        <strong>{track.title}</strong>
+                        <small>{artist.name.replace(" / DEMO", "")}</small>
+                      </span>
                       <span class="artifact-contacts">
                         <i></i><i></i><i></i><i></i><i></i>
                       </span>
