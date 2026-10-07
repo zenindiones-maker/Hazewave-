@@ -111,6 +111,7 @@ def test_route_question_encodes_bridge_boundary_without_putting_option_labels_in
     rendered = " ".join([instructions, *criteria.values()]).lower()
     assert " does not " not in f" {rendered} "
     assert " not by " not in f" {rendered} "
+    assert len(json.dumps(question, ensure_ascii=False, separators=(",", ":"))) <= 650
 
 def test_event_schema_matches_representative_event() -> None:
     root = Path(__file__).resolve().parents[1]
