@@ -1076,7 +1076,9 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
 .artist-index{
   margin:72px auto 18px;width:min(1440px,calc(100% - 10px));
   padding:clamp(24px,5vw,72px) 0 90px;
-  border-top:1px solid rgba(255,255,255,.08)
+  border-top:1px solid rgba(255,255,255,.08);
+  content-visibility:auto;
+  contain-intrinsic-size:auto 760px
 }
 .artist-index-header{
   display:grid;grid-template-columns:minmax(0,1.2fr) minmax(220px,.7fr);
