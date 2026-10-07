@@ -92,3 +92,11 @@ def test_detached_runtime_does_not_inherit_reconcile_lock_fd() -> None:
     assert 'exec 9>"$SERVICE_LOCK_FILE"' in reconcile
     assert "flock -w 30 9" in reconcile
     assert '9>&- >"$SERVICE_LOG_FILE" 2>&1 < /dev/null &' in reconcile
+
+
+def test_smoke_lazy_wakes_existing_codespace_before_remote_probe() -> None:
+    controller = CONTROLLER.read_text(encoding="utf-8")
+    smoke_case = controller.split("    smoke)", 1)[1].split("        ;;", 1)[0]
+    assert "ensure_codespace_available" in smoke_case
+    assert 'run_remote "$action"' in smoke_case
+    assert "gh codespace create" not in smoke_case
