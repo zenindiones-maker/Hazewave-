@@ -964,7 +964,7 @@ h1{
   .deck-screen strong{font-size:11px}
   .deck-shadow{width:228px}
   .artifact-field{
-    left:0;right:0;bottom:18px;transform:none;width:auto;height:146px;
+    left:0;right:0;bottom:72px;transform:none;width:auto;height:146px;
     display:flex;align-items:flex-end;gap:9px;padding:8px 18px;
     overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;
     scrollbar-width:none;overscroll-behavior-x:contain
