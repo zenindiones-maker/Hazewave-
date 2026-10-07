@@ -149,3 +149,19 @@ test("semantic section map follows typed track structure", async ({ page }) => {
   await expect(page.locator("#player-sections .player-section-marker")).toHaveCount(3);
   await expect(page.locator("#player-section-label")).toHaveText(/INTRO|CHORUS|OUTRO/);
 });
+
+
+test("mobile object selection keeps the stage viewport stable", async ({ page }) => {
+  const viewport = page.viewportSize();
+  test.skip(!viewport || viewport.width > 600, "mobile-only viewport stability proof");
+
+  await page.goto("/");
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const before = await page.evaluate(() => window.scrollY);
+
+  await page.locator("[data-track-id='aether-01']").click();
+  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
+
+  const after = await page.evaluate(() => window.scrollY);
+  expect(Math.abs(after - before)).toBeLessThan(4);
+});
