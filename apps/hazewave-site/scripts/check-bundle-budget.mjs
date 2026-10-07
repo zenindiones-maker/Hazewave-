@@ -50,12 +50,12 @@ if (largestCore > 180_000) {
 if (coreTotal > 220_000) {
   throw new Error(`CORE_JS_BUDGET_EXCEEDED:${coreTotal}`);
 }
-if (largestOptional > 820_000) {
+if (largestOptional > 160_000) {
   throw new Error(`OPTIONAL_HIGH_TIER_CHUNK_BUDGET_EXCEEDED:${largestOptional}`);
 }
-if (optionalTotal > 840_000) {
+if (optionalTotal > 180_000) {
   throw new Error(`OPTIONAL_HIGH_TIER_JS_BUDGET_EXCEEDED:${optionalTotal}`);
 }
-if (total > 1_060_000) {
+if (total > 400_000) {
   throw new Error(`TOTAL_JS_BUDGET_EXCEEDED:${total}`);
 }
