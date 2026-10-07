@@ -257,6 +257,7 @@ export class PremiumResonanceStage {
 
     const clone = source.cloneNode(true) as HTMLElement;
     clone.classList.add("cinematic-artifact-clone");
+    clone.dataset.motion = motionSignature.toLowerCase();
     clone.removeAttribute("id");
     clone.setAttribute("aria-hidden", "true");
     Object.assign(clone.style, {
@@ -480,6 +481,9 @@ export class PremiumResonanceStage {
     const source = this.artifacts.find((artifact) => artifact.dataset.trackId === trackId);
     if (!source) return;
 
+    const track = getTrack(trackId);
+    const artist = getArtist(track.artistId);
+
     this.playing = false;
     this.onPhase("EJECT");
     this.host.dataset.phase = "eject";
@@ -492,6 +496,7 @@ export class PremiumResonanceStage {
 
     const clone = source.cloneNode(true) as HTMLElement;
     clone.classList.add("cinematic-artifact-clone");
+    clone.dataset.motion = artist.identity.world.motionSignature.toLowerCase();
     clone.dataset.loaded = "false";
     clone.setAttribute("aria-hidden", "true");
     Object.assign(clone.style, {
