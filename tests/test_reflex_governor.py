@@ -471,3 +471,33 @@ def test_calibration_refuses_mixed_policy_or_decision_cohorts() -> None:
     )
     with pytest.raises(ValueError, match="REFLEX_CALIBRATION_COHORT_MIXED"):
         evaluate_reflex_outcomes((first, second))
+
+
+
+def test_outcome_ledger_detects_tampering(tmp_path: Path) -> None:
+    verdict = govern_reflex_result(
+        authorization=_authorization(),
+        result=_result(
+            {"HAZE": 0.90, "WAVE": 0.07, "BRIDGE": 0.03},
+            confidence=0.85,
+            choice="HAZE",
+        ),
+        question_id="q",
+    )
+    outcome = build_reflex_outcome(
+        verdict=verdict,
+        decision_key="domain.route.v1",
+        actual_label="HAZE",
+        label_source="HUMAN",
+        label_evidence_digest="6" * 64,
+        observed_at="2026-10-07T02:10:00+00:00",
+    )
+    path = tmp_path / "outcomes.jsonl"
+    append_reflex_outcome(path, outcome)
+
+    payload = json.loads(path.read_text(encoding="utf-8").strip())
+    payload["actual_label"] = "WAVE"
+    path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="REFLEX_OUTCOME_DIGEST_MISMATCH"):
+        load_reflex_outcomes(path)
