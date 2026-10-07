@@ -4,6 +4,7 @@ import type { Track } from "../../data/catalog";
 import type { PlayerPhase } from "../state/playerMachine";
 import type { QualityProfile } from "../quality/quality";
 import { createRenderer, type RendererAdapter } from "../renderer/createRenderer";
+import { CinematicMotionDriver } from "../animation/CinematicMotionDriver";
 
 type PhaseSink = (phase: PlayerPhase) => void;
 type TrackSink = (trackId: string) => void;
@@ -128,6 +129,7 @@ export class ResonanceExperience {
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
   private renderer: RendererAdapter;
+  private motion = new CinematicMotionDriver();
   private quality: QualityProfile;
   private world = new THREE.Group();
   private modules = new Map<string, ModuleRecord>();
@@ -255,6 +257,7 @@ export class ResonanceExperience {
 
   dispose(): void {
     this.running = false;
+    this.motion.killAll();
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener("pointerdown", this.handlePointerDown);
     this.canvas.removeEventListener("pointermove", this.handlePointerMove);
@@ -806,16 +809,7 @@ export class ResonanceExperience {
   }
 
   private animate(durationMs: number, update: (t: number) => void): Promise<void> {
-    return new Promise((resolve) => {
-      const start = performance.now();
-      const step = (now: number) => {
-        const t = Math.min(1, (now - start) / Math.max(1, durationMs));
-        update(t);
-        if (t < 1) requestAnimationFrame(step);
-        else resolve();
-      };
-      requestAnimationFrame(step);
-    });
+    return this.motion.progress(durationMs, update);
   }
 
   private frame = (): void => {
