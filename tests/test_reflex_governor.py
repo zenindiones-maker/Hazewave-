@@ -37,6 +37,14 @@ def _authorization(capability: str = "decision.route"):
     )
 
 
+def _calibrated_policy(*capabilities: str) -> dict:
+    policy = load_reflex_policy(ROOT / "config/reflex-governor-v1.json")
+    cloned = json.loads(json.dumps(policy))
+    for capability in capabilities or ("decision.route",):
+        cloned["profiles"][capability]["production_calibrated"] = True
+    return cloned
+
+
 def _result(
     probabilities: dict[str, float],
     *,
@@ -89,6 +97,7 @@ def test_small_label_route_can_be_accepted_as_recommendation() -> None:
             choice="HAZE",
         ),
         question_id="q",
+        policy=_calibrated_policy("decision.route"),
     )
 
     assert verdict.disposition == "ACCEPT_RECOMMENDATION"
@@ -111,6 +120,7 @@ def test_raw_system_one_confidence_semantics_drift_fails_closed() -> None:
                 choice="HAZE",
             ),
             question_id="q",
+            policy=_calibrated_policy("decision.route"),
         )
 
 
@@ -123,6 +133,7 @@ def test_uncertain_route_escalates_instead_of_forcing_a_choice() -> None:
             choice="HAZE",
         ),
         question_id="q",
+        policy=_calibrated_policy("decision.route"),
     )
 
     assert verdict.disposition == "ESCALATE"
@@ -140,6 +151,7 @@ def test_gate_lane_remains_shadow_only_even_when_distribution_is_sharp() -> None
             choice="allow",
         ),
         question_id="q",
+        policy=_calibrated_policy("decision.gate"),
     )
 
     assert verdict.disposition == "SHADOW_RECOMMENDATION"
@@ -197,6 +209,7 @@ def test_outcome_ledger_persists_digest_and_labels_not_raw_state(tmp_path: Path)
             choice="HAZE",
         ),
         question_id="q",
+        policy=_calibrated_policy("decision.route"),
     )
     outcome = build_reflex_outcome(
         verdict=accepted,
@@ -227,6 +240,7 @@ def test_calibration_report_measures_coverage_risk_brier_and_latency() -> None:
             latency_ms=100.0,
         ),
         question_id="q",
+        policy=_calibrated_policy("decision.route"),
     )
     uncertain = govern_reflex_result(
         authorization=_authorization(),
@@ -237,6 +251,7 @@ def test_calibration_report_measures_coverage_risk_brier_and_latency() -> None:
             latency_ms=300.0,
         ),
         question_id="q",
+        policy=_calibrated_policy("decision.route"),
     )
     outcomes = (
         build_reflex_outcome(
@@ -310,4 +325,22 @@ def test_selected_label_must_match_probability_argmax() -> None:
                 choice="HAZE",
             ),
             question_id="q",
+            policy=_calibrated_policy("decision.route"),
         )
+
+
+
+def test_default_route_policy_is_shadow_until_hazewave_calibration_exists() -> None:
+    verdict = govern_reflex_result(
+        authorization=_authorization(),
+        result=_result(
+            {"HAZE": 0.90, "WAVE": 0.07, "BRIDGE": 0.03},
+            confidence=0.85,
+            choice="HAZE",
+        ),
+        question_id="q",
+    )
+
+    assert verdict.disposition == "SHADOW_RECOMMENDATION"
+    assert verdict.reasons[0] == "HAZEWAVE_CALIBRATION_REQUIRED"
+    assert verdict.grants_execution_authority is False
