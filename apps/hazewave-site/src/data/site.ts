@@ -7,9 +7,8 @@ export interface SocialLink {
 export interface MerchItem {
   id: string;
   name: string;
-  category: "CAP" | "TEE" | "VINYL";
-  status: "CONCEPT" | "AVAILABLE";
-  message: string;
+  category: "CAP" | "TEE";
+  status: "CONCEPT";
   accent: string;
 }
 
@@ -18,8 +17,8 @@ export const siteIdentity = {
   tagline: "Núcleo Sonoro Independente | Santos 2021—",
   archiveCta: "ENTRAR NO ARQUIVO",
   backgroundAsset: "/media/hazewave-world.jpg.webp",
-  merchContactHref: "https://www.instagram.com/direct/inbox/",
-  merchContactMode: "COPY_MESSAGE_AND_OPEN_DM" as const
+  merchContactHref: null,
+  merchContactMode: "UNSET" as const
 };
 
 export const socials: SocialLink[] = [
@@ -40,29 +39,23 @@ export const socials: SocialLink[] = [
   }
 ];
 
+/**
+ * Merch remains concept-only until the owner supplies final product assets,
+ * availability/pricing and an authorized contact destination.
+ */
 export const merchItems: MerchItem[] = [
   {
-    id: "collective-cap",
-    name: "Boné Collective",
+    id: "hazewave-cap",
+    name: "Boné",
     category: "CAP",
     status: "CONCEPT",
-    message: "Fala Hazewave, quero o boné Collective",
     accent: "#d8ff7a"
   },
   {
-    id: "archive-tee",
-    name: "Camiseta Archive",
+    id: "hazewave-tee",
+    name: "Camiseta",
     category: "TEE",
     status: "CONCEPT",
-    message: "Fala Hazewave, quero a camiseta Archive",
     accent: "#8f2cff"
-  },
-  {
-    id: "signal-vinyl",
-    name: "Vinil Signal",
-    category: "VINYL",
-    status: "CONCEPT",
-    message: "Fala Hazewave, quero o vinil Signal",
-    accent: "#f5f2e9"
   }
 ];
