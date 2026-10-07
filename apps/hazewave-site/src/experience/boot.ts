@@ -3,6 +3,7 @@ import { HazewaveAudioEngine } from "./audio/SyntheticAudioEngine";
 import { bridgeFixtureManifest } from "./bridge/visualManifest";
 import { detectQuality } from "./quality/quality";
 import { PlayerMachine, type PlayerPhase } from "./state/playerMachine";
+import { ScrollConductor } from "./story/ScrollConductor";
 
 interface StageController {
   select(trackId: string): Promise<void>;
@@ -47,12 +48,62 @@ export function bootHazewaveSite(): void {
   const archiveButtons = Array.from(
     document.querySelectorAll<HTMLButtonElement>("[data-archive-track-id]")
   );
+  const enterArchive = document.querySelector<HTMLButtonElement>("#enter-archive");
+  const loader = document.querySelector<HTMLElement>("#site-loader");
+  const backdropImage = document.querySelector<HTMLImageElement>(".site-backdrop img");
+  const wheel = document.querySelector<HTMLElement>("#player-wheel");
+  const wheelVolume = document.querySelector<HTMLElement>("#wheel-volume");
+  const wheelActions = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-wheel-action]")
+  );
+  const merchButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-merch-message]")
+  );
 
   if (!stageHost || !player || !runtimeLabel || !stateLabel || !title || !artistLabel || !toggle || !seek || !sectionMap || !sectionLabel || !timeCurrent || !timeTotal) return;
 
   const quality = detectQuality();
   document.documentElement.dataset.qualityTier = quality.tier;
   document.documentElement.dataset.reducedMotion = String(quality.reducedMotion);
+
+  const conductor = new ScrollConductor(quality.reducedMotion);
+
+  if (enterArchive) {
+    enterArchive.addEventListener("click", () => conductor.scrollTo("#archive"));
+  }
+
+  if (loader) {
+    let loaderSettled = false;
+    const releaseLoader = () => {
+      if (loaderSettled) return;
+      loaderSettled = true;
+      loader.dataset.state = "ready";
+      window.setTimeout(() => loader.remove(), 520);
+    };
+
+    if (!backdropImage || backdropImage.complete) {
+      window.setTimeout(releaseLoader, 260);
+    } else {
+      backdropImage.addEventListener("load", releaseLoader, { once: true });
+      backdropImage.addEventListener("error", releaseLoader, { once: true });
+      window.setTimeout(releaseLoader, 1400);
+    }
+  }
+
+  merchButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const message = button.dataset.merchMessage?.trim();
+      const href = button.dataset.merchHref?.trim();
+      if (!message || !href) return;
+
+      void navigator.clipboard?.writeText(message).catch(() => undefined);
+      button.textContent = "MENSAGEM COPIADA · ABRINDO DM";
+      window.open(href, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => {
+        button.textContent = "COMPRAR VIA DM";
+      }, 1800);
+    });
+  });
 
   const machine = new PlayerMachine();
   const audio = new HazewaveAudioEngine();
@@ -333,6 +384,101 @@ export function bootHazewaveSite(): void {
     }
   };
 
+  const syncWheelVolume = () => {
+    if (!wheel || !wheelVolume) return;
+    const percent = Math.round(audio.volume * 100);
+    wheelVolume.textContent = String(percent);
+    wheel.setAttribute("aria-valuenow", String(percent));
+    wheel.setAttribute("aria-valuetext", `Volume ${percent}%`);
+  };
+
+  const setWheelVolume = (value: number) => {
+    audio.setVolume(value);
+    syncWheelVolume();
+  };
+
+  const selectRelative = (direction: -1 | 1) => {
+    const activeId = machine.activeTrackId;
+    const activeIndex = buttons.findIndex((button) => button.dataset.trackId === activeId);
+    const base = activeIndex < 0 ? (direction > 0 ? -1 : 0) : activeIndex;
+    const nextIndex = (base + direction + buttons.length) % buttons.length;
+    const next = buttons[nextIndex]?.dataset.trackId;
+    if (next) void selectTrack(next);
+  };
+
+  syncWheelVolume();
+
+  if (wheel) {
+    let pointerId: number | null = null;
+    let lastAngle = 0;
+
+    const angleForPointer = (event: PointerEvent) => {
+      const rect = wheel.getBoundingClientRect();
+      const x = event.clientX - (rect.left + rect.width / 2);
+      const y = event.clientY - (rect.top + rect.height / 2);
+      return Math.atan2(y, x);
+    };
+
+    wheel.addEventListener("pointerdown", (event) => {
+      if ((event.target as Element | null)?.closest("button")) return;
+      pointerId = event.pointerId;
+      lastAngle = angleForPointer(event);
+      wheel.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    });
+
+    wheel.addEventListener("pointermove", (event) => {
+      if (pointerId !== event.pointerId) return;
+      const angle = angleForPointer(event);
+      let delta = angle - lastAngle;
+      if (delta > Math.PI) delta -= Math.PI * 2;
+      if (delta < -Math.PI) delta += Math.PI * 2;
+      lastAngle = angle;
+      setWheelVolume(audio.volume + delta / (Math.PI * 2) * 0.72);
+    });
+
+    const releaseWheel = (event: PointerEvent) => {
+      if (pointerId !== event.pointerId) return;
+      pointerId = null;
+      try { wheel.releasePointerCapture(event.pointerId); } catch {}
+    };
+    wheel.addEventListener("pointerup", releaseWheel);
+    wheel.addEventListener("pointercancel", releaseWheel);
+
+    wheel.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowUp" || event.key === "ArrowRight") {
+        event.preventDefault();
+        setWheelVolume(audio.volume + 0.05);
+      } else if (event.key === "ArrowDown" || event.key === "ArrowLeft") {
+        event.preventDefault();
+        setWheelVolume(audio.volume - 0.05);
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        setWheelVolume(0);
+      } else if (event.key === "End") {
+        event.preventDefault();
+        setWheelVolume(1);
+      }
+    });
+  }
+
+  wheelActions.forEach((button) => {
+    button.addEventListener("click", () => {
+      const action = button.dataset.wheelAction;
+      if (action === "archive") conductor.scrollTo("#archive");
+      if (action === "previous") selectRelative(-1);
+      if (action === "next") selectRelative(1);
+      if (action === "toggle") {
+        if (!machine.activeTrackId) {
+          const first = buttons[0]?.dataset.trackId;
+          if (first) void selectTrack(first);
+        } else {
+          toggle.click();
+        }
+      }
+    });
+  });
+
   buttons.forEach((button, index) => {
     button.setAttribute("aria-pressed", "false");
     button.addEventListener("click", () => {
@@ -439,19 +585,8 @@ export function bootHazewaveSite(): void {
       seek.value = String(details.seekTime);
       timeCurrent.textContent = formatTime(details.seekTime);
     });
-    bindMediaAction("nexttrack", () => {
-      const activeId = machine.activeTrackId;
-      const index = buttons.findIndex((button) => button.dataset.trackId === activeId);
-      const next = buttons[(Math.max(index, -1) + 1) % buttons.length]?.dataset.trackId;
-      if (next) void selectTrack(next);
-    });
-    bindMediaAction("previoustrack", () => {
-      const activeId = machine.activeTrackId;
-      const index = buttons.findIndex((button) => button.dataset.trackId === activeId);
-      const previousIndex = index <= 0 ? buttons.length - 1 : index - 1;
-      const previous = buttons[previousIndex]?.dataset.trackId;
-      if (previous) void selectTrack(previous);
-    });
+    bindMediaAction("nexttrack", () => selectRelative(1));
+    bindMediaAction("previoustrack", () => selectRelative(-1));
   }
 
   let lastSemanticSection: "intro" | "verse" | "break" | "chorus" | "outro" | null = null;
@@ -601,6 +736,7 @@ export function bootHazewaveSite(): void {
       document.removeEventListener("visibilitychange", syncVisibility);
       experience?.dispose();
       atmosphere?.dispose();
+      conductor.dispose();
     },
     { once: true }
   );
