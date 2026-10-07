@@ -1,4 +1,4 @@
-import { getArtist, getTrack, type ArtistId } from "../data/catalog";
+import { getArtist, getTrack, tracks, type ArtistId } from "../data/catalog";
 import { HazewaveAudioEngine } from "./audio/SyntheticAudioEngine";
 import { bridgeFixtureManifest } from "./bridge/visualManifest";
 import { detectQuality } from "./quality/quality";
@@ -186,7 +186,8 @@ export function bootHazewaveSite(): void {
     const trackId = machine.activeTrackId;
     if (!trackId) return 0;
 
-    const source = buttons.find((button) => button.dataset.trackId === trackId);
+    const track = getTrack(trackId);
+    const source = buttons.find((button) => button.dataset.artist === track.artistId);
     if (!source) return 0;
 
     const rect = source.getBoundingClientRect();
@@ -307,7 +308,7 @@ export function bootHazewaveSite(): void {
         if (theme) theme.content = artist.identity.background;
 
         buttons.forEach((button) =>
-          button.setAttribute("aria-pressed", String(button.dataset.trackId === trackId))
+          button.setAttribute("aria-pressed", String(button.dataset.artist === artist.id))
         );
 
         player.dataset.active = "true";
@@ -400,10 +401,10 @@ export function bootHazewaveSite(): void {
 
   const selectRelative = (direction: -1 | 1) => {
     const activeId = machine.activeTrackId;
-    const activeIndex = buttons.findIndex((button) => button.dataset.trackId === activeId);
+    const activeIndex = tracks.findIndex((track) => track.id === activeId);
     const base = activeIndex < 0 ? (direction > 0 ? -1 : 0) : activeIndex;
-    const nextIndex = (base + direction + buttons.length) % buttons.length;
-    const next = buttons[nextIndex]?.dataset.trackId;
+    const nextIndex = (base + direction + tracks.length) % tracks.length;
+    const next = tracks[nextIndex]?.id;
     if (next) void selectTrack(next);
   };
 
@@ -471,7 +472,7 @@ export function bootHazewaveSite(): void {
       if (action === "next") selectRelative(1);
       if (action === "toggle") {
         if (!machine.activeTrackId) {
-          const first = buttons[0]?.dataset.trackId;
+          const first = tracks[0]?.id;
           if (first) void selectTrack(first);
         } else {
           toggle.click();
