@@ -72,6 +72,9 @@ export function bootHazewaveSite(): void {
   };
   let experience: StageController | null = null;
   let atmosphere: AtmosphereController | null = null;
+  let atmosphereLoad: Promise<AtmosphereController | null> | null = null;
+  let pendingAtmosphereArtist: ArtistId = "aether";
+  let atmosphereShouldPlay = false;
   let selectionToken = 0;
 
   const commitUiState = (update: () => void, transitionType?: string) => {
@@ -142,20 +145,43 @@ export function bootHazewaveSite(): void {
     (quality.tier === "HIGH" || quality.tier === "ULTRA") &&
     "gpu" in navigator;
 
-  const atmosphereReady: Promise<AtmosphereController | null> = gpuEligible
-    ? import("./gpu/HighTierAtmosphere")
-        .then(({ HighTierAtmosphere }) => HighTierAtmosphere.create(stageHost, quality))
-        .then((created) => {
-          atmosphere = created;
-          return atmosphere;
-        })
-        .catch((error) => {
-          atmosphere = null;
-          stageHost.dataset.gpuAtmosphere = "fallback";
-          console.warn("Hazewave WebGPU atmosphere fallback:", error);
-          return null;
-        })
-    : Promise.resolve(null);
+  const ensureAtmosphere = (): Promise<AtmosphereController | null> => {
+    if (!gpuEligible) return Promise.resolve(null);
+    if (atmosphereLoad) return atmosphereLoad;
+
+    atmosphereLoad = import("./gpu/HighTierAtmosphere")
+      .then(({ HighTierAtmosphere }) => HighTierAtmosphere.create(stageHost, quality))
+      .then((created) => {
+        atmosphere = created;
+        atmosphere.setArtist(pendingAtmosphereArtist);
+        atmosphere.setPlaying(atmosphereShouldPlay);
+        return atmosphere;
+      })
+      .catch((error) => {
+        atmosphere = null;
+        stageHost.dataset.gpuAtmosphere = "fallback";
+        console.warn("Hazewave WebGPU atmosphere fallback:", error);
+        return null;
+      });
+
+    return atmosphereLoad;
+  };
+
+  if (gpuEligible) {
+    const scheduleGpu = () => void ensureAtmosphere();
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (
+        callback: () => void,
+        options?: { timeout?: number }
+      ) => number;
+    };
+
+    if (idleWindow.requestIdleCallback) {
+      idleWindow.requestIdleCallback(scheduleGpu, { timeout: 1800 });
+    } else {
+      window.setTimeout(scheduleGpu, 1100);
+    }
+  }
 
   selectTrack = async (trackId: string) => {
     const token = ++selectionToken;
@@ -194,7 +220,8 @@ export function bootHazewaveSite(): void {
         if (worldTrack) worldTrack.textContent = track.title.toUpperCase();
       }, `artist-${artist.id}`);
 
-      void atmosphereReady.then((gpu) => gpu?.setArtist(artist.id));
+      pendingAtmosphereArtist = artist.id;
+      atmosphere?.setArtist(artist.id);
       await audio.prepare(track);
 
       const stage = await stageReady;
@@ -216,6 +243,7 @@ export function bootHazewaveSite(): void {
 
       stateLabel.textContent = machine.phase;
       stage?.setPlaying(true);
+      atmosphereShouldPlay = true;
       atmosphere?.setPlaying(true);
       toggle.disabled = false;
       toggle.textContent = "PAUSE";
@@ -266,6 +294,7 @@ export function bootHazewaveSite(): void {
       stateLabel.textContent = machine.phase;
       toggle.textContent = "PLAY";
       experience?.setPlaying(false);
+      atmosphereShouldPlay = false;
       atmosphere?.setPlaying(false);
     } else if (audio.state === "PAUSED") {
       void audio.resume().then(() => {
@@ -273,6 +302,7 @@ export function bootHazewaveSite(): void {
         stateLabel.textContent = machine.phase;
         toggle.textContent = "PAUSE";
         experience?.setPlaying(true);
+        atmosphereShouldPlay = true;
         atmosphere?.setPlaying(true);
       });
     }
