@@ -8,12 +8,18 @@ on:
       - "apps/hazewave-site/**"
       - "docs/wave/WAVE_SITE_DEPENDENCY_DECISIONS_V1.md"
       - "docs/wave/WAVE_DESIGN_FRONTIER_2026.md"
+      - "docs/wave/WAVE_HAZEWAVE_WORLD_BIBLE_V1.md"
+      - "docs/wave/WAVE_HAZEWAVE_INTERACTIVE_MUSIC_SITE_V1.md"
+      - "docs/DOCUMENTATION_REGISTRY_V2.json"
       - ".github/workflows/wave-site-ci.yml"
   pull_request:
     paths:
       - "apps/hazewave-site/**"
       - "docs/wave/WAVE_SITE_DEPENDENCY_DECISIONS_V1.md"
       - "docs/wave/WAVE_DESIGN_FRONTIER_2026.md"
+      - "docs/wave/WAVE_HAZEWAVE_WORLD_BIBLE_V1.md"
+      - "docs/wave/WAVE_HAZEWAVE_INTERACTIVE_MUSIC_SITE_V1.md"
+      - "docs/DOCUMENTATION_REGISTRY_V2.json"
       - ".github/workflows/wave-site-ci.yml"
 
 permissions:
