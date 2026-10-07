@@ -73,6 +73,8 @@ A candidate is persistable only if:
 - every measured request passed;
 - every measured result remained robust-eligible;
 - the selected label is identical to baseline;
+- aggregate probabilities stay within 1e-6 of baseline;
+- the runtime fingerprint is identical across compared reports;
 - p50 improves by at least 5%;
 - p95 is no more than 3% worse than baseline.
 
