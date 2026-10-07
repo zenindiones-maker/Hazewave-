@@ -8,6 +8,7 @@ import json
 import math
 import os
 from pathlib import Path
+import platform
 import statistics
 import sys
 from typing import Any, Iterable, Mapping
@@ -44,6 +45,35 @@ def _canonical(value: Any) -> bytes:
 
 def _digest(value: Any) -> str:
     return sha256(_canonical(value)).hexdigest()
+
+
+def _runtime_fingerprint() -> dict[str, Any]:
+    cpu_model = ""
+    try:
+        for line in Path("/proc/cpuinfo").read_text(encoding="utf-8").splitlines():
+            if line.lower().startswith("model name") and ":" in line:
+                cpu_model = line.split(":", 1)[1].strip()
+                break
+    except OSError:
+        pass
+    try:
+        affinity_cpus = len(os.sched_getaffinity(0))
+    except (AttributeError, OSError):
+        affinity_cpus = int(os.cpu_count() or 0)
+    try:
+        cgroup_cpu_max = Path("/sys/fs/cgroup/cpu.max").read_text(
+            encoding="utf-8"
+        ).strip()
+    except OSError:
+        cgroup_cpu_max = ""
+    value = {
+        "machine": platform.machine(),
+        "cpu_model": cpu_model,
+        "logical_cpus": int(os.cpu_count() or 0),
+        "affinity_cpus": int(affinity_cpus),
+        "cgroup_cpu_max": cgroup_cpu_max,
+    }
+    return {**value, "fingerprint_sha256": _digest(value)}
 
 
 def _atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
@@ -155,6 +185,44 @@ def _summary(values: Iterable[float | None]) -> dict[str, Any]:
     }
 
 
+def _probability_signature(rows: Iterable[Mapping[str, Any]]) -> dict[str, float]:
+    buckets: dict[str, list[float]] = {}
+    count = 0
+    for row in rows:
+        probabilities = row.get("aggregate_probabilities")
+        if not isinstance(probabilities, Mapping) or not probabilities:
+            raise ReflexLatencyError("REFLEX_LATENCY_PROBABILITY_SIGNATURE_MISSING")
+        count += 1
+        for label, value in probabilities.items():
+            if not isinstance(label, str) or not isinstance(value, (int, float)):
+                raise ReflexLatencyError("REFLEX_LATENCY_PROBABILITY_SIGNATURE_INVALID")
+            number = float(value)
+            if not math.isfinite(number) or not 0.0 <= number <= 1.0:
+                raise ReflexLatencyError("REFLEX_LATENCY_PROBABILITY_SIGNATURE_INVALID")
+            buckets.setdefault(label, []).append(number)
+    if count == 0 or any(len(values) != count for values in buckets.values()):
+        raise ReflexLatencyError("REFLEX_LATENCY_PROBABILITY_SIGNATURE_INCOMPLETE")
+    return {label: statistics.median(values) for label, values in sorted(buckets.items())}
+
+
+def _max_probability_delta(
+    left: Mapping[str, Any],
+    right: Mapping[str, Any],
+) -> float | None:
+    if set(left) != set(right) or not left:
+        return None
+    deltas: list[float] = []
+    for label in sorted(left):
+        a, b = left[label], right[label]
+        if not isinstance(a, (int, float)) or not isinstance(b, (int, float)):
+            return None
+        fa, fb = float(a), float(b)
+        if not math.isfinite(fa) or not math.isfinite(fb):
+            return None
+        deltas.append(abs(fa - fb))
+    return max(deltas, default=0.0)
+
+
 def _authorization():
     task = HazewaveTask(
         task_id="reflex-latency-benchmark",
@@ -237,6 +305,7 @@ def measure_profile(
                 "robust_eligible": robust.robust_eligible,
                 "winner_agreement": robust.ensemble.winner_agreement,
                 "normalized_jsd": robust.ensemble.normalized_jsd,
+                "aggregate_probabilities": dict(robust.ensemble.aggregate_probabilities),
                 "wall_ms": result.latency_ms,
                 "health_ms": result.health_ms,
                 "system_one_ms": result.system_one_ms,
@@ -260,6 +329,8 @@ def measure_profile(
     failures = [row for row in samples if row.get("status") != "PASS"]
     labels = sorted({str(row["selected_label"]) for row in passed})
     robust_all = bool(passed) and all(bool(row.get("robust_eligible")) for row in passed)
+    probability_signature = _probability_signature(passed) if passed else {}
+    runtime_fingerprint = _runtime_fingerprint()
 
     report = {
         "schema": "HazewaveReflexLatencyProfileReport/v1",
@@ -273,6 +344,8 @@ def measure_profile(
         "failed_requests": len(failures),
         "selected_labels": labels,
         "all_robust_eligible": robust_all,
+        "aggregate_probability_signature": probability_signature,
+        "runtime_fingerprint": runtime_fingerprint,
         "latency": {
             "wall": _summary(row.get("wall_ms") for row in passed),
             "health": _summary(row.get("health_ms") for row in passed),
@@ -326,6 +399,20 @@ def select_profile(
         raise ReflexLatencyError("REFLEX_LATENCY_BASELINE_REPORT_INVALID")
     if baseline.get("policy_sha256") != policy_digest(policy):
         raise ReflexLatencyError("REFLEX_LATENCY_BASELINE_POLICY_DRIFT")
+    if baseline.get("failed_requests") != 0:
+        raise ReflexLatencyError("REFLEX_LATENCY_BASELINE_FAILURES")
+    if baseline.get("all_robust_eligible") is not True:
+        raise ReflexLatencyError("REFLEX_LATENCY_BASELINE_NOT_ROBUST")
+
+    baseline_runtime = baseline.get("runtime_fingerprint")
+    if not isinstance(baseline_runtime, Mapping):
+        raise ReflexLatencyError("REFLEX_LATENCY_BASELINE_RUNTIME_FINGERPRINT_MISSING")
+    baseline_runtime_sha = baseline_runtime.get("fingerprint_sha256")
+    if not isinstance(baseline_runtime_sha, str) or len(baseline_runtime_sha) != 64:
+        raise ReflexLatencyError("REFLEX_LATENCY_BASELINE_RUNTIME_FINGERPRINT_INVALID")
+    baseline_probability = baseline.get("aggregate_probability_signature")
+    if not isinstance(baseline_probability, Mapping) or not baseline_probability:
+        raise ReflexLatencyError("REFLEX_LATENCY_BASELINE_PROBABILITY_SIGNATURE_MISSING")
 
     baseline_labels = baseline.get("selected_labels")
     if not isinstance(baseline_labels, list) or len(baseline_labels) != 1:
@@ -333,13 +420,19 @@ def select_profile(
     baseline_label = baseline_labels[0]
     base_p50 = baseline["latency"]["wall"]["p50_ms"]
     base_p95 = baseline["latency"]["wall"]["p95_ms"]
-    if not isinstance(base_p50, (int, float)) or not isinstance(base_p95, (int, float)):
+    if (
+        not isinstance(base_p50, (int, float))
+        or not isinstance(base_p95, (int, float))
+        or float(base_p50) <= 0.0
+        or float(base_p95) <= 0.0
+    ):
         raise ReflexLatencyError("REFLEX_LATENCY_BASELINE_TIMING_MISSING")
 
     candidates = []
     rejected = []
     improvement_needed = float(cfg["minimum_p50_improvement_fraction"])
     p95_regression = float(cfg["maximum_p95_regression_fraction"])
+    max_probability_delta = float(cfg["maximum_aggregate_probability_delta"])
 
     for name, report in sorted(reports.items()):
         row = profiles.get(name)
@@ -356,6 +449,20 @@ def select_profile(
             reasons.append("ROBUST_ELIGIBILITY_FAILED")
         if report.get("selected_labels") != [baseline_label]:
             reasons.append("SELECTED_LABEL_DRIFT")
+        runtime = report.get("runtime_fingerprint")
+        if (
+            not isinstance(runtime, Mapping)
+            or runtime.get("fingerprint_sha256") != baseline_runtime_sha
+        ):
+            reasons.append("RUNTIME_FINGERPRINT_DRIFT")
+        probability = report.get("aggregate_probability_signature")
+        probability_delta = (
+            _max_probability_delta(baseline_probability, probability)
+            if isinstance(probability, Mapping)
+            else None
+        )
+        if probability_delta is None or probability_delta > max_probability_delta:
+            reasons.append("AGGREGATE_PROBABILITY_DRIFT")
         p50 = ((report.get("latency") or {}).get("wall") or {}).get("p50_ms")
         p95 = ((report.get("latency") or {}).get("wall") or {}).get("p95_ms")
         if not isinstance(p50, (int, float)) or not isinstance(p95, (int, float)):
@@ -375,6 +482,7 @@ def select_profile(
                     "p95_ms": float(p95),
                     "improvement_fraction": improvement,
                     "p95_ratio": p95_ratio,
+                    "max_aggregate_probability_delta": probability_delta,
                 })
         if reasons:
             rejected.append({"profile": name, "reasons": reasons})
@@ -396,6 +504,8 @@ def select_profile(
         "baseline_p95_ms": float(base_p95),
         "selected_p50_ms": float(winner_report["latency"]["wall"]["p50_ms"]),
         "selected_p95_ms": float(winner_report["latency"]["wall"]["p95_ms"]),
+        "runtime_fingerprint": dict(baseline_runtime),
+        "aggregate_probability_signature": dict(baseline_probability),
         "candidates": candidates,
         "rejected": rejected,
         "provider_authority": "NONE",
@@ -429,6 +539,15 @@ def selected_profile(
         raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_SCHEMA_INVALID")
     if row.get("policy_sha256") != policy_digest(selected):
         raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_POLICY_DRIFT")
+    if selected["runtime"].get("bind_selection_to_runtime_fingerprint") is True:
+        expected_runtime = row.get("runtime_fingerprint")
+        current_runtime = _runtime_fingerprint()
+        if (
+            not isinstance(expected_runtime, Mapping)
+            or expected_runtime.get("fingerprint_sha256")
+            != current_runtime.get("fingerprint_sha256")
+        ):
+            raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_RUNTIME_DRIFT")
     profile = row.get("profile")
     if profile not in selected["profiles"]:
         raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_PROFILE_INVALID")
