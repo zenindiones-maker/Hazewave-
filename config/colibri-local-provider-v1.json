@@ -30,17 +30,27 @@
     "security_or_promotion_self_approval": false
   },
   "resource_policy": {
-    "reserve_system_ram_gb": 3.0,
-    "runtime_headroom_ram_gb": 1.0,
-    "reserve_disk_gb": 6.0,
+    "reserve_system_ram_gb": 3,
+    "runtime_headroom_ram_gb": 1,
+    "reserve_disk_gb": 6,
     "current_workstation_lane": "DECISION_ONLY"
   },
   "data_policy": {
-    "allowed_classes": ["PUBLIC", "INTERNAL_NON_SECRET", "PRIVATE_MEDIA"],
-    "forbidden_classes": ["CREDENTIAL"]
+    "allowed_classes": [
+      "PUBLIC",
+      "INTERNAL_NON_SECRET",
+      "PRIVATE_MEDIA"
+    ],
+    "forbidden_classes": [
+      "CREDENTIAL"
+    ]
   },
   "decision_policy": {
-    "min_choice_confidence": 0.8,
+    "acceptance_metric": "TOP_OPTION_PROBABILITY",
+    "min_choice_probability": 0.8,
+    "system_one_confidence_semantics": "OPTION_CONCENTRATION_NOT_CORRECTNESS_PROBABILITY",
+    "raw_confidence_automation_authority": "NONE",
+    "reflex_governor_policy": "config/reflex-governor-v1.json",
     "low_confidence_action": "FAIL_CLOSED_OR_DEFER_TO_EXISTING_HARNESS_RULE",
     "direct_human_language": "en",
     "pt_br_direct_classification": "NOT_QUALIFIED",
@@ -58,8 +68,14 @@
       "ram_min_gb": 1.7,
       "ram_good_gb": 1.7,
       "license": "Apache-2.0",
-      "languages": ["en"],
-      "allowed_capabilities": ["decision.route", "decision.gate", "decision.score"],
+      "languages": [
+        "en"
+      ],
+      "allowed_capabilities": [
+        "decision.route",
+        "decision.gate",
+        "decision.score"
+      ],
       "execution_enabled": true,
       "production_allowed": true,
       "recommended_current_tier": true
@@ -75,8 +91,14 @@
       "ram_min_gb": 1.9,
       "ram_good_gb": 1.9,
       "license": "Apache-2.0",
-      "languages": ["en"],
-      "allowed_capabilities": ["decision.route", "decision.gate", "decision.score"],
+      "languages": [
+        "en"
+      ],
+      "allowed_capabilities": [
+        "decision.route",
+        "decision.gate",
+        "decision.score"
+      ],
       "execution_enabled": false,
       "production_allowed": false,
       "recommended_current_tier": false
