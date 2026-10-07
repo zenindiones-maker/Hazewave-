@@ -743,7 +743,7 @@ export class LivingWorldStage {
       this.canvas.width / Math.max(this.canvas.height, 1)
     );
     this.uniform1("uImageAspect", this.imageAspect);
-    this.uniform1("uContain", innerWidth >= 1200 ? 1 : 0);
+    this.uniform1("uContain", 1);
 
     const pointerLocation = gl.getUniformLocation(program, "uPointer");
     if (pointerLocation !== null) {
