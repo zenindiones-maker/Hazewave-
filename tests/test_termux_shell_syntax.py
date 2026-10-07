@@ -166,3 +166,24 @@ def test_reflex_engine_tune_includes_exact_output_weight_panel_reuse_variant() -
     assert 'for (int mb = 0; mb < mblocks; mb++)' in remote
     assert '"reuse_packed_w_v1"' in remote
     assert '"exact_aggregate_probability_match"' in remote
+
+
+def test_reflex_laya_profiler_v3_separates_qi_gemm_pack_kernel_and_bias_costs() -> None:
+    remote = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
+
+    assert 'local variant="phase_profile_v3"' in remote
+    assert "REFLEX_QI_GEMM" in remote
+    for field in (
+        "pack_ms",
+        "kernel_ms",
+        "bias_ms",
+        "total_ms",
+        "gemm_internal_totals_ms",
+        "gemm_internal_shares",
+        "gemm_shapes",
+        "dominant_gemm_shape",
+    ):
+        assert field in remote
+    assert "AGGREGATE_PROBABILITY_DRIFT" in remote
+    assert '"diagnostic_only": True' in remote
+    assert '"activatable": False' in remote
