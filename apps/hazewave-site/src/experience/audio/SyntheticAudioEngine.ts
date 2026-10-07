@@ -197,6 +197,34 @@ export class HazewaveAudioEngine {
     return total / this.energyBuffer.length / 255;
   }
 
+  spectrumBands(count = 8): number[] {
+    const safeCount = Math.max(1, Math.min(32, Math.floor(count)));
+    if (!this.energyBuffer || this.status !== "PLAYING") {
+      return Array.from({ length: safeCount }, () => 0);
+    }
+
+    const values = new Array<number>(safeCount).fill(0);
+    const span = Math.max(1, Math.floor(this.energyBuffer.length / safeCount));
+
+    for (let band = 0; band < safeCount; band += 1) {
+      const start = band * span;
+      const end = band === safeCount - 1
+        ? this.energyBuffer.length
+        : Math.min(this.energyBuffer.length, start + span);
+
+      let total = 0;
+      let samples = 0;
+      for (let index = start; index < end; index += 1) {
+        total += this.energyBuffer[index] ?? 0;
+        samples += 1;
+      }
+
+      values[band] = samples > 0 ? total / samples / 255 : 0;
+    }
+
+    return values;
+  }
+
   private startSynthetic(track: Track, offsetSeconds: number): void {
     const ctx = this.context!;
     const base = track.audio.synthHz ?? 110;
