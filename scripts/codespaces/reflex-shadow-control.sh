@@ -556,6 +556,420 @@ PY
   printf '%s\n' "$binary"
 }
 
+build_phase_profile_engine_variant() {
+  local variant="phase_profile_v1"
+  local root="$HOME/.local/share/hazewave/providers/colibri/derived/$variant"
+  local binary="$root/c/laya"
+  local meta="$root/build.json"
+  local expected_sha="bf2442915d6e3dd4cdfd2eb9c2a3d2aa44a25850"
+
+  [[ "$(git -C "$SOURCE_ROOT" rev-parse HEAD)" == "$expected_sha" ]] || die "ENGINE_PROFILE_UPSTREAM_SHA_MISMATCH"
+  [[ -z "$(git -C "$SOURCE_ROOT" status --porcelain)" ]] || die "ENGINE_PROFILE_UPSTREAM_SOURCE_DIRTY"
+
+  if [[ -x "$binary" && -f "$meta" ]]; then
+    "$PYTHON_BIN" - "$meta" "$binary" <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+meta = json.load(open(sys.argv[1], encoding="utf-8"))
+binary = Path(sys.argv[2])
+actual = hashlib.sha256(binary.read_bytes()).hexdigest()
+if meta.get("binary_sha256") != actual:
+    raise SystemExit("ENGINE_PROFILE_DERIVED_BINARY_METADATA_MISMATCH")
+if meta.get("diagnostic_only") is not True or meta.get("activatable") is not False:
+    raise SystemExit("ENGINE_PROFILE_DERIVED_METADATA_INVALID")
+PY
+    printf '%s\n' "$binary"
+    return 0
+  fi
+
+  [[ ! -e "$root" ]] || die "ENGINE_PROFILE_DERIVED_ROOT_OCCUPIED"
+  mkdir -p "$(dirname "$root")"
+  local stage
+  stage="$(mktemp -d "$root.stage.XXXXXX")"
+  git -C "$SOURCE_ROOT" archive HEAD c | tar -x -C "$stage" || die "ENGINE_PROFILE_SOURCE_ARCHIVE_FAILED"
+
+  if ! "$PYTHON_BIN" - "$stage/c/laya.c" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+
+def once(old: str, new: str, label: str) -> None:
+    global text
+    if text.count(old) != 1:
+        raise SystemExit(f"ENGINE_PROFILE_PATCH_ANCHOR_INVALID:{label}:{text.count(old)}")
+    text = text.replace(old, new, 1)
+
+once(
+"""static void forward(Laya *M, Seq *seqs, int S, SeqOut *outs)
+{
+    int d = M->d, I = M->inter;""",
+"""static void forward(Laya *M, Seq *seqs, int S, SeqOut *outs)
+{
+    double hz_total_started = now_ms(), hz_phase_started = now_ms();
+    double hz_setup_ms = 0.0, hz_encoder_attention_ms = 0.0, hz_encoder_mlp_ms = 0.0;
+    double hz_transition_ms = 0.0, hz_head_attention_ms = 0.0, hz_head_mlp_ms = 0.0, hz_tail_ms = 0.0;
+    int d = M->d, I = M->inter;""",
+"forward_start",
+)
+
+once(
+"""    layernorm(x, h, M->emb_norm_w, M->emb_norm_b, T, d, M->eps);
+
+    for (int l = 0; l < M->layers; l++) {
+        EncLayer *E = &M->L[l];
+        const float *in = x;""",
+"""    layernorm(x, h, M->emb_norm_w, M->emb_norm_b, T, d, M->eps);
+    hz_setup_ms += now_ms() - hz_phase_started;
+
+    for (int l = 0; l < M->layers; l++) {
+        EncLayer *E = &M->L[l];
+        hz_phase_started = now_ms();
+        const float *in = x;""",
+"encoder_start",
+)
+
+once(
+"""        gemm(h, att, T, &E->wo, E->bo);
+        add_rows(x, h, (size_t)T * d);
+        layernorm(h, x, E->mlp_norm_w, E->mlp_norm_b, T, d, M->eps);""",
+"""        gemm(h, att, T, &E->wo, E->bo);
+        add_rows(x, h, (size_t)T * d);
+        hz_encoder_attention_ms += now_ms() - hz_phase_started;
+        hz_phase_started = now_ms();
+        layernorm(h, x, E->mlp_norm_w, E->mlp_norm_b, T, d, M->eps);""",
+"encoder_attention_end",
+)
+
+once(
+"""        gemm(h, mid, T, &E->wo2, E->bo2);
+        add_rows(x, h, (size_t)T * d);
+    }
+    layernorm(h, x, M->final_norm_w, M->final_norm_b, T, d, M->eps);""",
+"""        gemm(h, mid, T, &E->wo2, E->bo2);
+        add_rows(x, h, (size_t)T * d);
+        hz_encoder_mlp_ms += now_ms() - hz_phase_started;
+    }
+    hz_phase_started = now_ms();
+    layernorm(h, x, M->final_norm_w, M->final_norm_b, T, d, M->eps);""",
+"encoder_mlp_end",
+)
+
+once(
+"""    #pragma omp parallel for schedule(static)
+    for (int r = 0; r < T; r++) {
+        const float *te = M->type_emb + (size_t)seqs[row_seq[r]].qtype * d;
+        float *xr = x + (size_t)r * d;
+        for (int i = 0; i < d; i++) xr[i] += te[i];
+    }
+    int hh = M->head_heads, hhd = d / hh;""",
+"""    #pragma omp parallel for schedule(static)
+    for (int r = 0; r < T; r++) {
+        const float *te = M->type_emb + (size_t)seqs[row_seq[r]].qtype * d;
+        float *xr = x + (size_t)r * d;
+        for (int i = 0; i < d; i++) xr[i] += te[i];
+    }
+    hz_transition_ms += now_ms() - hz_phase_started;
+    int hh = M->head_heads, hhd = d / hh;""",
+"transition_end",
+)
+
+once(
+"""    for (int l = 0; l < M->head_layers; l++) {
+        HeadLayer *H = &M->H[l];
+        layernorm(h, x, H->n1w, H->n1b, T, d, 1e-5f);""",
+"""    for (int l = 0; l < M->head_layers; l++) {
+        HeadLayer *H = &M->H[l];
+        hz_phase_started = now_ms();
+        layernorm(h, x, H->n1w, H->n1b, T, d, 1e-5f);""",
+"head_start",
+)
+
+once(
+"""        gemm(h, att, T, &H->out_proj, H->out_proj_b);
+        add_rows(x, h, (size_t)T * d);
+        layernorm(h, x, H->n2w, H->n2b, T, d, 1e-5f);""",
+"""        gemm(h, att, T, &H->out_proj, H->out_proj_b);
+        add_rows(x, h, (size_t)T * d);
+        hz_head_attention_ms += now_ms() - hz_phase_started;
+        hz_phase_started = now_ms();
+        layernorm(h, x, H->n2w, H->n2b, T, d, 1e-5f);""",
+"head_attention_end",
+)
+
+once(
+"""        gemm(h, big, T, &H->lin2, H->lin2_b);
+        add_rows(x, h, (size_t)T * d);
+    }
+
+    int nm = 0;""",
+"""        gemm(h, big, T, &H->lin2, H->lin2_b);
+        add_rows(x, h, (size_t)T * d);
+        hz_head_mlp_ms += now_ms() - hz_phase_started;
+    }
+
+    int nm = 0;""",
+"head_mlp_end",
+)
+
+once(
+"""    forward_tail(M, seqs, S, x, seq_off, mark_row, outs);
+    free(mark_row);""",
+"""    hz_phase_started = now_ms();
+    forward_tail(M, seqs, S, x, seq_off, mark_row, outs);
+    hz_tail_ms += now_ms() - hz_phase_started;
+    double hz_total_ms = now_ms() - hz_total_started;
+    double hz_accounted_ms = hz_setup_ms + hz_encoder_attention_ms + hz_encoder_mlp_ms +
+                             hz_transition_ms + hz_head_attention_ms + hz_head_mlp_ms + hz_tail_ms;
+    double hz_other_ms = hz_total_ms - hz_accounted_ms;
+    if (hz_other_ms < 0.0) hz_other_ms = 0.0;
+    fprintf(stderr,
+            "REFLEX_LAYA_PHASES total_ms=%.3f setup_ms=%.3f encoder_attention_ms=%.3f "
+            "encoder_mlp_ms=%.3f transition_ms=%.3f head_attention_ms=%.3f "
+            "head_mlp_ms=%.3f tail_ms=%.3f other_ms=%.3f rows=%d sequences=%d\\n",
+            hz_total_ms, hz_setup_ms, hz_encoder_attention_ms, hz_encoder_mlp_ms,
+            hz_transition_ms, hz_head_attention_ms, hz_head_mlp_ms, hz_tail_ms,
+            hz_other_ms, T, S);
+    free(mark_row);""",
+"tail_profile",
+)
+
+path.write_text(text, encoding="utf-8")
+PY
+  then
+    rm -rf "$stage"
+    die "ENGINE_PROFILE_SOURCE_PATCH_FAILED"
+  fi
+
+  make -C "$stage/c" laya >/dev/null || { rm -rf "$stage"; die "ENGINE_PROFILE_BUILD_FAILED"; }
+  [[ -x "$stage/c/laya" ]] || { rm -rf "$stage"; die "ENGINE_PROFILE_BINARY_MISSING"; }
+
+  local patch_sha binary_sha
+  patch_sha="$(
+    {
+      git -C "$SOURCE_ROOT" show HEAD:c/laya.c
+      cat "$stage/c/laya.c"
+      printf '%s\n' "$variant"
+    } | sha256sum | awk '{print $1}'
+  )"
+  binary_sha="$(sha256sum "$stage/c/laya" | awk '{print $1}')"
+
+  mv "$stage" "$root"
+
+  "$PYTHON_BIN" - "$meta" "$variant" "$expected_sha" "$patch_sha" "$binary_sha" <<'PY'
+import json, os, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+row = {
+    "schema": "HazewaveReflexDerivedEngineBuild/v1",
+    "variant": sys.argv[2],
+    "upstream_commit": sys.argv[3],
+    "patch_sha256": sys.argv[4],
+    "binary_sha256": sys.argv[5],
+    "changes_model_or_precision": False,
+    "instrumentation_only": True,
+    "diagnostic_only": True,
+    "activatable": False,
+    "provider_authority": "NONE",
+}
+fd = os.open(p, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as out:
+    json.dump(row, out, sort_keys=True, separators=(",", ":"))
+    out.write("\n")
+PY
+  printf '%s\n' "$binary"
+}
+
+latency_engine_profile() {
+  ensure_checkout
+  "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE" >/dev/null || die "RUNTIME_DOCTOR_BLOCKED"
+  [[ -f "$SECRET_FILE" && ! -L "$SECRET_FILE" ]] || die "COLIBRI_SECRET_MISSING"
+  [[ "$(stat -c %a "$SECRET_FILE")" == "600" ]] || die "COLIBRI_SECRET_PERMISSIONS_INVALID"
+  port_is_free || die "ENGINE_PROFILE_PORT_BUSY_STOP_SERVE_FIRST"
+
+  local profiler stamp run_dir
+  profiler="$(build_phase_profile_engine_variant)"
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  run_dir="$STATE_ROOT/latency/phase-profile-runs/$stamp"
+  mkdir -p "$run_dir"
+  chmod 700 "$STATE_ROOT/latency" "$STATE_ROOT/latency/phase-profile-runs" "$run_dir" 2>/dev/null || true
+  echo "REFLEX_ENGINE_PROFILE_RUN_DIR=$run_dir"
+  echo "REFLEX_ENGINE_PROFILE_MODE=STOCK_VS_INSTRUMENTED_EXACT_OUTPUT"
+
+  stop_profile_case() {
+    local owned_pid="$1"
+    "$SOURCE_ROOT/c/coli" stop --port "$PORT" >/dev/null 2>&1 || true
+    for _ in $(seq 1 20); do
+      kill -0 "$owned_pid" 2>/dev/null || break
+      sleep 0.25
+    done
+    kill -0 "$owned_pid" 2>/dev/null && kill -TERM "$owned_pid" 2>/dev/null || true
+    for _ in $(seq 1 20); do
+      kill -0 "$owned_pid" 2>/dev/null || break
+      sleep 0.25
+    done
+    kill -0 "$owned_pid" 2>/dev/null && kill -KILL "$owned_pid" 2>/dev/null || true
+    wait "$owned_pid" 2>/dev/null || true
+    port_is_free || die "ENGINE_PROFILE_SERVER_DID_NOT_RELEASE_PORT"
+  }
+
+  run_profile_case() {
+    local label="$1"
+    local engine="$2"
+    local pid rc
+    echo "=== REFLEX ENGINE PROFILE CASE: $label ==="
+    port_is_free || die "ENGINE_PROFILE_PORT_NOT_FREE:$label"
+
+    COLI_ENGINE="$engine" "$PYTHON_BIN" -m hazewave.reflex_latency server \
+      --source-root "$SOURCE_ROOT" --model-root "$MODEL_ROOT" \
+      --secret-file "$SECRET_FILE" --state-root "$STATE_ROOT" \
+      --port "$PORT" --profile baseline_2t \
+      >"$run_dir/$label.server.log" 2>&1 &
+    pid=$!
+
+    if ! wait_health 180; then
+      tail -n 80 "$run_dir/$label.server.log" >&2 || true
+      stop_profile_case "$pid"
+      die "ENGINE_PROFILE_SERVER_START_FAILED:$label"
+    fi
+
+    set +e
+    "$PYTHON_BIN" -m hazewave.reflex_latency measure \
+      --profile baseline_2t --secret-file "$SECRET_FILE" \
+      --warmup 1 --repeats 3 >"$run_dir/$label.json"
+    rc=$?
+    set -e
+    stop_profile_case "$pid"
+    [[ "$rc" -eq 0 ]] || die "ENGINE_PROFILE_MEASURE_FAILED:$label:$rc"
+  }
+
+  run_profile_case stock "$SOURCE_ROOT/c/laya"
+  run_profile_case instrumented "$profiler"
+
+  set +e
+  "$PYTHON_BIN" - "$run_dir" <<'PY'
+import hashlib
+import json
+import os
+import re
+import statistics
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+stock = json.load(open(root / "stock.json", encoding="utf-8"))
+instrumented = json.load(open(root / "instrumented.json", encoding="utf-8"))
+stock_samples = [row for row in stock["samples"] if row.get("status") == "PASS"]
+inst_samples = [row for row in instrumented["samples"] if row.get("status") == "PASS"]
+reasons = []
+
+if stock.get("failed_requests") != 0 or instrumented.get("failed_requests") != 0:
+    reasons.append("FAILURES_OR_INCOMPLETE")
+if stock.get("all_semantically_stable") is not True or instrumented.get("all_semantically_stable") is not True:
+    reasons.append("SEMANTIC_STABILITY_FAILED")
+if [row["request_sha256"] for row in stock_samples] != [row["request_sha256"] for row in inst_samples]:
+    reasons.append("REQUEST_SEQUENCE_DRIFT")
+exact_probs = (
+    [row["aggregate_probabilities"] for row in stock_samples]
+    == [row["aggregate_probabilities"] for row in inst_samples]
+)
+if not exact_probs:
+    reasons.append("AGGREGATE_PROBABILITY_DRIFT")
+
+pattern = re.compile(
+    r"REFLEX_LAYA_PHASES "
+    r"total_ms=(?P<total_ms>[0-9.]+) "
+    r"setup_ms=(?P<setup_ms>[0-9.]+) "
+    r"encoder_attention_ms=(?P<encoder_attention_ms>[0-9.]+) "
+    r"encoder_mlp_ms=(?P<encoder_mlp_ms>[0-9.]+) "
+    r"transition_ms=(?P<transition_ms>[0-9.]+) "
+    r"head_attention_ms=(?P<head_attention_ms>[0-9.]+) "
+    r"head_mlp_ms=(?P<head_mlp_ms>[0-9.]+) "
+    r"tail_ms=(?P<tail_ms>[0-9.]+) "
+    r"other_ms=(?P<other_ms>[0-9.]+) "
+    r"rows=(?P<rows>[0-9]+) sequences=(?P<sequences>[0-9]+)"
+)
+log_text = (root / "instrumented.server.log").read_text(encoding="utf-8", errors="replace")
+phase_rows = []
+for match in pattern.finditer(log_text):
+    row = {
+        key: (int(value) if key in {"rows", "sequences"} else float(value))
+        for key, value in match.groupdict().items()
+    }
+    phase_rows.append(row)
+
+needed = int(instrumented.get("measured_requests") or 0)
+if needed < 1 or len(phase_rows) < needed:
+    reasons.append("PHASE_TELEMETRY_INCOMPLETE")
+measured_rows = phase_rows[-needed:] if needed > 0 and len(phase_rows) >= needed else phase_rows
+
+phase_keys = [
+    "setup_ms",
+    "encoder_attention_ms",
+    "encoder_mlp_ms",
+    "transition_ms",
+    "head_attention_ms",
+    "head_mlp_ms",
+    "tail_ms",
+    "other_ms",
+]
+phase_medians = {}
+phase_shares = {}
+median_total = None
+if measured_rows:
+    median_total = statistics.median(row["total_ms"] for row in measured_rows)
+    phase_medians = {
+        key: statistics.median(row[key] for row in measured_rows)
+        for key in phase_keys
+    }
+    if median_total and median_total > 0:
+        phase_shares = {
+            key.replace("_ms", "_share"): value / median_total
+            for key, value in phase_medians.items()
+        }
+
+dominant_phase = (
+    max(phase_medians, key=phase_medians.get)
+    if phase_medians else None
+)
+
+report = {
+    "schema": "HazewaveReflexLayaPhaseProfile/v1",
+    "status": "PASS" if not reasons else "EVIDENCE_REJECTED",
+    "reasons": reasons,
+    "stock_p50_ms": stock["latency"]["wall"]["p50_ms"],
+    "instrumented_p50_ms": instrumented["latency"]["wall"]["p50_ms"],
+    "exact_aggregate_probability_match": exact_probs,
+    "measured_phase_rows": len(measured_rows),
+    "median_forward_ms": median_total,
+    "phase_medians_ms": phase_medians,
+    "phase_shares": phase_shares,
+    "dominant_phase": dominant_phase,
+    "diagnostic_only": True,
+    "activatable": False,
+    "changes_model_or_precision": False,
+    "provider_authority": "NONE",
+    "grants_execution_authority": False,
+    "production_calibrated": False,
+}
+raw = json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
+report["report_sha256"] = hashlib.sha256(raw).hexdigest()
+target = root / "phase-profile.json"
+fd = os.open(target, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as out:
+    json.dump(report, out, sort_keys=True, separators=(",", ":"))
+    out.write("\n")
+print(json.dumps(report, sort_keys=True))
+raise SystemExit(0 if not reasons else 4)
+PY
+  rc=$?
+  set -e
+  [[ "$rc" -eq 0 ]] || die "ENGINE_PROFILE_EVIDENCE_REJECTED:$rc"
+  echo "REFLEX_ENGINE_PROFILE=PASS"
+  echo "REFLEX_ENGINE_PROFILE_ACTIVATION=FORBIDDEN"
+}
+
 latency_engine_tune() {
   ensure_checkout
   "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE" >/dev/null || die "RUNTIME_DOCTOR_BLOCKED"
@@ -1042,6 +1456,7 @@ case "${1:-}" in
   latency-tune) latency_tune ;;
   latency-report) latency_report ;;
   latency-engine-tune) latency_engine_tune ;;
+  latency-engine-profile) latency_engine_profile ;;
   latency-engine-report) latency_engine_report ;;
   latency-scale-probe) latency_scale_probe ;;
   *) echo "usage: $0 {doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report|latency-scale-probe}" >&2; exit 2 ;;
