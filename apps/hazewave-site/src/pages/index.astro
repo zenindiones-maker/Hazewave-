@@ -18,6 +18,9 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
   <body>
     <div class="site-backdrop" aria-hidden="true">
       <img src={siteIdentity.backgroundAsset} alt="" decoding="async" fetchpriority="high" />
+      <span class="site-backdrop-water"></span>
+      <span class="site-backdrop-fog"></span>
+      <span class="site-backdrop-light"></span>
       <span class="site-backdrop-scrim"></span>
     </div>
 
