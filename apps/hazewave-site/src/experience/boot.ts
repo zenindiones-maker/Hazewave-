@@ -144,8 +144,9 @@ export function bootHazewaveSite(): void {
 
   const atmosphereReady: Promise<AtmosphereController | null> = gpuEligible
     ? import("./gpu/HighTierAtmosphere")
-        .then(({ HighTierAtmosphere }) => {
-          atmosphere = new HighTierAtmosphere(stageHost, quality);
+        .then(({ HighTierAtmosphere }) => HighTierAtmosphere.create(stageHost, quality))
+        .then((created) => {
+          atmosphere = created;
           return atmosphere;
         })
         .catch((error) => {
