@@ -825,3 +825,33 @@ test("LOW tier keeps the owner world alive without requiring WebGL", async ({ pa
   expect(awakened.waterShift).not.toBe("");
   await expect(host.locator("img")).toHaveAttribute("src", "/media/hazewave-world.jpg.webp");
 });
+
+
+test("authorized video lifecycle unloads media on close without production data", async ({ page }) => {
+  await page.goto("/");
+
+  const portal = page.locator("[data-video-portal='aether']");
+  const open = portal.locator("button").first();
+
+  await open.evaluate((element) => {
+    const button = element as HTMLButtonElement;
+    button.disabled = false;
+    button.dataset.videoSource = "/media/__synthetic_video_lifecycle_test__.mp4";
+    button.dataset.videoArtist = "aether";
+    button.textContent = "OPEN VISUAL";
+  });
+
+  await open.click();
+
+  const mount = page.locator("[data-video-mount='aether']");
+  await expect(mount).toHaveAttribute("data-loaded", "true");
+  await expect(mount.locator("video")).toHaveCount(1);
+
+  const close = portal.locator("[data-video-close='aether']");
+  await expect(close).toBeVisible();
+  await close.click();
+
+  await expect(mount.locator("video,iframe")).toHaveCount(0);
+  await expect(mount).not.toHaveAttribute("data-loaded", "true");
+  await expect(open).toBeEnabled();
+});
