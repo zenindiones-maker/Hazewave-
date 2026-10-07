@@ -8,6 +8,7 @@ from jsonschema import Draft202012Validator
 
 import hazewave.reflex_latency as latency
 import hazewave.reflex_shadow_runtime as shadow_runtime
+from hazewave.reflex import load_reflex_policy, reflex_transport_timeout_seconds
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -67,6 +68,16 @@ def test_latency_policy_validates_against_schema() -> None:
     loaded = latency.load_latency_policy()
     assert loaded["activation_state"] == "MEASURE_BEFORE_ACTIVATE"
     assert loaded["provider_authority"] == "NONE"
+
+
+def test_latency_benchmark_observation_timeout_covers_live_route_transport_window() -> None:
+    latency_policy = latency.load_latency_policy()
+    reflex_policy = load_reflex_policy()
+    route_profile = reflex_policy["profiles"]["decision.route"]
+
+    assert latency_policy["benchmark"]["request_timeout_seconds"] >= (
+        reflex_transport_timeout_seconds(route_profile)
+    )
 
 
 def test_question_scale_probe_uses_complete_live_permutation_prefixes() -> None:
