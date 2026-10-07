@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { getArtist, tracks } from "../../data/catalog";
-import type { Track, VisualIdentity } from "../../data/catalog";
+import type { Track } from "../../data/catalog";
 import type { PlayerPhase } from "../state/playerMachine";
 import type { QualityProfile } from "../quality/quality";
 import { createRenderer, type RendererAdapter } from "../renderer/createRenderer";
@@ -14,6 +14,7 @@ interface ModuleRecord {
   homeQuaternion: THREE.Quaternion;
   track: Track;
   accent: THREE.Color;
+  focusScale: number;
 }
 
 interface DeckParts {
@@ -24,6 +25,8 @@ interface DeckParts {
   ring: THREE.Mesh;
   ringMaterial: THREE.MeshStandardMaterial;
   haloMaterial: THREE.MeshBasicMaterial;
+  contactPulse: THREE.Mesh;
+  contactPulseMaterial: THREE.MeshBasicMaterial;
   screenTexture: THREE.CanvasTexture;
   screenContext: CanvasRenderingContext2D;
 }
@@ -145,6 +148,7 @@ export class ResonanceExperience {
   private resizeObserver: ResizeObserver;
   private canvas: HTMLCanvasElement;
   private pointerDownLocked = false;
+  private hoveredTrackId: string | null = null;
   private idleClock = new THREE.Clock();
 
   constructor(
@@ -365,9 +369,36 @@ export class ResonanceExperience {
     statusBar.position.set(0.85, -0.74, 0.52);
     root.add(statusBar);
 
+    const apertureTunnel = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.57, 0.57, 0.42, 64, 1, true),
+      new THREE.MeshStandardMaterial({
+        color: 0x080c0b,
+        metalness: 0.82,
+        roughness: 0.27,
+        side: THREE.DoubleSide
+      })
+    );
+    apertureTunnel.rotation.x = Math.PI / 2;
+    apertureTunnel.position.set(-0.84, 0.02, 0.39);
+    root.add(apertureTunnel);
+
     const light = new THREE.PointLight(0xa7ffe0, 5.2, 7, 1.7);
     light.position.set(-0.84, 0.05, 1.55);
     root.add(light);
+
+    const contactPulseMaterial = new THREE.MeshBasicMaterial({
+      color: 0xa7ffe0,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const contactPulse = new THREE.Mesh(
+      new THREE.RingGeometry(0.72, 0.755, 96),
+      contactPulseMaterial
+    );
+    contactPulse.position.set(-0.84, 0.02, 0.655);
+    root.add(contactPulse);
 
     const haloMaterial = new THREE.MeshBasicMaterial({
       color: 0xa7ffe0,
@@ -389,6 +420,8 @@ export class ResonanceExperience {
       ring,
       ringMaterial,
       haloMaterial,
+      contactPulse,
+      contactPulseMaterial,
       screenTexture,
       screenContext
     };
@@ -509,7 +542,8 @@ export class ResonanceExperience {
         homePosition: group.position.clone(),
         homeQuaternion: group.quaternion.clone(),
         track,
-        accent
+        accent,
+        focusScale: 1
       });
     });
   }
@@ -640,11 +674,16 @@ export class ResonanceExperience {
     this.onPhase("CONTACT");
     this.deck.light.intensity = 14;
     this.deck.ringMaterial.emissiveIntensity = 7.5;
+    this.deck.contactPulseMaterial.color.copy(record.accent);
+    this.deck.contactPulseMaterial.opacity = 0.82;
+    this.deck.contactPulse.scale.setScalar(0.72);
     this.drawDeckScreen(record.track, "LOCKED");
-    await this.animate(92, (t) => {
+    await this.animate(128, (t) => {
       const kick = Math.sin(t * Math.PI);
       record.group.position.z = target.z - kick * 0.035;
       this.deck.root.position.z = -0.15 - kick * 0.018;
+      this.deck.contactPulse.scale.setScalar(THREE.MathUtils.lerp(0.72, 1.65, easeOutQuint(t)));
+      this.deck.contactPulseMaterial.opacity = THREE.MathUtils.lerp(0.82, 0, easeOutQuint(t));
     });
     this.deck.root.position.z = -0.15;
 
@@ -688,13 +727,12 @@ export class ResonanceExperience {
 
   private setOtherModuleFocus(trackId: string, scale: number): void {
     for (const [id, record] of this.modules) {
-      if (id === trackId) continue;
-      record.group.scale.setScalar(scale);
+      record.focusScale = id === trackId ? 1 : scale;
     }
   }
 
   private setAllModuleFocus(): void {
-    for (const record of this.modules.values()) record.group.scale.setScalar(1);
+    for (const record of this.modules.values()) record.focusScale = 1;
   }
 
   private openGate(t: number): void {
@@ -805,11 +843,23 @@ export class ResonanceExperience {
     for (const [trackId, record] of this.modules) {
       if (trackId !== this.activeTrackId && !this.pointerDownLocked) {
         const phase = Number.parseInt(trackId.replace(/\D/g, "").slice(-2) || "1", 10);
+        const hovered = trackId === this.hoveredTrackId;
+        const targetScale = record.focusScale * (hovered ? 1.045 : 1);
+        const nextScale = THREE.MathUtils.lerp(record.group.scale.x, targetScale, hovered ? 0.16 : 0.1);
+        record.group.scale.setScalar(nextScale);
         record.group.rotation.z =
-          record.homeQuaternion.clone().setFromEuler(new THREE.Euler()).z +
-          Math.sin(elapsed * 0.38 + phase) * 0.012;
+          (record.homePosition.x < 0 ? -0.035 : 0.035) +
+          Math.sin(elapsed * 0.38 + phase) * 0.012 +
+          (hovered ? (record.homePosition.x < 0 ? -0.018 : 0.018) : 0);
         record.group.position.y =
-          record.homePosition.y + Math.sin(elapsed * 0.52 + phase * 0.9) * 0.025;
+          record.homePosition.y +
+          Math.sin(elapsed * 0.52 + phase * 0.9) * 0.025 +
+          (hovered ? 0.055 : 0);
+        record.group.position.z = THREE.MathUtils.lerp(
+          record.group.position.z,
+          record.homePosition.z + (hovered ? 0.18 : 0),
+          0.12
+        );
       }
     }
 
@@ -864,13 +914,16 @@ export class ResonanceExperience {
 
   private handlePointerMove = (event: PointerEvent): void => {
     if (this.pointerDownLocked) {
+      this.hoveredTrackId = null;
       this.canvas.style.cursor = "progress";
       return;
     }
-    this.canvas.style.cursor = this.getTrackAtPointer(event) ? "pointer" : "default";
+    this.hoveredTrackId = this.getTrackAtPointer(event);
+    this.canvas.style.cursor = this.hoveredTrackId ? "pointer" : "default";
   };
 
   private handlePointerLeave = (): void => {
+    this.hoveredTrackId = null;
     this.canvas.style.cursor = "default";
   };
 }
