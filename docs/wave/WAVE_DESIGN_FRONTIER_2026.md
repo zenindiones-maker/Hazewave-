@@ -683,3 +683,107 @@ semantic Astro shell
 + optional higher-tier GPU enhancement
 
 This is the current evidence-based design spine.
+
+
+## 21. Browser frontier correction and bundle evidence
+
+Research refreshed against current upstream documentation on 2026-10-07.
+
+### CSS Anchor Positioning
+
+Official references:
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/anchor
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/position-anchor
+
+Current platform reality:
+- `anchor()` / `anchor-name` are Baseline 2026;
+- `position-anchor` reached broad current-browser availability later in 2026;
+- support on older browsers is not guaranteed.
+
+Decision:
+ADOPT only as progressive layout enhancement. Existing absolute/flex positioning remains the fallback. The Deck beacon may anchor to the Deck where supported, but correctness never depends on it.
+
+### Registered CSS custom properties
+
+Official reference:
+https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Properties_and_values_API/Registering_properties
+
+Decision:
+ADOPT for typed visual state such as beat scale, audio glow, audio lift and track-progress angles/lengths. Registration improves interpolation semantics and prevents invalid values from silently contaminating the visual state.
+
+### Scroll-driven animation support correction
+
+Official references:
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/animation-timeline
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/animation-timeline/view
+
+Current platform reality:
+`animation-timeline` / `view()` are still not Baseline across all widely used browsers.
+
+Decision:
+KEEP ONLY AS PROGRESSIVE EDITORIAL ENHANCEMENT. Never use scroll timelines for the core selection, insertion, audio or playback state machine. Static card layout is the required fallback.
+
+### View Transition types
+
+Official references:
+https://developer.mozilla.org/en-US/docs/Web/API/ViewTransition/types
+https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API/Using_types
+
+Current platform reality:
+typed View Transitions are Baseline 2026 on current browser generations, but older browsers remain in circulation.
+
+Decision:
+ADOPT as progressive enhancement around artist/text state changes. The ordinary DOM update path remains authoritative and complete.
+
+### WebGPU / Three.js bundle experiment — REJECTED IMPLEMENTATION, PRESERVED CAPABILITY
+
+Official Three.js reference:
+https://threejs.org/manual/pages/webgpurenderer
+
+A measured spike imported `three/webgpu` for a tiny optional atmosphere.
+
+Observed CI bundle:
+- optional WebGPU/Three chunk: about 789,286 bytes;
+- total JavaScript: about 909,318 bytes;
+- existing declared largest-chunk budget: 700,000 bytes;
+- existing total-JS budget: 900,000 bytes.
+
+Result:
+REJECT that implementation. The quality gain did not justify the startup/download footprint.
+
+The replacement uses a bounded native WebGPU/WGSL atmosphere:
+- dynamically imported only on HIGH/ULTRA;
+- never required on LOW/MEDIUM;
+- normal DOM/GSAP experience remains the product;
+- successful measured total JS after the replacement: about 129,695 bytes;
+- optional native WebGPU chunk: about 6 KB in the measured build.
+
+Three.js remains available as an evaluated capability for future real GLB/product assets and TSL work where it earns its cost. It is not allowed back into the public critical path without a new measured case.
+
+### MotionPath evidence
+
+Official reference:
+https://gsap.com/docs/v3/Plugins/MotionPathPlugin/
+
+MotionPath remains the correct primary choreography tool for the physical-media transfer because it supports deterministic curved authored motion from arrays of x/y points without introducing physics uncertainty.
+
+Compact/mobile trajectories must be authored separately where necessary. A path that looks correct on desktop but exits the mobile viewport is a visual correctness failure, not an acceptable responsive compromise.
+
+## 22. Updated implementation principle
+
+The highest-quality current path is not "use every 2026 API."
+
+It is:
+
+- semantic product structure first;
+- physical interaction language second;
+- authored deterministic motion;
+- musical semantics from HAZE;
+- artist-specific world transformation;
+- native browser capabilities where mature;
+- bounded WebGPU only where measured;
+- no heavy renderer on mobile unless it visibly earns the frame/bundle cost;
+- accessibility and fallback preserved at every layer;
+- actual browser screenshots/video/metrics decide whether a technique survives.
+
+New technology is admitted only when it improves the experience enough to justify its cost.
