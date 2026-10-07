@@ -338,13 +338,14 @@ test("persistent owner artwork drives one reversible story world", async ({ page
   const backdrop = page.locator(".site-backdrop img");
   await expect(backdrop).toHaveAttribute("src", "/media/hazewave-world.jpg.webp");
 
-  await page.locator(".dossier-zone").scrollIntoViewIfNeeded();
-  await expect(page.locator("html")).toHaveAttribute("data-story-chapter", /artists|dossiers/, { timeout: 2_000 });
+  await focusStorySection(page, "#dossiers");
+  await expect(page.locator("html")).toHaveAttribute("data-story-chapter", "dossiers", { timeout: 2_000 });
 
-  await page.locator(".social-footer").scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "auto" }));
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   await expect(page.locator("html")).toHaveAttribute("data-story-chapter", "network", { timeout: 2_000 });
 
-  await page.locator(".archive-hero").scrollIntoViewIfNeeded();
+  await focusStorySection(page, "#threshold");
   await expect(page.locator("html")).toHaveAttribute("data-story-chapter", /threshold|archive/, { timeout: 2_000 });
 });
 
@@ -472,8 +473,8 @@ test("story rail follows the persistent-world chapter conductor", async ({ page 
   await page.goto("/");
   await expect(page.locator(".story-rail a")).toHaveCount(6);
 
-  await page.locator("#dossiers").scrollIntoViewIfNeeded();
-  await expect(page.locator("html")).toHaveAttribute("data-story-chapter", "dossiers", { timeout: 2_500 });
+  await page.locator(".story-rail [data-story-link='dossiers']").click();
+  await expect(page.locator("html")).toHaveAttribute("data-story-chapter", "dossiers", { timeout: 3_000 });
   await expect(page.locator(".story-rail [data-story-link='dossiers']")).toBeVisible();
 
   await page.locator(".story-rail [data-story-link='archive']").click();
@@ -492,11 +493,11 @@ test("living world scroll state is reversible and deterministic", async ({ page 
       )
     );
 
-  await page.locator("#threshold").scrollIntoViewIfNeeded();
+  await focusStorySection(page, "#threshold");
   await expect(page.locator("html")).toHaveAttribute("data-story-beat", "WORLD_SLEEP");
   const start = await progress();
 
-  await page.locator("#artist-worlds").scrollIntoViewIfNeeded();
+  await focusStorySection(page, "#artist-worlds");
   await expect(page.locator("html")).toHaveAttribute(
     "data-story-beat",
     /ARTIST_DISCOVERY|ARTIST_FOCUS/,
@@ -505,7 +506,7 @@ test("living world scroll state is reversible and deterministic", async ({ page 
   const middle = await progress();
   expect(middle).toBeGreaterThan(start);
 
-  await page.locator("#objects").scrollIntoViewIfNeeded();
+  await focusStorySection(page, "#objects");
   await expect(page.locator("html")).toHaveAttribute(
     "data-story-beat",
     /MERCH_APPROACH|FINAL_DESCENT/,
@@ -514,10 +515,10 @@ test("living world scroll state is reversible and deterministic", async ({ page 
   const end = await progress();
   expect(end).toBeGreaterThan(middle);
 
-  await page.locator("#threshold").scrollIntoViewIfNeeded();
+  await focusStorySection(page, "#threshold");
   await expect(page.locator("html")).toHaveAttribute(
     "data-story-beat",
-    /WORLD_SLEEP|WORLD_AWAKENING/,
+    "WORLD_SLEEP",
     { timeout: 2_500 }
   );
   const reversed = await progress();
