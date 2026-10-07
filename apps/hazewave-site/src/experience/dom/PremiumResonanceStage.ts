@@ -91,8 +91,9 @@ export class PremiumResonanceStage {
           source.dataset.loaded = "true";
           this.screenTitle.textContent = track.title;
           this.screenArtist.textContent = artist.name.replace(" / DEMO", "");
-          this.onPhase("CONTACT");
-          this.host.dataset.phase = "contact";
+          // Same physical cassette, new track: no fake eject/reinsert.
+          this.onPhase("SELECTED");
+          this.host.dataset.phase = "selected";
           this.deck.dataset.state = "contact";
 
           if (!this.quality.reducedMotion) {
