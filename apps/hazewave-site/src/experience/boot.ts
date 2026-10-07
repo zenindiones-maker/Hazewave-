@@ -660,15 +660,9 @@ export function bootHazewaveSite(): void {
       const trackId = button.dataset.archiveTrackId;
       if (!trackId) return;
 
-      stageHost.scrollIntoView({
-        behavior: quality.reducedMotion ? "auto" : "smooth",
-        block: "start"
-      });
-
-      window.setTimeout(
-        () => void selectTrack(trackId),
-        quality.reducedMotion ? 0 : 260
-      );
+      // Artist chapters play in place. Scroll is the narrative authority, so
+      // selecting music must not teleport the visitor away from the chapter.
+      void selectTrack(trackId);
     });
   });
 
