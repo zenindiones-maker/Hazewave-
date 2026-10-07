@@ -648,6 +648,124 @@ if block.count(old) != 1:
     raise SystemExit(f"ENGINE_PACK_REUSE_PATCH_ANCHOR_INVALID:{block.count(old)}")
 patched = block.replace(old, new, 1)
 text = text[:start] + patched + text[end:]
+
+qi_text = qi_path.read_text(encoding="utf-8")
+helper_anchor = """enum { QI_F32 = 0, QI_BF16 = 1, QI_I8 = 2 };\n"""
+if qi_text.count(helper_anchor) != 1:
+    raise SystemExit(f"ENGINE_QI_PROFILE_HELPER_ANCHOR_INVALID:{qi_text.count(helper_anchor)}")
+qi_text = qi_text.replace(
+    helper_anchor,
+    helper_anchor + """
+static inline double qi_prof_now_ms(void){
+#ifdef _OPENMP
+    return omp_get_wtime() * 1000.0;
+#else
+    return 0.0;
+#endif
+}
+""",
+    1,
+)
+
+start = qi_text.index("static void qi_gemm_ld(")
+end = qi_text.index("\nstatic inline void qi_gemm(", start)
+qi_block = qi_text[start:end]
+
+old_qi = """static void qi_gemm_ld(float *Y, int ldy, const float *X, int ldx, int M, const QiMat *W, const float *bias){
+    const int N = W->N, K = W->K;
+    if (M <= 0 || N <= 0) return;
+    const int nblocks = (N + QI_NR - 1) / QI_NR;
+    const int mblocks = (M + QI_MC - 1) / QI_MC;
+    /* Parallel over (m-block, n-panel) tiles; each tile walks all of K, so the
+     * sum for one output is always accumulated in the same order: the result
+     * does not depend on the thread count. */
+    #pragma omp parallel
+    {
+        /* plain malloc: the kernel loads unaligned, and aligned_alloc is missing from
+         * the Windows CRT */
+        float *panel = (float *)malloc((size_t)QI_KC * QI_NR * sizeof(float));
+        if (!panel) { fprintf(stderr, "OOM qi_gemm panel\\n"); exit(1); }
+        #pragma omp for schedule(dynamic, 1) collapse(2)
+        for (int mb = 0; mb < mblocks; mb++)
+            for (int nb = 0; nb < nblocks; nb++) {
+                int m0 = mb * QI_MC, mc = M - m0 < QI_MC ? M - m0 : QI_MC;
+                int n0 = nb * QI_NR, nr = N - n0 < QI_NR ? N - n0 : QI_NR;
+                for (int k0 = 0; k0 < K; k0 += QI_KC) {
+                    int kc = K - k0 < QI_KC ? K - k0 : QI_KC;
+                    qi_pack_w(panel, W, n0, nr, k0, kc);
+                    for (int i = 0; i < mc; i += QI_MR) {
+                        int mr = mc - i < QI_MR ? mc - i : QI_MR;
+                        qi_kernel(Y + (int64_t)(m0 + i) * ldy + n0, ldy,
+                                  X + (int64_t)(m0 + i) * ldx + k0, ldx,
+                                  panel, kc, mr, nr, k0 > 0);
+                    }
+                }
+                if (bias)
+                    for (int i = 0; i < mc; i++)
+                        for (int j = 0; j < nr; j++) Y[(int64_t)(m0 + i) * ldy + n0 + j] += bias[n0 + j];
+            }
+        free(panel);
+    }
+}"""
+
+new_qi = """static void qi_gemm_ld(float *Y, int ldy, const float *X, int ldx, int M, const QiMat *W, const float *bias){
+    const int N = W->N, K = W->K;
+    if (M <= 0 || N <= 0) return;
+    const int nblocks = (N + QI_NR - 1) / QI_NR;
+    const int mblocks = (M + QI_MC - 1) / QI_MC;
+    double hz_total_started = qi_prof_now_ms();
+    double hz_pack_ms = 0.0, hz_kernel_ms = 0.0, hz_bias_ms = 0.0;
+    /* Parallel over (m-block, n-panel) tiles; each tile walks all of K, so the
+     * sum for one output is always accumulated in the same order: the result
+     * does not depend on the thread count. */
+    #pragma omp parallel reduction(+:hz_pack_ms,hz_kernel_ms,hz_bias_ms)
+    {
+        /* plain malloc: the kernel loads unaligned, and aligned_alloc is missing from
+         * the Windows CRT */
+        float *panel = (float *)malloc((size_t)QI_KC * QI_NR * sizeof(float));
+        if (!panel) { fprintf(stderr, "OOM qi_gemm panel\\n"); exit(1); }
+        #pragma omp for schedule(dynamic, 1) collapse(2)
+        for (int mb = 0; mb < mblocks; mb++)
+            for (int nb = 0; nb < nblocks; nb++) {
+                int m0 = mb * QI_MC, mc = M - m0 < QI_MC ? M - m0 : QI_MC;
+                int n0 = nb * QI_NR, nr = N - n0 < QI_NR ? N - n0 : QI_NR;
+                for (int k0 = 0; k0 < K; k0 += QI_KC) {
+                    int kc = K - k0 < QI_KC ? K - k0 : QI_KC;
+                    double hz_t = qi_prof_now_ms();
+                    qi_pack_w(panel, W, n0, nr, k0, kc);
+                    hz_pack_ms += qi_prof_now_ms() - hz_t;
+                    for (int i = 0; i < mc; i += QI_MR) {
+                        int mr = mc - i < QI_MR ? mc - i : QI_MR;
+                        hz_t = qi_prof_now_ms();
+                        qi_kernel(Y + (int64_t)(m0 + i) * ldy + n0, ldy,
+                                  X + (int64_t)(m0 + i) * ldx + k0, ldx,
+                                  panel, kc, mr, nr, k0 > 0);
+                        hz_kernel_ms += qi_prof_now_ms() - hz_t;
+                    }
+                }
+                if (bias) {
+                    double hz_t = qi_prof_now_ms();
+                    for (int i = 0; i < mc; i++)
+                        for (int j = 0; j < nr; j++)
+                            Y[(int64_t)(m0 + i) * ldy + n0 + j] += bias[n0 + j];
+                    hz_bias_ms += qi_prof_now_ms() - hz_t;
+                }
+            }
+        free(panel);
+    }
+    double hz_total_ms = qi_prof_now_ms() - hz_total_started;
+    fprintf(stderr,
+            "REFLEX_QI_GEMM M=%d N=%d K=%d fmt=%d pack_ms=%.3f kernel_ms=%.3f "
+            "bias_ms=%.3f total_ms=%.3f\\n",
+            M, N, K, W->fmt, hz_pack_ms, hz_kernel_ms, hz_bias_ms, hz_total_ms);
+}"""
+
+if qi_block.count(old_qi) != 1:
+    raise SystemExit(f"ENGINE_QI_PROFILE_PATCH_ANCHOR_INVALID:{qi_block.count(old_qi)}")
+qi_block = qi_block.replace(old_qi, new_qi, 1)
+qi_text = qi_text[:start] + qi_block + qi_text[end:]
+qi_path.write_text(qi_text, encoding="utf-8")
+
 path.write_text(text, encoding="utf-8")
 PY
   then
@@ -695,7 +813,7 @@ PY
 }
 
 build_phase_profile_engine_variant() {
-  local variant="phase_profile_v2"
+  local variant="phase_profile_v3"
   local root="$HOME/.local/share/hazewave/providers/colibri/derived/$variant"
   local binary="$root/c/laya"
   local meta="$root/build.json"
@@ -726,11 +844,12 @@ PY
   stage="$(mktemp -d "$root.stage.XXXXXX")"
   git -C "$SOURCE_ROOT" archive HEAD c | tar -x -C "$stage" || die "ENGINE_PROFILE_SOURCE_ARCHIVE_FAILED"
 
-  if ! "$PYTHON_BIN" - "$stage/c/laya.c" <<'PY'
+  if ! "$PYTHON_BIN" - "$stage/c/laya.c" "$stage/c/qi_gemm.h" <<'PY'
 import sys
 from pathlib import Path
 
 path = Path(sys.argv[1])
+qi_path = Path(sys.argv[2])
 text = path.read_text(encoding="utf-8")
 
 def once(old: str, new: str, label: str) -> None:
@@ -999,7 +1118,9 @@ PY
   patch_sha="$(
     {
       git -C "$SOURCE_ROOT" show HEAD:c/laya.c
+      git -C "$SOURCE_ROOT" show HEAD:c/qi_gemm.h
       cat "$stage/c/laya.c"
+      cat "$stage/c/qi_gemm.h"
       printf '%s\n' "$variant"
     } | sha256sum | awk '{print $1}'
   )"
@@ -1154,6 +1275,12 @@ subpattern = re.compile(
     r"encoder_residual_ms=(?P<encoder_residual_ms>[0-9.]+) "
     r"rows=(?P<rows>[0-9]+) sequences=(?P<sequences>[0-9]+)"
 )
+qi_pattern = re.compile(
+    r"REFLEX_QI_GEMM "
+    r"M=(?P<M>[0-9]+) N=(?P<N>[0-9]+) K=(?P<K>[0-9]+) fmt=(?P<fmt>[0-9]+) "
+    r"pack_ms=(?P<pack_ms>[0-9.]+) kernel_ms=(?P<kernel_ms>[0-9.]+) "
+    r"bias_ms=(?P<bias_ms>[0-9.]+) total_ms=(?P<total_ms>[0-9.]+)"
+)
 log_text = (root / "instrumented.server.log").read_text(encoding="utf-8", errors="replace")
 phase_rows = []
 for match in pattern.finditer(log_text):
@@ -1171,11 +1298,21 @@ for match in subpattern.finditer(log_text):
     }
     subphase_rows.append(row)
 
+qi_rows = []
+for match in qi_pattern.finditer(log_text):
+    row = {
+        key: (int(value) if key in {"M", "N", "K", "fmt"} else float(value))
+        for key, value in match.groupdict().items()
+    }
+    qi_rows.append(row)
+
 needed = int(instrumented.get("measured_requests") or 0)
 if needed < 1 or len(phase_rows) < needed:
     reasons.append("PHASE_TELEMETRY_INCOMPLETE")
 if needed < 1 or len(subphase_rows) < needed:
     reasons.append("SUBPHASE_TELEMETRY_INCOMPLETE")
+if not qi_rows:
+    reasons.append("QI_GEMM_TELEMETRY_INCOMPLETE")
 measured_rows = phase_rows[-needed:] if needed > 0 and len(phase_rows) >= needed else phase_rows
 measured_subphase_rows = (
     subphase_rows[-needed:]
@@ -1242,6 +1379,50 @@ dominant_subphase = (
     if subphase_medians else None
 )
 
+gemm_internal_totals = {
+    "pack_ms": sum(row["pack_ms"] for row in qi_rows),
+    "kernel_ms": sum(row["kernel_ms"] for row in qi_rows),
+    "bias_ms": sum(row["bias_ms"] for row in qi_rows),
+    "total_ms": sum(row["total_ms"] for row in qi_rows),
+}
+worker_accounted = (
+    gemm_internal_totals["pack_ms"]
+    + gemm_internal_totals["kernel_ms"]
+    + gemm_internal_totals["bias_ms"]
+)
+gemm_internal_shares = {
+    "pack_share": gemm_internal_totals["pack_ms"] / worker_accounted if worker_accounted else 0.0,
+    "kernel_share": gemm_internal_totals["kernel_ms"] / worker_accounted if worker_accounted else 0.0,
+    "bias_share": gemm_internal_totals["bias_ms"] / worker_accounted if worker_accounted else 0.0,
+}
+
+shape_map = {}
+for row in qi_rows:
+    key = (row["M"], row["N"], row["K"], row["fmt"])
+    item = shape_map.setdefault(
+        key,
+        {"calls": 0, "pack_ms": 0.0, "kernel_ms": 0.0, "bias_ms": 0.0, "total_ms": 0.0},
+    )
+    item["calls"] += 1
+    for field in ("pack_ms", "kernel_ms", "bias_ms", "total_ms"):
+        item[field] += row[field]
+
+gemm_shapes = []
+for (M, N, K, fmt), values in shape_map.items():
+    worker = values["pack_ms"] + values["kernel_ms"] + values["bias_ms"]
+    gemm_shapes.append({
+        "M": M,
+        "N": N,
+        "K": K,
+        "fmt": fmt,
+        **values,
+        "pack_share": values["pack_ms"] / worker if worker else 0.0,
+        "kernel_share": values["kernel_ms"] / worker if worker else 0.0,
+        "bias_share": values["bias_ms"] / worker if worker else 0.0,
+    })
+gemm_shapes.sort(key=lambda row: row["kernel_ms"] + row["pack_ms"], reverse=True)
+dominant_gemm_shape = gemm_shapes[0] if gemm_shapes else None
+
 report = {
     "schema": "HazewaveReflexLayaPhaseProfile/v1",
     "status": "PASS" if not reasons else "EVIDENCE_REJECTED",
@@ -1258,6 +1439,10 @@ report = {
     "measured_subphase_rows": len(measured_subphase_rows),
     "subphase_medians_ms": subphase_medians,
     "subphase_shares": subphase_shares,
+    "gemm_internal_totals_ms": gemm_internal_totals,
+    "gemm_internal_shares": gemm_internal_shares,
+    "gemm_shapes": gemm_shapes,
+    "dominant_gemm_shape": dominant_gemm_shape,
     "diagnostic_only": True,
     "activatable": False,
     "changes_model_or_precision": False,
