@@ -70,6 +70,10 @@ def test_robustness_policy_schema_is_valid() -> None:
     loaded = load_robustness_policy()
     assert loaded["activation_state"] == "SHADOW_ONLY"
     assert loaded["risk_control"]["activation_authority"] == "NONE"
+    ensemble = loaded["option_order_ensemble"]
+    assert ensemble["strategy"] == "COMPLETE_PERMUTATIONS_IN_ONE_SYSTEM_ONE_BATCH"
+    assert ensemble["max_labels"] == 3
+    assert ensemble["max_rotations"] == 6
 
 
 def test_order_ensemble_runs_all_three_domain_permutations_in_one_model_request() -> None:
