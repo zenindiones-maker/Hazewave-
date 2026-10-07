@@ -470,10 +470,17 @@ export function bootHazewaveSite(): void {
     diagnosticsTimer = window.setInterval(renderDiagnostics, 1000);
   }
 
+  const syncVisibility = () => {
+    stageHost.dataset.visibility = document.visibilityState;
+  };
+  syncVisibility();
+  document.addEventListener("visibilitychange", syncVisibility);
+
   window.addEventListener(
     "pagehide",
     () => {
       if (diagnosticsTimer !== null) window.clearInterval(diagnosticsTimer);
+      document.removeEventListener("visibilitychange", syncVisibility);
       experience?.dispose();
       atmosphere?.dispose();
     },
