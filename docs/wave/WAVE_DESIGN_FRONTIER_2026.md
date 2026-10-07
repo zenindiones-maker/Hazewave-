@@ -517,6 +517,39 @@ Evidence rule: the A15 LOW proof demonstrated that a heavy WebGL core can consum
 - WebCodecs;
 - large post-processing stacks.
 
+## 17.1. Owner review gate
+
+The owner is not a substitute for internal visual QA.
+
+Do not repeatedly ask the owner to inspect raw engineering checkpoints, prototype geometry, debug-heavy screenshots or visually rejected directions.
+
+Before requesting owner visual review, WAVE must internally prove:
+
+- normal-mode screenshot contains no diagnostics/debug/prototype chrome;
+- idle composition is deliberately art-directed;
+- PLAYING composition is deliberately art-directed;
+- selected media remains visually legible through travel/contact/dock;
+- interaction is understandable without explanatory text;
+- mobile is designed as its own composition;
+- desktop is not merely the mobile layout widened;
+- motion is captured in browser proof and reaches coherent PLAYING state;
+- accessibility/reduced-motion remains functional;
+- CI and repository contracts are green;
+- initial runtime is within the declared performance/bundle budget;
+- WAVE itself judges the result as suitable to show as a premium creative-technology prototype.
+
+If any item fails:
+
+`OWNER_VISUAL_REVIEW_READY=FALSE`
+
+Continue iteration without asking the owner to inspect it.
+
+Only after all items pass may WAVE set:
+
+`OWNER_VISUAL_REVIEW_READY=TRUE`
+
+This gate does not mean the design is final. It means the result is finally worth the owner's review.
+
 ## 18. Definition of frontier quality
 
 The result passes only when:
