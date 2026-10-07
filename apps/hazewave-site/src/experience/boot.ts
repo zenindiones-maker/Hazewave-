@@ -112,6 +112,19 @@ export function bootHazewaveSite(): void {
     transitionDocument.startViewTransition(update);
   };
 
+  const cuePanForActiveObject = (): number => {
+    const trackId = machine.activeTrackId;
+    if (!trackId) return 0;
+
+    const source = buttons.find((button) => button.dataset.trackId === trackId);
+    if (!source) return 0;
+
+    const rect = source.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const normalized = (centerX / Math.max(window.innerWidth, 1) - 0.5) * 2;
+    return Math.max(-0.72, Math.min(0.72, normalized * 0.72));
+  };
+
   const showPhase = (phase: PlayerPhase) => {
     try {
       if (machine.phase !== phase) machine.transition(phase);
@@ -121,7 +134,8 @@ export function bootHazewaveSite(): void {
     stateLabel.textContent = phase;
 
     if (phase === "SELECTED" || phase === "CONTACT" || phase === "EJECT") {
-      audio.cue(phase);
+      const cuePan = phase === "SELECTED" ? cuePanForActiveObject() : 0;
+      audio.cue(phase, cuePan);
     }
 
     if ("vibrate" in navigator) {
