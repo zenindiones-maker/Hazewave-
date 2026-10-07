@@ -233,6 +233,8 @@ def test_system_one_executes_only_after_health_and_zero_cost_receipt() -> None:
     assert require_confident_choice(result, "route") == "HAZE"
     assert len(result.request_sha256) == 64
     assert result.zero_cost_verified is True
+    assert result.usage["cost"] == 0
+    assert result.latency_ms >= 0
     assert seen[0][1].endswith("/health")
     assert seen[1][1].endswith("/v1/systemone")
     assert seen[0][2] == "Bearer " + ("x" * 32)
@@ -281,7 +283,7 @@ def test_system_one_refuses_nonzero_cost_receipt() -> None:
         )
 
 
-def test_low_confidence_never_becomes_automatic_pass() -> None:
+def test_low_choice_probability_never_becomes_automatic_pass() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/health":
             return httpx.Response(200, json={"status": "ok"})
@@ -294,7 +296,8 @@ def test_low_confidence_never_becomes_automatic_pass() -> None:
                     "q": {
                         "type": "choice",
                         "choice": "allow",
-                        "confidence": 0.55,
+                        "probabilities": {"allow": 0.75, "deny": 0.25},
+                        "confidence": 0.5,
                     }
                 },
                 "usage": {"cost": 0},
@@ -324,6 +327,93 @@ def test_low_confidence_never_becomes_automatic_pass() -> None:
 
     with pytest.raises(
         ColibriDecisionError,
-        match="COLIBRI_DECISION_CONFIDENCE_BELOW_THRESHOLD",
+        match="COLIBRI_CHOICE_PROBABILITY_BELOW_THRESHOLD",
     ):
         require_confident_choice(result, "q")
+
+
+
+def test_choice_threshold_uses_peak_probability_not_system_one_concentration() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/health":
+            return httpx.Response(200, json={"status": "ok"})
+        return httpx.Response(
+            200,
+            json={
+                "model": "laya",
+                "provider": "colibri",
+                "answers": {
+                    "q": {
+                        "type": "choice",
+                        "choice": "a",
+                        "probabilities": {"a": 0.85, "b": 0.15},
+                        "confidence": 0.70,
+                    }
+                },
+                "usage": {"cost": 0},
+            },
+        )
+
+    result = execute_colibri_system_one(
+        authorization=_authorization("decision.route"),
+        model_id="laya",
+        state="bounded state",
+        questions={
+            "q": {
+                "type": "choice",
+                "instructions": "route",
+                "criteria": {"a": "first", "b": "second"},
+            }
+        },
+        api_key="p" * 32,
+        model_installed=True,
+        model_revision_verified=True,
+        hardware=_hardware(),
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert require_confident_choice(result, "q") == "a"
+
+
+def test_system_one_rejects_missing_or_extra_answers() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/health":
+            return httpx.Response(200, json={"status": "ok"})
+        return httpx.Response(
+            200,
+            json={
+                "model": "laya",
+                "provider": "colibri",
+                "answers": {
+                    "unexpected": {
+                        "type": "choice",
+                        "choice": "a",
+                        "probabilities": {"a": 0.9, "b": 0.1},
+                        "confidence": 0.8,
+                    }
+                },
+                "usage": {"cost": 0},
+            },
+        )
+
+    with pytest.raises(
+        ColibriDecisionError,
+        match="COLIBRI_RESPONSE_ANSWER_SET_MISMATCH",
+    ):
+        execute_colibri_system_one(
+            authorization=_authorization("decision.route"),
+            model_id="laya",
+            state="bounded state",
+            questions={
+                "q": {
+                    "type": "choice",
+                    "instructions": "route",
+                    "criteria": {"a": "first", "b": "second"},
+                }
+            },
+            api_key="m" * 32,
+            model_installed=True,
+            model_revision_verified=True,
+            hardware=_hardware(),
+            transport=httpx.MockTransport(handler),
+        )
