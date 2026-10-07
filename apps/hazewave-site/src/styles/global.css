@@ -327,7 +327,7 @@ h1{
 }
 .deck-loaded-artifact{
   position:absolute!important;z-index:5;left:50%;top:50%;
-  width:64px!important;height:82px!important;
+  width:70px!important;height:90px!important;
   transform:translate(-50%,-50%) scale(.92)!important;
   margin:0!important;opacity:.95!important;filter:none!important;
   box-shadow:0 0 24px color-mix(in srgb,var(--world-accent),transparent 76%)!important;
@@ -727,6 +727,7 @@ h1{
   .deck-gate{width:18px;height:70px;margin-top:-35px;border-radius:6px}
   .deck-gate-left{left:34px}.deck-gate-right{right:34px}
   .deck-slot{width:82px;height:102px}
+  .deck-loaded-artifact{width:72px!important;height:92px!important}
   .deck-neck{top:239px;width:68px;height:60px}
   .deck-console{top:286px;width:236px;height:112px;padding:12px;grid-template-columns:1fr 44px}
   .deck-screen{padding:9px 10px}
