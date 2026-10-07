@@ -31,7 +31,7 @@ The model cache must remain outside the Git checkout.
     export COLIBRI_MODEL="$HOME/.local/share/hazewave/models/colibri/laya"
     mkdir -p "$COLIBRI_MODEL"
 
-    hf download convaiinnovations/laya       --revision 7b928d828b7b0e022f929d9bd2e44165aa270148       model.safetensors config.json rl_agent_config.json       "encoder/*" "tokenizer/*"       --local-dir "$COLIBRI_MODEL"
+    hf download convaiinnovations/laya       --revision 7b928d828b7b0e022f929d9bd2e44165aa270148       model.safetensors rl_agent_config.json       "encoder/*" "tokenizer/*"       --local-dir "$COLIBRI_MODEL"
 
     printf '%s  %s\n'       891102d372688fc2a094dac56a384bc537b87c63f21f9f3dac0be2b7cbc8d86c       "$COLIBRI_MODEL/model.safetensors" | sha256sum -c -
 
