@@ -216,3 +216,21 @@ test("mobile premium composition has no debug beacon or page overflow", async ({
   await expect(page.locator("[data-track-id='aether-01'] .artifact-contacts i")).toHaveCount(5);
   await expect(page.locator("#deck-slot .slot-contact-rail i")).toHaveCount(5);
 });
+
+
+test("keyboard arrows navigate physical music objects", async ({ page }) => {
+  await page.goto("/");
+  const first = page.locator("[data-track-id='aether-01']");
+  const second = page.locator("[data-track-id='aether-02']");
+  const last = page.locator("[data-track-id='flora-02']");
+
+  await first.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(second).toBeFocused();
+
+  await page.keyboard.press("End");
+  await expect(last).toBeFocused();
+
+  await page.keyboard.press("Home");
+  await expect(first).toBeFocused();
+});
