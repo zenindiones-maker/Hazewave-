@@ -117,3 +117,16 @@ def test_reflex_laya_phase_profiler_is_diagnostic_only_and_exposed_through_termu
     assert "AGGREGATE_PROBABILITY_DRIFT" in remote
     assert 'COLI_ENGINE="$engine"' in remote
     assert 'run_profile_case instrumented "$profiler"' in remote
+
+
+def test_reflex_termux_supports_persistent_ref_pin_without_weakening_env_override() -> None:
+    text = (ROOT / "scripts" / "hazewave_reflex_termux_control.sh").read_text(encoding="utf-8")
+
+    assert 'REF_PIN_FILE=' in text
+    assert 'resolve_ref()' in text
+    assert 'HAZEWAVE_REFLEX_REF' in text
+    assert 'ref-pin)' in text
+    assert 'ref-clear)' in text
+    assert 'REFLEX_REF_SOURCE=PINNED_CONFIG' in text
+    assert 'REFLEX_REF_SOURCE=ENVIRONMENT' in text
+    assert 'chmod 600 "$REF_PIN_FILE"' in text
