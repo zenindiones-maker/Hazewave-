@@ -802,11 +802,25 @@ h1{
   list-style:none;margin:12px 0 0;padding:0;border-top:1px solid rgba(255,255,255,.09)
 }
 .artist-index-copy li{
-  display:flex;justify-content:space-between;align-items:center;gap:12px;
-  padding:10px 0;border-bottom:1px solid rgba(255,255,255,.075);font-size:11px
+  border-bottom:1px solid rgba(255,255,255,.075);font-size:11px
 }
-.artist-index-copy li small{
-  color:rgba(255,255,255,.36);font:700 7px/1 ui-monospace,monospace;letter-spacing:.1em
+.archive-track{
+  width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:11px 0;border:0;background:transparent;text-align:left;cursor:pointer;
+  color:rgba(244,241,233,.8);
+  transition:color 180ms ease,transform 180ms ease
+}
+.archive-track span{position:relative}
+.archive-track span::after{
+  content:"";position:absolute;left:0;right:100%;bottom:-3px;height:1px;
+  background:var(--card-accent);transition:right 220ms cubic-bezier(.2,.8,.2,1)
+}
+.archive-track:hover,.archive-track:focus-visible{
+  outline:none;color:#fff;transform:translateX(3px)
+}
+.archive-track:hover span::after,.archive-track:focus-visible span::after{right:0}
+.archive-track small{
+  color:rgba(255,255,255,.4);font:700 7px/1 ui-monospace,monospace;letter-spacing:.1em
 }
 
 @supports (animation-timeline:view()) {
