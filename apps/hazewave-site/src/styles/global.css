@@ -640,6 +640,31 @@ h1{
   color:rgba(255,255,255,.38);font:650 7px/1.2 ui-monospace,monospace;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
+.deck-screen-now,.deck-screen-list{min-width:0;display:grid;align-content:center;gap:5px}
+.deck-screen-list{display:none}
+.deck-screen[data-view="list"] .deck-screen-now{display:none}
+.deck-screen[data-view="list"] .deck-screen-list{display:grid}
+.deck-tracklist,#deck-tracklist{
+  list-style:none;margin:2px 0 0;padding:0;display:grid;gap:2px;max-height:78px;overflow:auto;
+  scrollbar-width:none
+}
+#deck-tracklist::-webkit-scrollbar{display:none}
+#deck-tracklist li{min-width:0}
+#deck-tracklist button{
+  width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;
+  padding:4px 5px;border:0;border-radius:5px;background:transparent;color:rgba(245,242,233,.5);
+  text-align:left;cursor:pointer;font:680 6px/1.15 ui-monospace,monospace
+}
+#deck-tracklist button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#deck-tracklist button small{font:700 5px/1 ui-monospace,monospace;color:rgba(245,242,233,.28)}
+#deck-tracklist button[data-active="true"]{
+  color:var(--hz-acid,var(--world-accent));
+  background:rgba(183,255,74,.07)
+}
+#deck-tracklist button[data-active="true"] small{color:rgba(183,255,74,.55)}
+#deck-tracklist button:hover,#deck-tracklist button:focus-visible{
+  outline:none;color:#fff;background:rgba(255,255,255,.055)
+}
 .screen-meter{display:flex;align-items:end;gap:3px;height:18px;margin-top:3px}
 .screen-meter i{
   --meter-level:.28;
@@ -1915,6 +1940,15 @@ body{background:transparent}
   }
 }
 
+.deck-wheel[data-mode="tracks"]{
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.12),
+    inset 0 -16px 26px rgba(0,0,0,.56),
+    0 0 0 6px rgba(0,0,0,.32),
+    0 0 42px rgba(183,255,74,.16),
+    0 16px 38px rgba(0,0,0,.38)!important
+}
+.deck-wheel[data-mode="tracks"] .wheel-menu{color:var(--hz-acid)!important}
 .wheel-ring-control{
   position:absolute;z-index:1;inset:0;border-radius:50%;
   pointer-events:auto;touch-action:none;outline:none
