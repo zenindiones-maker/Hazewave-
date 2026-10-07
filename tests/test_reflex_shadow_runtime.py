@@ -89,6 +89,26 @@ def _robust_verdict():
     )
 
 
+
+def test_route_question_encodes_bridge_boundary_without_putting_option_labels_in_instructions() -> None:
+    question = runtime._proof_question()
+    instructions = question["instructions"]
+    criteria = question["criteria"]
+
+    assert "primary responsibility" in instructions.lower()
+    assert "final output" in instructions.lower()
+    assert all(label not in instructions for label in ("HAZE", "WAVE", "BRIDGE"))
+
+    bridge = criteria["BRIDGE"].lower()
+    wave = criteria["WAVE"].lower()
+    haze = criteria["HAZE"].lower()
+
+    for term in ("translat", "synchron", "metadata", "authority"):
+        assert term in bridge
+    assert "primary responsibility" in haze
+    assert "primary responsibility" in wave
+    assert "cross-domain" in bridge
+
 def test_event_schema_matches_representative_event() -> None:
     root = Path(__file__).resolve().parents[1]
     schema = json.loads((root / "schemas/reflex-shadow-event-v1.schema.json").read_text())
