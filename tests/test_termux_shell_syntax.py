@@ -41,7 +41,9 @@ def test_reflex_candidate_ref_propagates_from_termux_to_codespace_runtime() -> N
     termux = (ROOT / "scripts" / "hazewave_reflex_termux_control.sh").read_text(encoding="utf-8")
     remote = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
 
-    assert 'REF="${HAZEWAVE_REFLEX_REF:-work/hazewave-always-ready-v1}"' in termux
+    assert 'DEFAULT_REF="work/hazewave-always-ready-v1"' in termux
+    assert 'resolve_ref()' in termux
+    assert 'REF="$(resolve_ref)"' in termux
     assert 'REF="${HAZEWAVE_REFLEX_REF:-work/hazewave-always-ready-v1}"' in remote
     assert "HAZEWAVE_REFLEX_REF='$REF'" in termux
 
