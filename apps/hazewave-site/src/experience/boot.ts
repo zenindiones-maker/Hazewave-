@@ -36,6 +36,7 @@ interface LivingWorldController {
     progress: number,
     phase?: ArtistJourneyPhase
   ): void;
+  setArtistFocus(active: boolean): void;
   setAudioEnergy(value: number): void;
   setSpectrum(values: readonly number[]): void;
   dispose(): void;
@@ -143,6 +144,7 @@ export function bootHazewaveSite(): void {
           pendingArtistWorld.progress,
           pendingArtistWorld.phase
         );
+        created.setArtistFocus(Boolean(focusedArtist));
       })
       .catch((error) => {
         backdropHost.dataset.worldRuntime = "fallback";
@@ -210,6 +212,8 @@ export function bootHazewaveSite(): void {
     } else {
       delete document.documentElement.dataset.focusedArtist;
     }
+
+    livingWorld?.setArtistFocus(Boolean(artistId));
 
     if (restoreFocus && previous) {
       document
