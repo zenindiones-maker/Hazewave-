@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("renders semantic catalog and reaches PLAYING from one click", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.locator("#experience-title")).toHaveText("Escolha a fita.");
-  await expect(page.locator("[data-track-id]")).toHaveCount(6);
+  await expect(page.locator("[data-artist-cassette='true']")).toHaveCount(3);
 
   await page.locator("[data-track-id='aether-01']").dispatchEvent("click");
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
@@ -14,7 +14,7 @@ test("renders semantic catalog and reaches PLAYING from one click", async ({ pag
 
 test("pause, resume and track replacement preserve coherent UI state", async ({ page }) => {
   await page.goto("/");
-  await page.locator("[data-track-id='aether-02']").click();
+  await page.locator("[data-track-id='aether-01']").click();
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
 
   await page.locator("#toggle-play").click();
@@ -24,6 +24,11 @@ test("pause, resume and track replacement preserve coherent UI state", async ({ 
   await page.locator("#toggle-play").click();
   await expect(page.locator("#state-label")).toHaveText("PLAYING");
   await expect(page.locator("#toggle-play")).toHaveText("PAUSE");
+
+  await page.locator("[data-wheel-action='next']").click();
+  await expect(page.locator("#player-title")).toHaveText("Soft Voltage", { timeout: 6_000 });
+  await expect(page.locator("[data-track-id='aether-01']")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
 
   await page.locator("[data-track-id='monolith-01']").click();
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 7_000 });
@@ -62,7 +67,7 @@ test("premium stage replaces WebGL hero with cinematic resonance objects", async
   await page.goto("/");
   await expect(page.locator("#premium-stage")).toBeVisible();
   await expect(page.locator("#resonance-deck")).toBeVisible();
-  await expect(page.locator(".resonance-artifact")).toHaveCount(6);
+  await expect(page.locator(".resonance-artifact")).toHaveCount(3);
   await expect(page.locator("#resonance-canvas")).toHaveCount(0);
   await expect(page.locator("#runtime-label")).toContainText("CINEMATIC DOM");
 });
@@ -71,7 +76,7 @@ test("premium stage replaces WebGL hero with cinematic resonance objects", async
 test("premium idle composition is reviewable", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.locator("#resonance-deck")).toBeVisible();
-  await expect(page.locator(".resonance-artifact")).toHaveCount(6);
+  await expect(page.locator(".resonance-artifact")).toHaveCount(3);
   await page.waitForTimeout(900);
   await page.screenshot({ path: testInfo.outputPath("idle-premium.png"), fullPage: true });
 });
@@ -223,8 +228,8 @@ test("mobile premium composition has no debug beacon or page overflow", async ({
 test("keyboard arrows navigate physical music objects", async ({ page }) => {
   await page.goto("/");
   const first = page.locator("[data-track-id='aether-01']");
-  const second = page.locator("[data-track-id='aether-02']");
-  const last = page.locator("[data-track-id='flora-02']");
+  const second = page.locator("[data-track-id='monolith-01']");
+  const last = page.locator("[data-track-id='flora-01']");
 
   await first.focus();
   await page.keyboard.press("ArrowRight");
@@ -259,8 +264,10 @@ test("track end becomes replayable without desynchronizing the Deck", async ({ p
 
 test("seeking while paused does not restart playback", async ({ page }) => {
   await page.goto("/");
-  await page.locator("[data-track-id='aether-02']").click();
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
+  const secondary = page.locator(".artist-index [data-archive-track-id='aether-02']");
+  await secondary.scrollIntoViewIfNeeded();
+  await secondary.click();
+  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 7_000 });
 
   await page.locator("#toggle-play").click();
   await expect(page.locator("#state-label")).toHaveText("PAUSED");
@@ -356,4 +363,24 @@ test("merch and social surfaces preserve direct-contact architecture", async ({ 
     "@barakozamabeats",
     "@indionesbala"
   ]);
+});
+
+
+test("archive exposes one physical cassette per artist while wheel owns tracklist", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#archive").scrollIntoViewIfNeeded();
+
+  const cassettes = page.locator("[data-artist-cassette='true']");
+  await expect(cassettes).toHaveCount(3);
+  await expect(cassettes).toHaveAttribute("data-loaded", "false");
+
+  await page.locator("[data-track-id='aether-01']").click();
+  await expect(page.locator("#player-title")).toHaveText("Pale Current", { timeout: 6_000 });
+  await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
+
+  await page.locator("[data-wheel-action='next']").click();
+  await expect(page.locator("#player-title")).toHaveText("Soft Voltage", { timeout: 6_000 });
+  await expect(page.locator("#premium-stage")).toHaveAttribute("data-artist", "aether");
+  await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
+  await expect(page.locator("[data-track-id='aether-01']")).toHaveAttribute("aria-pressed", "true");
 });
