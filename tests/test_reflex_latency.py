@@ -69,6 +69,21 @@ def test_latency_policy_validates_against_schema() -> None:
     assert loaded["provider_authority"] == "NONE"
 
 
+def test_question_scale_probe_uses_complete_live_permutation_prefixes() -> None:
+    question = shadow_runtime._proof_question()
+
+    probe = latency.question_scale_probe_questions(question)
+
+    assert sorted(probe) == [1, 2, 3, 6]
+    assert [len(probe[count]) for count in (1, 2, 3, 6)] == [1, 2, 3, 6]
+    assert probe[6] == latency.complete_choice_permutations(
+        question_id="route",
+        question=question,
+        max_rotations=6,
+    )
+    assert list(probe[3]) == list(probe[6])[:3]
+
+
 def test_latency_benchmark_uses_the_same_route_question_as_shadow_runtime() -> None:
     assert latency._proof_question() == shadow_runtime._proof_question()
 
