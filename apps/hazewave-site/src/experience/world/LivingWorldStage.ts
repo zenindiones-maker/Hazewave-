@@ -669,6 +669,13 @@ export class LivingWorldStage {
       this.fallbackImage.naturalWidth /
       Math.max(this.fallbackImage.naturalHeight, 1);
 
+    const decodedImageBytes =
+      this.fallbackImage.naturalWidth *
+      this.fallbackImage.naturalHeight *
+      4;
+    this.host.dataset.worldDecodedImageMib =
+      (decodedImageBytes / 1_048_576).toFixed(2);
+
     const gl = this.canvas.getContext("webgl2", {
       alpha: false,
       antialias: false,
@@ -762,6 +769,11 @@ export class LivingWorldStage {
 
     if (this.canvas.width !== width) this.canvas.width = width;
     if (this.canvas.height !== height) this.canvas.height = height;
+
+    const colorBufferBytes = width * height * 4;
+    this.host.dataset.worldColorBufferMib =
+      (colorBufferBytes / 1_048_576).toFixed(2);
+    this.host.dataset.worldRenderScale = this.renderScale.toFixed(2);
 
     gl.viewport(0, 0, width, height);
   }
