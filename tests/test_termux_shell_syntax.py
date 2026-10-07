@@ -115,4 +115,5 @@ def test_reflex_laya_phase_profiler_is_diagnostic_only_and_exposed_through_termu
     assert '"diagnostic_only": True' in remote
     assert '"activatable": False' in remote
     assert "AGGREGATE_PROBABILITY_DRIFT" in remote
-    assert 'COLI_ENGINE="$profiler"' in remote
+    assert 'COLI_ENGINE="$engine"' in remote
+    assert 'run_profile_case instrumented "$profiler"' in remote
