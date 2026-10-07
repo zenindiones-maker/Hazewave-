@@ -605,6 +605,35 @@ h1{
   font:650 8px/1.2 ui-monospace,monospace;letter-spacing:.1em;color:rgba(255,255,255,.4);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
+.player-timeline{
+  flex:1;min-width:120px;max-width:620px;display:grid;gap:6px
+}
+#player-seek{
+  appearance:none;width:100%;height:18px;margin:0;background:transparent;cursor:pointer
+}
+#player-seek::-webkit-slider-runnable-track{
+  height:2px;border-radius:999px;
+  background:linear-gradient(90deg,var(--active-accent),rgba(255,255,255,.14))
+}
+#player-seek::-webkit-slider-thumb{
+  appearance:none;width:12px;height:12px;margin-top:-5px;border:0;border-radius:50%;
+  background:#fff;box-shadow:0 0 0 3px color-mix(in srgb,var(--active-accent),transparent 78%)
+}
+#player-seek::-moz-range-track{
+  height:2px;border:0;border-radius:999px;background:rgba(255,255,255,.14)
+}
+#player-seek::-moz-range-progress{
+  height:2px;border-radius:999px;background:var(--active-accent)
+}
+#player-seek::-moz-range-thumb{
+  width:12px;height:12px;border:0;border-radius:50%;background:#fff;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--active-accent),transparent 78%)
+}
+#player-seek:disabled{opacity:.25;cursor:default}
+.player-time{
+  display:flex;justify-content:space-between;align-items:center;
+  color:rgba(255,255,255,.34);font:700 6px/1 ui-monospace,monospace;letter-spacing:.1em
+}
 .player-state{display:flex;align-items:center;gap:12px;font:700 9px/1 ui-monospace,monospace;letter-spacing:.12em}
 #state-label{color:var(--active-accent)}
 #toggle-play{
@@ -778,9 +807,19 @@ h1{
   .artifact-copy small,.artifact-copy span{font-size:6px}
   .player{
     position:fixed;z-index:60;left:12px;right:12px;bottom:12px;margin:0;
-    min-height:80px;padding:12px 14px;border-radius:18px;
+    min-height:76px;padding:10px 12px;border-radius:18px;
+    display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:
+      "copy state"
+      "timeline timeline";
+    gap:7px 10px;
     background:rgba(4,7,6,.94);box-shadow:0 20px 70px rgba(0,0,0,.5)
   }
+  .player-copy{grid-area:copy}
+  .player-state{grid-area:state;align-self:center}
+  .player-timeline{grid-area:timeline;max-width:none;gap:2px}
+  #player-seek{height:12px}
+  .player-time{display:none}
+  .player-kicker{display:none}
   #player-title{font-size:14px}
   #player-artist{max-width:210px}
   .artist-index{
