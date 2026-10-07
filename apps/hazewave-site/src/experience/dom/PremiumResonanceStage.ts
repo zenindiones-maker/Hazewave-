@@ -357,7 +357,7 @@ export class PremiumResonanceStage {
               rotateZ: direction * 2.4,
               rotateY: direction * 4,
               duration: 0.82,
-              ease: "power3.inOut"
+              ease: "power2.out"
             };
 
     await this.timeline((tl) => {
