@@ -284,7 +284,7 @@ h1{
 }
 .resonance-deck[data-state="playing"]{
   filter:drop-shadow(0 0 28px color-mix(in srgb,var(--world-accent),transparent 80%));
-  transform:translateY(calc(var(--audio-lift,0px) * -1))
+  transform:translate(-50%,calc(-50% - var(--audio-lift,0px)))
 }
 
 .artifact-field{
