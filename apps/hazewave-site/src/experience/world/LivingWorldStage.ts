@@ -412,11 +412,31 @@ export class LivingWorldStage {
   private artistWorld: ArtistChapterWorld | null = null;
   private artistProgress = 0;
   private artistAccent: [number, number, number] = [0.72, 1.0, 0.42];
+  private renderScale = 1;
+  private frameWindow: number[] = [];
+  private previousFrameAt = performance.now();
+  private performanceWindows = 0;
+  private recoveryWindows = 0;
 
   private readonly onPointerMove = (event: PointerEvent) => {
     if (this.quality.reducedMotion) return;
     this.pointerX = Math.max(0, Math.min(1, event.clientX / Math.max(innerWidth, 1)));
     this.pointerY = Math.max(0, Math.min(1, event.clientY / Math.max(innerHeight, 1)));
+  };
+
+  private readonly onVisibility = () => {
+    if (this.disposed || this.contextLost) return;
+
+    if (document.hidden) {
+      cancelAnimationFrame(this.raf);
+      this.host.dataset.worldActivity = "paused";
+      return;
+    }
+
+    this.previousFrameAt = performance.now();
+    this.host.dataset.worldActivity = "running";
+    cancelAnimationFrame(this.raf);
+    this.raf = requestAnimationFrame(this.frame);
   };
 
   private readonly onContextLost = (event: Event) => {
@@ -481,6 +501,7 @@ export class LivingWorldStage {
     cancelAnimationFrame(this.raf);
     this.resizeObserver?.disconnect();
     window.removeEventListener("pointermove", this.onPointerMove);
+    document.removeEventListener("visibilitychange", this.onVisibility);
     this.canvas.removeEventListener("webglcontextlost", this.onContextLost);
     this.canvas.removeEventListener("webglcontextrestored", this.onContextRestored);
 
@@ -532,6 +553,7 @@ export class LivingWorldStage {
     this.canvas.addEventListener("webglcontextlost", this.onContextLost, false);
     this.canvas.addEventListener("webglcontextrestored", this.onContextRestored, false);
     window.addEventListener("pointermove", this.onPointerMove, { passive: true });
+    document.addEventListener("visibilitychange", this.onVisibility);
 
     this.buildResources();
 
@@ -540,6 +562,8 @@ export class LivingWorldStage {
     this.resize();
 
     this.host.dataset.worldRuntime = "webgl2";
+    this.host.dataset.worldActivity = document.hidden ? "paused" : "running";
+    this.host.dataset.worldPerformance = "standard";
     this.raf = requestAnimationFrame(this.frame);
   }
 
@@ -584,10 +608,11 @@ export class LivingWorldStage {
     const gl = this.gl;
     if (!gl) return;
 
-    const dpr = Math.min(
-      this.quality.tier === "MEDIUM" ? 1.12 : 1.32,
-      Math.max(1, this.quality.pixelRatio)
-    );
+    const dpr =
+      Math.min(
+        this.quality.tier === "MEDIUM" ? 1.12 : 1.32,
+        Math.max(1, this.quality.pixelRatio)
+      ) * this.renderScale;
     const width = Math.max(1, Math.round(innerWidth * dpr));
     const height = Math.max(1, Math.round(innerHeight * dpr));
 
@@ -606,7 +631,52 @@ export class LivingWorldStage {
   }
 
   private frame = (now: number): void => {
-    if (this.disposed || this.contextLost) return;
+    if (this.disposed || this.contextLost || document.hidden) return;
+
+    const delta = now - this.previousFrameAt;
+    this.previousFrameAt = now;
+
+    if (delta > 0 && delta < 250) {
+      this.frameWindow.push(delta);
+      if (this.frameWindow.length > 120) this.frameWindow.shift();
+
+      if (this.frameWindow.length === 120) {
+        const sorted = [...this.frameWindow].sort((a, b) => a - b);
+        const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] ?? 0;
+        const average =
+          this.frameWindow.reduce((sum, value) => sum + value, 0) /
+          this.frameWindow.length;
+
+        this.host.dataset.worldFps = (1000 / average).toFixed(1);
+        this.host.dataset.worldFrameP95Ms = p95.toFixed(1);
+
+        if (p95 > 34) {
+          this.performanceWindows += 1;
+          this.recoveryWindows = 0;
+        } else if (p95 < 22) {
+          this.recoveryWindows += 1;
+          this.performanceWindows = Math.max(0, this.performanceWindows - 1);
+        } else {
+          this.performanceWindows = Math.max(0, this.performanceWindows - 1);
+          this.recoveryWindows = 0;
+        }
+
+        if (this.performanceWindows >= 2 && this.renderScale > 0.76) {
+          this.renderScale = Math.max(0.76, this.renderScale - 0.12);
+          this.performanceWindows = 0;
+          this.host.dataset.worldPerformance = "reduced";
+          this.resize();
+        } else if (this.recoveryWindows >= 4 && this.renderScale < 1) {
+          this.renderScale = Math.min(1, this.renderScale + 0.08);
+          this.recoveryWindows = 0;
+          this.host.dataset.worldPerformance =
+            this.renderScale >= 0.99 ? "standard" : "recovering";
+          this.resize();
+        }
+
+        this.frameWindow.length = 0;
+      }
+    }
 
     const gl = this.gl;
     const program = this.program;
