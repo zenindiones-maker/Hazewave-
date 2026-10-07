@@ -39,6 +39,15 @@
         "OMP_DYNAMIC": "FALSE"
       }
     },
+    "single_close_1t": {
+      "persistent_eligible": true,
+      "environment": {
+        "OMP_NUM_THREADS": "1",
+        "OMP_DYNAMIC": "FALSE",
+        "OMP_PROC_BIND": "close",
+        "OMP_PLACES": "cores"
+      }
+    },
     "close_2t": {
       "persistent_eligible": true,
       "environment": {
