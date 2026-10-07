@@ -153,3 +153,16 @@ def test_reflex_laya_phase_profiler_breaks_encoder_hotspots_into_lossless_subpha
         assert field in remote
     assert "subphase_medians_ms" in remote
     assert "subphase_shares" in remote
+
+
+def test_reflex_engine_tune_includes_exact_output_weight_panel_reuse_variant() -> None:
+    remote = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
+
+    assert 'reuse_packed_w_v1' in remote
+    assert 'build_pack_reuse_engine_variant' in remote
+    assert 'qi_pack_w(panel, W, n0, nr, k0, kc);' in remote
+    assert 'for (int nb = 0; nb < nblocks; nb++)' in remote
+    assert 'for (int k0 = 0; k0 < K; k0 += QI_KC)' in remote
+    assert 'for (int mb = 0; mb < mblocks; mb++)' in remote
+    assert '"reuse_packed_w_v1"' in remote
+    assert '"exact_aggregate_probability_match"' in remote
