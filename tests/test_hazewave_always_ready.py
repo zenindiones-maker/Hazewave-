@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TERMUX = ROOT / "scripts" / "hazewave_reflex_termux_control.sh"
 REMOTE = ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh"
+RUNTIME = ROOT / "src" / "hazewave" / "reflex_shadow_runtime.py"
 POST_START = ROOT / "scripts" / "codespaces" / "start-always-ready.sh"
 DEVCONTAINER = ROOT / ".devcontainer" / "devcontainer.json"
 INSTALLER = ROOT / "scripts" / "install_hazewave_always_ready_termux.sh"
@@ -67,3 +68,19 @@ def test_termux_entrypoint_installer_is_idempotent_and_scoped() -> None:
     assert "ln -sfn" in text
     assert "global_controller_path_occupied" in text
     assert ".bashrc" not in text
+
+
+def test_runtime_audit_follows_active_candidate_ref() -> None:
+    termux = TERMUX.read_text(encoding="utf-8")
+    runtime = RUNTIME.read_text(encoding="utf-8")
+    assert 'export HAZEWAVE_REFLEX_CANDIDATE_REF="refs/remotes/origin/$REF"' in termux
+    assert 'CANDIDATE_REF = os.getenv("HAZEWAVE_REFLEX_CANDIDATE_REF"' in runtime
+    assert "work/hazewave-always-ready-v1" in termux
+
+
+def test_reconcile_exposes_doctor_audit_on_failure() -> None:
+    remote = REMOTE.read_text(encoding="utf-8")
+    needle = '"$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE"'
+    assert needle in remote
+    reconcile = remote.split("reconcile() {", 1)[1].split("smoke() {", 1)[0]
+    assert needle + " >/dev/null" not in reconcile
