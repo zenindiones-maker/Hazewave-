@@ -17,7 +17,7 @@ export const siteIdentity = {
   name: "HAZEWAVE",
   tagline: "Núcleo Sonoro Independente | Santos 2021—",
   archiveCta: "ENTRAR NO ARQUIVO",
-  backgroundAsset: "/media/hazewave-world.jpg",
+  backgroundAsset: "/media/hazewave-world.jpg.webp",
   merchContactHref: "https://www.instagram.com/direct/inbox/",
   merchContactMode: "COPY_MESSAGE_AND_OPEN_DM" as const
 };
