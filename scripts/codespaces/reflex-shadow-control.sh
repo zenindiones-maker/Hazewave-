@@ -710,6 +710,15 @@ PY
   echo "REFLEX_ENGINE_TUNE_ACTIVATION=NOT_AUTOMATIC"
 }
 
+latency_scale_probe() {
+  reconcile
+  [[ -f "$SECRET_FILE" && ! -L "$SECRET_FILE" ]] || die "COLIBRI_SECRET_MISSING"
+  [[ "$(stat -c %a "$SECRET_FILE")" == "600" ]] || die "COLIBRI_SECRET_PERMISSIONS_INVALID"
+  "$PYTHON_BIN" -m hazewave.reflex_latency scale-probe \
+    --secret-file "$SECRET_FILE" \
+    --timeout 90
+}
+
 latency_engine_report() {
   ensure_checkout
   local latest
@@ -1027,5 +1036,6 @@ case "${1:-}" in
   latency-report) latency_report ;;
   latency-engine-tune) latency_engine_tune ;;
   latency-engine-report) latency_engine_report ;;
-  *) echo "usage: $0 {doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report}" >&2; exit 2 ;;
+  latency-scale-probe) latency_scale_probe ;;
+  *) echo "usage: $0 {doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report|latency-scale-probe}" >&2; exit 2 ;;
 esac
