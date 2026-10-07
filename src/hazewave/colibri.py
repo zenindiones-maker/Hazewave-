@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+from time import monotonic
 from typing import Any, Mapping
 from urllib.parse import urlparse
 
@@ -52,6 +53,8 @@ class ColibriDecisionResult:
     answers: dict[str, Any]
     request_sha256: str
     response_sha256: str
+    latency_ms: float
+    usage: dict[str, Any]
     provider: str = "colibri"
     provider_authority: str = "NONE"
     status: str = "PASS"
@@ -368,11 +371,15 @@ def execute_colibri_system_one(
     if transport is not None:
         client_kwargs["transport"] = transport
 
+    client_kwargs["trust_env"] = False
+    started = monotonic()
     try:
         with httpx.Client(**client_kwargs) as client:
             health = client.get("/health")
             if health.status_code != 200:
                 raise ColibriDecisionError(f"COLIBRI_HEALTH_HTTP_{health.status_code}")
+            if len(health.content) > 131_072:
+                raise ColibriDecisionError("COLIBRI_HEALTH_RESPONSE_TOO_LARGE")
             try:
                 health_payload = health.json()
             except ValueError as exc:
@@ -386,8 +393,11 @@ def execute_colibri_system_one(
     except httpx.HTTPError as exc:
         raise ColibriDecisionError("COLIBRI_REQUEST_FAILED") from exc
 
+    latency_ms = (monotonic() - started) * 1000.0
     if response.status_code != 200:
         raise ColibriDecisionError(f"COLIBRI_SYSTEM_ONE_HTTP_{response.status_code}")
+    if len(response.content) > 1_048_576:
+        raise ColibriDecisionError("COLIBRI_SYSTEM_ONE_RESPONSE_TOO_LARGE")
     try:
         payload = response.json()
     except ValueError as exc:
@@ -399,6 +409,8 @@ def execute_colibri_system_one(
     answers = payload.get("answers")
     if not isinstance(answers, dict) or not answers:
         raise ColibriDecisionError("COLIBRI_RESPONSE_ANSWERS_INVALID")
+    if set(answers) != set(normalized_questions):
+        raise ColibriDecisionError("COLIBRI_RESPONSE_ANSWER_SET_MISMATCH")
     usage = payload.get("usage")
     if not isinstance(usage, dict) or usage.get("cost") != 0:
         raise ColibriDecisionError("COLIBRI_ZERO_COST_RECEIPT_MISSING")
@@ -409,6 +421,8 @@ def execute_colibri_system_one(
         answers=dict(answers),
         request_sha256=sha256(request_bytes).hexdigest(),
         response_sha256=sha256(response_bytes).hexdigest(),
+        latency_ms=latency_ms,
+        usage=dict(usage),
     )
 
 
@@ -421,18 +435,21 @@ def require_confident_choice(
 ) -> str:
     provider_policy = policy if policy is not None else load_colibri_policy()
     default_threshold = float(
-        (provider_policy.get("decision_policy") or {}).get("min_choice_confidence") or 0.0
+        (provider_policy.get("decision_policy") or {}).get("min_choice_probability") or 0.0
     )
     threshold = default_threshold if min_confidence is None else float(min_confidence)
     if threshold < 0.0 or threshold > 1.0:
-        raise ValueError("COLIBRI_CONFIDENCE_THRESHOLD_INVALID")
+        raise ValueError("COLIBRI_CHOICE_PROBABILITY_THRESHOLD_INVALID")
     answer = result.answers.get(question_id)
     if not isinstance(answer, dict) or answer.get("type") != "choice":
         raise ColibriDecisionError("COLIBRI_CHOICE_ANSWER_MISSING")
     choice = str(answer.get("choice") or "").strip()
-    confidence = answer.get("confidence")
-    if not choice or not isinstance(confidence, (int, float)):
+    probabilities = answer.get("probabilities")
+    if not choice or not isinstance(probabilities, dict):
         raise ColibriDecisionError("COLIBRI_CHOICE_ANSWER_INVALID")
-    if float(confidence) < threshold:
-        raise ColibriDecisionError("COLIBRI_DECISION_CONFIDENCE_BELOW_THRESHOLD")
+    probability = probabilities.get(choice)
+    if not isinstance(probability, (int, float)):
+        raise ColibriDecisionError("COLIBRI_CHOICE_PROBABILITY_MISSING")
+    if float(probability) < threshold:
+        raise ColibriDecisionError("COLIBRI_CHOICE_PROBABILITY_BELOW_THRESHOLD")
     return choice

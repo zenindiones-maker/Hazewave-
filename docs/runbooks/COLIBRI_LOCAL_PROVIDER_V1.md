@@ -67,7 +67,7 @@ Production code calls execute_colibri_system_one only after a Harness authorizat
 
 The adapter independently requires a pinned loopback URL, allowed data class, allowlisted model, supported state language, installed/verified model evidence, RAM and disk reserve, authenticated health, a Colibri System One response, and usage.cost=0.
 
-require_confident_choice defaults to the policy threshold of 0.80. A low-confidence answer fails closed.
+require_confident_choice uses the winning option probability, not the System One response field named confidence. That field is a concentration statistic and MUST NOT be presented as P(correct). The governed production path is the Reflex Governor in docs/runbooks/REFLEX_GOVERNOR_V1.md; current reflex profiles remain shadow-only until Hazewave-specific calibration exists.
 
 ## 8. PT-BR boundary
 
