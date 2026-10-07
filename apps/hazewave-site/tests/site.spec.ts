@@ -61,7 +61,7 @@ test("Wave-through-Haze disturbs the owner artwork and reveals a real artist sig
   const field = page.locator("#living-field");
   await expect(field).toHaveAttribute("data-field-runtime", /webgl2|css-fallback/, { timeout: 4_000 });
 
-  await fireWave(page, 0.72, 0.5);
+  await fireWave(page, 0.62, 0.48);
   await expect(page.locator("[data-artist-signal][data-revealed='true']")).toHaveCount(1, {
     timeout: 2_000
   });
@@ -81,6 +81,8 @@ test("Aquaverno emerges from the field and browser back restores Hazewave", asyn
   );
   expect(new URL(page.url()).searchParams.get("artist")).toBe("aquaverno");
 
+  await expect(page.locator("#living-field")).toHaveAttribute("data-world-ready", "true", { timeout: 2_500 });
+  await expect(page.locator("#living-field")).toHaveAttribute("data-transitioning", "false", { timeout: 2_500 });
   await page.screenshot({ path: testInfo.outputPath("artist-world-aquaverno.png"), fullPage: false });
 
   await page.goBack();
@@ -101,6 +103,7 @@ test("Hemorragia Cósmica is a materially different artist world, not a skin", a
   );
   await expect(world.locator(".hemorragia-wire")).toHaveCount(3);
 
+  await expect(page.locator("#living-field")).toHaveAttribute("data-world-ready", "true", { timeout: 2_500 });
   await page.screenshot({ path: testInfo.outputPath("artist-world-hemorragia-cosmica.png"), fullPage: false });
 });
 
@@ -146,7 +149,7 @@ test("mobile field is separately composed, touchable and overflow-free", async (
   const field = page.locator("#living-field");
   const box = await field.boundingBox();
   expect(box).not.toBeNull();
-  await page.touchscreen.tap(box!.x + box!.width * 0.48, box!.y + box!.height * 0.46);
+  await page.touchscreen.tap(box!.x + box!.width * 0.48, box!.y + box!.height * 0.56);
   await expect(field).toHaveAttribute("data-wave-active", "true", { timeout: 2_000 });
 
   const overflow = await page.evaluate(() => ({
