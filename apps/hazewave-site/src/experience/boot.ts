@@ -20,12 +20,15 @@ export function bootHazewaveSite(): void {
   const title = document.querySelector<HTMLElement>("#player-title");
   const artistLabel = document.querySelector<HTMLElement>("#player-artist");
   const toggle = document.querySelector<HTMLButtonElement>("#toggle-play");
+  const seek = document.querySelector<HTMLInputElement>("#player-seek");
+  const timeCurrent = document.querySelector<HTMLElement>("#player-time-current");
+  const timeTotal = document.querySelector<HTMLElement>("#player-time-total");
   const worldArtistName = document.querySelector<HTMLElement>("#world-artist-name");
   const worldRelease = document.querySelector<HTMLElement>("#world-release");
   const worldTrack = document.querySelector<HTMLElement>("#world-track");
   const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-track-id]"));
 
-  if (!stageHost || !runtimeLabel || !stateLabel || !title || !artistLabel || !toggle) return;
+  if (!stageHost || !runtimeLabel || !stateLabel || !title || !artistLabel || !toggle || !seek || !timeCurrent || !timeTotal) return;
 
   const quality = detectQuality();
   document.documentElement.dataset.qualityTier = quality.tier;
@@ -33,6 +36,13 @@ export function bootHazewaveSite(): void {
 
   const machine = new PlayerMachine();
   const audio = new HazewaveAudioEngine();
+
+  const formatTime = (seconds: number) => {
+    const safe = Math.max(0, Number.isFinite(seconds) ? seconds : 0);
+    const minutes = Math.floor(safe / 60);
+    const remainder = Math.floor(safe % 60).toString().padStart(2, "0");
+    return `${minutes}:${remainder}`;
+  };
   let experience: StageController | null = null;
   let selectionToken = 0;
 
@@ -101,6 +111,11 @@ export function bootHazewaveSite(): void {
 
         title.textContent = track.title;
         artistLabel.textContent = `${artist.name.replace(" / DEMO", "")} · ${artist.releaseTitle} · ${manifest.bpm} BPM`;
+        seek.max = String(track.durationSeconds);
+        seek.value = "0";
+        seek.disabled = false;
+        timeCurrent.textContent = "0:00";
+        timeTotal.textContent = formatTime(track.durationSeconds);
         if (worldArtistName) worldArtistName.textContent = artist.name.replace(" / DEMO", "").toUpperCase();
         if (worldRelease) worldRelease.textContent = artist.releaseTitle.toUpperCase();
         if (worldTrack) worldTrack.textContent = track.title.toUpperCase();
@@ -144,6 +159,14 @@ export function bootHazewaveSite(): void {
     });
   });
 
+  seek.addEventListener("input", () => {
+    timeCurrent.textContent = formatTime(Number(seek.value));
+  });
+
+  seek.addEventListener("change", () => {
+    void audio.seek(Number(seek.value));
+  });
+
   toggle.addEventListener("click", () => {
     if (audio.state === "PLAYING") {
       audio.pause();
@@ -167,8 +190,15 @@ export function bootHazewaveSite(): void {
     experience?.setSignalEnergy(audio.energy());
 
     const activeTrack = audio.track;
-    if (activeTrack && audio.state === "PLAYING") {
+    if (activeTrack) {
       const position = audio.positionSeconds();
+      if (document.activeElement !== seek) seek.value = String(Math.min(position, activeTrack.durationSeconds));
+      timeCurrent.textContent = formatTime(position);
+
+      if (audio.state !== "PLAYING") {
+        requestAnimationFrame(signalLoop);
+        return;
+      }
       const secondsPerBeat = 60 / Math.max(activeTrack.visual.bpm, 1);
       const beatPhase = (position % secondsPerBeat) / secondsPerBeat;
       const beatPulse = Math.max(0, 1 - beatPhase / 0.24);
