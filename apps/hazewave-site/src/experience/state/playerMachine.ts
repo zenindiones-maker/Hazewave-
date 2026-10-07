@@ -46,12 +46,20 @@ export class PlayerMachine {
   select(trackId: string): void {
     if (!trackId) throw new Error("TRACK_ID_REQUIRED");
     if (this.phase === "ERROR") this.transition("IDLE");
-    if (this.phase === "PLAYING" || this.phase === "PAUSED" || this.phase === "ENDED") {
-      this.transition("EJECT");
-      this.transition("RETURN");
+
+    if (this.phase === "IDLE" || this.phase === "RETURN") {
+      this.transition("SELECTED");
+    } else if (
+      this.phase !== "PLAYING" &&
+      this.phase !== "PAUSED" &&
+      this.phase !== "ENDED" &&
+      this.phase !== "SELECTED"
+    ) {
+      throw new Error(`SELECT_NOT_ALLOWED_FROM:${this.phase}`);
     }
-    if (this.phase === "RETURN" || this.phase === "IDLE") this.transition("SELECTED");
-    else if (this.phase !== "SELECTED") throw new Error(`SELECT_NOT_ALLOWED_FROM:${this.phase}`);
+
+    // When media is already active, the physical stage owns the real
+    // EJECT -> RETURN -> SELECTED sequence. Do not fake those phases here.
     this.activeTrackId = trackId;
   }
 
