@@ -437,6 +437,36 @@
         "learning"
       ],
       "description": "Operational procedure for shadow reflex evaluation, outcome capture, calibration reporting and future specialist promotion."
+    },
+    {
+      "id": "adr-0009-reflex-shadow-runtime",
+      "path": "docs/architecture/decisions/ADR-0009-reflex-shadow-runtime.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "reflex",
+        "runtime",
+        "codespaces",
+        "harness"
+      ],
+      "description": "Existing-Codespace-only Colibri/Laya shadow runtime, exact provenance, operational isolation and honest live-proof gates."
+    },
+    {
+      "id": "reflex-shadow-runtime-runbook-v1",
+      "path": "docs/runbooks/REFLEX_SHADOW_RUNTIME_V1.md",
+      "type": "RUNBOOK",
+      "authority": "OPERATIONAL",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "reflex",
+        "runtime",
+        "codespaces",
+        "calibration"
+      ],
+      "description": "Actual commands to prepare, serve, smoke, observe and report without altering other Codespace worktrees."
     }
   ]
 }
