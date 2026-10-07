@@ -1412,13 +1412,13 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
   .player[data-active="false"] #player-title{font-size:13px}
   .player[data-active="false"] #player-artist{font-size:6px}
   .player[data-context="archive"]{
-    opacity:0!important;
-    transform:translateY(calc(100% + 28px))!important;
+    opacity:1!important;
+    transform:none!important;
     pointer-events:none!important;
   }
   .player[data-context="archive"] button,
   .player[data-context="archive"] input{
-    pointer-events:none!important;
+    pointer-events:auto!important;
   }
   #player-seek{height:12px}
   .player-time{display:none}
@@ -2243,7 +2243,15 @@ body{background:transparent}
 
 /* Tactile archive player: screen + click wheel + independent tape port. */
 .deck-core{
+  z-index:4;
   background:transparent!important;border:0!important;box-shadow:none!important
+}
+.deck-arch,
+.deck-neck,
+.deck-console,
+.deck-shadow,
+.deck-outer-halo{
+  pointer-events:none
 }
 .deck-wheel{
   position:absolute;z-index:60;left:50%;top:50%;width:190px;height:190px;
