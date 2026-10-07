@@ -389,6 +389,54 @@
         "codespaces"
       ],
       "description": "Operational steps for pinned Colibri source/model setup, loopback serving, zero-cost proof and runtime promotion."
+    },
+    {
+      "id": "reflex-governor-policy-v1",
+      "path": "config/reflex-governor-v1.json",
+      "type": "PROJECT_POLICY",
+      "authority": "NORMATIVE",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "harness",
+        "providers",
+        "HAZE",
+        "WAVE",
+        "BRIDGE",
+        "reflex"
+      ],
+      "description": "Selective local reflex policy with deterministic-first routing, abstention, calibration gates, outcome learning and no self-promotion."
+    },
+    {
+      "id": "adr-0008-reflex-governor",
+      "path": "docs/architecture/decisions/ADR-0008-reflex-governor-selective-calibration.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "harness",
+        "providers",
+        "reflex",
+        "calibration",
+        "learning"
+      ],
+      "description": "Records the selective-cascade reflex architecture, corrected System One confidence semantics, abstention and Hazewave-specific calibration boundary."
+    },
+    {
+      "id": "reflex-governor-runbook-v1",
+      "path": "docs/runbooks/REFLEX_GOVERNOR_V1.md",
+      "type": "RUNBOOK",
+      "authority": "OPERATIONAL",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "reflex",
+        "runtime",
+        "calibration",
+        "learning"
+      ],
+      "description": "Operational procedure for shadow reflex evaluation, outcome capture, calibration reporting and future specialist promotion."
     }
   ]
 }
