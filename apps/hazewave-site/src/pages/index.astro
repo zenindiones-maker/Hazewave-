@@ -16,8 +16,18 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
     <title>Hazewave — Resonance World</title>
   </head>
   <body>
-    <div class="site-backdrop" aria-hidden="true">
-      <img src={siteIdentity.backgroundAsset} alt="" decoding="async" fetchpriority="high" />
+    <div
+      class="site-backdrop"
+      aria-hidden="true"
+      style={`--world-art:url("${siteIdentity.backgroundAsset}")`}
+    >
+      <img
+        class="site-backdrop-source"
+        src={siteIdentity.backgroundAsset}
+        alt=""
+        decoding="async"
+        fetchpriority="high"
+      />
       <span class="site-backdrop-water"></span>
       <span class="site-backdrop-fog"></span>
       <span class="site-backdrop-light"></span>
