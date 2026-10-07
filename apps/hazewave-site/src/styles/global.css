@@ -1161,11 +1161,11 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
   .artifact-field{
     left:0;right:0;bottom:72px;transform:none;width:auto;height:146px;
     display:flex;align-items:flex-end;gap:9px;padding:8px 18px;
-  .artifact-field::before{bottom:30px;height:22px}
-  .artifact-field::after{bottom:26px;left:8px;right:8px}
     overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;
     scrollbar-width:none;overscroll-behavior-x:contain
   }
+  .artifact-field::before{bottom:30px;height:22px}
+  .artifact-field::after{bottom:26px;left:8px;right:8px}
   .artifact-field::-webkit-scrollbar{display:none}
   .artifact-field > .resonance-artifact{
     position:relative;left:auto;right:auto;bottom:auto;
