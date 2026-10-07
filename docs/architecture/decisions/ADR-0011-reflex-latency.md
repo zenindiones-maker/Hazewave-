@@ -37,12 +37,16 @@ Hazewave adopts a measured latency profile layer:
 3. Compare a bounded allowlist of OpenMP scheduling profiles sequentially, one Laya
    server at a time, on the actual Codespace.
 4. Warm each profile before measurement and use repeated samples with p50 and p95,
-   not a single fastest observation.
+   not a single fastest observation. The initial campaign uses 3 warmups and 21
+   measured requests per profile.
 5. A non-baseline profile may persist only when all measured requests succeed,
-   robust eligibility remains true, the selected label does not drift, p50 improves
-   by at least 5%, and p95 is no more than 3% worse than baseline.
-6. Bind any selected profile to the latency-policy SHA. Policy drift invalidates the
-   selection and fails closed instead of silently reusing it.
+   robust eligibility remains true, the selected label does not drift, aggregate
+   probabilities remain within 1e-6 of the baseline signature, p50 improves by at
+   least 5%, and p95 is no more than 3% worse than baseline.
+6. Bind any selected profile to both the latency-policy SHA and a runtime fingerprint
+   (CPU model, visible/affinity CPUs, cgroup CPU quota, architecture). Policy or
+   runtime drift invalidates the selection and fails closed instead of silently
+   reusing stale tuning.
 7. The selected profile changes scheduling only. It grants no execution, production,
    security, publication, model-promotion or threshold-promotion authority.
 
