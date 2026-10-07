@@ -306,6 +306,16 @@ h1{
   border:1px solid color-mix(in srgb,var(--world-accent),transparent 68%);
   color:color-mix(in srgb,var(--world-accent),#fff 10%)
 }
+@supports (position-anchor:--resonance-deck) and (left:anchor(right)){
+  .deck-beacon{
+    position-anchor:--resonance-deck;
+    right:auto;
+    left:calc(anchor(right) + 42px);
+    top:calc(anchor(top) + 176px);
+    transform:none
+  }
+  .deck-beacon[data-active="true"]{transform:none}
+}
 .deck-shadow{
   position:absolute;left:50%;bottom:5px;width:270px;height:56px;transform:translateX(-50%);
   border-radius:50%;background:rgba(0,0,0,.78);filter:blur(20px)
@@ -1043,6 +1053,7 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
     -webkit-text-stroke-width:.8px;
     opacity:.5
   }
+  .deck-beacon{display:none}
   .world-meta{
     top:80px;right:18px;width:150px;transform:none;gap:4px
   }
