@@ -3,7 +3,7 @@ set -euo pipefail
 umask 077
 
 REPO_SLUG="${HAZEWAVE_REFLEX_REPO:-zenindiones-maker/Hazewave-}"
-DEFAULT_CS="redesigned-space-bassoon-gxp67g5g7r739w59"
+DEFAULT_CS="hazewave-zero-cost-4jxp45676rq6279xx"
 REF="${HAZEWAVE_REFLEX_REF:-work/hazewave-always-ready-v1}"
 MAIN_REPO="/workspaces/Hazewave-"
 RUN_ROOT="${HOME}/.local/share/hazewave/reflex-shadow-runtime"
