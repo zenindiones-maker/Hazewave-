@@ -576,6 +576,7 @@ def measure_profile(
                 "status": "PASS",
                 "selected_label": robust.base_verdict.metrics.selected_label,
                 "robust_eligible": robust.robust_eligible,
+                "semantic_stable": not robust.robustness_reasons,
                 "winner_agreement": robust.ensemble.winner_agreement,
                 "normalized_jsd": robust.ensemble.normalized_jsd,
                 "aggregate_probabilities": dict(robust.ensemble.aggregate_probabilities),
@@ -602,6 +603,7 @@ def measure_profile(
     failures = [row for row in samples if row.get("status") != "PASS"]
     labels = sorted({str(row["selected_label"]) for row in passed})
     robust_all = bool(passed) and all(bool(row.get("robust_eligible")) for row in passed)
+    semantic_all = bool(passed) and all(bool(row.get("semantic_stable")) for row in passed)
     probability_signature = _probability_signature(passed) if passed else {}
     runtime_fingerprint = _runtime_fingerprint()
 
@@ -617,6 +619,7 @@ def measure_profile(
         "failed_requests": len(failures),
         "selected_labels": labels,
         "all_robust_eligible": robust_all,
+        "all_semantically_stable": semantic_all,
         "aggregate_probability_signature": probability_signature,
         "runtime_fingerprint": runtime_fingerprint,
         "latency": {
@@ -674,7 +677,7 @@ def select_profile(
         raise ReflexLatencyError("REFLEX_LATENCY_BASELINE_POLICY_DRIFT")
     if baseline.get("failed_requests") != 0:
         raise ReflexLatencyError("REFLEX_LATENCY_BASELINE_FAILURES")
-    if baseline.get("all_robust_eligible") is not True:
+    if baseline.get("all_semantically_stable") is not True:
         raise ReflexLatencyError("REFLEX_LATENCY_BASELINE_NOT_ROBUST")
 
     baseline_runtime = baseline.get("runtime_fingerprint")
@@ -718,7 +721,7 @@ def select_profile(
             reasons.append("POLICY_DRIFT")
         if report.get("failed_requests") != 0:
             reasons.append("MEASURED_FAILURES")
-        if report.get("all_robust_eligible") is not True:
+        if report.get("all_semantically_stable") is not True:
             reasons.append("ROBUST_ELIGIBILITY_FAILED")
         if report.get("selected_labels") != [baseline_label]:
             reasons.append("SELECTED_LABEL_DRIFT")
