@@ -491,17 +491,19 @@ Every new technique receives:
 For the next redesign iteration:
 
 ### ADOPT NOW
-- Astro shell;
-- Three.js;
-- GSAP primary choreography;
+- Astro semantic shell;
+- DOM/CSS + GSAP as the renderer-independent core interaction layer;
 - Web Audio;
 - current typed state/content architecture;
-- Blender asset pipeline;
-- glTF optimization pipeline;
-- View Transitions progressive enhancement where useful.
+- View Transitions progressive enhancement where useful;
+- Three.js as a bounded HIGH/ULTRA visual capability, not core authority;
+- Blender asset pipeline for final product-grade 3D assets;
+- glTF optimization pipeline for optional higher-tier 3D.
+
+Evidence rule: the A15 LOW proof demonstrated that a heavy WebGL core can consume frame budget without delivering equivalent visual value. The production interaction therefore stays semantic and cinematic in DOM/GSAP, while Three.js/WebGPU may enhance capable devices only after measured proof.
 
 ### SPIKE NOW
-- WebGPURenderer + TSL HIGH-tier renderer;
+- WebGPURenderer + TSL HIGH-tier ambient/product layer;
 - one compute/VFX experiment driven by HAZE/WAVE data;
 - one selective post-processing chain;
 - Rive for one bounded 2D microinteraction only if it beats CSS/SVG.
