@@ -94,6 +94,11 @@ export function bootHazewaveSite(): void {
   let pendingAtmosphereProgress = 0;
   let atmosphereShouldPlay = false;
   let selectionToken = 0;
+  let selectionStartedAt = 0;
+  let contactReachedAt = 0;
+  let lastSelectionToContactMs: number | null = null;
+  let lastContactToAudioMs: number | null = null;
+  let lastSelectionToPlayingMs: number | null = null;
 
   const commitUiState = (update: () => void, transitionType?: string) => {
     const transitionDocument = document as Document & {
@@ -145,6 +150,14 @@ export function bootHazewaveSite(): void {
       return;
     }
     stateLabel.textContent = phase;
+
+    if (phase === "CONTACT") {
+      contactReachedAt = performance.now();
+      if (selectionStartedAt > 0) {
+        lastSelectionToContactMs = contactReachedAt - selectionStartedAt;
+        stageHost.dataset.selectionToContactMs = lastSelectionToContactMs.toFixed(1);
+      }
+    }
 
     if (phase === "SELECTED" || phase === "CONTACT" || phase === "EJECT") {
       const cuePan = phase === "SELECTED" ? cuePanForActiveObject() : 0;
@@ -222,6 +235,8 @@ export function bootHazewaveSite(): void {
 
   selectTrack = async (trackId: string) => {
     const token = ++selectionToken;
+    selectionStartedAt = performance.now();
+    contactReachedAt = 0;
 
     try {
       machine.select(trackId);
@@ -295,6 +310,16 @@ export function bootHazewaveSite(): void {
       }
 
       stateLabel.textContent = machine.phase;
+
+      const reachedPlayingAt = performance.now();
+      lastSelectionToPlayingMs = reachedPlayingAt - selectionStartedAt;
+      if (contactReachedAt > 0) {
+        lastContactToAudioMs = reachedPlayingAt - contactReachedAt;
+      }
+      stageHost.dataset.selectionToPlayingMs = lastSelectionToPlayingMs.toFixed(1);
+      stageHost.dataset.contactToAudioMs =
+        lastContactToAudioMs === null ? "n/a" : lastContactToAudioMs.toFixed(1);
+
       stage?.setPlaying(true);
       setMediaPlaybackState("playing");
       atmosphereShouldPlay = true;
@@ -542,6 +567,12 @@ export function bootHazewaveSite(): void {
         frameP95Ms: stageHost.dataset.frameP95Ms ?? "warming",
         performanceMode: stageHost.dataset.performance ?? "standard",
         gpuAtmosphere: stageHost.dataset.gpuAtmosphere ?? "off",
+        selectionToContactMs:
+          lastSelectionToContactMs === null ? null : Number(lastSelectionToContactMs.toFixed(1)),
+        contactToAudioMs:
+          lastContactToAudioMs === null ? null : Number(lastContactToAudioMs.toFixed(1)),
+        selectionToPlayingMs:
+          lastSelectionToPlayingMs === null ? null : Number(lastSelectionToPlayingMs.toFixed(1)),
         audioState: audio.state,
         appState: machine.phase,
         hardwareConcurrency: navigator.hardwareConcurrency,
