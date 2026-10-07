@@ -1411,14 +1411,14 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
   .player[data-active="false"] .player-timeline{display:none}
   .player[data-active="false"] #player-title{font-size:13px}
   .player[data-active="false"] #player-artist{font-size:6px}
-  .player[data-context="archive"][data-active="false"]{
-    opacity:0;
-    transform:translateY(calc(100% + 28px));
-    pointer-events:none;
+  .player[data-context="archive"]{
+    opacity:0!important;
+    transform:translateY(calc(100% + 28px))!important;
+    pointer-events:none!important;
   }
-  .player[data-context="archive"][data-active="false"] button,
-  .player[data-context="archive"][data-active="false"] input{
-    pointer-events:none;
+  .player[data-context="archive"] button,
+  .player[data-context="archive"] input{
+    pointer-events:none!important;
   }
   #player-seek{height:12px}
   .player-time{display:none}
@@ -2246,9 +2246,9 @@ body{background:transparent}
   background:transparent!important;border:0!important;box-shadow:none!important
 }
 .deck-wheel{
-  position:absolute;z-index:6;left:50%;top:50%;width:190px;height:190px;
+  position:absolute;z-index:60;left:50%;top:50%;width:190px;height:190px;
   transform:translate(-50%,-50%);border-radius:50%;
-  pointer-events:none;touch-action:none;user-select:none;
+  pointer-events:auto;touch-action:none;user-select:none;isolation:isolate;
   background:
     radial-gradient(circle at 50% 50%,#0d100f 0 27%,transparent 27.5%),
     radial-gradient(circle at 42% 34%,rgba(255,255,255,.16),transparent 13%),
@@ -2268,9 +2268,10 @@ body{background:transparent}
     0 10px 24px rgba(0,0,0,.24)
 }
 .wheel-key{
-  position:absolute;z-index:20;pointer-events:auto;border:0;background:transparent;color:#161817;
+  position:absolute;z-index:40;pointer-events:auto;border:0;background:transparent;color:#161817;
   font:800 9px/1 ui-monospace,monospace;letter-spacing:.04em;cursor:pointer;
-  opacity:.72;padding:8px
+  opacity:.72;padding:8px;min-width:44px;min-height:44px;
+  display:grid;place-items:center
 }
 .wheel-key:hover,.wheel-key:focus-visible{outline:none;opacity:1;color:#000}
 .wheel-menu{top:9px;left:50%;transform:translateX(-50%)}
@@ -2339,7 +2340,7 @@ body{background:transparent}
 }
 .deck-wheel[data-mode="tracks"] .wheel-menu{color:var(--hz-acid)!important}
 .wheel-ring-control{
-  position:absolute;z-index:1;inset:0;border-radius:50%;
+  position:absolute;z-index:2;inset:0;border-radius:50%;
   pointer-events:auto;touch-action:none;outline:none
 }
 .wheel-ring-control:focus-visible{
@@ -3115,6 +3116,7 @@ body{background:transparent}
   height:560px;
   max-height:72vh;
   transform:translate(-50%,-47%);
+  pointer-events:auto;
 }
 #archive .resonance-deck{
   width:246px!important;
