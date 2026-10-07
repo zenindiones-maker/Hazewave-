@@ -157,9 +157,30 @@ test("mobile object selection keeps the stage viewport stable", async ({ page })
 
   await page.goto("/");
   await page.evaluate(() => window.scrollTo(0, 0));
-  const before = await page.evaluate(() => window.scrollY);
 
-  await page.locator("[data-track-id='aether-01']").click();
+  const artifact = page.locator("[data-track-id='aether-01']");
+  const shell = artifact.locator(".artifact-shell");
+  await expect(shell).toBeVisible();
+
+  const box = await shell.boundingBox();
+  expect(box).not.toBeNull();
+
+  const x = box!.x + box!.width / 2;
+  const y = box!.y + box!.height / 2;
+
+  expect(x).toBeGreaterThan(0);
+  expect(x).toBeLessThan(viewport!.width);
+  expect(y).toBeGreaterThan(0);
+  expect(y).toBeLessThan(viewport!.height);
+
+  const hitTarget = await page.evaluate(({ x, y }) => {
+    const hit = document.elementFromPoint(x, y);
+    return Boolean(hit?.closest("[data-track-id='aether-01']"));
+  }, { x, y });
+  expect(hitTarget).toBe(true);
+
+  const before = await page.evaluate(() => window.scrollY);
+  await page.touchscreen.tap(x, y);
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
 
   const after = await page.evaluate(() => window.scrollY);
