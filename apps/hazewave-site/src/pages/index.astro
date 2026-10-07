@@ -1,13 +1,15 @@
 ---
 import "../styles/global.css";
-import { artists } from "../data/catalog";
+import { artists, tracks } from "../data/catalog";
+
+const artistById = new Map(artists.map((artist) => [artist.id, artist]));
 ---
 
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#070909" />
+    <meta name="theme-color" content="#050706" />
     <meta name="description" content="Hazewave — experiência musical interativa criada por HAZE + WAVE." />
     <title>Hazewave — Resonance World</title>
   </head>
@@ -17,63 +19,100 @@ import { artists } from "../data/catalog";
         <a class="brand" href="/" aria-label="Hazewave início">
           <span>HAZE</span><i></i><span>WAVE</span>
         </a>
-        <div class="masthead-meta">
-          <span>INTERACTIVE MUSIC WORLD</span>
+        <div class="masthead-meta" aria-hidden="true">
+          <span>INTERACTIVE MUSIC OBJECTS</span>
           <span class="masthead-dot"></span>
-          <span>WAVE / 2026</span>
+          <span>2026</span>
         </div>
       </header>
 
       <section class="experience" aria-labelledby="experience-title">
         <div class="scene-frame">
-          <canvas id="resonance-canvas" aria-hidden="true"></canvas>
-          <div class="scene-vignette"></div>
+          <div id="premium-stage" class="premium-stage" data-playing="false">
+            <div class="world-glow" aria-hidden="true"></div>
+            <div class="world-lines" aria-hidden="true"></div>
+            <div class="world-grain" aria-hidden="true"></div>
 
-          <div class="scene-copy">
-            <p class="eyebrow">HAZEWAVE / RESONANCE WORLD</p>
-            <h1 id="experience-title">Escolha um artefato.</h1>
-            <p class="intro">Um toque conecta a faixa ao Deck. O som assume a cena.</p>
-          </div>
+            <div class="scene-copy">
+              <p class="eyebrow">HAZEWAVE / RESONANCE OBJECTS</p>
+              <h1 id="experience-title">Toque. Conecte. Escute.</h1>
+              <p class="intro">Cada faixa vive em um objeto próprio. Um toque leva a música até o Deck.</p>
+            </div>
 
-          <div class="interaction-hint" aria-hidden="true">
-            <span class="hint-pulse"></span>
-            <span>TOQUE EM UM ARTEFATO</span>
-          </div>
-
-          <nav class="media-dock" aria-label="Faixas demonstrativas">
-            {artists.map((artist) => (
-              <section class="artist-cluster" data-artist={artist.id}>
-                <div class="artist-cluster-label">
-                  <span>{artist.name.replace(" / DEMO", "")}</span>
-                  <small>{artist.releaseTitle}</small>
+            <div class="deck-stage" aria-hidden="true">
+              <div id="resonance-deck" class="resonance-deck" data-state="idle">
+                <div class="deck-shadow"></div>
+                <div class="deck-outer-halo"></div>
+                <div class="deck-arch">
+                  <div class="deck-arch-line"></div>
                 </div>
-                <div class="media-row">
-                  {artist.tracks.map((track, index) => (
-                    <button
-                      class="track"
-                      type="button"
-                      data-track-id={track.id}
-                      aria-label={`Tocar ${track.title}, ${artist.name}`}
-                      style={`--accent:${artist.identity.accent}; --index:${index};`}
-                    >
-                      <span class="track-art" aria-hidden="true">
-                        <span class="track-code">0{index + 1}</span>
-                        <span class="track-glyph"></span>
-                      </span>
-                      <span class="track-meta">
-                        <strong>{track.title}</strong>
-                        <small>{track.visual.bpm} BPM</small>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </nav>
 
-          <div class="runtime-badge" id="runtime-badge" role="status">
-            <span class="pulse"></span>
-            <span id="runtime-label">INITIALIZING</span>
+                <div class="deck-core">
+                  <div class="deck-orbit deck-orbit-a"></div>
+                  <div class="deck-orbit deck-orbit-b"></div>
+                  <div class="deck-contact-flash"></div>
+                  <div class="deck-gate deck-gate-left"></div>
+                  <div class="deck-gate deck-gate-right"></div>
+                  <div id="deck-slot" class="deck-slot">
+                    <span class="slot-line"></span>
+                    <span class="slot-label">RESONANCE PORT</span>
+                  </div>
+                </div>
+
+                <div class="deck-neck"></div>
+
+                <div class="deck-console">
+                  <div class="deck-screen">
+                    <span class="screen-kicker">HAZEWAVE / ACTIVE OBJECT</span>
+                    <strong id="deck-screen-title">Awaiting signal</strong>
+                    <span id="deck-screen-artist">Select a resonance object</span>
+                    <div class="screen-meter" aria-hidden="true">
+                      <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    </div>
+                  </div>
+                  <div class="deck-control" aria-hidden="true">
+                    <span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <nav class="artifact-field" aria-label="Faixas demonstrativas">
+              {tracks.map((track, index) => {
+                const artist = artistById.get(track.artistId)!;
+                return (
+                  <button
+                    class="resonance-artifact"
+                    type="button"
+                    data-track-id={track.id}
+                    data-artist={artist.id}
+                    data-focus="idle"
+                    data-loaded="false"
+                    aria-label={`Tocar ${track.title}, ${artist.name}`}
+                    style={`--accent:${artist.identity.accent};--secondary:${artist.identity.secondary};--world:${artist.identity.background};--artifact-index:${index};`}
+                  >
+                    <span class="artifact-shell" aria-hidden="true">
+                      <span class="artifact-glass"></span>
+                      <span class="artifact-signal">
+                        <i></i><i></i><i></i>
+                      </span>
+                      <span class="artifact-number">0{index + 1}</span>
+                      <span class="artifact-mark"></span>
+                    </span>
+                    <span class="artifact-copy">
+                      <small>{artist.name.replace(" / DEMO", "")}</small>
+                      <strong>{track.title}</strong>
+                      <span>{track.visual.bpm} BPM</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+
+            <div class="runtime-badge" id="runtime-badge" role="status">
+              <span class="pulse"></span>
+              <span id="runtime-label">INITIALIZING</span>
+            </div>
           </div>
         </div>
       </section>
@@ -81,7 +120,7 @@ import { artists } from "../data/catalog";
       <section class="player" aria-label="Player Hazewave">
         <div class="player-copy">
           <p class="player-kicker">NOW RESONATING</p>
-          <strong id="player-title">Escolha um artefato</strong>
+          <strong id="player-title">Escolha um objeto</strong>
           <span id="player-artist">DEMO AUDIO / RIGHTS SAFE</span>
         </div>
         <div class="player-state">
@@ -91,7 +130,7 @@ import { artists } from "../data/catalog";
       </section>
 
       <noscript>
-        <p class="fallback-note">JavaScript está desativado. O conteúdo continua acessível, mas a experiência visual e o player interativo precisam de JavaScript.</p>
+        <p class="fallback-note">JavaScript está desativado. O catálogo continua acessível, mas a experiência interativa precisa de JavaScript.</p>
       </noscript>
     </main>
 
