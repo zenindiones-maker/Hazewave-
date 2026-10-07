@@ -20,6 +20,7 @@ export function bootHazewaveSite(): void {
   const title = document.querySelector<HTMLElement>("#player-title");
   const artistLabel = document.querySelector<HTMLElement>("#player-artist");
   const toggle = document.querySelector<HTMLButtonElement>("#toggle-play");
+  const worldArtistName = document.querySelector<HTMLElement>("#world-artist-name");
   const worldRelease = document.querySelector<HTMLElement>("#world-release");
   const worldTrack = document.querySelector<HTMLElement>("#world-track");
   const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-track-id]"));
@@ -100,6 +101,7 @@ export function bootHazewaveSite(): void {
 
         title.textContent = track.title;
         artistLabel.textContent = `${artist.name.replace(" / DEMO", "")} · ${artist.releaseTitle} · ${manifest.bpm} BPM`;
+        if (worldArtistName) worldArtistName.textContent = artist.name.replace(" / DEMO", "").toUpperCase();
         if (worldRelease) worldRelease.textContent = artist.releaseTitle.toUpperCase();
         if (worldTrack) worldTrack.textContent = track.title.toUpperCase();
       });
