@@ -478,6 +478,9 @@ h1{
 .artifact-shell{
   position:relative;display:block;width:100%;height:112px;overflow:hidden;
   clip-path:polygon(12% 0,88% 0,100% 12%,100% 88%,88% 100%,12% 100%,0 88%,0 12%);
+  transform:perspective(720px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg));
+  transform-style:preserve-3d;
+  transition:transform 150ms ease-out,filter 180ms ease,box-shadow 180ms ease;
   background:
     linear-gradient(145deg,rgba(255,255,255,.18),rgba(255,255,255,.025) 28%,rgba(255,255,255,.07) 68%,rgba(255,255,255,.02)),
     linear-gradient(145deg,color-mix(in srgb,var(--secondary),#fff 9%),color-mix(in srgb,var(--secondary),#000 58%));
@@ -499,6 +502,24 @@ h1{
   border-radius:999px;
   background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--accent),#fff 10%),transparent);
   opacity:.54;filter:blur(.2px)
+}
+.artifact-shell .artifact-glass::after{
+  content:"";position:absolute;inset:-24%;pointer-events:none;
+  background:
+    radial-gradient(circle at var(--shine-x,50%) var(--shine-y,50%),
+      rgba(255,255,255,.28) 0,
+      rgba(255,255,255,.08) 14%,
+      transparent 36%);
+  opacity:0;
+  transition:opacity 160ms ease
+}
+.resonance-artifact:hover .artifact-shell,
+.resonance-artifact:focus-visible .artifact-shell{
+  filter:brightness(1.05) saturate(1.04)
+}
+.resonance-artifact:hover .artifact-glass::after,
+.resonance-artifact:focus-visible .artifact-glass::after{
+  opacity:.9
 }
 .resonance-artifact[data-artist="aether"] .artifact-shell{
   background:
@@ -1001,6 +1022,8 @@ h1{
 
 @media(prefers-reduced-motion:reduce){
   #player-title,#world-track,#world-artist-name{view-transition-name:none}
+  .artifact-shell{transform:none!important}
+  .artifact-glass::after{display:none}
   *,*::before,*::after{
     animation-duration:.01ms!important;
     animation-iteration-count:1!important;
