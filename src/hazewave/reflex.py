@@ -391,6 +391,18 @@ def govern_reflex_result(
 Executor = Callable[..., ColibriDecisionResult]
 
 
+def reflex_transport_timeout_seconds(profile: Mapping[str, Any]) -> float:
+    """Bounded HTTP deadline wider than the acceptance latency budget.
+
+    The governor's max_latency_ms is an eligibility threshold, not a socket
+    deadline. Shadow/calibration must be able to observe and record a slow
+    response so that it becomes threshold_eligible=False evidence rather than
+    disappearing as a transport timeout.
+    """
+    budget_seconds = float(profile.get("max_latency_ms") or 3000.0) / 1000.0
+    return min(30.0, max(10.0, budget_seconds * 2.0))
+
+
 def execute_reflex_choice(
     *,
     authorization: HazewaveAuthorization,
