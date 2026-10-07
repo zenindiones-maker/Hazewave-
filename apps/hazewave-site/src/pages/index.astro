@@ -191,18 +191,19 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
               <span id="deck-beacon-section">IDLE</span>
             </aside>
 
-            <nav class="artifact-field" aria-label="Faixas demonstrativas">
-              {tracks.map((track, index) => {
-                const artist = artistById.get(track.artistId)!;
+            <nav class="artifact-field" aria-label="Fitas de artista demonstrativas">
+              {artists.map((artist, index) => {
+                const primaryTrack = artist.tracks[0]!;
                 return (
                   <button
                     class="resonance-artifact"
                     type="button"
-                    data-track-id={track.id}
+                    data-track-id={primaryTrack.id}
                     data-artist={artist.id}
+                    data-artist-cassette="true"
                     data-focus="idle"
                     data-loaded="false"
-                    aria-label={`Tocar ${track.title}, ${artist.name}`}
+                    aria-label={`Abrir fita de ${artist.name.replace(" / DEMO", "")}`}
                     style={`--accent:${artist.identity.accent};--secondary:${artist.identity.secondary};--world:${artist.identity.background};--artifact-index:${index};`}
                   >
                     <span class="artifact-shell" aria-hidden="true">
@@ -242,8 +243,8 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
                       <span class="cassette-window"></span>
                       <span class="artifact-number">0{index + 1}</span>
                       <span class="artifact-face-copy">
-                        <strong>{track.title}</strong>
-                        <small>{artist.name.replace(" / DEMO", "")}</small>
+                        <strong>{artist.name.replace(" / DEMO", "")}</strong>
+                        <small>{artist.releaseTitle}</small>
                       </span>
                       <span class="artifact-contacts">
                         <i></i><i></i><i></i><i></i><i></i>
@@ -251,9 +252,9 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
                       <span class="artifact-mark"></span>
                     </span>
                     <span class="artifact-copy">
-                      <small>{artist.name.replace(" / DEMO", "")}</small>
-                      <strong>{track.title}</strong>
-                      <span>{track.visual.bpm} BPM</span>
+                      <small>ARTIST TAPE</small>
+                      <strong>{artist.name.replace(" / DEMO", "")}</strong>
+                      <span>{artist.tracks.length} TRACKS</span>
                     </span>
                   </button>
                 );
