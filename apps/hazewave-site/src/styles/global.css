@@ -10,6 +10,10 @@
 @property --world-parallax-y{syntax:"<length>";inherits:true;initial-value:0px}
 @property --pointer-x{syntax:"<percentage>";inherits:true;initial-value:50%}
 @property --pointer-y{syntax:"<percentage>";inherits:true;initial-value:42%}
+@property --track-progress{syntax:"<number>";inherits:true;initial-value:0}
+@property --track-progress-turn{syntax:"<angle>";inherits:true;initial-value:0deg}
+@property --track-progress-scan{syntax:"<length>";inherits:true;initial-value:-82px}
+@property --track-progress-drift{syntax:"<length>";inherits:true;initial-value:-11px}
 
 :root{
   view-transition-name:none;
@@ -145,7 +149,11 @@ button{appearance:none}
   fill:none;stroke:#a7ffe0;stroke-width:1.15;opacity:.28;
   stroke-dasharray:4 12
 }
-.artist-world-aether .world-scan{fill:none;stroke-width:1.2;opacity:.42}
+.artist-world-aether .world-scan{
+  fill:none;stroke-width:1.2;opacity:.42;
+  transform:translateY(var(--track-progress-scan,-82px));
+  transition:transform 90ms linear
+}
 .artist-world-monolith{mix-blend-mode:normal}
 .artist-world-monolith .slab{
   position:absolute;display:block;
@@ -165,8 +173,12 @@ button{appearance:none}
   background:linear-gradient(180deg,transparent,#e8d9c5 28%,#e8d9c5 70%,transparent);
   opacity:.24
 }
-.artist-world-monolith .fault-a{left:39%;transform:rotate(16deg)}
-.artist-world-monolith .fault-b{right:39%;transform:rotate(-16deg)}
+.artist-world-monolith .fault-a{
+  left:39%;transform:translateY(var(--track-progress-drift,-11px)) rotate(16deg)
+}
+.artist-world-monolith .fault-b{
+  right:39%;transform:translateY(var(--track-progress-drift,-11px)) rotate(-16deg)
+}
 .artist-world-flora .flora-stem{
   fill:none;stroke:#d8ff7a;stroke-width:1.2;opacity:.28
 }
@@ -175,7 +187,9 @@ button{appearance:none}
 }
 .artist-world-flora .flora-spore{
   fill:#d8ff7a;opacity:.34;
-  filter:drop-shadow(0 0 18px rgba(216,255,122,.52))
+  filter:drop-shadow(0 0 18px rgba(216,255,122,.52));
+  transform:translateY(var(--track-progress-drift,-11px));
+  transition:transform 90ms linear
 }
 @keyframes worldSpin{to{transform:rotate(360deg)}}
 @keyframes worldSpinReverse{to{transform:rotate(-360deg)}}
@@ -191,7 +205,7 @@ button{appearance:none}
   -webkit-text-stroke:1px color-mix(in srgb,var(--world-accent),transparent 82%);
   text-shadow:0 0 44px color-mix(in srgb,var(--world-accent),transparent 92%);
   opacity:.58;white-space:nowrap;
-  transform:scaleX(.92);
+  transform:translateX(var(--track-progress-drift,-11px)) scaleX(.92);
   transition:-webkit-text-stroke-color 420ms ease,text-shadow 420ms ease,opacity 420ms ease
 }
 .premium-stage[data-playing="true"] .world-signature span{
@@ -589,9 +603,16 @@ h1{
   background:rgba(255,255,255,.02)
 }
 .deck-control span{
-  position:absolute;left:50%;top:50%;width:31px;height:31px;transform:translate(-50%,-50%);
+  position:absolute;left:50%;top:50%;width:31px;height:31px;
+  transform:translate(-50%,-50%) rotate(var(--track-progress-turn,0deg));
   border-radius:50%;border:1px solid rgba(255,255,255,.24);
-  background:radial-gradient(circle at 36% 30%,rgba(255,255,255,.2),transparent 26%),#101513
+  background:radial-gradient(circle at 36% 30%,rgba(255,255,255,.2),transparent 26%),#101513;
+  transition:transform 90ms linear
+}
+.deck-control span::after{
+  content:"";position:absolute;left:50%;top:3px;width:1px;height:7px;transform:translateX(-50%);
+  border-radius:1px;background:var(--world-accent);
+  box-shadow:0 0 6px color-mix(in srgb,var(--world-accent),transparent 46%)
 }
 .resonance-deck[data-state="anticipation"] .deck-outer-halo,
 .resonance-deck[data-state="contact"] .deck-outer-halo,
@@ -1273,6 +1294,11 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
 
 @media(prefers-reduced-motion:reduce){
   .gpu-atmosphere{display:none!important}
+  .artist-world-aether .world-scan,
+  .artist-world-monolith .fault,
+  .artist-world-flora .flora-spore,
+  .world-signature span{transform:none!important}
+  .deck-control span{transform:translate(-50%,-50%)!important}
   #player-title,#world-track,#world-artist-name{view-transition-name:none}
   .artifact-shell{transform:none!important}
   .artifact-glass::after{display:none}
