@@ -22,6 +22,8 @@ export function bootHazewaveSite(): void {
   const artistLabel = document.querySelector<HTMLElement>("#player-artist");
   const toggle = document.querySelector<HTMLButtonElement>("#toggle-play");
   const seek = document.querySelector<HTMLInputElement>("#player-seek");
+  const sectionMap = document.querySelector<HTMLElement>("#player-sections");
+  const sectionLabel = document.querySelector<HTMLElement>("#player-section-label");
   const timeCurrent = document.querySelector<HTMLElement>("#player-time-current");
   const timeTotal = document.querySelector<HTMLElement>("#player-time-total");
   const worldArtistName = document.querySelector<HTMLElement>("#world-artist-name");
@@ -32,7 +34,7 @@ export function bootHazewaveSite(): void {
     document.querySelectorAll<HTMLButtonElement>("[data-archive-track-id]")
   );
 
-  if (!stageHost || !player || !runtimeLabel || !stateLabel || !title || !artistLabel || !toggle || !seek || !timeCurrent || !timeTotal) return;
+  if (!stageHost || !player || !runtimeLabel || !stateLabel || !title || !artistLabel || !toggle || !seek || !sectionMap || !sectionLabel || !timeCurrent || !timeTotal) return;
 
   const quality = detectQuality();
   document.documentElement.dataset.qualityTier = quality.tier;
@@ -46,6 +48,20 @@ export function bootHazewaveSite(): void {
     const minutes = Math.floor(safe / 60);
     const remainder = Math.floor(safe % 60).toString().padStart(2, "0");
     return `${minutes}:${remainder}`;
+  };
+
+  const renderSectionMap = (track: ReturnType<typeof getTrack>) => {
+    sectionMap.replaceChildren();
+    for (const [index, section] of track.visual.sections.entries()) {
+      const marker = document.createElement("span");
+      marker.className = "player-section-marker";
+      marker.dataset.sectionKind = section.kind;
+      marker.dataset.sectionIndex = String(index);
+      marker.style.left = `${Math.min(100, Math.max(0, (section.at / track.durationSeconds) * 100)).toFixed(2)}%`;
+      marker.title = section.kind.toUpperCase();
+      sectionMap.append(marker);
+    }
+    sectionLabel.textContent = "INTRO";
   };
   let experience: StageController | null = null;
   let selectionToken = 0;
@@ -138,6 +154,7 @@ export function bootHazewaveSite(): void {
         seek.max = String(track.durationSeconds);
         seek.value = "0";
         seek.disabled = false;
+        renderSectionMap(track);
         timeCurrent.textContent = "0:00";
         timeTotal.textContent = formatTime(track.durationSeconds);
         if (worldArtistName) worldArtistName.textContent = artist.name.replace(" / DEMO", "").toUpperCase();
@@ -252,6 +269,10 @@ export function bootHazewaveSite(): void {
       if (semanticSection && semanticSection.kind !== lastSemanticSection) {
         lastSemanticSection = semanticSection.kind;
         experience?.setSection(semanticSection.kind);
+        sectionLabel.textContent = semanticSection.kind.toUpperCase();
+        sectionMap.querySelectorAll<HTMLElement>(".player-section-marker").forEach((marker) => {
+          marker.dataset.active = String(marker.dataset.sectionKind === semanticSection.kind);
+        });
       }
     }
 
