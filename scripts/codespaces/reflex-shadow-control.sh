@@ -958,7 +958,7 @@ reconcile() {
     --secret-file "$SECRET_FILE" \
     --state-root "$STATE_ROOT" \
     --port "$PORT" \
-    >"$SERVICE_LOG_FILE" 2>&1 < /dev/null &
+    9>&- >"$SERVICE_LOG_FILE" 2>&1 < /dev/null &
   pid=$!
   printf '%s\n' "$pid" >"$SERVICE_PID_FILE.tmp"
   chmod 600 "$SERVICE_PID_FILE.tmp"
