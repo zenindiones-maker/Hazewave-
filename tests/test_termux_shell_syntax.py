@@ -103,3 +103,16 @@ def test_reflex_engine_report_wakes_existing_codespace_before_reading_evidence()
 
     assert "ensure_codespace_available" in block
     assert 'run_remote "$action"' in block
+
+
+def test_reflex_laya_phase_profiler_is_diagnostic_only_and_exposed_through_termux() -> None:
+    termux = (ROOT / "scripts" / "hazewave_reflex_termux_control.sh").read_text(encoding="utf-8")
+    remote = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
+
+    assert "latency-engine-profile" in termux
+    assert "latency-engine-profile" in remote
+    assert "REFLEX_LAYA_PHASES" in remote
+    assert '"diagnostic_only": True' in remote
+    assert '"activatable": False' in remote
+    assert "AGGREGATE_PROBABILITY_DRIFT" in remote
+    assert 'COLI_ENGINE="$profiler"' in remote
