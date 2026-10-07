@@ -8,6 +8,7 @@ export type PlayerPhase =
   | "CONTACT"
   | "ACTIVATING"
   | "PLAYING"
+  | "ENDED"
   | "EJECT"
   | "RETURN"
   | "PAUSED"
@@ -22,7 +23,8 @@ const legal: Record<PlayerPhase, ReadonlySet<PlayerPhase>> = {
   INSERT: new Set(["CONTACT", "ERROR"]),
   CONTACT: new Set(["ACTIVATING", "ERROR"]),
   ACTIVATING: new Set(["PLAYING", "ERROR"]),
-  PLAYING: new Set(["PAUSED", "EJECT", "SELECTED", "ERROR"]),
+  PLAYING: new Set(["PAUSED", "ENDED", "EJECT", "SELECTED", "ERROR"]),
+  ENDED: new Set(["PLAYING", "EJECT", "SELECTED", "ERROR"]),
   EJECT: new Set(["RETURN", "ERROR"]),
   RETURN: new Set(["SELECTED", "IDLE", "ERROR"]),
   PAUSED: new Set(["PLAYING", "EJECT", "SELECTED", "ERROR"]),
@@ -44,7 +46,7 @@ export class PlayerMachine {
   select(trackId: string): void {
     if (!trackId) throw new Error("TRACK_ID_REQUIRED");
     if (this.phase === "ERROR") this.transition("IDLE");
-    if (this.phase === "PLAYING" || this.phase === "PAUSED") {
+    if (this.phase === "PLAYING" || this.phase === "PAUSED" || this.phase === "ENDED") {
       this.transition("EJECT");
       this.transition("RETURN");
     }
