@@ -18,6 +18,7 @@ from hazewave.reflex import (
     load_reflex_outcomes,
     load_reflex_policy,
     reflex_recalibration_readiness,
+    reflex_transport_timeout_seconds,
     validate_reflex_request,
 )
 
@@ -559,3 +560,10 @@ def test_reflex_policy_rejects_transport_timeout_below_latency_budget(
         match="REFLEX_TRANSPORT_TIMEOUT_BELOW_LATENCY_BUDGET",
     ):
         load_reflex_policy(target)
+
+
+def test_transport_deadline_is_wider_than_latency_eligibility_budget() -> None:
+    profile = load_reflex_policy()["profiles"]["decision.route"]
+    assert float(profile["max_latency_ms"]) == 3000.0
+    assert reflex_transport_timeout_seconds(profile) == 10.0
+    assert reflex_transport_timeout_seconds(profile) > float(profile["max_latency_ms"]) / 1000.0
