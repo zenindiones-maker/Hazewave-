@@ -55,6 +55,11 @@ class ColibriDecisionResult:
     response_sha256: str
     latency_ms: float
     usage: dict[str, Any]
+    health_ms: float | None = None
+    system_one_ms: float | None = None
+    engine_ms: float | None = None
+    server_elapsed_ms: float | None = None
+    queue_wait_ms: float | None = None
     provider: str = "colibri"
     provider_authority: str = "NONE"
     status: str = "PASS"
@@ -373,9 +378,13 @@ def execute_colibri_system_one(
 
     client_kwargs["trust_env"] = False
     started = monotonic()
+    health_started = monotonic()
+    health_ms: float | None = None
+    system_one_ms: float | None = None
     try:
         with httpx.Client(**client_kwargs) as client:
             health = client.get("/health")
+            health_ms = (monotonic() - health_started) * 1000.0
             if health.status_code != 200:
                 raise ColibriDecisionError(f"COLIBRI_HEALTH_HTTP_{health.status_code}")
             if len(health.content) > 131_072:
@@ -387,7 +396,9 @@ def execute_colibri_system_one(
             if not isinstance(health_payload, dict) or health_payload.get("status") != "ok":
                 raise ColibriDecisionError("COLIBRI_HEALTH_NOT_OK")
 
+            system_one_started = monotonic()
             response = client.post("/v1/systemone", json=request_payload)
+            system_one_ms = (monotonic() - system_one_started) * 1000.0
     except ColibriDecisionError:
         raise
     except httpx.HTTPError as exc:
@@ -415,6 +426,16 @@ def execute_colibri_system_one(
     if not isinstance(usage, dict) or usage.get("cost") != 0:
         raise ColibriDecisionError("COLIBRI_ZERO_COST_RECEIPT_MISSING")
 
+    def _header_ms(name: str) -> float | None:
+        raw = response.headers.get(name)
+        if raw is None:
+            return None
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            return None
+        return value if value >= 0.0 else None
+
     response_bytes = _canonical_json_bytes(payload)
     return ColibriDecisionResult(
         model_id=model_id,
@@ -423,6 +444,11 @@ def execute_colibri_system_one(
         response_sha256=sha256(response_bytes).hexdigest(),
         latency_ms=latency_ms,
         usage=dict(usage),
+        health_ms=health_ms,
+        system_one_ms=system_one_ms,
+        engine_ms=_header_ms("x-colibri-engine-ms"),
+        server_elapsed_ms=_header_ms("x-colibri-elapsed-ms"),
+        queue_wait_ms=_header_ms("x-colibri-queue-wait-ms"),
     )
 
 

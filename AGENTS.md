@@ -79,6 +79,25 @@ Rules:
 - benchmark PASS never means production approval;
 - do not mix calibration/holdout evidence or silently convert shadow outcomes into training truth.
 
+## Reflex latency contract
+
+For Colibri/Laya latency measurement or tuning, agents MUST load:
+
+- `config/reflex-latency-v1.json`
+- `docs/architecture/decisions/ADR-0011-reflex-latency.md`
+- `docs/runbooks/REFLEX_LATENCY_V1.md`
+
+Latency tuning is measurement-first and scheduling-only. It MUST preserve the pinned
+model/source revision, exact model SHA-256, f32 decision path, 3-rotation robust
+ensemble, zero-cost boundary and provider authority=NONE. A faster profile may persist
+only through the policy selection gates; benchmark speed never grants production or
+promotion authority.
+
+Agents MUST NOT win a latency benchmark by enabling int8 Laya, fast-math, reducing
+option-order rotations, truncating state/head limits, changing model revision, hiding
+failed runs or enabling active OpenMP spin as an unmeasured default. On the shared
+Codespace, one Laya tuning server at a time is the maximum.
+
 ## Setup
 
 Development checkout:

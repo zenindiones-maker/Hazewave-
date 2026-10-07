@@ -516,6 +516,52 @@
         "codespaces"
       ],
       "description": "Operational procedure for robust shadow smoke, sensory-state construction, order-sensitivity benchmarking and risk-threshold candidate review."
+    },
+    {
+      "id": "reflex-latency-policy-v1",
+      "path": "config/reflex-latency-v1.json",
+      "type": "PROJECT_POLICY",
+      "authority": "NORMATIVE",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "reflex",
+        "latency",
+        "runtime",
+        "codespaces"
+      ],
+      "description": "Measured per-host OpenMP latency profile policy with p50/p95, robustness and no-self-promotion gates."
+    },
+    {
+      "id": "adr-0011-reflex-latency",
+      "path": "docs/architecture/decisions/ADR-0011-reflex-latency.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "reflex",
+        "latency",
+        "runtime",
+        "codespaces"
+      ],
+      "description": "Records measurement-first Colibri/Laya latency tuning, exactness boundaries and persistent profile selection."
+    },
+    {
+      "id": "reflex-latency-v1-runbook",
+      "path": "docs/runbooks/REFLEX_LATENCY_V1.md",
+      "type": "RUNBOOK",
+      "authority": "OPERATIONAL",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "reflex",
+        "latency",
+        "runtime",
+        "codespaces",
+        "termux"
+      ],
+      "description": "Termux-first procedure for sequential latency profiling, profile selection, restart and live smoke verification."
     }
   ]
 }

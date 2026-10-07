@@ -183,6 +183,11 @@ def test_system_one_executes_only_after_health_and_zero_cost_receipt() -> None:
         if request.url.path == "/v1/systemone":
             return httpx.Response(
                 200,
+                headers={
+                    "x-colibri-engine-ms": "123.4",
+                    "x-colibri-elapsed-ms": "125",
+                    "x-colibri-queue-wait-ms": "1",
+                },
                 json={
                     "id": "req_1",
                     "model": "laya",
@@ -235,6 +240,11 @@ def test_system_one_executes_only_after_health_and_zero_cost_receipt() -> None:
     assert result.zero_cost_verified is True
     assert result.usage["cost"] == 0
     assert result.latency_ms >= 0
+    assert result.health_ms is not None and result.health_ms >= 0
+    assert result.system_one_ms is not None and result.system_one_ms >= 0
+    assert result.engine_ms == 123.4
+    assert result.server_elapsed_ms == 125.0
+    assert result.queue_wait_ms == 1.0
     assert seen[0][1].endswith("/health")
     assert seen[1][1].endswith("/v1/systemone")
     assert seen[0][2] == "Bearer " + ("x" * 32)

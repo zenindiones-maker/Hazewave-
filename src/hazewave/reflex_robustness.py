@@ -329,6 +329,11 @@ def execute_robust_reflex_route(
         response_sha256=result.response_sha256,
         latency_ms=result.latency_ms,
         usage=dict(result.usage),
+        health_ms=result.health_ms,
+        system_one_ms=result.system_one_ms,
+        engine_ms=result.engine_ms,
+        server_elapsed_ms=result.server_elapsed_ms,
+        queue_wait_ms=result.queue_wait_ms,
     )
     base = govern_reflex_result(
         authorization=authorization,

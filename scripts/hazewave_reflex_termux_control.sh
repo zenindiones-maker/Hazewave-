@@ -4,7 +4,7 @@ umask 077
 
 REPO_SLUG="${HAZEWAVE_REFLEX_REPO:-zenindiones-maker/Hazewave-}"
 DEFAULT_CS="redesigned-space-bassoon-gxp67g5g7r739w59"
-REF="${HAZEWAVE_REFLEX_REF:-work/reflex-robustness-risk-v3}"
+REF="${HAZEWAVE_REFLEX_REF:-work/reflex-latency-v1}"
 MAIN_REPO="/workspaces/Hazewave-"
 RUN_ROOT="${HOME}/.local/share/hazewave/reflex-shadow-runtime"
 WORKTREE="${RUN_ROOT}/checkout"
@@ -129,7 +129,7 @@ remote_main() {
     export HAZEWAVE_REFLEX_EXPECTED_CODESPACE="$expected_codespace"
 
     case "$action" in
-        doctor|prepare|serve|smoke|report)
+        doctor|prepare|serve|serve-stop|smoke|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report)
             exec bash "$control" "$action"
             ;;
         observe)
@@ -288,7 +288,7 @@ case "$action" in
         echo "REFLEX_TARGET_CODESPACE=$CS"
         ;;
 
-    doctor|prepare|smoke|report)
+    doctor|prepare|serve-stop|smoke|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report)
         gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
         run_remote "$action"
         ;;
@@ -325,7 +325,7 @@ case "$action" in
 
     *)
         cat >&2 <<'USAGE'
-usage: hazewave-reflex {status|list|wake|stop|doctor|prepare|serve|smoke|observe EVENT.json|report|install-check}
+usage: hazewave-reflex {status|list|wake|stop|doctor|prepare|serve|serve-stop|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report|install-check}
 USAGE
         exit 2
         ;;
