@@ -13,10 +13,10 @@ export function detectQuality(): QualityProfile {
   const shortSide = Math.min(window.innerWidth, window.innerHeight);
 
   if (reducedMotion || shortSide < 430) {
-    return { tier: "LOW", pixelRatio: Math.min(dpr, 1.25), shadows: false, reducedMotion };
+    return { tier: "LOW", pixelRatio: Math.min(dpr, 1.0), shadows: false, reducedMotion };
   }
   if (shortSide < 768) {
-    return { tier: "MEDIUM", pixelRatio: Math.min(dpr, 1.5), shadows: false, reducedMotion };
+    return { tier: "MEDIUM", pixelRatio: Math.min(dpr, 1.35), shadows: false, reducedMotion };
   }
   if (dpr > 1.75) {
     return { tier: "HIGH", pixelRatio: Math.min(dpr, 1.75), shadows: true, reducedMotion };
