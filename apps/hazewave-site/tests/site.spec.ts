@@ -670,9 +670,12 @@ test("living world checkpoints produce the full narrative visual proof matrix", 
     await focusStoryFraction(page, "#archive", 0.36);
     await capture(`${prefix}-world-awakening`);
 
-    await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.28);
+    await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.12);
+    await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "EMERGE");
     await capture(`${prefix}-artist-01-enter`);
 
+    await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.36);
+    await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "MUSIC");
     const aetherFocus = page.locator("[data-artist-focus='aether']");
     await aetherFocus.click();
     await expect(page.locator("[data-artist-focus-panel='aether']")).toHaveAttribute("data-open", "true");
@@ -682,12 +685,15 @@ test("living world checkpoints produce the full narrative visual proof matrix", 
     await expect(page.locator("[data-artist-focus-panel='aether']")).toHaveAttribute("data-open", "false");
 
     await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.88);
+    await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "TRANSITION");
     await capture(`${prefix}-artist-transition`);
 
-    await focusStoryFraction(page, "[data-artist-chapter='monolith']", 0.3);
+    await focusStoryFraction(page, "[data-artist-chapter='monolith']", 0.12);
+    await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "EMERGE");
     await capture(`${prefix}-artist-02-enter`);
 
-    await focusStoryFraction(page, "[data-artist-chapter='flora']", 0.3);
+    await focusStoryFraction(page, "[data-artist-chapter='flora']", 0.12);
+    await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "EMERGE");
     await capture(`${prefix}-artist-03-enter`);
 
     await focusStoryFraction(page, "#objects", 0.24);
