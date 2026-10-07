@@ -341,6 +341,25 @@
         "design_system"
       ],
       "description": "2026 frontier standard for WAVE visual design, interaction, WebGPU/TSL, GSAP motion, authoring tools, audio-reactive design, performance tiers and evidence-based capability adoption."
+    },
+    {
+      "id": "wave-hazewave-world-bible-v1",
+      "path": "docs/wave/WAVE_HAZEWAVE_WORLD_BIBLE_V1.md",
+      "type": "PROJECT_SPEC",
+      "authority": "CANONICAL",
+      "status": "DEVELOPMENT",
+      "owner": "WAVE",
+      "applies_to": [
+        "WAVE",
+        "visual.site",
+        "interactive_web",
+        "music_experience",
+        "brand_site",
+        "artist_assets",
+        "merch",
+        "deployment"
+      ],
+      "description": "Canonical story/world bible for the Hazewave site: persistent owner artwork, deterministic scroll conductor, physical artist media objects, original tactile player, content anti-hallucination rules, zero-cost asset/deployment gates, and premium owner-review boundary."
     }
   ]
 }
