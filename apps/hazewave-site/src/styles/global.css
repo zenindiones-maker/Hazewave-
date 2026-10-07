@@ -855,6 +855,16 @@ h1{
   background:linear-gradient(180deg,color-mix(in srgb,var(--world-accent),transparent 38%),transparent);
   filter:blur(2px);opacity:.72
 }
+.cinematic-artifact-clone[data-motion="float"]::after{
+  height:72px;opacity:.72
+}
+.cinematic-artifact-clone[data-motion="mass"]::after{
+  height:24px;width:3px;opacity:.38;filter:blur(1px)
+}
+.cinematic-artifact-clone[data-motion="grow"]::after{
+  height:86px;width:3px;opacity:.62;
+  background:linear-gradient(180deg,rgba(216,255,122,.66),rgba(114,136,73,.12),transparent)
+}
 
 .runtime-badge{
   position:absolute;z-index:22;right:24px;top:24px;
