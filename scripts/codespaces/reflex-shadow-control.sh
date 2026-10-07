@@ -29,7 +29,7 @@ ensure_checkout() {
   mkdir -p "$RUN_ROOT" "$STATE_ROOT"
   chmod 700 "$RUN_ROOT" "$STATE_ROOT"
   # Fetches refs but never checks out, resets or overwrites the active worktree.
-  git -C "$MAIN_REPO" fetch --no-tags origin "$REF" || die "REF_FETCH_FAILED"
+  git -C "$MAIN_REPO" fetch --no-tags origin "refs/heads/$REF:refs/remotes/origin/$REF" || die "REF_FETCH_FAILED"
   local remote_sha
   remote_sha="$(git -C "$MAIN_REPO" rev-parse "refs/remotes/origin/$REF" 2>/dev/null || true)"
   [[ "$remote_sha" =~ ^[a-f0-9]{40}$ ]] || die "REF_NOT_PRESENT_AFTER_FETCH"
