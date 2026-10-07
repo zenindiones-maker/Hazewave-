@@ -80,6 +80,7 @@ export class PremiumResonanceStage {
       this.host.style.setProperty("--world-secondary", artist.identity.secondary);
       this.host.style.setProperty("--world-bg", artist.identity.background);
       this.host.dataset.artist = artist.id;
+      this.host.dataset.motion = artist.identity.world.motionSignature.toLowerCase();
 
       this.artifacts.forEach((artifact) => {
         const selected = artifact === source;
