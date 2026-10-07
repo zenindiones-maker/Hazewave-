@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import { artists, tracks } from "../data/catalog";
+import { artistChapters } from "../data/artistChapters";
 import { merchItems, siteIdentity, socials } from "../data/site";
 
 const artistById = new Map(artists.map((artist) => [artist.id, artist]));
@@ -317,39 +318,54 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
         </div>
       </section>
 
-      <section id="artist-worlds" class="artist-index" aria-labelledby="artist-index-title">
-        <header class="artist-index-header">
-          <p class="eyebrow">HAZEWAVE / ARTIST WORLDS</p>
-          <h2 id="artist-index-title">Cada artista ocupa um mundo.</h2>
-          <p>O mesmo player muda de matéria, ritmo e atmosfera conforme a música.</p>
+      <section id="artist-worlds" class="artist-index artist-journey" aria-labelledby="artist-index-title">
+        <header class="artist-journey-intro">
+          <p class="eyebrow">HAZEWAVE / ARTIST WORLDS / DEMO STRUCTURE</p>
+          <h2 id="artist-index-title">O mundo muda antes do artista aparecer.</h2>
+          <p>
+            A rolagem atravessa o mesmo universo. Cada capítulo altera luz,
+            água, névoa e matéria sem abandonar a imagem original.
+          </p>
         </header>
 
-        <div class="artist-index-grid">
-          {artists.map((artist, artistIndex) => (
-            <article class="artist-index-card" data-artist-card={artist.id} style={`--card-accent:${artist.identity.accent};--card-world:${artist.identity.background};--card-index:${artistIndex};`}>
-              <div class="artist-index-art" aria-hidden="true">
-                <span class="artist-index-orbit"></span>
-                <span class="artist-index-core"></span>
-              </div>
-              <div class="artist-index-copy">
+        <div class="artist-journey-track">
+          {artistChapters.map((chapter, artistIndex) => (
+            <article
+              class="artist-chapter"
+              data-artist-chapter={chapter.id}
+              data-authority={chapter.authority}
+              style={`--chapter-accent:${chapter.world.accent};--chapter-secondary:${chapter.world.secondary};--chapter-bg:${chapter.world.background};--chapter-index:${artistIndex};`}
+            >
+              <div class="artist-chapter-mark" aria-hidden="true">
                 <span>0{artistIndex + 1}</span>
-                <h3>{artist.name.replace(" / DEMO", "")}</h3>
-                <p>{artist.releaseTitle}</p>
-                <ul>
-                  {artist.tracks.map((track) => (
-                    <li>
-                      <button
-                        class="archive-track"
-                        type="button"
-                        data-archive-track-id={track.id}
-                        aria-label={`Tocar ${track.title} no Resonance Deck`}
-                      >
-                        <span>{track.title}</span>
-                        <small>{track.visual.bpm} BPM</small>
-                      </button>
-                    </li>
+                <i></i>
+                <small>{chapter.world.transitionSignature}</small>
+              </div>
+
+              <div class="artist-chapter-copy">
+                <span class="artist-chapter-kicker">DEMO ARTIST WORLD</span>
+                <h3>{chapter.displayName}</h3>
+                <p>{chapter.releaseLabel} · DEMO CONTENT</p>
+
+                <nav class="artist-chapter-tracks" aria-label={`Faixas demonstrativas de ${chapter.displayName}`}>
+                  {chapter.tracks.map((track, trackIndex) => (
+                    <button
+                      type="button"
+                      data-archive-track-id={track.id}
+                      aria-label={`Tocar ${track.title} no Resonance Deck`}
+                    >
+                      <b>0{trackIndex + 1}</b>
+                      <span>{track.title}</span>
+                      <small>{track.visual.bpm} BPM</small>
+                    </button>
                   ))}
-                </ul>
+                </nav>
+              </div>
+
+              <div class="artist-chapter-status" aria-hidden="true">
+                <span>WORLD SIGNAL</span>
+                <strong>{chapter.authority}</strong>
+                <i></i>
               </div>
             </article>
           ))}
