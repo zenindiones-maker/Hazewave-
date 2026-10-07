@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hazewave.local/schemas/reflex-robustness-v1.schema.json",
+  "title": "Hazewave Reflex Robustness Policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "project_id",
+    "authority",
+    "provider_authority",
+    "activation_state",
+    "option_order_ensemble",
+    "sensory_frame",
+    "risk_control",
+    "benchmark",
+    "promotion"
+  ],
+  "properties": {
+    "schema": {
+      "const": "HazewaveReflexRobustnessPolicy/v1"
+    },
+    "project_id": {
+      "const": "HAZEWAVE"
+    },
+    "authority": {
+      "const": "HAZEWAVE_HARNESS"
+    },
+    "provider_authority": {
+      "const": "NONE"
+    },
+    "activation_state": {
+      "const": "SHADOW_ONLY"
+    },
+    "option_order_ensemble": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "capabilities",
+        "strategy",
+        "aggregation",
+        "max_labels",
+        "max_rotations",
+        "min_winner_agreement",
+        "max_normalized_jsd",
+        "raw_system_one_confidence_correctness_probability"
+      ],
+      "properties": {
+        "enabled": {
+          "const": true
+        },
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "decision.route"
+            ]
+          }
+        },
+        "strategy": {
+          "const": "CYCLIC_ROTATIONS_IN_ONE_SYSTEM_ONE_BATCH"
+        },
+        "aggregation": {
+          "const": "ARITHMETIC_MEAN_PROBABILITIES"
+        },
+        "max_labels": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 8
+        },
+        "max_rotations": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 8
+        },
+        "min_winner_agreement": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 1
+        },
+        "max_normalized_jsd": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "raw_system_one_confidence_correctness_probability": {
+          "const": false
+        }
+      }
+    },
+    "sensory_frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "raw_media_allowed",
+        "source_paths_allowed",
+        "artistic_verdict_allowed",
+        "credentials_allowed",
+        "allowed_sources",
+        "max_technical_flags_per_surface",
+        "runtime_metric_allowlist"
+      ],
+      "properties": {
+        "schema": {
+          "const": "HazewaveReflexSensoryFrame/v1"
+        },
+        "raw_media_allowed": {
+          "const": false
+        },
+        "source_paths_allowed": {
+          "const": false
+        },
+        "artistic_verdict_allowed": {
+          "const": false
+        },
+        "credentials_allowed": {
+          "const": false
+        },
+        "allowed_sources": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "AudioQCReport/v1",
+              "ProfessionalAudioAnalysisReport/v1",
+              "VideoQCReport/v1",
+              "AnimationQCReport/v1"
+            ]
+          }
+        },
+        "max_technical_flags_per_surface": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "runtime_metric_allowlist": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "available_ram_gb",
+              "disk_free_gb",
+              "cpu_load_1",
+              "active_render_jobs"
+            ]
+          }
+        }
+      }
+    },
+    "risk_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "method",
+        "target_selective_risk",
+        "delta",
+        "minimum_total_labeled_samples",
+        "minimum_accepted_samples",
+        "activation_authority",
+        "auto_threshold_mutation",
+        "iid_assumption_must_be_reviewed"
+      ],
+      "properties": {
+        "status": {
+          "const": "CALIBRATION_CANDIDATE_ONLY"
+        },
+        "method": {
+          "const": "HOEFFDING_ONE_SIDED_UPPER_BOUND"
+        },
+        "target_selective_risk": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 0.5
+        },
+        "delta": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 0.5
+        },
+        "minimum_total_labeled_samples": {
+          "type": "integer",
+          "minimum": 100
+        },
+        "minimum_accepted_samples": {
+          "type": "integer",
+          "minimum": 50
+        },
+        "activation_authority": {
+          "const": "NONE"
+        },
+        "auto_threshold_mutation": {
+          "const": false
+        },
+        "iid_assumption_must_be_reviewed": {
+          "const": true
+        }
+      }
+    },
+    "benchmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "minimum_cases_before_review",
+        "perturbations",
+        "required_metrics",
+        "benchmark_pass_grants_production_authority"
+      ],
+      "properties": {
+        "status": {
+          "const": "SHADOW_ONLY"
+        },
+        "minimum_cases_before_review": {
+          "type": "integer",
+          "minimum": 20
+        },
+        "perturbations": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "OPTION_ORDER_ROTATION",
+              "STATE_KEY_ORDER_REVERSAL"
+            ]
+          }
+        },
+        "required_metrics": {
+          "type": "array",
+          "minItems": 7,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "base_accuracy",
+              "ensemble_accuracy",
+              "option_order_flip_rate",
+              "state_order_flip_rate",
+              "mean_normalized_jsd",
+              "multiclass_brier",
+              "ece"
+            ]
+          }
+        },
+        "benchmark_pass_grants_production_authority": {
+          "const": false
+        }
+      }
+    },
+    "promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requires_real_codespace_runtime",
+        "requires_hazewave_labeled_holdout",
+        "requires_human_review",
+        "requires_security_review",
+        "automatic_promotion"
+      ],
+      "properties": {
+        "requires_real_codespace_runtime": {
+          "const": true
+        },
+        "requires_hazewave_labeled_holdout": {
+          "const": true
+        },
+        "requires_human_review": {
+          "const": true
+        },
+        "requires_security_review": {
+          "const": true
+        },
+        "automatic_promotion": {
+          "const": false
+        }
+      }
+    }
+  }
+}
