@@ -61,6 +61,15 @@ case "${1:-doctor}" in
   sync)
     sync_runtime
     ;;
+  workstation-ready)
+    doctor
+    release="$(current_release)"
+    test -f "$release/scripts/hazewave_reflex_termux_control.sh" || {
+      echo "HAZEWAVE_WORKSTATION_READY=FAIL reflex_controller_missing" >&2
+      exit 4
+    }
+    exec bash "$release/scripts/hazewave_reflex_termux_control.sh" ready
+    ;;
   where)
     echo "HAZEWAVE_DEPLOY_ROOT=$HAZEWAVE_DEPLOY_ROOT"
     echo "HAZEWAVE_CURRENT=$HAZEWAVE_CURRENT"
@@ -84,7 +93,7 @@ case "${1:-doctor}" in
     exec bash "$release/scripts/hazewave_reflex_termux_control.sh" "${2:-status}" "${3:-}"
     ;;
   *)
-    echo "usage: $0 {doctor|status|harness|sync|where|freellmapi [command]|9router [command]|telegram [command]|reflex [command]}" >&2
+    echo "usage: $0 {doctor|status|harness|sync|workstation-ready|where|freellmapi [command]|9router [command]|telegram [command]|reflex [command]}" >&2
     exit 2
     ;;
 esac
