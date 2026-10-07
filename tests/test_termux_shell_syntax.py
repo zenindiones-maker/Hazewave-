@@ -117,7 +117,7 @@ def test_reflex_laya_phase_profiler_is_diagnostic_only_and_exposed_through_termu
     assert '"diagnostic_only": True' in remote
     assert '"activatable": False' in remote
     assert "AGGREGATE_PROBABILITY_DRIFT" in remote
-    assert 'COLI_ENGINE="$engine"' in remote
+    assert '--engine-bin "$engine"' in remote
     assert 'run_profile_case instrumented "$profiler"' in remote
 
 
@@ -137,7 +137,7 @@ def test_reflex_termux_supports_persistent_ref_pin_without_weakening_env_overrid
 def test_reflex_laya_phase_profiler_breaks_encoder_hotspots_into_lossless_subphases() -> None:
     remote = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
 
-    assert 'local variant="phase_profile_v3"' in remote
+    assert 'local variant="phase_profile_v4"' in remote
     assert "REFLEX_LAYA_SUBPHASES" in remote
     for field in (
         "encoder_qkv_gemm_ms",
@@ -171,7 +171,7 @@ def test_reflex_engine_tune_includes_exact_output_weight_panel_reuse_variant() -
 def test_reflex_laya_profiler_v3_separates_qi_gemm_pack_kernel_and_bias_costs() -> None:
     remote = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
 
-    assert 'local variant="phase_profile_v3"' in remote
+    assert 'local variant="phase_profile_v4"' in remote
     assert "REFLEX_QI_GEMM" in remote
     for field in (
         "pack_ms",
