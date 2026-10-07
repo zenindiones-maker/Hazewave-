@@ -32,8 +32,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-          cache: "npm"
-          cache-dependency-path: apps/hazewave-site/package-lock.json
 
       - name: Resolve deterministic lockfile
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
