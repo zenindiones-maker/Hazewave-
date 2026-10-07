@@ -95,7 +95,11 @@ test("opt-in diagnostics exposes real runtime proof fields", async ({ page }) =>
   await expect(panel).toBeVisible();
   await expect(panel).toContainText("HAZEWAVE_WAVE_SITE_V1");
   await expect(panel).toContainText("frameP95Ms");
-  await page.waitForTimeout(1200);
+  await expect(page.locator("#premium-stage")).toHaveAttribute(
+    "data-frame-p95-ms",
+    /\d+(\.\d+)?/,
+    { timeout: 3_000 }
+  );
   await expect(page.locator("html")).toHaveAttribute("data-quality-tier", /LOW|MEDIUM|HIGH|ULTRA/);
 });
 
@@ -122,7 +126,11 @@ test("premium idle composition is reviewable", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.locator("#resonance-deck")).toBeVisible();
   await expect(page.locator(".resonance-artifact")).toHaveCount(3);
-  await page.waitForTimeout(900);
+  await expect(page.locator("#premium-stage")).toHaveAttribute(
+    "data-reveal-state",
+    "settled",
+    { timeout: 2_500 }
+  );
   await page.screenshot({ path: testInfo.outputPath("idle-premium.png"), fullPage: true });
 });
 
@@ -148,10 +156,11 @@ test("seek transport is wired to audio state", async ({ page }) => {
   await expect(seek).toBeEnabled();
   await seek.fill("5");
   await seek.dispatchEvent("change");
-  await page.waitForTimeout(180);
 
-  const value = Number(await seek.inputValue());
-  expect(value).toBeGreaterThan(4.8);
+  await expect.poll(
+    async () => Number(await seek.inputValue()),
+    { timeout: 2_000 }
+  ).toBeGreaterThan(4.8);
   await expect(page.locator("#player-time-total")).toHaveText("0:24");
 });
 
@@ -233,7 +242,6 @@ test("mobile object selection keeps the stage viewport stable", async ({ page })
   await page.goto("/");
   const archive = page.locator("#archive");
   await archive.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(120);
 
   const artifact = page.locator("[data-track-id='aether-01']");
   const shell = artifact.locator(".artifact-shell");
@@ -334,11 +342,13 @@ test("seeking while paused does not restart playback", async ({ page }) => {
   const seek = page.locator("#player-seek");
   await seek.fill("8");
   await seek.dispatchEvent("change");
-  await page.waitForTimeout(180);
 
+  await expect.poll(
+    async () => Number(await seek.inputValue()),
+    { timeout: 2_000 }
+  ).toBeGreaterThan(7.8);
   await expect(page.locator("#state-label")).toHaveText("PAUSED");
   await expect(page.locator("#toggle-play")).toHaveText("PLAY");
-  expect(Number(await seek.inputValue())).toBeGreaterThan(7.8);
 });
 
 
@@ -368,7 +378,7 @@ test("three artist worlds remain visually reviewable in PLAYING", async ({ page 
     await page.locator(`[data-track-id='${world.trackId}']`).click();
     await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 7_000 });
     await expect(page.locator("#premium-stage")).toHaveAttribute("data-artist", world.artist);
-    await page.waitForTimeout(220);
+    await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
     await page.screenshot({
       path: testInfo.outputPath(`playing-world-${world.artist}.png`),
       fullPage: false
