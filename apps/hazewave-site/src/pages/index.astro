@@ -199,6 +199,24 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
           <strong id="player-title">Escolha um objeto</strong>
           <span id="player-artist">SELECT A RESONANCE OBJECT</span>
         </div>
+
+        <div class="player-timeline">
+          <input
+            id="player-seek"
+            type="range"
+            min="0"
+            max="24"
+            step="0.05"
+            value="0"
+            disabled
+            aria-label="Posição da música"
+          />
+          <div class="player-time" aria-hidden="true">
+            <span id="player-time-current">0:00</span>
+            <span id="player-time-total">0:24</span>
+          </div>
+        </div>
+
         <div class="player-state">
           <span id="state-label" aria-live="polite">IDLE</span>
           <button id="toggle-play" type="button" disabled aria-label="Pausar ou continuar música">PAUSE</button>
