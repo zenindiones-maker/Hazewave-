@@ -176,7 +176,7 @@ def test_one_positional_outlier_is_tolerated_only_under_complete_balanced_ensemb
         answers = {}
         for index, qid in enumerate(kwargs["questions"]):
             if index < 5:
-                answers[qid] = _answer({"HAZE": 0.90, "WAVE": 0.06, "BRIDGE": 0.04})
+                answers[qid] = _answer({"HAZE": 0.90, "WAVE": 0.09, "BRIDGE": 0.01})
             else:
                 answers[qid] = _answer({"HAZE": 0.49, "WAVE": 0.50, "BRIDGE": 0.01})
         return ColibriDecisionResult(
