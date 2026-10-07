@@ -28,33 +28,36 @@ Decision: ADOPT.
 
 Renderer note: the first slice deliberately uses `WebGLRenderer` behind a local `RendererAdapter`. Upstream's `WebGPURenderer` can automatically use WebGPU with a WebGL2 backend fallback, but upstream still describes it as experimental. WebGPU is therefore a later measured migration, not a launch dependency.
 
-## ADOPT — native deterministic choreography for first slice
+## ADOPT — GSAP 3.15.0 primary authored choreography
 
-Problem: deterministic module travel, alignment, insertion and ejection.
+Problem: the owner rejected the first native-rAF prototype as technically functional but below the required interaction/motion quality. The product now needs a dedicated cinematic timeline system with robust sequencing, interruption, reverse/eject behavior, DOM/3D synchronization and path authoring.
 
-Implementation: requestAnimationFrame + Three.js curves/quaternions + explicit easing + an application state machine.
+Why native requestAnimationFrame is no longer sufficient as the primary authoring layer: the first slice proved that custom interpolation can make the state machine work, but it creates too much bespoke timeline/cancellation logic for the level of choreography now required.
 
-Reason: the first working implementation does not yet prove a gap that requires a second animation runtime.
+Capabilities selected:
+- core timelines;
+- MotionPath for explicitly authored trajectories;
+- Flip for DOM continuity where useful;
+- Observer only where unified gesture velocity/direction materially improves interaction;
+- SplitText only for bounded editorial motion.
 
-Decision: ADOPT for the first slice, subject to measured comparison before final art lock.
+Current upstream package version researched: 3.15.0.
 
-## SPIKE_ONLY — Motion 14.x
+License/cost: GSAP uses GreenSock's current standard no-charge license. Webflow/GSAP state that the full toolset, including formerly paid plugins, is free and the standard license covers commercial use. It is not being classified as OSI open-source; it is admitted because the owner requires zero monetary cost plus maximum quality.
 
-Current upstream research: Motion 14 was released in October 2026. Recent Motion releases include Three.js-oriented effects.
+Decision: ADOPT.
 
-Potential advantage: compact animation primitives and Three.js integration.
+Migration rule: replace primary home-grown choreography incrementally behind a local motion adapter. Do not let GSAP become application-state authority.
 
-Current reason not to ship: the native deterministic implementation must first be profiled. A second animation runtime is unjustified until it demonstrates a measurable authoring, cancellation, reversibility or performance advantage.
+## SPIKE_ONLY — Motion current line
 
-Decision: SPIKE_ONLY / not installed.
+Current upstream documentation now provides direct Three.js integration for Object3D transforms, materials, shader uniforms and TSL uniform nodes, with sequence support.
 
-## SPIKE_ONLY — GSAP
+Potential advantage: compact open-source motion primitives and first-class Three.js/TSL binding.
 
-Potential advantage: mature authored timelines, MotionPath-style choreography and sequencing.
+Reason not to ship beside GSAP: two overlapping motion engines would increase bundle and conceptual complexity without proven product value.
 
-Current reason not to ship: zero-cost availability does not make an additional runtime necessary. License must be captured separately from OSI open-source classification, and native/Motion alternatives must be measured first.
-
-Decision: SPIKE_ONLY / not installed.
+Decision: SPIKE_ONLY / not installed. Re-evaluate only for a bounded feature where it clearly outperforms the GSAP implementation.
 
 ## ADOPT — Playwright 1.63.0
 
@@ -64,11 +67,21 @@ License/cost: Apache-2.0. Local/CI execution; no hosted service required.
 
 Decision: ADOPT as a development dependency.
 
+## OPTIONAL / SPIKE-ONLY 2026 FRONTIER
+
+**Rive runtime — OPTIONAL.** MIT open-source runtime with interactive state machines. Candidate only for small 2D HUD/microinteraction surfaces, never as main 3D authority.
+
+**Three.js WebGPURenderer + TSL — SPIKE_ONLY for HIGH/ULTRA.** Upstream supports WebGPU with WebGL2 fallback, TSL/node materials, compute and a modern post stack, but still describes the renderer as experimental. Keep WebGL2 production fallback.
+
+**OffscreenCanvas — SPIKE_ONLY.** Use for procedural/secondary canvas work if profiling proves main-thread contention.
+
+**AudioWorklet — OPTIONAL/ADOPT WHEN NEEDED.** Use for low-latency custom analysis/processing off the main thread; HAZE semantic analysis remains authoritative.
+
 ## REJECT FOR NOW
 
-React / React Three Fiber / Drei / Rapier / Theatre.js / Tone.js / Meyda / Lenis / postprocessing / Spline runtime / Rive runtime.
+React / React Three Fiber / Drei / Rapier / Theatre.js / Tone.js / Meyda / Lenis / postprocessing / Spline runtime / Babylon migration / PlayCanvas migration / WebXR / Gaussian splatting.
 
-Reason: no demonstrated gap in the first implementation requires them. Re-evaluate only when a concrete capability gap exists.
+Reason: no demonstrated product gap in the current music interaction justifies their runtime cost or architecture disruption. Re-evaluate only from a concrete measured gap.
 
 ## Zero-cost status
 
