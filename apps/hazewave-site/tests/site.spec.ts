@@ -634,3 +634,40 @@ test("artist journey resolves one deterministic world at a time", async ({ page 
     );
   }
 });
+
+
+test("artist focus portal is reversible and preserves keyboard focus", async ({ page }) => {
+  await page.goto("/");
+
+  const chapter = page.locator("[data-artist-chapter='aether']");
+  await focusStorySection(page, "[data-artist-chapter='aether']");
+
+  const trigger = chapter.locator("[data-artist-focus='aether']");
+  const panel = chapter.locator("[data-artist-focus-panel='aether']");
+
+  await trigger.focus();
+  await trigger.press("Enter");
+
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(panel).toHaveAttribute("data-open", "true");
+  await expect(chapter).toHaveAttribute("data-focused", "true");
+  await expect(page.locator("html")).toHaveAttribute("data-focused-artist", "aether");
+
+  await page.keyboard.press("Escape");
+
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(panel).toHaveAttribute("data-open", "false");
+  await expect(chapter).toHaveAttribute("data-focused", "false");
+  await expect(page.locator("html")).not.toHaveAttribute("data-focused-artist", /.+/);
+  await expect(trigger).toBeFocused();
+});
+
+test("video portals remain fail-closed and lazy while production video authority is unset", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.locator("[data-video-source]")).toHaveCount(0);
+  await expect(page.locator("[data-video-portal]")).toHaveCount(3);
+  await expect(page.locator("[data-video-portal] button:disabled")).toHaveCount(3);
+  await expect(page.locator("[data-video-mount] iframe")).toHaveCount(0);
+  await expect(page.locator("[data-video-mount] video")).toHaveCount(0);
+});
