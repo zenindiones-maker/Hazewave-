@@ -18,6 +18,7 @@ interface StageController {
 interface AtmosphereController {
   setArtist(artist: ArtistId): void;
   setEnergy(value: number): void;
+  setProgress(value: number): void;
   setPlaying(playing: boolean): void;
   dispose(): void;
 }
@@ -80,6 +81,7 @@ export function bootHazewaveSite(): void {
   let atmosphere: AtmosphereController | null = null;
   let atmosphereLoad: Promise<AtmosphereController | null> | null = null;
   let pendingAtmosphereArtist: ArtistId = "aether";
+  let pendingAtmosphereProgress = 0;
   let atmosphereShouldPlay = false;
   let selectionToken = 0;
 
@@ -174,6 +176,7 @@ export function bootHazewaveSite(): void {
       .then((created) => {
         atmosphere = created;
         atmosphere.setArtist(pendingAtmosphereArtist);
+        atmosphere.setProgress(pendingAtmosphereProgress);
         atmosphere.setPlaying(atmosphereShouldPlay);
         return atmosphere;
       })
@@ -351,6 +354,8 @@ export function bootHazewaveSite(): void {
         Math.min(1, position / Math.max(activeTrack.durationSeconds, 0.001))
       );
       experience?.setTrackProgress(trackProgress);
+      pendingAtmosphereProgress = trackProgress;
+      atmosphere?.setProgress(trackProgress);
       if (document.activeElement !== seek) seek.value = String(Math.min(position, activeTrack.durationSeconds));
       timeCurrent.textContent = formatTime(position);
 
