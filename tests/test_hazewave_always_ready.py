@@ -113,7 +113,7 @@ def test_remote_smoke_reconciles_runtime_before_live_inference() -> None:
 
 def test_termux_observe_lazy_wakes_existing_codespace() -> None:
     controller = TERMUX.read_text(encoding="utf-8")
-    observe_case = controller.split("    observe)", 1)[1].split("        ;;", 1)[0]
+    observe_case = controller.rsplit("    observe)", 1)[1].split("        ;;", 1)[0]
     assert "ensure_codespace_available" in observe_case
     assert "gh codespace create" not in observe_case
 
