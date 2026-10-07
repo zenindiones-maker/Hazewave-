@@ -44,3 +44,25 @@ def test_reflex_candidate_ref_propagates_from_termux_to_codespace_runtime() -> N
     assert 'REF="${HAZEWAVE_REFLEX_REF:-work/hazewave-always-ready-v1}"' in termux
     assert 'REF="${HAZEWAVE_REFLEX_REF:-work/hazewave-always-ready-v1}"' in remote
     assert "HAZEWAVE_REFLEX_REF='$REF'" in termux
+
+
+def test_reflex_codespace_lifecycle_waits_through_shutdown_transition_before_restart() -> None:
+    text = (ROOT / "scripts" / "hazewave_reflex_termux_control.sh").read_text(encoding="utf-8")
+
+    assert "codespace_metadata_row() {" in text
+    assert "codespace_state_action() {" in text
+    assert "ShuttingDown|Stopping" in text
+    assert 'printf \'%s\\n\' "WAIT"' in text
+    assert 'printf \'%s\\n\' "START"' in text
+    assert 'printf \'%s\\n\' "READY"' in text
+    assert 'action="$(codespace_state_action "$current_state")"' in text
+    assert 'if [[ "$action" == "START" && "$start_requested" == "0" ]]; then' in text
+    assert 'gh codespace view -c "$CS" --json state' not in text
+
+
+def test_reflex_codespace_metadata_avoids_full_details_view_endpoint() -> None:
+    text = (ROOT / "scripts" / "hazewave_reflex_termux_control.sh").read_text(encoding="utf-8")
+
+    assert 'gh codespace list --limit 100 --json name,state,repository' in text
+    assert 'gh codespace view -c "$CS" --json name' not in text
+    assert 'gh codespace view -c "$CS" --json repository' not in text
