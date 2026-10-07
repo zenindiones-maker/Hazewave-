@@ -346,7 +346,7 @@ export class ResonanceExperience {
       new THREE.PlaneGeometry(1.92, 0.97),
       new THREE.MeshBasicMaterial({ map: screenTexture, toneMapped: false })
     );
-    screen.position.set(0.95, 0.03, 0.505);
+    screen.position.set(0.95, 0.03, 0.545);
     root.add(screen);
 
     const screenFrame = new THREE.Mesh(
