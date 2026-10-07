@@ -84,3 +84,11 @@ def test_reconcile_exposes_doctor_audit_on_failure() -> None:
     assert needle in remote
     reconcile = remote.split("reconcile() {", 1)[1].split("smoke() {", 1)[0]
     assert needle + " >/dev/null" not in reconcile
+
+
+def test_detached_runtime_does_not_inherit_reconcile_lock_fd() -> None:
+    remote = REMOTE.read_text(encoding="utf-8")
+    reconcile = remote.split("reconcile() {", 1)[1].split("smoke() {", 1)[0]
+    assert 'exec 9>"$SERVICE_LOCK_FILE"' in reconcile
+    assert "flock -w 30 9" in reconcile
+    assert '9>&- >"$SERVICE_LOG_FILE" 2>&1 < /dev/null &' in reconcile
