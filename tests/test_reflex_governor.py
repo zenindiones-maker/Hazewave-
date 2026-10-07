@@ -13,6 +13,7 @@ from hazewave.reflex import (
     append_reflex_outcome,
     build_reflex_outcome,
     evaluate_reflex_outcomes,
+    execute_reflex_choice,
     govern_reflex_result,
     load_reflex_outcomes,
     load_reflex_policy,
@@ -86,6 +87,7 @@ def test_reflex_policy_validates_against_schema() -> None:
     loaded = load_reflex_policy(ROOT / "config/reflex-governor-v1.json")
     assert loaded["safety"]["raw_system_one_confidence_is_correctness_probability"] is False
     assert loaded["safety"]["auto_threshold_mutation"] is False
+    assert loaded["profiles"]["decision.route"]["production_calibrated"] is False
 
 
 def test_small_label_route_can_be_accepted_as_recommendation() -> None:
@@ -344,3 +346,70 @@ def test_default_route_policy_is_shadow_until_hazewave_calibration_exists() -> N
     assert verdict.disposition == "SHADOW_RECOMMENDATION"
     assert verdict.reasons[0] == "HAZEWAVE_CALIBRATION_REQUIRED"
     assert verdict.grants_execution_authority is False
+
+
+
+def test_high_level_reflex_execution_requires_deterministic_precheck() -> None:
+    def fake_executor(**kwargs):
+        return _result(
+            {"HAZE": 0.90, "WAVE": 0.07, "BRIDGE": 0.03},
+            confidence=0.85,
+            choice="HAZE",
+        )
+
+    question = {
+        "type": "choice",
+        "instructions": "Which domain owns this structured task?",
+        "criteria": {
+            "HAZE": "audio",
+            "WAVE": "visual",
+            "BRIDGE": "typed cross-domain translation",
+        },
+    }
+
+    with pytest.raises(
+        ReflexDecisionError,
+        match="REFLEX_DETERMINISTIC_PRECHECK_REQUIRED",
+    ):
+        execute_reflex_choice(
+            authorization=_authorization(),
+            question_id="q",
+            state={"kind": "mix"},
+            question=question,
+            api_key="k" * 32,
+            deterministic_precheck_complete=False,
+            model_installed=True,
+            model_revision_verified=True,
+            executor=fake_executor,
+        )
+
+    verdict = execute_reflex_choice(
+        authorization=_authorization(),
+        question_id="q",
+        state={"kind": "mix"},
+        question=question,
+        api_key="k" * 32,
+        deterministic_precheck_complete=True,
+        model_installed=True,
+        model_revision_verified=True,
+        executor=fake_executor,
+    )
+    assert verdict.disposition == "SHADOW_RECOMMENDATION"
+    assert verdict.reasons[0] == "HAZEWAVE_CALIBRATION_REQUIRED"
+
+
+def test_latency_budget_escalates_a_calibrated_route() -> None:
+    verdict = govern_reflex_result(
+        authorization=_authorization(),
+        result=_result(
+            {"HAZE": 0.95, "WAVE": 0.03, "BRIDGE": 0.02},
+            confidence=0.925,
+            choice="HAZE",
+            latency_ms=3500.0,
+        ),
+        question_id="q",
+        policy=_calibrated_policy("decision.route"),
+    )
+
+    assert verdict.disposition == "ESCALATE"
+    assert "LATENCY_BUDGET_EXCEEDED" in verdict.reasons
