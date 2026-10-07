@@ -64,7 +64,8 @@ button{appearance:none}
   background:
     radial-gradient(circle at 50% 49%,color-mix(in srgb,var(--world-accent),transparent 85%) 0 9%,transparent 34%),
     radial-gradient(circle at 50% 86%,color-mix(in srgb,var(--world-secondary),transparent 82%) 0%,transparent 28%);
-  filter:blur(34px);opacity:.78;transition:background 480ms ease
+  filter:blur(34px);opacity:var(--audio-glow,.68);transform:scale(var(--audio-scale,1));
+  transition:background 480ms ease,opacity 120ms linear,transform 120ms linear
 }
 .world-lines{
   position:absolute;inset:0;pointer-events:none;opacity:.18;
@@ -282,7 +283,8 @@ h1{
     0 0 110px color-mix(in srgb,var(--world-accent),transparent 66%)
 }
 .resonance-deck[data-state="playing"]{
-  filter:drop-shadow(0 0 28px color-mix(in srgb,var(--world-accent),transparent 80%))
+  filter:drop-shadow(0 0 28px color-mix(in srgb,var(--world-accent),transparent 80%));
+  transform:translateY(calc(var(--audio-lift,0px) * -1))
 }
 
 .artifact-field{
