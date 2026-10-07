@@ -11,6 +11,7 @@ from pathlib import Path
 import platform
 import statistics
 import sys
+from time import monotonic
 from typing import Any, Iterable, Mapping
 
 from hazewave.colibri import (
@@ -299,7 +300,7 @@ def measure_question_scale(
 
     for count in (1, 2, 3, 6):
         started = datetime.now(timezone.utc)
-        wall_started = __import__("time").monotonic()
+        wall_started = monotonic()
         try:
             result = execute_colibri_system_one(
                 authorization=auth,
