@@ -811,9 +811,16 @@ test("LOW tier keeps the owner world alive without requiring WebGL", async ({ pa
   const host = page.locator(".site-backdrop");
 
   await expect(host).toHaveAttribute("data-world-runtime", "css-fallback");
+  await expect(page.locator(".site-backdrop-water-image")).toHaveCount(1);
   await expect(page.locator(".site-backdrop-water")).toHaveCount(1);
   await expect(page.locator(".site-backdrop-fog")).toHaveCount(1);
   await expect(page.locator(".site-backdrop-light")).toHaveCount(1);
+
+  const waterImage = page.locator(".site-backdrop-water-image");
+  const waterBackground = await waterImage.evaluate((element) =>
+    getComputedStyle(element).backgroundImage
+  );
+  expect(waterBackground).toContain("hazewave-world.jpg.webp");
 
   await focusStorySection(page, "#threshold");
   const sleepingWater = await page.evaluate(() =>
@@ -839,6 +846,17 @@ test("LOW tier keeps the owner world alive without requiring WebGL", async ({ pa
   expect(awakened.fog).toBeGreaterThan(0);
   expect(awakened.lighthouse).toBeGreaterThan(0);
   expect(awakened.waterShift).not.toBe("");
+
+  const waterLayerState = await waterImage.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      opacity: Number.parseFloat(style.opacity || "0"),
+      transform: style.transform
+    };
+  });
+
+  expect(waterLayerState.opacity).toBeGreaterThan(0);
+  expect(waterLayerState.transform).not.toBe("none");
   await expect(host.locator("img")).toHaveAttribute("src", "/media/hazewave-world.jpg.webp");
 });
 
