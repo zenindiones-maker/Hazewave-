@@ -132,3 +132,24 @@ def test_reflex_termux_supports_persistent_ref_pin_without_weakening_env_overrid
     assert 'REFLEX_REF_SOURCE=PINNED_CONFIG' in text
     assert 'REFLEX_REF_SOURCE=ENVIRONMENT' in text
     assert 'chmod 600 "$REF_PIN_FILE"' in text
+
+
+def test_reflex_laya_phase_profiler_breaks_encoder_hotspots_into_lossless_subphases() -> None:
+    remote = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
+
+    assert 'local variant="phase_profile_v2"' in remote
+    assert "REFLEX_LAYA_SUBPHASES" in remote
+    for field in (
+        "encoder_qkv_gemm_ms",
+        "encoder_rope_ms",
+        "encoder_attention_core_ms",
+        "encoder_out_gemm_ms",
+        "encoder_mlp_norm_ms",
+        "encoder_wi_gemm_ms",
+        "encoder_geglu_ms",
+        "encoder_wo_gemm_ms",
+        "encoder_residual_ms",
+    ):
+        assert field in remote
+    assert "subphase_medians_ms" in remote
+    assert "subphase_shares" in remote
