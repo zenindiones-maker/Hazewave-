@@ -4,7 +4,7 @@ umask 077
 
 # Run from existing Hazewave Codespace; never switch the active branch.
 MAIN_REPO="/workspaces/Hazewave-"
-REF="work/reflex-shadow-runtime-v1"
+REF="work/reflex-robustness-risk-v3"
 EXPECTED_CODESPACE="redesigned-space-bassoon-gxp67g5g7r739w59"
 RUN_ROOT="${HOME}/.local/share/hazewave/reflex-shadow-runtime"
 SOURCE_ROOT="${HOME}/.local/share/hazewave/providers/colibri/source"
