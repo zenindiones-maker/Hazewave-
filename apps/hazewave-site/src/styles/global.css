@@ -1002,8 +1002,10 @@ h1{
   position:relative;z-index:40;min-height:82px;margin-top:12px;
   display:flex;align-items:center;justify-content:space-between;gap:22px;
   padding:14px 18px;border:1px solid rgba(255,255,255,.1);border-radius:18px;
-  background:rgba(5,8,7,.82);backdrop-filter:blur(18px)
+  background:rgba(5,8,7,.82);backdrop-filter:blur(18px);
+  pointer-events:none
 }
+.player button,.player input{pointer-events:auto}
 .player-copy{display:grid;gap:2px;min-width:0}
 .player-kicker{margin:0 0 4px}
 #player-title{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1561,8 +1563,9 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
   position:fixed;z-index:86;left:18px;top:50%;transform:translateY(-50%);
   display:grid;gap:10px;padding:12px 9px 12px 16px;
   border-left:1px solid rgba(245,242,233,.12);
-  pointer-events:auto
+  pointer-events:none
 }
+.story-rail a{pointer-events:auto}
 .story-rail a{
   position:relative;display:grid;grid-template-columns:18px 1fr;align-items:center;gap:7px;
   min-height:22px;color:rgba(245,242,233,.32);text-decoration:none;
@@ -1639,7 +1642,8 @@ body{background:transparent}
 .site-loader{
   position:fixed;z-index:10000;inset:0;display:grid;place-items:center;
   align-content:center;gap:10px;background:#030303;color:#fff;
-  transition:opacity .45s ease,visibility .45s ease
+  transition:opacity .45s ease,visibility .45s ease;
+  pointer-events:none
 }
 .site-loader[data-state="ready"]{opacity:0;visibility:hidden;pointer-events:none}
 .site-loader strong{font-size:clamp(28px,6vw,70px);letter-spacing:-.055em}
@@ -1669,8 +1673,10 @@ body{background:transparent}
   position:sticky;top:0;z-index:90;height:62px;padding:0 10px;
   border-bottom:1px solid rgba(255,255,255,.12);
   background:linear-gradient(180deg,rgba(0,0,0,.68),rgba(0,0,0,.2));
-  backdrop-filter:blur(16px) saturate(.9)
+  backdrop-filter:blur(16px) saturate(.9);
+  pointer-events:none
 }
+.masthead .brand{pointer-events:auto}
 
 .archive-hero{
   min-height:calc(100svh - 62px);
