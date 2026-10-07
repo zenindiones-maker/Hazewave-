@@ -466,26 +466,36 @@ build_scheduler_engine_variant() {
   mkdir -p "$stage"
   git -C "$SOURCE_ROOT" archive HEAD c | tar -x -C "$stage" || die "ENGINE_TUNE_SOURCE_ARCHIVE_FAILED:$variant"
 
-  "$PYTHON_BIN" - "$stage/c" "$variant" <<'PY'
+  if ! "$PYTHON_BIN" - "$stage/c" "$variant" <<'PY'
 import sys
 from pathlib import Path
+
 root = Path(sys.argv[1])
 variant = sys.argv[2]
-if variant in {"static_attention_v1", "static_all_v1"}:
+
+if variant in {"static_attention_v2", "static_all_f32_v2"}:
     p = root / "laya.c"
     text = p.read_text(encoding="utf-8")
     old = "#pragma omp for schedule(dynamic, 8)"
     if text.count(old) != 1:
         raise SystemExit("ENGINE_TUNE_ATTENTION_PATCH_ANCHOR_INVALID")
-    p.write_text(text.replace(old, "#pragma omp for schedule(static)"), encoding="utf-8")
-if variant in {"static_gemm_v1", "static_all_v1"}:
+    p.write_text(text.replace(old, "#pragma omp for schedule(static)", 1), encoding="utf-8")
+
+if variant in {"static_gemm_f32_v2", "static_all_f32_v2"}:
     p = root / "qi_gemm.h"
     text = p.read_text(encoding="utf-8")
     old = "#pragma omp for schedule(dynamic, 1) collapse(2)"
-    if text.count(old) != 1:
-        raise SystemExit("ENGINE_TUNE_GEMM_PATCH_ANCHOR_INVALID")
-    p.write_text(text.replace(old, "#pragma omp for schedule(static) collapse(2)"), encoding="utf-8")
+    # There are two occurrences upstream: the first is the f32 GEMM used by
+    # Laya here; the second belongs to the opt-in int8 activation path. Patch
+    # only the first and require the pinned source shape to remain recognizable.
+    if text.count(old) != 2:
+        raise SystemExit("ENGINE_TUNE_GEMM_F32_PATCH_ANCHOR_INVALID")
+    p.write_text(text.replace(old, "#pragma omp for schedule(static) collapse(2)", 1), encoding="utf-8")
 PY
+  then
+    rm -rf "$stage"
+    die "ENGINE_TUNE_SOURCE_PATCH_FAILED:$variant"
+  fi
 
   make -C "$stage/c" laya >/dev/null || { rm -rf "$stage"; die "ENGINE_TUNE_BUILD_FAILED:$variant"; }
   [[ -x "$stage/c/laya" ]] || { rm -rf "$stage"; die "ENGINE_TUNE_BINARY_MISSING:$variant"; }
@@ -540,11 +550,12 @@ latency_engine_tune() {
   chmod 700 "$STATE_ROOT/latency" "$STATE_ROOT/latency/engine-runs" "$run_dir" 2>/dev/null || true
   echo "REFLEX_ENGINE_TUNE_RUN_DIR=$run_dir"
   echo "REFLEX_ENGINE_TUNE_MODE=STOCK_VS_SCHEDULER_DERIVATIVES"
+  echo "REFLEX_ENGINE_TUNE_PATCH_POLICY=F32_GEMM_ONLY_FAIL_CLOSED"
 
   local attn gemm all
-  attn="$(build_scheduler_engine_variant static_attention_v1)"
-  gemm="$(build_scheduler_engine_variant static_gemm_v1)"
-  all="$(build_scheduler_engine_variant static_all_v1)"
+  attn="$(build_scheduler_engine_variant static_attention_v2)"
+  gemm="$(build_scheduler_engine_variant static_gemm_f32_v2)"
+  all="$(build_scheduler_engine_variant static_all_f32_v2)"
 
   stop_engine_case() {
     local owned_pid="$1"
@@ -608,15 +619,15 @@ PY
   }
 
   run_case stock "$SOURCE_ROOT/c/laya"
-  run_case static_attention_v1 "$attn"
-  run_case static_gemm_v1 "$gemm"
-  run_case static_all_v1 "$all"
+  run_case static_attention_v2 "$attn"
+  run_case static_gemm_f32_v2 "$gemm"
+  run_case static_all_f32_v2 "$all"
 
   "$PYTHON_BIN" - "$run_dir" <<'PY'
 import hashlib, json, os, sys
 from pathlib import Path
 root = Path(sys.argv[1])
-names = ["stock", "static_attention_v1", "static_gemm_v1", "static_all_v1"]
+names = ["stock", "static_attention_v2", "static_gemm_f32_v2", "static_all_f32_v2"]
 rows = {n: json.load(open(root / f"{n}.json", encoding="utf-8")) for n in names}
 base = rows["stock"]
 bs = [x for x in base["samples"] if x.get("status") == "PASS"]
