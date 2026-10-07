@@ -32,6 +32,19 @@ WAVE:
 BRIDGE:
 - `bridge.haze_to_wave`
 
+Cross-domain meta-capabilities, always bound to the requested HAZE/WAVE/BRIDGE domain at authorization time:
+- `reason.general`
+- `reason.deep`
+- `reason.fusion`
+- `code.generate`
+- `code.review`
+- `embedding.create`
+- `decision.route`
+- `decision.gate`
+- `decision.score`
+
+The decision.* capabilities may be executed by a subordinate local provider such as Colibri, but the provider has authority=NONE and cannot expand the Harness authorization.
+
 ## Verification
 
 ```bash

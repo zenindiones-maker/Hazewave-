@@ -27,6 +27,10 @@ SCHEMA_INSTANCE_PAIRS = (
         "schemas/freellmapi-provider-eligibility-v1.schema.json",
         "config/freellmapi-provider-eligibility-v1.json",
     ),
+    (
+        "schemas/colibri-local-provider-v1.schema.json",
+        "config/colibri-local-provider-v1.json",
+    ),
 )
 
 ALLOWED_DOCUMENT_TYPES = {
