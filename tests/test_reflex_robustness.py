@@ -199,3 +199,39 @@ def test_hoeffding_bound_increases_with_errors() -> None:
     clean = hoeffding_one_sided_upper_bound(errors=0, sample_count=600, delta=0.05)
     noisy = hoeffding_one_sided_upper_bound(errors=20, sample_count=600, delta=0.05)
     assert 0 < clean < noisy < 1
+
+
+def test_robust_route_uses_observation_deadline_wider_than_latency_gate() -> None:
+    calls = []
+
+    def executor(**kwargs):
+        calls.append(kwargs)
+        answers = {
+            qid: _answer({"HAZE": 0.90, "WAVE": 0.07, "BRIDGE": 0.03})
+            for qid in kwargs["questions"]
+        }
+        return ColibriDecisionResult(
+            model_id="laya",
+            answers=answers,
+            request_sha256="e" * 64,
+            response_sha256="f" * 64,
+            latency_ms=3500.0,
+            usage={"cost": 0},
+        )
+
+    result = execute_robust_reflex_route(
+        authorization=_authorization(),
+        question_id="route",
+        state={"kind": "complex_labeled_observation"},
+        question=_question(),
+        api_key="z" * 32,
+        deterministic_precheck_complete=True,
+        model_installed=True,
+        model_revision_verified=True,
+        executor=executor,
+    )
+
+    assert calls[0]["timeout_seconds"] == 10.0
+    assert result.base_verdict.threshold_eligible is False
+    assert "LATENCY_BUDGET_EXCEEDED" in result.base_verdict.reasons
+    assert result.disposition == "SHADOW_RECOMMENDATION"
