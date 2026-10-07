@@ -211,9 +211,9 @@ h1{
     min-height:650px;border-radius:0 0 22px 22px
   }
   .scene-copy{top:24px;left:20px;width:calc(100% - 40px)}
-  h1{max-width:10.5em;font-size:clamp(34px,8.8vw,44px);line-height:.91}
+  h1{max-width:8.8em;font-size:clamp(30px,7.6vw,38px);line-height:.92}
   .intro{display:none}
-  .interaction-hint{top:96px;left:20px;right:auto;font-size:8px}
+  .interaction-hint{display:none}
   .media-dock{
     left:14px;right:14px;bottom:16px;transform:none;width:auto;
     display:flex;gap:10px;padding:9px;overflow-x:auto;overflow-y:hidden;
@@ -242,7 +242,7 @@ h1{
 
 @media(max-width:420px){
   .scene-frame{min-height:620px}
-  h1{font-size:clamp(31px,8.4vw,38px)}
+  h1{font-size:clamp(29px,7.2vw,34px)}
   .interaction-hint{top:91px}
   .artist-cluster{flex-basis:238px}
   .artist-cluster-label{grid-column:auto}
