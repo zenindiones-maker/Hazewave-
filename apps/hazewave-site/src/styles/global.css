@@ -63,6 +63,18 @@ button{appearance:none}
     radial-gradient(circle at 50% 80%,color-mix(in srgb,var(--world-secondary),transparent 90%) 0%,transparent 32%),
     linear-gradient(180deg,color-mix(in srgb,var(--world-bg),#000 14%) 0%,#030504 80%)
 }
+.gpu-atmosphere{
+  position:absolute;z-index:1;inset:0;width:100%;height:100%;
+  display:block;pointer-events:none;opacity:.62;mix-blend-mode:screen;
+  filter:saturate(.92) contrast(1.04);
+  transition:opacity 320ms ease,filter 320ms ease
+}
+.premium-stage[data-performance="reduced"] .gpu-atmosphere{
+  opacity:.28;filter:none
+}
+.premium-stage[data-playing="true"] .gpu-atmosphere{
+  opacity:.76
+}
 .premium-stage::after{
   content:"";position:absolute;inset:0;z-index:4;pointer-events:none;
   background:
@@ -916,6 +928,7 @@ h1{
   .intro{display:none}
   .runtime-badge{right:18px;top:22px;opacity:.5}
   .runtime-badge .pulse{display:none}
+  .gpu-atmosphere{display:none}
   .artist-worlds{inset:-3%}
   .artist-world{inset:-10%}
   .artist-world-monolith .slab-a{left:-7%;width:25%}
@@ -1021,6 +1034,7 @@ h1{
 }
 
 @media(prefers-reduced-motion:reduce){
+  .gpu-atmosphere{display:none!important}
   #player-title,#world-track,#world-artist-name{view-transition-name:none}
   .artifact-shell{transform:none!important}
   .artifact-glass::after{display:none}
