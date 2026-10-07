@@ -100,6 +100,9 @@ export class PremiumResonanceStage {
   setSignalEnergy(value: number): void {
     this.energy = Math.max(0, Math.min(1, value));
     this.host.style.setProperty("--audio-energy", this.energy.toFixed(3));
+    this.host.style.setProperty("--audio-glow", (0.68 + this.energy * 0.24).toFixed(3));
+    this.host.style.setProperty("--audio-scale", (1 + this.energy * 0.018).toFixed(4));
+    this.host.style.setProperty("--audio-lift", `${(this.energy * 5).toFixed(2)}px`);
   }
 
   dispose(): void {
