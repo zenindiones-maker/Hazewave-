@@ -969,3 +969,24 @@ test("artist identity emerges inside the persistent world instead of a giant car
     { timeout: 2_000 }
   ).toBeLessThan(0.5);
 });
+
+
+test("in-world artist signal opens focus without leaving the persistent world", async ({ page }) => {
+  const viewport = page.viewportSize();
+  test.skip(!viewport || viewport.width <= 980, "desktop world signal is intentionally replaced by chapter controls on touch layouts");
+
+  await page.goto("/");
+  await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.34);
+
+  const control = page.locator("[data-world-focus-control='aether']");
+  await expect(control).toBeVisible();
+  await control.click();
+
+  await expect(control).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("html")).toHaveAttribute("data-focused-artist", "aether");
+  await expect(page.locator("[data-artist-focus-panel='aether']")).toHaveAttribute(
+    "data-open",
+    "true"
+  );
+  await expect(page.locator(".site-backdrop-source")).toBeVisible();
+});
