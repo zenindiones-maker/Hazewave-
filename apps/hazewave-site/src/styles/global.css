@@ -549,7 +549,7 @@ h1{
 }
 .slot-contact-rail{
   position:absolute;left:50%;bottom:25px;transform:translateX(-50%);
-  width:52px;height:8px;display:flex;justify-content:space-between;align-items:center
+  width:38px;height:8px;display:flex;justify-content:space-between;align-items:center
 }
 .slot-contact-rail i{
   width:6px;height:2px;border-radius:2px;
@@ -2432,9 +2432,9 @@ body{background:transparent}
 .artist-chapter{
   --chapter-accent:#b7ff4a;
   position:relative;
-  min-height:92svh;
+  min-height:78svh;
   display:grid;
-  grid-template-columns:minmax(72px,.22fr) minmax(280px,520px) minmax(120px,.5fr);
+  grid-template-columns:minmax(60px,.18fr) minmax(240px,430px) minmax(100px,.42fr);
   align-items:center;
   gap:clamp(22px,5vw,72px);
   padding:10vh clamp(12px,5vw,72px);
@@ -2457,7 +2457,7 @@ body{background:transparent}
   );
 }
 .artist-chapter:nth-child(even){
-  grid-template-columns:minmax(120px,.5fr) minmax(280px,520px) minmax(72px,.22fr);
+  grid-template-columns:minmax(100px,.42fr) minmax(240px,430px) minmax(60px,.18fr);
 }
 .artist-chapter:nth-child(even) .artist-chapter-mark{grid-column:3}
 .artist-chapter:nth-child(even) .artist-chapter-copy{grid-column:2;grid-row:1;text-align:right}
@@ -2492,7 +2492,7 @@ body{background:transparent}
   box-shadow:0 0 0 1px color-mix(in srgb,var(--chapter-accent),transparent 45%);
   border-radius:8px
 }
-.artist-chapter-mark>span{font-size:26px;letter-spacing:-.04em}
+.artist-chapter-mark>span{font-size:18px;letter-spacing:-.03em}
 .artist-chapter-mark>i{
   display:block;
   width:52px;
@@ -2515,8 +2515,8 @@ body{background:transparent}
 .artist-chapter-copy h3{
   margin:0;
   max-width:10ch;
-  font-size:clamp(44px,6.2vw,86px);
-  line-height:.82;
+  font-size:clamp(30px,4.1vw,58px);
+  line-height:.9;
   letter-spacing:-.068em;
   font-weight:610;
   text-shadow:0 18px 60px rgba(0,0,0,.52);
@@ -2530,7 +2530,7 @@ body{background:transparent}
 }
 
 .artist-chapter-tracks{
-  margin-top:24px;
+  margin-top:18px;
   display:grid;
   border-top:1px solid rgba(245,242,233,.1);
 }
@@ -3304,4 +3304,139 @@ body{background:transparent}
   #dossiers .artist-dossier{min-height:68svh}
   #objects .merch-stand{grid-template-columns:1fr}
   #objects .merch-object{min-height:390px}
+}
+
+
+/* ============================================================
+   IMMERSIVE WORLD V2 — WORLD LARGE / UI PRECISE
+   Final-act merch is a destination inside the world, not a card grid.
+   ============================================================ */
+#objects.merch-zone{
+  min-height:96svh;
+  display:grid;
+  align-content:center;
+  gap:clamp(28px,6vh,72px);
+  margin-top:clamp(90px,16vh,200px);
+  padding:clamp(50px,10vh,120px) clamp(18px,5vw,72px);
+  border-top:1px solid rgba(245,242,233,.07);
+}
+#objects .merch-heading{
+  max-width:620px;
+  margin:0;
+}
+#objects .merch-heading h2{
+  font-size:clamp(30px,4.2vw,58px);
+  line-height:.92;
+}
+#objects .merch-stand{
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  gap:clamp(48px,12vw,220px);
+  min-height:52svh;
+  perspective:1400px;
+}
+#objects .merch-object{
+  width:min(250px,28vw);
+  min-height:0;
+  display:grid;
+  grid-template-rows:auto auto;
+  gap:16px;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  backdrop-filter:none;
+  overflow:visible;
+}
+#objects .merch-object:nth-child(2){
+  transform:translateY(clamp(18px,4vh,46px))
+}
+#objects .merch-model{
+  min-height:280px;
+  transform:rotateX(5deg) rotateY(-6deg) translateZ(0);
+  filter:drop-shadow(0 34px 40px rgba(0,0,0,.48));
+}
+#objects .merch-object:hover .merch-model,
+#objects .merch-object:focus-within .merch-model{
+  transform:rotateX(-2deg) rotateY(6deg) translateY(-8px) translateZ(12px)
+}
+#objects .merch-copy{
+  padding-top:12px;
+  border-top:1px solid color-mix(in srgb,var(--merch-accent),transparent 72%);
+}
+#objects .merch-copy h3{
+  font-size:22px;
+  font-weight:620;
+}
+#objects .merch-contact{
+  min-height:38px;
+  padding:0 14px;
+  font-size:7px;
+}
+#objects .merch-note{
+  max-width:62ch;
+  margin:0;
+  color:rgba(245,242,233,.3);
+  font-size:9px;
+  line-height:1.5;
+}
+
+@media(max-width:980px){
+  .artist-chapter{
+    min-height:72svh;
+  }
+  .artist-chapter-copy h3{
+    font-size:clamp(28px,8vw,44px);
+    max-width:12ch;
+  }
+  #objects.merch-zone{
+    min-height:88svh;
+    margin-top:72px;
+    padding:48px 18px 88px;
+    gap:28px;
+  }
+  #objects .merch-stand{
+    min-height:48svh;
+    gap:20px;
+    align-items:center;
+  }
+  #objects .merch-object{
+    width:min(44vw,210px);
+  }
+  #objects .merch-model{
+    min-height:210px;
+  }
+  #objects .merch-model-core{
+    transform:scale(.82);
+  }
+  #objects .merch-object:nth-child(2){
+    transform:translateY(18px);
+  }
+}
+
+@media(max-width:520px){
+  #objects .merch-heading h2{
+    font-size:32px;
+    max-width:11ch;
+  }
+  #objects .merch-stand{
+    min-height:44svh;
+    gap:10px;
+  }
+  #objects .merch-object{
+    width:calc(50% - 5px);
+  }
+  #objects .merch-model{
+    min-height:170px;
+  }
+  #objects .merch-model-core{
+    transform:scale(.7);
+  }
+  #objects .merch-copy h3{
+    font-size:18px;
+  }
+  #objects .merch-copy>span{
+    font-size:6px;
+  }
 }
