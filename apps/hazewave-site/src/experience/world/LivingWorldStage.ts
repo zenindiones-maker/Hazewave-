@@ -335,6 +335,32 @@ void main() {
   );
   world += lighthouseColor * (lighthouseGlow + beam);
 
+  // The lighthouse also lives in the water. A narrow, broken reflection
+  // follows the procedural surface instead of drawing a static vertical beam.
+  // This keeps the effect anchored to the original artwork and avoids the
+  // cheap "glow overlay" look.
+  float reflectionCenter =
+    lightCenter.x +
+    (waveField * 0.0065 + crossField * 0.0035) *
+    waterDrive;
+  float reflectionLane =
+    exp(-abs(screenUv.x - reflectionCenter) * 31.0);
+  float reflectionDepth =
+    smoothstep(0.69, 0.79, screenTop) *
+    (1.0 - smoothstep(0.965, 0.997, screenTop));
+  float reflectionBreakup =
+    0.36 +
+    flow * 0.40 +
+    fineFlow * 0.24;
+  float lighthouseReflection =
+    reflectionLane *
+    reflectionDepth *
+    reflectionBreakup *
+    lightDrive *
+    (0.016 + uAudio * 0.010 + uHigh * 0.005);
+
+  world += lighthouseColor * lighthouseReflection;
+
   float particleDrive =
     uParticles *
     mix(1.0, 0.52 + uArtistParticles * 0.96, uArtistInfluence) *
@@ -657,6 +683,7 @@ export class LivingWorldStage {
 
     this.host.dataset.worldRuntime = "webgl2";
     this.host.dataset.worldDepthModel = "layered-owner-art-2.5d";
+    this.host.dataset.worldWaterModel = "procedural-flow-reflection-v2";
     this.host.dataset.worldActivity = document.hidden ? "paused" : "running";
     this.host.dataset.worldPerformance = "standard";
     this.raf = requestAnimationFrame(this.frame);
