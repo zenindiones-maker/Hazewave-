@@ -132,25 +132,27 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
                   <div class="deck-orbit deck-orbit-b" aria-hidden="true"></div>
                   <div class="deck-contact-flash" aria-hidden="true"></div>
 
-                  <div
-                    id="player-wheel"
-                    class="deck-wheel"
-                    role="slider"
-                    tabindex="0"
-                    aria-label="Volume do player"
-                    aria-valuemin="0"
-                    aria-valuemax="100"
-                    aria-valuenow="82"
-                    aria-valuetext="Volume 82%"
-                  >
+                  <div id="player-wheel" class="deck-wheel" role="group" aria-label="Controle circular do player Hazewave">
+                    <div
+                      id="wheel-ring-control"
+                      class="wheel-ring-control"
+                      role="slider"
+                      tabindex="0"
+                      aria-label="Volume do player"
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                      aria-valuenow="82"
+                      aria-valuetext="Volume 82%"
+                    >
+                      <span class="wheel-center" aria-hidden="true">
+                        <strong id="wheel-volume">82</strong>
+                        <small>VOL</small>
+                      </span>
+                    </div>
                     <button type="button" class="wheel-key wheel-menu" data-wheel-action="archive" aria-label="Voltar ao acervo">LIST</button>
                     <button type="button" class="wheel-key wheel-prev" data-wheel-action="previous" aria-label="Faixa anterior">‹‹</button>
                     <button type="button" class="wheel-key wheel-next" data-wheel-action="next" aria-label="Próxima faixa">››</button>
                     <button type="button" class="wheel-key wheel-play" data-wheel-action="toggle" aria-label="Tocar ou pausar">▶Ⅱ</button>
-                    <span class="wheel-center" aria-hidden="true">
-                      <strong id="wheel-volume">82</strong>
-                      <small>VOL</small>
-                    </span>
                   </div>
 
                   <div class="deck-gate deck-gate-left" aria-hidden="true"></div>
