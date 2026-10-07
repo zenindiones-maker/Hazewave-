@@ -142,7 +142,7 @@ test("cinematic object remains visible during mobile travel", async ({ page }, t
 
 test("archive track re-enters the same physical playback flow", async ({ page }) => {
   await page.goto("/");
-  const archiveButton = page.getByRole("button", { name: /Tocar Root Signal no Resonance Deck/ });
+  const archiveButton = page.locator(".artist-index [data-archive-track-id='flora-02']");
   await archiveButton.scrollIntoViewIfNeeded();
   await archiveButton.click();
 
@@ -308,4 +308,52 @@ test("three artist worlds remain visually reviewable in PLAYING", async ({ page 
       fullPage: false
     });
   }
+});
+
+
+test("persistent owner artwork drives one reversible story world", async ({ page }) => {
+  await page.goto("/");
+  const backdrop = page.locator(".site-backdrop img");
+  await expect(backdrop).toHaveAttribute("src", "/media/hazewave-world.jpg.webp");
+
+  await page.locator(".dossier-zone").scrollIntoViewIfNeeded();
+  await expect(page.locator("html")).toHaveAttribute("data-story-chapter", /artists|dossiers/, { timeout: 2_000 });
+
+  await page.locator(".social-footer").scrollIntoViewIfNeeded();
+  await expect(page.locator("html")).toHaveAttribute("data-story-chapter", "network", { timeout: 2_000 });
+
+  await page.locator(".archive-hero").scrollIntoViewIfNeeded();
+  await expect(page.locator("html")).toHaveAttribute("data-story-chapter", /threshold|archive/, { timeout: 2_000 });
+});
+
+test("physical wheel controls volume and track navigation", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#archive").scrollIntoViewIfNeeded();
+
+  const volume = page.locator("#wheel-ring-control");
+  await volume.focus();
+  await expect(volume).toHaveAttribute("aria-valuenow", "82");
+  await page.keyboard.press("ArrowRight");
+  await expect(volume).toHaveAttribute("aria-valuenow", "87");
+
+  await page.locator("[data-wheel-action='next']").click();
+  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
+  await expect(page.locator("#player-title")).toHaveText("Pale Current");
+
+  await page.locator("[data-wheel-action='next']").click();
+  await expect(page.locator("#player-title")).toHaveText("Soft Voltage", { timeout: 7_000 });
+});
+
+test("merch and social surfaces preserve direct-contact architecture", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".merch-zone").scrollIntoViewIfNeeded();
+  await expect(page.locator(".merch-object")).toHaveCount(3);
+  await expect(page.locator("[data-merch-id='collective-cap'] [data-merch-message]"))
+    .toHaveAttribute("data-merch-message", "Fala Hazewave, quero o boné Collective");
+
+  await expect(page.locator(".social-footer a")).toHaveText([
+    "@virundun",
+    "@barakozamabeats",
+    "@indionesbala"
+  ]);
 });
