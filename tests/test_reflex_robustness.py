@@ -72,7 +72,7 @@ def test_robustness_policy_schema_is_valid() -> None:
     assert loaded["risk_control"]["activation_authority"] == "NONE"
 
 
-def test_order_ensemble_runs_rotations_in_one_model_request() -> None:
+def test_order_ensemble_runs_all_three_domain_permutations_in_one_model_request() -> None:
     calls = []
 
     def executor(**kwargs):
@@ -110,9 +110,16 @@ def test_order_ensemble_runs_rotations_in_one_model_request() -> None:
     ]
     assert orders == [
         ("HAZE", "WAVE", "BRIDGE"),
+        ("HAZE", "BRIDGE", "WAVE"),
+        ("WAVE", "HAZE", "BRIDGE"),
         ("WAVE", "BRIDGE", "HAZE"),
         ("BRIDGE", "HAZE", "WAVE"),
+        ("BRIDGE", "WAVE", "HAZE"),
     ]
+    for position in range(3):
+        assert sorted(order[position] for order in orders) == [
+            "BRIDGE", "BRIDGE", "HAZE", "HAZE", "WAVE", "WAVE"
+        ]
     assert result.ensemble.winner_agreement == 1.0
     assert result.ensemble.aggregate_winner == "HAZE"
     assert result.robust_eligible is True
