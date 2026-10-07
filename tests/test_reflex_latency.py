@@ -352,6 +352,57 @@ def test_selected_profile_fails_closed_on_policy_drift(tmp_path: Path) -> None:
         latency.selected_profile(state_root=state)
 
 
+def test_retire_stale_selection_archives_evidence_and_restores_safe_baseline(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    target = state / "latency" / "selected-profile.json"
+    target.parent.mkdir(parents=True)
+    stale = {
+        "schema": "HazewaveReflexLatencySelection/v1",
+        "policy_sha256": "0" * 64,
+        "profile": "close_2t",
+        "selection_sha256": "1" * 64,
+        "runtime_fingerprint": latency._runtime_fingerprint(),
+    }
+    target.write_text(json.dumps(stale), encoding="utf-8")
+
+    retired = latency.retire_stale_selection(state_root=state)
+
+    assert retired["status"] == "STALE_SELECTION_RETIRED"
+    assert retired["retired_profile"] == "close_2t"
+    assert retired["retired_policy_sha256"] == "0" * 64
+    assert retired["current_policy_sha256"] == latency.policy_digest(latency.load_latency_policy())
+    assert target.exists() is False
+    archive = Path(retired["archive_path"])
+    assert archive.is_file()
+    assert json.loads(archive.read_text(encoding="utf-8")) == stale
+    assert latency.selected_profile(state_root=state) == "baseline_2t"
+    assert retired["grants_execution_authority"] is False
+
+
+def test_retire_selection_refuses_to_clear_current_valid_measurement(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state"
+    target = state / "latency" / "selected-profile.json"
+    target.parent.mkdir(parents=True)
+    policy = latency.load_latency_policy()
+    current = {
+        "schema": "HazewaveReflexLatencySelection/v1",
+        "policy_sha256": latency.policy_digest(policy),
+        "profile": "close_2t",
+        "selection_sha256": "2" * 64,
+        "runtime_fingerprint": latency._runtime_fingerprint(),
+    }
+    target.write_text(json.dumps(current), encoding="utf-8")
+
+    with pytest.raises(latency.ReflexLatencyError, match="SELECTION_NOT_STALE"):
+        latency.retire_stale_selection(state_root=state)
+
+    assert json.loads(target.read_text(encoding="utf-8")) == current
+
+
 def test_default_profile_is_baseline_without_measurement(tmp_path: Path) -> None:
     assert latency.selected_profile(state_root=tmp_path) == "baseline_2t"
 
