@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from itertools import permutations
 from hashlib import sha256
 import json
 import math
@@ -115,8 +116,12 @@ def load_robustness_policy(path: str | Path | None = None) -> dict[str, Any]:
     ensemble = payload.get("option_order_ensemble") or {}
     if ensemble.get("enabled") is not True:
         raise ValueError("REFLEX_ORDER_ENSEMBLE_REQUIRED")
-    if ensemble.get("strategy") != "CYCLIC_ROTATIONS_IN_ONE_SYSTEM_ONE_BATCH":
+    if ensemble.get("strategy") != "COMPLETE_PERMUTATIONS_IN_ONE_SYSTEM_ONE_BATCH":
         raise ValueError("REFLEX_ORDER_ENSEMBLE_STRATEGY_INVALID")
+    max_labels = int(ensemble.get("max_labels") or 0)
+    max_rotations = int(ensemble.get("max_rotations") or 0)
+    if max_labels < 2 or max_rotations < math.factorial(max_labels):
+        raise ValueError("REFLEX_ORDER_ENSEMBLE_PERMUTATION_BUDGET_INVALID")
     risk = payload.get("risk_control") or {}
     if risk.get("activation_authority") != "NONE" or risk.get("auto_threshold_mutation") is not False:
         raise ValueError("REFLEX_RISK_CONTROL_AUTHORITY_INVALID")
@@ -133,7 +138,7 @@ def robustness_policy_digest(policy: Mapping[str, Any]) -> str:
     return sha256(_canonical(dict(policy))).hexdigest()
 
 
-def cyclic_choice_questions(
+def complete_choice_permutations(
     *,
     question_id: str,
     question: Mapping[str, Any],
@@ -147,15 +152,21 @@ def cyclic_choice_questions(
     labels = [str(label) for label in criteria]
     if len(labels) < 2:
         raise ReflexRobustnessError("REFLEX_ROBUSTNESS_TOO_FEW_LABELS")
-    rotations = min(len(labels), max(2, int(max_rotations)))
+
+    required = math.factorial(len(labels))
+    budget = int(max_rotations)
+    if budget < required:
+        raise ReflexRobustnessError(
+            "REFLEX_ROBUSTNESS_COMPLETE_PERMUTATION_BUDGET_REQUIRED"
+        )
+
     result: dict[str, dict[str, Any]] = {}
-    for offset in range(rotations):
-        order = labels[offset:] + labels[:offset]
-        rotated = {
+    for index, order in enumerate(permutations(labels)):
+        permuted = {
             **dict(question),
             "criteria": {label: criteria[label] for label in order},
         }
-        result[f"{question_id}__order_{offset}"] = rotated
+        result[f"{question_id}__order_{index}"] = permuted
     return result
 
 
@@ -272,7 +283,7 @@ def execute_robust_reflex_route(
         else load_robustness_policy()
     )
     settings = robust["option_order_ensemble"]
-    questions = cyclic_choice_questions(
+    questions = complete_choice_permutations(
         question_id=question_id,
         question=question,
         max_rotations=int(settings["max_rotations"]),
