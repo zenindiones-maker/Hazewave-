@@ -52,6 +52,7 @@ The first bounded sweep is intentionally small:
 
 - `baseline_2t`: two OpenMP threads;
 - `single_1t`: one thread, to detect barrier/oversubscription cost;
+- `single_close_1t`: one thread bound to a core, to test scheduler-migration jitter separately;
 - `close_2t`: two threads pinned close to cores;
 - `spread_2t`: two threads spread across cores;
 - `passive_close_2t`: close binding with passive wait and no libgomp spin.
