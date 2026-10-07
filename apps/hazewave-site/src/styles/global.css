@@ -794,13 +794,14 @@ h1{
     scrollbar-width:none;overscroll-behavior-x:contain
   }
   .artifact-field::-webkit-scrollbar{display:none}
-  .resonance-artifact{
-    position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;
+  .artifact-field > .resonance-artifact{
+    position:relative;left:auto;right:auto;bottom:auto;
     flex:0 0 96px;width:96px;height:142px;grid-template-rows:96px auto;gap:8px;
-    transform:none!important;scroll-snap-align:center
+    transform:none;scroll-snap-align:center
   }
-  .resonance-artifact:hover,.resonance-artifact:focus-visible{transform:translateY(-6px)!important}
-  .resonance-artifact[data-focus="selected"]{transform:translateY(-7px) scale(1.035)!important}
+  .artifact-field > .resonance-artifact:hover,
+  .artifact-field > .resonance-artifact:focus-visible{transform:translateY(-6px)}
+  .artifact-field > .resonance-artifact[data-focus="selected"]{transform:translateY(-7px) scale(1.035)}
   .artifact-shell{height:96px}
   .artifact-signal{width:48px;height:48px}
   .artifact-copy strong{font-size:10px}
