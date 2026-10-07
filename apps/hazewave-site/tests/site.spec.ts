@@ -127,3 +127,16 @@ test("cinematic object remains visible during mobile travel", async ({ page }, t
   await page.screenshot({ path: testInfo.outputPath("travel-visible.png"), fullPage: false });
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
 });
+
+
+test("archive track re-enters the same physical playback flow", async ({ page }) => {
+  await page.goto("/");
+  const archiveButton = page.getByRole("button", { name: /Tocar Root Signal no Resonance Deck/ });
+  await archiveButton.scrollIntoViewIfNeeded();
+  await archiveButton.click();
+
+  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 7_000 });
+  await expect(page.locator("#player-title")).toHaveText("Root Signal");
+  await expect(page.locator("#premium-stage")).toHaveAttribute("data-artist", "flora");
+  await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
+});
