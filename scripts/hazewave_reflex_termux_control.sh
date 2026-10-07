@@ -129,7 +129,7 @@ remote_main() {
     export HAZEWAVE_REFLEX_EXPECTED_CODESPACE="$expected_codespace"
 
     case "$action" in
-        doctor|prepare|serve|smoke|report|latency-profiles|latency-selected|latency-tune|latency-report)
+        doctor|prepare|serve|serve-stop|smoke|report|latency-profiles|latency-selected|latency-tune|latency-report)
             exec bash "$control" "$action"
             ;;
         observe)
@@ -288,7 +288,7 @@ case "$action" in
         echo "REFLEX_TARGET_CODESPACE=$CS"
         ;;
 
-    doctor|prepare|smoke|report|latency-profiles|latency-selected|latency-tune|latency-report)
+    doctor|prepare|serve-stop|smoke|report|latency-profiles|latency-selected|latency-tune|latency-report)
         gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
         run_remote "$action"
         ;;
@@ -325,7 +325,7 @@ case "$action" in
 
     *)
         cat >&2 <<'USAGE'
-usage: hazewave-reflex {status|list|wake|stop|doctor|prepare|serve|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|install-check}
+usage: hazewave-reflex {status|list|wake|stop|doctor|prepare|serve|serve-stop|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|install-check}
 USAGE
         exit 2
         ;;
