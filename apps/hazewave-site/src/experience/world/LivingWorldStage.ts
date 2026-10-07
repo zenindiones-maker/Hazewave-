@@ -1,5 +1,6 @@
 import type { ArtistChapterWorld } from "../../data/artistChapters";
 import type { QualityProfile } from "../quality/quality";
+import type { ArtistJourneyPhase } from "../story/ArtistJourneyConductor";
 import type { StoryRuntimeState } from "../story/ScrollConductor";
 
 type GL = WebGL2RenderingContext;
@@ -52,6 +53,7 @@ uniform float uArtistFog;
 uniform float uArtistLight;
 uniform float uArtistParticles;
 uniform float uArtistSignature;
+uniform float uArtistPhase;
 
 float hash21(vec2 p) {
   p = fract(p * vec2(123.34, 345.45));
@@ -190,10 +192,15 @@ void main() {
     (1.0 - smoothstep(0.995, 1.0, screenTop));
   float nearWater = smoothstep(0.79, 0.985, screenTop);
 
+  float phaseMusic = 1.0 - step(0.5, abs(uArtistPhase - 1.0));
+  float phaseVisual = 1.0 - step(0.5, abs(uArtistPhase - 2.0));
+  float phaseTransition = 1.0 - step(0.5, abs(uArtistPhase - 3.0));
+
   float waterDrive =
     uWater *
     mix(1.0, 0.72 + uArtistWater * 0.68, uArtistInfluence) *
-    (0.76 + uAudio * 0.36);
+    (0.76 + uAudio * 0.36) *
+    (1.0 + phaseMusic * 0.16 + phaseTransition * 0.05);
 
   vec2 waterCoord = vec2(
     cameraUv.x * 7.4,
@@ -278,7 +285,8 @@ void main() {
 
   float fogDrive =
     uFog *
-    mix(1.0, 0.78 + uArtistFog * 8.0, uArtistInfluence);
+    mix(1.0, 0.78 + uArtistFog * 8.0, uArtistInfluence) *
+    (1.0 + phaseVisual * 0.14);
   float fogAmount = fogRegion * fogNoise * fogDrive * 0.105;
 
   vec3 fogColor = mix(
@@ -295,7 +303,8 @@ void main() {
 
   float lightDrive =
     uLighthouse *
-    mix(1.0, 0.80 + uArtistLight * 0.62, uArtistInfluence);
+    mix(1.0, 0.80 + uArtistLight * 0.62, uArtistInfluence) *
+    (1.0 + phaseVisual * 0.20 + phaseTransition * 0.08);
 
   float lighthouseGlow =
     exp(-lightDistance * 20.0) *
@@ -325,7 +334,8 @@ void main() {
 
   float particleDrive =
     uParticles *
-    mix(1.0, 0.52 + uArtistParticles * 0.96, uArtistInfluence);
+    mix(1.0, 0.52 + uArtistParticles * 0.96, uArtistInfluence) *
+    (1.0 + phaseVisual * 0.34);
 
   vec2 particleFlow = vec2(
     screenUv.x * 17.0 + uTime * 0.008,
@@ -451,6 +461,7 @@ export class LivingWorldStage {
   private resizeObserver: ResizeObserver | null = null;
   private artistWorld: ArtistChapterWorld | null = null;
   private artistProgress = 0;
+  private artistPhase: ArtistJourneyPhase = "EMERGE";
   private artistAccent: [number, number, number] = [0.72, 1.0, 0.42];
   private renderScale = 1;
   private frameWindow: number[] = [];
@@ -537,9 +548,14 @@ export class LivingWorldStage {
     this.story = state;
   }
 
-  setArtistWorld(world: ArtistChapterWorld, progress: number): void {
+  setArtistWorld(
+    world: ArtistChapterWorld,
+    progress: number,
+    phase: ArtistJourneyPhase = "EMERGE"
+  ): void {
     this.artistWorld = world;
     this.artistProgress = Math.max(0, Math.min(1, progress));
+    this.artistPhase = phase;
     this.artistAccent = hexToRgb(world.accent);
   }
 
@@ -615,6 +631,7 @@ export class LivingWorldStage {
     this.resize();
 
     this.host.dataset.worldRuntime = "webgl2";
+    this.host.dataset.worldDepthModel = "layered-owner-art-2.5d";
     this.host.dataset.worldActivity = document.hidden ? "paused" : "running";
     this.host.dataset.worldPerformance = "standard";
     this.raf = requestAnimationFrame(this.frame);
@@ -745,9 +762,13 @@ export class LivingWorldStage {
 
     const artistChapterActive =
       story?.chapterId === "artists" || story?.chapterId === "dossiers";
+    const transitionFade =
+      this.artistPhase === "TRANSITION"
+        ? 1 - Math.max(0, (this.artistProgress - 0.78) / 0.22) * 0.46
+        : 1;
     const artistInfluence =
       artistWorld && artistChapterActive
-        ? Math.min(1, 0.34 + this.artistProgress * 0.66)
+        ? Math.min(1, (0.34 + this.artistProgress * 0.66) * transitionFade)
         : 0;
 
     gl.useProgram(program);
@@ -777,6 +798,16 @@ export class LivingWorldStage {
     this.uniform1(
       "uArtistSignature",
       artistWorld ? signatureValue(artistWorld.transitionSignature) : 0.5
+    );
+    this.uniform1(
+      "uArtistPhase",
+      this.artistPhase === "MUSIC"
+        ? 1
+        : this.artistPhase === "VISUAL"
+          ? 2
+          : this.artistPhase === "TRANSITION"
+            ? 3
+            : 0
     );
     this.uniform1(
       "uViewportAspect",
