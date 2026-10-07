@@ -108,6 +108,9 @@ def test_route_question_encodes_bridge_boundary_without_putting_option_labels_in
     assert "primary responsibility" in haze
     assert "primary responsibility" in wave
     assert "cross-domain" in bridge
+    rendered = " ".join([instructions, *criteria.values()]).lower()
+    assert " does not " not in f" {rendered} "
+    assert " not by " not in f" {rendered} "
 
 def test_event_schema_matches_representative_event() -> None:
     root = Path(__file__).resolve().parents[1]
