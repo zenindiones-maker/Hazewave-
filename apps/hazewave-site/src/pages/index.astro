@@ -416,39 +416,34 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
         </div>
       </section>
 
-      <section id="dossiers" class="dossier-zone" aria-labelledby="dossier-title">
-        <header class="section-heading">
-          <p class="eyebrow">DOSSIER / ARTIST ARCHIVE</p>
-          <h2 id="dossier-title">Som, imagem e contexto no mesmo lugar.</h2>
+      <section id="dossiers" class="dossier-zone dossier-transition" aria-labelledby="dossier-title">
+        <header class="section-heading dossier-transition-heading">
+          <p class="eyebrow">FOCUS / OWNER MEDIA GATE</p>
+          <h2 id="dossier-title">O arquivo só revela o que é verdadeiro.</h2>
+          <p>
+            Foto, biografia e clipe entram neste mundo somente quando o owner
+            autorizar a fonte final. A experiência permanece pronta sem inventar conteúdo.
+          </p>
         </header>
 
-        <div class="dossier-grid">
-          {artists.map((artist, index) => (
-            <article class="artist-dossier" style={`--dossier-accent:${artist.identity.accent};--dossier-index:${index};`}>
-              <div class="dossier-portrait" aria-hidden="true">
-                <span class="portrait-index">0{index + 1}</span>
-                <strong>{artist.name.replace(" / DEMO", "").slice(0, 1)}</strong>
-                <span>FINAL PHOTO SLOT</span>
+        <div class="dossier-signal-list" aria-label="Estado dos dossiers demonstrativos">
+          {artistChapters.map((chapter, index) => (
+            <article
+              class="dossier-signal"
+              data-dossier-artist={chapter.id}
+              style={`--dossier-accent:${chapter.world.accent};--dossier-index:${index};`}
+            >
+              <span class="dossier-signal-index">0{index + 1}</span>
+              <div class="dossier-signal-name">
+                <small>DEMO WORLD</small>
+                <h3>{chapter.displayName}</h3>
+                <p>{chapter.releaseLabel}</p>
               </div>
-              <div class="dossier-copy">
-                <span class="dossier-kicker">ARTIST / DEMO IDENTITY</span>
-                <h3>{artist.name.replace(" / DEMO", "")}</h3>
-                <p>{artist.releaseTitle}</p>
-                <div class="dossier-tracks">
-                  {artist.tracks.map((track) => (
-                    <button type="button" data-archive-track-id={track.id} aria-label={`Tocar ${track.title} no player`}>
-                      <span>{track.title}</span>
-                      <small>{track.visual.bpm} BPM</small>
-                      <i aria-hidden="true"></i>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div class="dossier-video" aria-label="Espaço reservado para clipe autorizado">
-                <span>AUTHORIZED VIDEO SLOT</span>
-                <strong>CLIP / VISUAL</strong>
-                <small>data-driven embed ready</small>
-              </div>
+              <dl>
+                <div><dt>PHOTO</dt><dd>{chapter.portraitAsset ? "READY" : "UNSET"}</dd></div>
+                <div><dt>BIO</dt><dd>{chapter.biography ? "READY" : "UNSET"}</dd></div>
+                <div><dt>VIDEO</dt><dd>{chapter.videoSource ? "READY" : "UNSET"}</dd></div>
+              </dl>
             </article>
           ))}
         </div>
