@@ -576,6 +576,21 @@ h1{
   width:min(1260px,calc(100% - 56px));height:188px;
   pointer-events:none
 }
+.artifact-field::before{
+  content:"";position:absolute;z-index:-1;left:0;right:0;bottom:40px;height:26px;
+  border-top:1px solid rgba(255,255,255,.11);
+  border-bottom:1px solid rgba(255,255,255,.045);
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.006)),
+    rgba(4,7,6,.44);
+  box-shadow:0 24px 50px rgba(0,0,0,.38)
+}
+.artifact-field::after{
+  content:"";position:absolute;z-index:-1;left:4%;right:4%;bottom:34px;height:1px;
+  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--world-accent),transparent 60%),transparent);
+  opacity:.58;
+  box-shadow:0 0 16px color-mix(in srgb,var(--world-accent),transparent 82%)
+}
 .resonance-artifact{
   --accent:#a7ffe0;--secondary:#47786f;
   position:absolute;bottom:0;width:104px;height:182px;
@@ -1145,6 +1160,8 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
   .artifact-field{
     left:0;right:0;bottom:72px;transform:none;width:auto;height:146px;
     display:flex;align-items:flex-end;gap:9px;padding:8px 18px;
+  .artifact-field::before{bottom:30px;height:22px}
+  .artifact-field::after{bottom:26px;left:8px;right:8px}
     overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;
     scrollbar-width:none;overscroll-behavior-x:contain
   }
