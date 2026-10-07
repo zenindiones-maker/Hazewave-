@@ -649,122 +649,7 @@ if block.count(old) != 1:
 patched = block.replace(old, new, 1)
 text = text[:start] + patched + text[end:]
 
-qi_text = qi_path.read_text(encoding="utf-8")
-helper_anchor = """enum { QI_F32 = 0, QI_BF16 = 1, QI_I8 = 2 };\n"""
-if qi_text.count(helper_anchor) != 1:
-    raise SystemExit(f"ENGINE_QI_PROFILE_HELPER_ANCHOR_INVALID:{qi_text.count(helper_anchor)}")
-qi_text = qi_text.replace(
-    helper_anchor,
-    helper_anchor + """
-static inline double qi_prof_now_ms(void){
-#ifdef _OPENMP
-    return omp_get_wtime() * 1000.0;
-#else
-    return 0.0;
-#endif
-}
-""",
-    1,
-)
 
-start = qi_text.index("static void qi_gemm_ld(")
-end = qi_text.index("\nstatic inline void qi_gemm(", start)
-qi_block = qi_text[start:end]
-
-old_qi = """static void qi_gemm_ld(float *Y, int ldy, const float *X, int ldx, int M, const QiMat *W, const float *bias){
-    const int N = W->N, K = W->K;
-    if (M <= 0 || N <= 0) return;
-    const int nblocks = (N + QI_NR - 1) / QI_NR;
-    const int mblocks = (M + QI_MC - 1) / QI_MC;
-    /* Parallel over (m-block, n-panel) tiles; each tile walks all of K, so the
-     * sum for one output is always accumulated in the same order: the result
-     * does not depend on the thread count. */
-    #pragma omp parallel
-    {
-        /* plain malloc: the kernel loads unaligned, and aligned_alloc is missing from
-         * the Windows CRT */
-        float *panel = (float *)malloc((size_t)QI_KC * QI_NR * sizeof(float));
-        if (!panel) { fprintf(stderr, "OOM qi_gemm panel\\n"); exit(1); }
-        #pragma omp for schedule(dynamic, 1) collapse(2)
-        for (int mb = 0; mb < mblocks; mb++)
-            for (int nb = 0; nb < nblocks; nb++) {
-                int m0 = mb * QI_MC, mc = M - m0 < QI_MC ? M - m0 : QI_MC;
-                int n0 = nb * QI_NR, nr = N - n0 < QI_NR ? N - n0 : QI_NR;
-                for (int k0 = 0; k0 < K; k0 += QI_KC) {
-                    int kc = K - k0 < QI_KC ? K - k0 : QI_KC;
-                    qi_pack_w(panel, W, n0, nr, k0, kc);
-                    for (int i = 0; i < mc; i += QI_MR) {
-                        int mr = mc - i < QI_MR ? mc - i : QI_MR;
-                        qi_kernel(Y + (int64_t)(m0 + i) * ldy + n0, ldy,
-                                  X + (int64_t)(m0 + i) * ldx + k0, ldx,
-                                  panel, kc, mr, nr, k0 > 0);
-                    }
-                }
-                if (bias)
-                    for (int i = 0; i < mc; i++)
-                        for (int j = 0; j < nr; j++) Y[(int64_t)(m0 + i) * ldy + n0 + j] += bias[n0 + j];
-            }
-        free(panel);
-    }
-}"""
-
-new_qi = """static void qi_gemm_ld(float *Y, int ldy, const float *X, int ldx, int M, const QiMat *W, const float *bias){
-    const int N = W->N, K = W->K;
-    if (M <= 0 || N <= 0) return;
-    const int nblocks = (N + QI_NR - 1) / QI_NR;
-    const int mblocks = (M + QI_MC - 1) / QI_MC;
-    double hz_total_started = qi_prof_now_ms();
-    double hz_pack_ms = 0.0, hz_kernel_ms = 0.0, hz_bias_ms = 0.0;
-    /* Parallel over (m-block, n-panel) tiles; each tile walks all of K, so the
-     * sum for one output is always accumulated in the same order: the result
-     * does not depend on the thread count. */
-    #pragma omp parallel reduction(+:hz_pack_ms,hz_kernel_ms,hz_bias_ms)
-    {
-        /* plain malloc: the kernel loads unaligned, and aligned_alloc is missing from
-         * the Windows CRT */
-        float *panel = (float *)malloc((size_t)QI_KC * QI_NR * sizeof(float));
-        if (!panel) { fprintf(stderr, "OOM qi_gemm panel\\n"); exit(1); }
-        #pragma omp for schedule(dynamic, 1) collapse(2)
-        for (int mb = 0; mb < mblocks; mb++)
-            for (int nb = 0; nb < nblocks; nb++) {
-                int m0 = mb * QI_MC, mc = M - m0 < QI_MC ? M - m0 : QI_MC;
-                int n0 = nb * QI_NR, nr = N - n0 < QI_NR ? N - n0 : QI_NR;
-                for (int k0 = 0; k0 < K; k0 += QI_KC) {
-                    int kc = K - k0 < QI_KC ? K - k0 : QI_KC;
-                    double hz_t = qi_prof_now_ms();
-                    qi_pack_w(panel, W, n0, nr, k0, kc);
-                    hz_pack_ms += qi_prof_now_ms() - hz_t;
-                    for (int i = 0; i < mc; i += QI_MR) {
-                        int mr = mc - i < QI_MR ? mc - i : QI_MR;
-                        hz_t = qi_prof_now_ms();
-                        qi_kernel(Y + (int64_t)(m0 + i) * ldy + n0, ldy,
-                                  X + (int64_t)(m0 + i) * ldx + k0, ldx,
-                                  panel, kc, mr, nr, k0 > 0);
-                        hz_kernel_ms += qi_prof_now_ms() - hz_t;
-                    }
-                }
-                if (bias) {
-                    double hz_t = qi_prof_now_ms();
-                    for (int i = 0; i < mc; i++)
-                        for (int j = 0; j < nr; j++)
-                            Y[(int64_t)(m0 + i) * ldy + n0 + j] += bias[n0 + j];
-                    hz_bias_ms += qi_prof_now_ms() - hz_t;
-                }
-            }
-        free(panel);
-    }
-    double hz_total_ms = qi_prof_now_ms() - hz_total_started;
-    fprintf(stderr,
-            "REFLEX_QI_GEMM M=%d N=%d K=%d fmt=%d pack_ms=%.3f kernel_ms=%.3f "
-            "bias_ms=%.3f total_ms=%.3f\\n",
-            M, N, K, W->fmt, hz_pack_ms, hz_kernel_ms, hz_bias_ms, hz_total_ms);
-}"""
-
-if qi_block.count(old_qi) != 1:
-    raise SystemExit(f"ENGINE_QI_PROFILE_PATCH_ANCHOR_INVALID:{qi_block.count(old_qi)}")
-qi_block = qi_block.replace(old_qi, new_qi, 1)
-qi_text = qi_text[:start] + qi_block + qi_text[end:]
-qi_path.write_text(qi_text, encoding="utf-8")
 
 path.write_text(text, encoding="utf-8")
 PY
@@ -813,7 +698,7 @@ PY
 }
 
 build_phase_profile_engine_variant() {
-  local variant="phase_profile_v3"
+  local variant="phase_profile_v4"
   local root="$HOME/.local/share/hazewave/providers/colibri/derived/$variant"
   local binary="$root/c/laya"
   local meta="$root/build.json"
@@ -1104,6 +989,123 @@ once(
 "subphase_emit",
 )
 
+qi_text = qi_path.read_text(encoding="utf-8")
+helper_anchor = """enum { QI_F32 = 0, QI_BF16 = 1, QI_I8 = 2 };\n"""
+if qi_text.count(helper_anchor) != 1:
+    raise SystemExit(f"ENGINE_QI_PROFILE_HELPER_ANCHOR_INVALID:{qi_text.count(helper_anchor)}")
+qi_text = qi_text.replace(
+    helper_anchor,
+    helper_anchor + """
+static inline double qi_prof_now_ms(void){
+#ifdef _OPENMP
+    return omp_get_wtime() * 1000.0;
+#else
+    return 0.0;
+#endif
+}
+""",
+    1,
+)
+
+start = qi_text.index("static void qi_gemm_ld(")
+end = qi_text.index("\nstatic inline void qi_gemm(", start)
+qi_block = qi_text[start:end]
+
+old_qi = """static void qi_gemm_ld(float *Y, int ldy, const float *X, int ldx, int M, const QiMat *W, const float *bias){
+    const int N = W->N, K = W->K;
+    if (M <= 0 || N <= 0) return;
+    const int nblocks = (N + QI_NR - 1) / QI_NR;
+    const int mblocks = (M + QI_MC - 1) / QI_MC;
+    /* Parallel over (m-block, n-panel) tiles; each tile walks all of K, so the
+     * sum for one output is always accumulated in the same order: the result
+     * does not depend on the thread count. */
+    #pragma omp parallel
+    {
+        /* plain malloc: the kernel loads unaligned, and aligned_alloc is missing from
+         * the Windows CRT */
+        float *panel = (float *)malloc((size_t)QI_KC * QI_NR * sizeof(float));
+        if (!panel) { fprintf(stderr, "OOM qi_gemm panel\\n"); exit(1); }
+        #pragma omp for schedule(dynamic, 1) collapse(2)
+        for (int mb = 0; mb < mblocks; mb++)
+            for (int nb = 0; nb < nblocks; nb++) {
+                int m0 = mb * QI_MC, mc = M - m0 < QI_MC ? M - m0 : QI_MC;
+                int n0 = nb * QI_NR, nr = N - n0 < QI_NR ? N - n0 : QI_NR;
+                for (int k0 = 0; k0 < K; k0 += QI_KC) {
+                    int kc = K - k0 < QI_KC ? K - k0 : QI_KC;
+                    qi_pack_w(panel, W, n0, nr, k0, kc);
+                    for (int i = 0; i < mc; i += QI_MR) {
+                        int mr = mc - i < QI_MR ? mc - i : QI_MR;
+                        qi_kernel(Y + (int64_t)(m0 + i) * ldy + n0, ldy,
+                                  X + (int64_t)(m0 + i) * ldx + k0, ldx,
+                                  panel, kc, mr, nr, k0 > 0);
+                    }
+                }
+                if (bias)
+                    for (int i = 0; i < mc; i++)
+                        for (int j = 0; j < nr; j++) Y[(int64_t)(m0 + i) * ldy + n0 + j] += bias[n0 + j];
+            }
+        free(panel);
+    }
+}"""
+
+new_qi = """static void qi_gemm_ld(float *Y, int ldy, const float *X, int ldx, int M, const QiMat *W, const float *bias){
+    const int N = W->N, K = W->K;
+    if (M <= 0 || N <= 0) return;
+    const int nblocks = (N + QI_NR - 1) / QI_NR;
+    const int mblocks = (M + QI_MC - 1) / QI_MC;
+    double hz_total_started = qi_prof_now_ms();
+    double hz_pack_ms = 0.0, hz_kernel_ms = 0.0, hz_bias_ms = 0.0;
+    /* Parallel over (m-block, n-panel) tiles; each tile walks all of K, so the
+     * sum for one output is always accumulated in the same order: the result
+     * does not depend on the thread count. */
+    #pragma omp parallel reduction(+:hz_pack_ms,hz_kernel_ms,hz_bias_ms)
+    {
+        /* plain malloc: the kernel loads unaligned, and aligned_alloc is missing from
+         * the Windows CRT */
+        float *panel = (float *)malloc((size_t)QI_KC * QI_NR * sizeof(float));
+        if (!panel) { fprintf(stderr, "OOM qi_gemm panel\\n"); exit(1); }
+        #pragma omp for schedule(dynamic, 1) collapse(2)
+        for (int mb = 0; mb < mblocks; mb++)
+            for (int nb = 0; nb < nblocks; nb++) {
+                int m0 = mb * QI_MC, mc = M - m0 < QI_MC ? M - m0 : QI_MC;
+                int n0 = nb * QI_NR, nr = N - n0 < QI_NR ? N - n0 : QI_NR;
+                for (int k0 = 0; k0 < K; k0 += QI_KC) {
+                    int kc = K - k0 < QI_KC ? K - k0 : QI_KC;
+                    double hz_t = qi_prof_now_ms();
+                    qi_pack_w(panel, W, n0, nr, k0, kc);
+                    hz_pack_ms += qi_prof_now_ms() - hz_t;
+                    for (int i = 0; i < mc; i += QI_MR) {
+                        int mr = mc - i < QI_MR ? mc - i : QI_MR;
+                        hz_t = qi_prof_now_ms();
+                        qi_kernel(Y + (int64_t)(m0 + i) * ldy + n0, ldy,
+                                  X + (int64_t)(m0 + i) * ldx + k0, ldx,
+                                  panel, kc, mr, nr, k0 > 0);
+                        hz_kernel_ms += qi_prof_now_ms() - hz_t;
+                    }
+                }
+                if (bias) {
+                    double hz_t = qi_prof_now_ms();
+                    for (int i = 0; i < mc; i++)
+                        for (int j = 0; j < nr; j++)
+                            Y[(int64_t)(m0 + i) * ldy + n0 + j] += bias[n0 + j];
+                    hz_bias_ms += qi_prof_now_ms() - hz_t;
+                }
+            }
+        free(panel);
+    }
+    double hz_total_ms = qi_prof_now_ms() - hz_total_started;
+    fprintf(stderr,
+            "REFLEX_QI_GEMM M=%d N=%d K=%d fmt=%d pack_ms=%.3f kernel_ms=%.3f "
+            "bias_ms=%.3f total_ms=%.3f\\n",
+            M, N, K, W->fmt, hz_pack_ms, hz_kernel_ms, hz_bias_ms, hz_total_ms);
+}"""
+
+if qi_block.count(old_qi) != 1:
+    raise SystemExit(f"ENGINE_QI_PROFILE_PATCH_ANCHOR_INVALID:{qi_block.count(old_qi)}")
+qi_block = qi_block.replace(old_qi, new_qi, 1)
+qi_text = qi_text[:start] + qi_block + qi_text[end:]
+qi_path.write_text(qi_text, encoding="utf-8")
+
 path.write_text(text, encoding="utf-8")
 PY
   then
@@ -1111,8 +1113,13 @@ PY
     die "ENGINE_PROFILE_SOURCE_PATCH_FAILED"
   fi
 
+  grep -Fq "REFLEX_QI_GEMM" "$stage/c/qi_gemm.h" \
+    || { rm -rf "$stage"; die "ENGINE_PROFILE_QI_SOURCE_MARKER_MISSING"; }
+
   make -C "$stage/c" laya >/dev/null || { rm -rf "$stage"; die "ENGINE_PROFILE_BUILD_FAILED"; }
   [[ -x "$stage/c/laya" ]] || { rm -rf "$stage"; die "ENGINE_PROFILE_BINARY_MISSING"; }
+  strings "$stage/c/laya" | grep -Fq "REFLEX_QI_GEMM" \
+    || { rm -rf "$stage"; die "ENGINE_PROFILE_QI_BINARY_MARKER_MISSING"; }
 
   local patch_sha binary_sha
   patch_sha="$(
@@ -1192,10 +1199,10 @@ latency_engine_profile() {
     echo "=== REFLEX ENGINE PROFILE CASE: $label ==="
     port_is_free || die "ENGINE_PROFILE_PORT_NOT_FREE:$label"
 
-    COLI_ENGINE="$engine" "$PYTHON_BIN" -m hazewave.reflex_latency server \
+    "$PYTHON_BIN" -m hazewave.reflex_latency server \
       --source-root "$SOURCE_ROOT" --model-root "$MODEL_ROOT" \
       --secret-file "$SECRET_FILE" --state-root "$STATE_ROOT" \
-      --port "$PORT" --profile baseline_2t \
+      --port "$PORT" --profile baseline_2t --engine-bin "$engine" \
       >"$run_dir/$label.server.log" 2>&1 &
     pid=$!
 
@@ -1204,6 +1211,14 @@ latency_engine_profile() {
       stop_profile_case "$pid"
       die "ENGINE_PROFILE_SERVER_START_FAILED:$label"
     fi
+
+    local expected_engine expected_sha
+    expected_engine="$(readlink -f "$engine")"
+    expected_sha="$(sha256sum "$engine" | awk '{print $1}')"
+    grep -Fqx "REFLEX_LATENCY_ENGINE_BIN=$expected_engine" "$run_dir/$label.server.log" \
+      || { stop_profile_case "$pid"; die "ENGINE_PROFILE_ENGINE_PATH_MISMATCH:$label"; }
+    grep -Fqx "REFLEX_LATENCY_ENGINE_SHA256=$expected_sha" "$run_dir/$label.server.log" \
+      || { stop_profile_case "$pid"; die "ENGINE_PROFILE_ENGINE_SHA_MISMATCH:$label"; }
 
     set +e
     "$PYTHON_BIN" -m hazewave.reflex_latency measure \
@@ -1513,10 +1528,10 @@ latency_engine_tune() {
     echo "=== REFLEX ENGINE CASE: $label ==="
     port_is_free || die "ENGINE_TUNE_PORT_NOT_FREE:$label"
 
-    COLI_ENGINE="$engine" "$PYTHON_BIN" -m hazewave.reflex_latency server \
+    "$PYTHON_BIN" -m hazewave.reflex_latency server \
       --source-root "$SOURCE_ROOT" --model-root "$MODEL_ROOT" \
       --secret-file "$SECRET_FILE" --state-root "$STATE_ROOT" \
-      --port "$PORT" --profile baseline_2t \
+      --port "$PORT" --profile baseline_2t --engine-bin "$engine" \
       >"$run_dir/$label.server.log" 2>&1 &
     pid=$!
 
@@ -1525,6 +1540,14 @@ latency_engine_tune() {
       stop_engine_case "$pid"
       die "ENGINE_TUNE_SERVER_START_FAILED:$label"
     fi
+
+    local expected_engine expected_sha
+    expected_engine="$(readlink -f "$engine")"
+    expected_sha="$(sha256sum "$engine" | awk '{print $1}')"
+    grep -Fqx "REFLEX_LATENCY_ENGINE_BIN=$expected_engine" "$run_dir/$label.server.log" \
+      || { stop_engine_case "$pid"; die "ENGINE_TUNE_ENGINE_PATH_MISMATCH:$label"; }
+    grep -Fqx "REFLEX_LATENCY_ENGINE_SHA256=$expected_sha" "$run_dir/$label.server.log" \
+      || { stop_engine_case "$pid"; die "ENGINE_TUNE_ENGINE_SHA_MISMATCH:$label"; }
 
     set +e
     "$PYTHON_BIN" -m hazewave.reflex_latency measure \
