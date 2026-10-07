@@ -1,3 +1,4 @@
+import type { ArtistChapterWorld } from "../../data/artistChapters";
 import type { QualityProfile } from "../quality/quality";
 import type { StoryRuntimeState } from "../story/ScrollConductor";
 
@@ -33,11 +34,24 @@ uniform float uWater;
 uniform float uFog;
 uniform float uLighthouse;
 uniform float uDepth;
+uniform float uParticles;
+uniform float uBrightness;
+uniform float uSaturation;
+uniform float uContrast;
+uniform float uVignette;
 uniform float uAudio;
 uniform float uViewportAspect;
 uniform float uImageAspect;
 uniform float uContain;
 uniform vec2 uPointer;
+
+uniform vec3 uArtistAccent;
+uniform float uArtistInfluence;
+uniform float uArtistWater;
+uniform float uArtistFog;
+uniform float uArtistLight;
+uniform float uArtistParticles;
+uniform float uArtistSignature;
 
 float hash21(vec2 p) {
   p = fract(p * vec2(123.34, 345.45));
@@ -56,6 +70,28 @@ float noise21(vec2 p) {
   float d = hash21(i + vec2(1.0, 1.0));
 
   return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+float fbm(vec2 p) {
+  float value = 0.0;
+  float amplitude = 0.52;
+  mat2 rotation = mat2(0.80, -0.60, 0.60, 0.80);
+
+  for (int octave = 0; octave < 4; octave++) {
+    value += noise21(p) * amplitude;
+    p = rotation * p * 2.03 + vec2(13.7, 9.2);
+    amplitude *= 0.48;
+  }
+
+  return value;
+}
+
+vec3 gradeWorld(vec3 color) {
+  float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
+  color = mix(vec3(luminance), color, max(0.0, uSaturation));
+  color = (color - 0.5) * uContrast + 0.5;
+  color *= uBrightness;
+  return color;
 }
 
 vec3 fitWorld(vec2 uv, out float inside) {
@@ -90,50 +126,81 @@ void main() {
   vec2 screenUv = vUv;
   float screenTop = 1.0 - screenUv.y;
 
-  float zoom = 1.0 + uDepth * 0.052 + uProgress * 0.012;
+  float artistDepth = uArtistInfluence * (0.018 + uArtistSignature * 0.006);
+  float zoom = 1.0 + uDepth * 0.052 + uProgress * 0.012 + artistDepth;
   vec2 cameraUv = (screenUv - 0.5) / zoom + 0.5;
 
   float depthWeight = mix(
-    0.22,
+    0.20,
     1.0,
     smoothstep(0.10, 0.96, screenTop)
   );
 
   vec2 pointerOffset =
     (uPointer - 0.5) *
-    (0.0045 + uDepth * 0.0055) *
+    (0.0038 + uDepth * 0.0052) *
     depthWeight;
 
   cameraUv += pointerOffset;
-  cameraUv.x += uVelocity * 0.0018 * depthWeight;
-  cameraUv.y -= uVelocity * 0.0011 * depthWeight;
+  cameraUv.x += uVelocity * (0.0015 + uDepth * 0.0007) * depthWeight;
+  cameraUv.y -= uVelocity * 0.0009 * depthWeight;
 
   float waterMask =
-    smoothstep(0.70, 0.84, screenTop) *
-    (1.0 - smoothstep(0.99, 1.0, screenTop));
+    smoothstep(0.69, 0.80, screenTop) *
+    (1.0 - smoothstep(0.995, 1.0, screenTop));
+  float nearWater = smoothstep(0.79, 0.985, screenTop);
 
-  float nearWater = smoothstep(0.79, 0.98, screenTop);
-  float waterDrive = uWater * (0.72 + uAudio * 0.42);
+  float waterDrive =
+    uWater *
+    mix(1.0, 0.72 + uArtistWater * 0.68, uArtistInfluence) *
+    (0.76 + uAudio * 0.36);
 
-  float longWave =
-    sin(cameraUv.x * 26.0 + uTime * 0.58 + uProgress * 5.2) * 0.5 +
-    sin(cameraUv.x * 49.0 - uTime * 0.34 + uChapterProgress * 3.1) * 0.22;
+  vec2 waterCoord = vec2(
+    cameraUv.x * 7.4,
+    screenTop * 18.0
+  );
 
-  float crossWave =
-    sin(cameraUv.y * 44.0 + cameraUv.x * 12.0 - uTime * 0.42) * 0.5 +
-    sin(cameraUv.y * 79.0 - cameraUv.x * 7.0 + uTime * 0.24) * 0.18;
+  float warp =
+    fbm(
+      waterCoord * 0.72 +
+      vec2(uTime * 0.075 + uProgress * 1.8, -uTime * 0.028)
+    );
+
+  float flow =
+    fbm(
+      waterCoord * 1.34 +
+      vec2(
+        warp * (1.35 + uArtistSignature * 0.28),
+        -uTime * 0.052 + warp * 0.72 + uChapterProgress * 1.4
+      )
+    );
+
+  float fineFlow =
+    noise21(
+      waterCoord * 3.6 +
+      vec2(uTime * 0.11, -uTime * 0.07)
+    );
+
+  float waveField =
+    (flow - 0.49) * 1.46 +
+    (fineFlow - 0.5) * 0.23 +
+    sin(cameraUv.x * 19.0 + uTime * 0.22 + warp * 2.4) * 0.09;
+
+  float crossField =
+    (fbm(waterCoord.yx * 0.92 + vec2(-uTime * 0.035, uTime * 0.025)) - 0.5) *
+    0.72;
 
   cameraUv.x +=
-    longWave *
+    waveField *
     waterMask *
     waterDrive *
-    (0.0018 + nearWater * 0.0026);
+    (0.00155 + nearWater * 0.00235);
 
   cameraUv.y +=
-    crossWave *
+    crossField *
     waterMask *
     waterDrive *
-    (0.0011 + nearWater * 0.0018);
+    (0.00085 + nearWater * 0.00165);
 
   float inside = 1.0;
   vec3 world = fitWorld(cameraUv, inside);
@@ -143,54 +210,114 @@ void main() {
     return;
   }
 
-  float foam =
-    smoothstep(0.60, 0.94, abs(longWave + crossWave * 0.45)) *
-    nearWater *
-    uWater *
-    (0.025 + uAudio * 0.035);
+  world = gradeWorld(world);
 
-  world += vec3(0.74, 0.92, 0.36) * foam;
+  float foamRidge =
+    smoothstep(0.44, 0.82, abs(waveField * 0.84 + crossField * 0.46));
+  float foam =
+    foamRidge *
+    nearWater *
+    waterDrive *
+    (0.020 + uAudio * 0.028);
+
+  vec3 foamColor = mix(
+    vec3(0.74, 0.92, 0.36),
+    max(uArtistAccent, vec3(0.18)),
+    uArtistInfluence * 0.34
+  );
+  world += foamColor * foam;
 
   vec2 fogUv = vec2(
-    screenUv.x * 2.4 + uTime * 0.012,
-    screenTop * 2.1 - uTime * 0.008
+    screenUv.x * 2.15 + uTime * 0.010,
+    screenTop * 1.92 - uTime * 0.006
   );
-  float fogNoise =
-    noise21(fogUv * 2.0) * 0.65 +
-    noise21(fogUv * 4.1 + 17.0) * 0.35;
+  float fogNoise = fbm(fogUv * 2.05 + vec2(uProgress * 0.6, 0.0));
   float fogRegion =
-    smoothstep(0.13, 0.34, screenTop) *
-    (1.0 - smoothstep(0.68, 0.84, screenTop));
-  float fogAmount = fogRegion * fogNoise * uFog * 0.11;
-  world = mix(world, vec3(0.18, 0.13, 0.22), fogAmount);
+    smoothstep(0.12, 0.31, screenTop) *
+    (1.0 - smoothstep(0.70, 0.86, screenTop));
+
+  float fogDrive =
+    uFog *
+    mix(1.0, 0.78 + uArtistFog * 8.0, uArtistInfluence);
+  float fogAmount = fogRegion * fogNoise * fogDrive * 0.105;
+
+  vec3 fogColor = mix(
+    vec3(0.18, 0.13, 0.22),
+    uArtistAccent * 0.42 + vec3(0.055),
+    uArtistInfluence * 0.24
+  );
+  world = mix(world, fogColor, clamp(fogAmount, 0.0, 0.18));
 
   vec2 lightCenter = vec2(0.505, 0.455);
   vec2 aspectDelta = screenUv - lightCenter;
   aspectDelta.x *= uViewportAspect;
   float lightDistance = length(aspectDelta);
+
+  float lightDrive =
+    uLighthouse *
+    mix(1.0, 0.80 + uArtistLight * 0.62, uArtistInfluence);
+
   float lighthouseGlow =
     exp(-lightDistance * 20.0) *
-    uLighthouse *
-    (0.12 + uAudio * 0.05);
+    lightDrive *
+    (0.105 + uAudio * 0.048);
 
-  float sweepAngle = uTime * 0.14 + uProgress * 1.9;
+  float sweepAngle =
+    uTime * (0.105 + uArtistSignature * 0.02) +
+    uProgress * 1.9 +
+    uArtistInfluence * uArtistSignature * 0.26;
   vec2 sweepDirection = vec2(cos(sweepAngle), sin(sweepAngle) * 0.42);
   vec2 lightVector = normalize(aspectDelta + vec2(0.00001));
+
   float beam =
-    pow(max(dot(lightVector, sweepDirection), 0.0), 34.0) *
-    smoothstep(0.025, 0.34, lightDistance) *
+    pow(max(dot(lightVector, sweepDirection), 0.0), 38.0) *
+    smoothstep(0.028, 0.34, lightDistance) *
     (1.0 - smoothstep(0.34, 0.92, lightDistance)) *
-    uLighthouse *
-    0.06;
+    lightDrive *
+    0.055;
 
-  world += vec3(0.78, 1.0, 0.34) * (lighthouseGlow + beam);
+  vec3 lighthouseColor = mix(
+    vec3(0.78, 1.0, 0.34),
+    uArtistAccent,
+    uArtistInfluence * 0.27
+  );
+  world += lighthouseColor * (lighthouseGlow + beam);
 
-  float vignette = smoothstep(0.42, 0.78, distance(screenUv, vec2(0.5)));
-  world *= 1.0 - vignette * 0.08;
+  float particleDrive =
+    uParticles *
+    mix(1.0, 0.52 + uArtistParticles * 0.96, uArtistInfluence);
+
+  vec2 particleFlow = vec2(
+    screenUv.x * 17.0 + uTime * 0.008,
+    screenTop * 12.0 - uTime * (0.018 + uArtistSignature * 0.004)
+  );
+  vec2 particleCell = floor(particleFlow);
+  vec2 particleLocal = fract(particleFlow) - 0.5;
+  float particleSeed = hash21(particleCell + 31.7);
+  vec2 particleOffset = vec2(
+    hash21(particleCell + 4.7) - 0.5,
+    hash21(particleCell + 19.2) - 0.5
+  ) * 0.52;
+  float mote =
+    smoothstep(0.075, 0.008, length(particleLocal - particleOffset)) *
+    smoothstep(0.64, 0.96, particleSeed) *
+    particleDrive *
+    (1.0 - waterMask * 0.76);
+
+  world += mix(vec3(0.68, 0.72, 0.76), uArtistAccent, uArtistInfluence * 0.4) * mote * 0.22;
+
+  float artistGrade = uArtistInfluence * 0.075;
+  float artistLuma = dot(uArtistAccent, vec3(0.2126, 0.7152, 0.0722));
+  vec3 safeAccent = uArtistAccent / max(artistLuma, 0.24);
+  world = mix(world, world * mix(vec3(1.0), safeAccent, 0.10), artistGrade);
+
+  float vignette =
+    smoothstep(0.40, 0.80, distance(screenUv, vec2(0.5)));
+  world *= 1.0 - vignette * (0.035 + uVignette * 0.18);
 
   float film =
-    (hash21(gl_FragCoord.xy + floor(uTime * 12.0)) - 0.5) *
-    0.008;
+    (hash21(gl_FragCoord.xy + floor(uTime * 10.0)) - 0.5) *
+    0.0055;
   world += film;
 
   outColor = vec4(max(world, vec3(0.0)), 1.0);
@@ -237,6 +364,32 @@ function createProgram(gl: GL): WebGLProgram {
   return program;
 }
 
+function hexToRgb(hex: string): [number, number, number] {
+  const normalized = hex.trim().replace(/^#/, "");
+  const value = Number.parseInt(
+    normalized.length === 3
+      ? normalized.split("").map((digit) => digit + digit).join("")
+      : normalized,
+    16
+  );
+
+  if (!Number.isFinite(value)) return [0.72, 1.0, 0.42];
+
+  return [
+    ((value >> 16) & 255) / 255,
+    ((value >> 8) & 255) / 255,
+    (value & 255) / 255
+  ];
+}
+
+function signatureValue(
+  signature: ArtistChapterWorld["transitionSignature"]
+): number {
+  if (signature === "WEIGHT") return 0.28;
+  if (signature === "GROW") return 0.72;
+  return 0.5;
+}
+
 export class LivingWorldStage {
   private readonly host: HTMLElement;
   private readonly fallbackImage: HTMLImageElement;
@@ -256,6 +409,9 @@ export class LivingWorldStage {
   private pointerY = 0.42;
   private imageAspect = 2 / 3;
   private resizeObserver: ResizeObserver | null = null;
+  private artistWorld: ArtistChapterWorld | null = null;
+  private artistProgress = 0;
+  private artistAccent: [number, number, number] = [0.72, 1.0, 0.42];
 
   private readonly onPointerMove = (event: PointerEvent) => {
     if (this.quality.reducedMotion) return;
@@ -309,6 +465,12 @@ export class LivingWorldStage {
     this.story = state;
   }
 
+  setArtistWorld(world: ArtistChapterWorld, progress: number): void {
+    this.artistWorld = world;
+    this.artistProgress = Math.max(0, Math.min(1, progress));
+    this.artistAccent = hexToRgb(world.accent);
+  }
+
   setAudioEnergy(value: number): void {
     this.audioEnergy = Math.max(0, Math.min(1, value));
   }
@@ -329,6 +491,9 @@ export class LivingWorldStage {
       if (this.program) gl.deleteProgram(this.program);
     }
 
+    this.texture = null;
+    this.vao = null;
+    this.program = null;
     this.canvas.remove();
     this.host.dataset.worldRuntime = "fallback";
   }
@@ -412,7 +577,7 @@ export class LivingWorldStage {
 
     gl.useProgram(this.program);
     const sampler = gl.getUniformLocation(this.program, "uWorld");
-    if (sampler) gl.uniform1i(sampler, 0);
+    if (sampler !== null) gl.uniform1i(sampler, 0);
   }
 
   private resize(): void {
@@ -420,7 +585,7 @@ export class LivingWorldStage {
     if (!gl) return;
 
     const dpr = Math.min(
-      this.quality.tier === "MEDIUM" ? 1.15 : 1.35,
+      this.quality.tier === "MEDIUM" ? 1.12 : 1.32,
       Math.max(1, this.quality.pixelRatio)
     );
     const width = Math.max(1, Math.round(innerWidth * dpr));
@@ -437,7 +602,7 @@ export class LivingWorldStage {
     const program = this.program;
     if (!gl || !program) return;
     const location = gl.getUniformLocation(program, name);
-    if (location) gl.uniform1f(location, value);
+    if (location !== null) gl.uniform1f(location, value);
   }
 
   private frame = (now: number): void => {
@@ -453,6 +618,14 @@ export class LivingWorldStage {
 
     const story = this.story;
     const world = story?.world;
+    const artistWorld = this.artistWorld;
+
+    const artistChapterActive =
+      story?.chapterId === "artists" || story?.chapterId === "dossiers";
+    const artistInfluence =
+      artistWorld && artistChapterActive
+        ? Math.min(1, 0.34 + this.artistProgress * 0.66)
+        : 0;
 
     gl.useProgram(program);
     gl.bindVertexArray(vao);
@@ -467,7 +640,21 @@ export class LivingWorldStage {
     this.uniform1("uFog", world?.fog ?? 0);
     this.uniform1("uLighthouse", world?.lighthouse ?? 0);
     this.uniform1("uDepth", world?.depth ?? 0);
+    this.uniform1("uParticles", world?.particles ?? 0);
+    this.uniform1("uBrightness", world?.brightness ?? 1);
+    this.uniform1("uSaturation", world?.saturation ?? 1);
+    this.uniform1("uContrast", world?.contrast ?? 1);
+    this.uniform1("uVignette", world?.vignette ?? 0.18);
     this.uniform1("uAudio", this.audioEnergy);
+    this.uniform1("uArtistInfluence", artistInfluence);
+    this.uniform1("uArtistWater", artistWorld?.waterResponse ?? 0.5);
+    this.uniform1("uArtistFog", artistWorld?.fogDensity ?? 0.025);
+    this.uniform1("uArtistLight", artistWorld?.lightResponse ?? 0.5);
+    this.uniform1("uArtistParticles", artistWorld?.particleResponse ?? 0.4);
+    this.uniform1(
+      "uArtistSignature",
+      artistWorld ? signatureValue(artistWorld.transitionSignature) : 0.5
+    );
     this.uniform1(
       "uViewportAspect",
       this.canvas.width / Math.max(this.canvas.height, 1)
@@ -476,8 +663,18 @@ export class LivingWorldStage {
     this.uniform1("uContain", innerWidth >= 1200 ? 1 : 0);
 
     const pointerLocation = gl.getUniformLocation(program, "uPointer");
-    if (pointerLocation) {
+    if (pointerLocation !== null) {
       gl.uniform2f(pointerLocation, this.pointerX, this.pointerY);
+    }
+
+    const accentLocation = gl.getUniformLocation(program, "uArtistAccent");
+    if (accentLocation !== null) {
+      gl.uniform3f(
+        accentLocation,
+        this.artistAccent[0],
+        this.artistAccent[1],
+        this.artistAccent[2]
+      );
     }
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
