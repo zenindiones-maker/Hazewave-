@@ -28,6 +28,9 @@ export function bootHazewaveSite(): void {
   const worldRelease = document.querySelector<HTMLElement>("#world-release");
   const worldTrack = document.querySelector<HTMLElement>("#world-track");
   const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-track-id]"));
+  const archiveButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-archive-track-id]")
+  );
 
   if (!stageHost || !player || !runtimeLabel || !stateLabel || !title || !artistLabel || !toggle || !seek || !timeCurrent || !timeTotal) return;
 
@@ -177,6 +180,23 @@ export function bootHazewaveSite(): void {
     button.addEventListener("click", () => {
       const trackId = button.dataset.trackId;
       if (trackId) void selectTrack(trackId);
+    });
+  });
+
+  archiveButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const trackId = button.dataset.archiveTrackId;
+      if (!trackId) return;
+
+      stageHost.scrollIntoView({
+        behavior: quality.reducedMotion ? "auto" : "smooth",
+        block: "start"
+      });
+
+      window.setTimeout(
+        () => void selectTrack(trackId),
+        quality.reducedMotion ? 0 : 260
+      );
     });
   });
 
