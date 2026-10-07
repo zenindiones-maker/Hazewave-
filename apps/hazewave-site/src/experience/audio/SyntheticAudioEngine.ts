@@ -7,6 +7,7 @@ export class HazewaveAudioEngine {
   private master: GainNode | null = null;
   private analyser: AnalyserNode | null = null;
   private uiMaster: GainNode | null = null;
+  private uiCompressor: DynamicsCompressorNode | null = null;
   private nodes: AudioScheduledSourceNode[] = [];
   private mediaElement: HTMLAudioElement | null = null;
   private mediaSource: MediaElementAudioSourceNode | null = null;
@@ -30,9 +31,16 @@ export class HazewaveAudioEngine {
       this.energyBuffer = new Uint8Array(this.analyser.frequencyBinCount);
       this.uiMaster = this.context.createGain();
       this.uiMaster.gain.value = 0.16;
+      this.uiCompressor = this.context.createDynamicsCompressor();
+      this.uiCompressor.threshold.value = -18;
+      this.uiCompressor.knee.value = 14;
+      this.uiCompressor.ratio.value = 5;
+      this.uiCompressor.attack.value = 0.004;
+      this.uiCompressor.release.value = 0.12;
       this.master.connect(this.analyser);
       this.analyser.connect(this.context.destination);
-      this.uiMaster.connect(this.context.destination);
+      this.uiMaster.connect(this.uiCompressor);
+      this.uiCompressor.connect(this.context.destination);
     }
     if (this.context.state === "suspended") await this.context.resume();
   }
@@ -127,7 +135,7 @@ export class HazewaveAudioEngine {
     await this.play(this.currentTrack, clamped);
   }
 
-  cue(kind: "SELECTED" | "CONTACT" | "EJECT"): void {
+  cue(kind: "SELECTED" | "CONTACT" | "EJECT", pan = 0): void {
     if (!this.context || !this.uiMaster) return;
 
     const ctx = this.context;
@@ -138,6 +146,11 @@ export class HazewaveAudioEngine {
     const click = ctx.createBufferSource();
     const clickGain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
+    const cueBus = ctx.createGain();
+    const panner = ctx.createStereoPanner();
+
+    cueBus.gain.value = 1;
+    panner.pan.value = Math.max(-0.72, Math.min(0.72, pan));
 
     const noise = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * 0.045)), ctx.sampleRate);
     const channel = noise.getChannelData(0);
@@ -181,8 +194,9 @@ export class HazewaveAudioEngine {
       clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
     }
 
-    tone.connect(toneGain).connect(this.uiMaster);
-    click.connect(filter).connect(clickGain).connect(this.uiMaster);
+    tone.connect(toneGain).connect(cueBus);
+    click.connect(filter).connect(clickGain).connect(cueBus);
+    cueBus.connect(panner).connect(this.uiMaster);
 
     tone.start(now);
     tone.stop(now + 0.22);
