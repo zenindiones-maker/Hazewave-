@@ -4,7 +4,7 @@ umask 077
 
 # Run from existing Hazewave Codespace; never switch the active branch.
 MAIN_REPO="/workspaces/Hazewave-"
-REF="work/reflex-robustness-risk-v3"
+REF="work/reflex-latency-v1"
 EXPECTED_CODESPACE="${HAZEWAVE_REFLEX_EXPECTED_CODESPACE:-redesigned-space-bassoon-gxp67g5g7r739w59}"
 RUN_ROOT="${HOME}/.local/share/hazewave/reflex-shadow-runtime"
 SOURCE_ROOT="${HOME}/.local/share/hazewave/providers/colibri/source"
@@ -233,29 +233,189 @@ PY
   echo "REFLEX_INFERENCE_PROVEN=FALSE"
 }
 
+port_is_free() {
+  "$PYTHON_BIN" - "$PORT" <<'PY'
+import socket, sys
+s = socket.socket()
+try:
+    s.bind(("127.0.0.1", int(sys.argv[1])))
+except OSError:
+    raise SystemExit(1)
+finally:
+    s.close()
+PY
+}
+
+wait_health() {
+  local attempts="${1:-120}"
+  "$PYTHON_BIN" - "$PORT" "$SECRET_FILE" "$attempts" <<'PY'
+import json
+import sys
+import time
+from pathlib import Path
+import httpx
+
+port = int(sys.argv[1])
+secret = Path(sys.argv[2]).read_text(encoding="utf-8").strip()
+attempts = int(sys.argv[3])
+url = f"http://127.0.0.1:{port}/health"
+headers = {"Authorization": f"Bearer {secret}"}
+for _ in range(attempts):
+    try:
+        reply = httpx.get(url, headers=headers, timeout=1.0, trust_env=False)
+        if reply.status_code == 200:
+            body = reply.json()
+            if isinstance(body, dict) and body.get("status") == "ok":
+                print("REFLEX_LATENCY_SERVER_HEALTH=PASS")
+                raise SystemExit(0)
+    except (httpx.HTTPError, ValueError):
+        pass
+    time.sleep(1.0)
+raise SystemExit("REFLEX_LATENCY_SERVER_HEALTH_TIMEOUT")
+PY
+}
+
 serve() {
   ensure_checkout
   "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE" >/dev/null || die "RUNTIME_DOCTOR_BLOCKED"
   [[ -f "$SECRET_FILE" && ! -L "$SECRET_FILE" ]] || die "COLIBRI_SECRET_MISSING"
   [[ "$(stat -c %a "$SECRET_FILE")" == "600" ]] || die "COLIBRI_SECRET_PERMISSIONS_INVALID"
-  # Do not kill/replace any other service; refuse the port when already in use.
-  "$PYTHON_BIN" - "$PORT" <<'PY'
-import socket,sys
-s=socket.socket()
-try:
-    s.bind(("127.0.0.1",int(sys.argv[1])))
-except OSError as e:
-    raise SystemExit(f"REFLEX_PORT_ALREADY_BOUND:{e}")
-finally:
-    s.close()
-PY
-  cd "$SOURCE_ROOT"
+  port_is_free || die "REFLEX_PORT_ALREADY_BOUND"
   echo "REFLEX_COLIBRI_SERVE=FOREGROUND"
   echo "REFLEX_MODEL=laya"
   echo "REFLEX_BIND=127.0.0.1:$PORT"
-  # The bearer key is not echoed or persisted into the repository.
-  OMP_NUM_THREADS=2 COLI_MODEL="$MODEL_ROOT" COLI_API_KEY="$(cat "$SECRET_FILE")" \
-    ./c/coli serve --host 127.0.0.1 --port "$PORT" --model-id laya
+  exec "$PYTHON_BIN" -m hazewave.reflex_latency server \
+    --source-root "$SOURCE_ROOT" \
+    --model-root "$MODEL_ROOT" \
+    --secret-file "$SECRET_FILE" \
+    --state-root "$STATE_ROOT" \
+    --port "$PORT"
+}
+
+latency_profiles() {
+  ensure_checkout
+  "$PYTHON_BIN" -m hazewave.reflex_latency profiles
+}
+
+latency_selected() {
+  ensure_checkout
+  "$PYTHON_BIN" -m hazewave.reflex_latency selected --state-root "$STATE_ROOT"
+}
+
+latency_tune() {
+  ensure_checkout
+  "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE" >/dev/null || die "RUNTIME_DOCTOR_BLOCKED"
+  [[ -f "$SECRET_FILE" && ! -L "$SECRET_FILE" ]] || die "COLIBRI_SECRET_MISSING"
+  [[ "$(stat -c %a "$SECRET_FILE")" == "600" ]] || die "COLIBRI_SECRET_PERMISSIONS_INVALID"
+  port_is_free || die "LATENCY_TUNE_PORT_BUSY_STOP_SERVE_FIRST"
+
+  local stamp run_dir profile pid rc
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  run_dir="$STATE_ROOT/latency/runs/$stamp"
+  mkdir -p "$run_dir"
+  chmod 700 "$STATE_ROOT/latency" "$STATE_ROOT/latency/runs" "$run_dir" 2>/dev/null || true
+
+  echo "REFLEX_LATENCY_RUN_DIR=$run_dir"
+  echo "REFLEX_LATENCY_MODE=SEQUENTIAL_PROFILE_SWEEP"
+  echo "REFLEX_LATENCY_NOTE=one_laya_server_at_a_time"
+
+  mapfile -t profiles < <("$PYTHON_BIN" -m hazewave.reflex_latency profiles)
+  [[ "${#profiles[@]}" -ge 2 ]] || die "LATENCY_PROFILE_LIST_INVALID"
+
+  stop_profile_server() {
+    local owned_pid="$1"
+    if kill -0 "$owned_pid" 2>/dev/null; then
+      "$SOURCE_ROOT/c/coli" stop --port "$PORT" >/dev/null 2>&1 || true
+      for _ in $(seq 1 20); do
+        kill -0 "$owned_pid" 2>/dev/null || break
+        sleep 0.25
+      done
+    fi
+    if kill -0 "$owned_pid" 2>/dev/null; then
+      kill -TERM "$owned_pid" 2>/dev/null || true
+      for _ in $(seq 1 20); do
+        kill -0 "$owned_pid" 2>/dev/null || break
+        sleep 0.25
+      done
+    fi
+    if kill -0 "$owned_pid" 2>/dev/null; then
+      kill -KILL "$owned_pid" 2>/dev/null || true
+    fi
+    wait "$owned_pid" 2>/dev/null || true
+    port_is_free || die "LATENCY_PROFILE_SERVER_DID_NOT_RELEASE_PORT"
+  }
+
+  for profile in "${profiles[@]}"; do
+    echo "=== REFLEX LATENCY PROFILE: $profile ==="
+    port_is_free || die "LATENCY_PROFILE_PORT_NOT_FREE:$profile"
+
+    "$PYTHON_BIN" -m hazewave.reflex_latency server \
+      --source-root "$SOURCE_ROOT" \
+      --model-root "$MODEL_ROOT" \
+      --secret-file "$SECRET_FILE" \
+      --state-root "$STATE_ROOT" \
+      --port "$PORT" \
+      --profile "$profile" \
+      >"$run_dir/$profile.server.log" 2>&1 &
+    pid=$!
+
+    if ! wait_health 180; then
+      tail -n 40 "$run_dir/$profile.server.log" >&2 || true
+      stop_profile_server "$pid"
+      die "LATENCY_PROFILE_SERVER_START_FAILED:$profile"
+    fi
+
+    set +e
+    "$PYTHON_BIN" -m hazewave.reflex_latency measure \
+      --profile "$profile" \
+      --secret-file "$SECRET_FILE" \
+      >"$run_dir/$profile.json"
+    rc=$?
+    set -e
+
+    stop_profile_server "$pid"
+
+    if [[ "$rc" -ne 0 ]]; then
+      echo "REFLEX_LATENCY_PROFILE_MEASURE=FAIL:$profile:$rc" >&2
+      cat "$run_dir/$profile.json" >&2 || true
+      die "LATENCY_PROFILE_MEASURE_FAILED:$profile"
+    fi
+
+    "$PYTHON_BIN" - "$run_dir/$profile.json" <<'PY'
+import json, sys
+row = json.load(open(sys.argv[1], encoding="utf-8"))
+lat = row["latency"]
+print(
+    "REFLEX_LATENCY_PROFILE_RESULT="
+    f"{row['profile']}:"
+    f"p50={lat['wall']['p50_ms']:.3f}:"
+    f"p95={lat['wall']['p95_ms']:.3f}:"
+    f"engine_p50={lat['engine']['p50_ms']}:"
+    f"failures={row['failed_requests']}:"
+    f"robust={row['all_robust_eligible']}"
+)
+PY
+  done
+
+  "$PYTHON_BIN" -m hazewave.reflex_latency select \
+    --run-dir "$run_dir" \
+    --state-root "$STATE_ROOT"
+  echo "REFLEX_LATENCY_TUNE=PASS"
+  echo "REFLEX_LATENCY_RESTART_REQUIRED=TRUE"
+}
+
+latency_report() {
+  ensure_checkout
+  local active latest
+  active="$("$PYTHON_BIN" -m hazewave.reflex_latency selected --state-root "$STATE_ROOT")"
+  latest="$(find "$STATE_ROOT/latency/runs" -mindepth 2 -maxdepth 2 -name selection.json -type f 2>/dev/null | sort | tail -n 1 || true)"
+  echo "REFLEX_LATENCY_SELECTED_PROFILE=$active"
+  if [[ -n "$latest" ]]; then
+    echo "REFLEX_LATENCY_LATEST_SELECTION=$latest"
+    cat "$latest"
+  else
+    echo "REFLEX_LATENCY_LATEST_SELECTION=NONE"
+  fi
 }
 
 smoke() {
@@ -283,5 +443,9 @@ case "${1:-}" in
   smoke) smoke ;;
   observe) shift; observe "${1:-}" ;;
   report) report ;;
-  *) echo "usage: $0 {doctor|prepare|serve|smoke|observe EVENT.json|report}" >&2; exit 2 ;;
+  latency-profiles) latency_profiles ;;
+  latency-selected) latency_selected ;;
+  latency-tune) latency_tune ;;
+  latency-report) latency_report ;;
+  *) echo "usage: $0 {doctor|prepare|serve|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report}" >&2; exit 2 ;;
 esac
