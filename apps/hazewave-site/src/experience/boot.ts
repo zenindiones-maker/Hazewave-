@@ -95,7 +95,7 @@ export function bootHazewaveSite(): void {
         );
 
         title.textContent = track.title;
-        artistLabel.textContent = `${artist.name} / ${manifest.bpm} BPM / ${track.rights.class}`;
+        artistLabel.textContent = `${artist.name.replace(" / DEMO", "")} · ${artist.releaseTitle} · ${manifest.bpm} BPM`;
       });
 
       await audio.prepare(track);
