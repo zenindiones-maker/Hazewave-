@@ -22,6 +22,29 @@ async function focusStorySection(page: Page, selector: string): Promise<void> {
   );
 }
 
+async function focusStoryFraction(
+  page: Page,
+  selector: string,
+  fraction: number
+): Promise<void> {
+  const locator = page.locator(selector);
+  await locator.evaluate((element, rawFraction) => {
+    const fraction = Math.max(0, Math.min(1, Number(rawFraction)));
+    const rect = element.getBoundingClientRect();
+    const top = window.scrollY + rect.top;
+    const probeInside = Math.max(1, rect.height * fraction);
+    const target = top + probeInside - window.innerHeight * 0.5;
+    window.scrollTo({ top: Math.max(0, target), behavior: "auto" });
+  }, fraction);
+
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      )
+  );
+}
+
 test("renders semantic catalog and reaches PLAYING from one click", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.locator("#experience-title")).toHaveText("Escolha a fita.");
@@ -610,26 +633,72 @@ test("WebGL world context loss falls back and restores without blanking essentia
   await expect(host.locator("img")).toBeVisible();
 });
 
-test("living world checkpoints produce reviewable viewport proofs", async ({ page }, testInfo) => {
-  const viewport = page.viewportSize();
-  test.skip(!viewport || viewport.width < 1000, "desktop visual-proof capture");
+test("living world checkpoints produce the full narrative visual proof matrix", async ({ page }, testInfo) => {
+  const capture = async (name: string) => {
+    await page.screenshot({
+      path: testInfo.outputPath(`${testInfo.project.name}-${name}.png`),
+      fullPage: false
+    });
+  };
+
+  const runBeatSequence = async (prefix: string) => {
+    await focusStorySection(page, "#threshold");
+    await capture(`${prefix}-world-sleep`);
+
+    await focusStoryFraction(page, "#archive", 0.36);
+    await capture(`${prefix}-world-awakening`);
+
+    await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.28);
+    await capture(`${prefix}-artist-01-enter`);
+
+    const aetherFocus = page.locator("[data-artist-focus='aether']");
+    await aetherFocus.click();
+    await expect(page.locator("[data-artist-focus-panel='aether']")).toHaveAttribute("data-open", "true");
+    await capture(`${prefix}-artist-01-focus`);
+
+    await aetherFocus.click();
+    await expect(page.locator("[data-artist-focus-panel='aether']")).toHaveAttribute("data-open", "false");
+
+    await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.88);
+    await capture(`${prefix}-artist-transition`);
+
+    await focusStoryFraction(page, "[data-artist-chapter='monolith']", 0.3);
+    await capture(`${prefix}-artist-02-enter`);
+
+    await focusStoryFraction(page, "[data-artist-chapter='flora']", 0.3);
+    await capture(`${prefix}-artist-03-enter`);
+
+    await focusStoryFraction(page, "#objects", 0.24);
+    await capture(`${prefix}-merch-approach`);
+
+    await page.evaluate(() =>
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: "auto"
+      })
+    );
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        )
+    );
+    await capture(`${prefix}-merch-final`);
+  };
 
   await page.goto("/");
 
-  const beats = [
-    { selector: "#threshold", name: "world-sleep" },
-    { selector: "#archive", name: "world-awakening" },
-    { selector: "#artist-worlds", name: "artist-discovery" },
-    { selector: "#objects", name: "merch-approach" }
-  ] as const;
+  const viewport = page.viewportSize();
+  if (!viewport) throw new Error("VIEWPORT_UNAVAILABLE");
 
-  for (const beat of beats) {
-    await page.locator(beat.selector).scrollIntoViewIfNeeded();
-    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
-    await page.screenshot({
-      path: testInfo.outputPath(`${beat.name}.png`),
-      fullPage: false
-    });
+  if (testInfo.project.name === "chromium-desktop") {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await runBeatSequence("desktop-standard");
+
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await runBeatSequence("desktop-wide");
+  } else {
+    await runBeatSequence("mobile-portrait");
   }
 });
 
