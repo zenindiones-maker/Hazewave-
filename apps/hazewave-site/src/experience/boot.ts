@@ -281,11 +281,27 @@ export function bootHazewaveSite(): void {
     }
   };
 
-  buttons.forEach((button) => {
+  buttons.forEach((button, index) => {
     button.setAttribute("aria-pressed", "false");
     button.addEventListener("click", () => {
       const trackId = button.dataset.trackId;
       if (trackId) void selectTrack(trackId);
+    });
+
+    button.addEventListener("keydown", (event) => {
+      const horizontal =
+        event.key === "ArrowRight" || event.key === "ArrowLeft";
+      const boundary = event.key === "Home" || event.key === "End";
+      if (!horizontal && !boundary) return;
+
+      event.preventDefault();
+      let nextIndex = index;
+      if (event.key === "ArrowRight") nextIndex = (index + 1) % buttons.length;
+      if (event.key === "ArrowLeft") nextIndex = (index - 1 + buttons.length) % buttons.length;
+      if (event.key === "Home") nextIndex = 0;
+      if (event.key === "End") nextIndex = buttons.length - 1;
+
+      buttons[nextIndex]?.focus({ preventScroll: false });
     });
   });
 
