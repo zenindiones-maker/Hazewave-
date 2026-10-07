@@ -66,3 +66,11 @@ test("premium stage replaces WebGL hero with cinematic resonance objects", async
   await expect(page.locator("#resonance-canvas")).toHaveCount(0);
   await expect(page.locator("#runtime-label")).toContainText("CINEMATIC DOM");
 });
+
+
+test("premium idle composition is reviewable", async ({ page }, testInfo) => {
+  await page.goto("/");
+  await expect(page.locator("#resonance-deck")).toBeVisible();
+  await expect(page.locator(".resonance-artifact")).toHaveCount(6);
+  await page.screenshot({ path: testInfo.outputPath("idle-premium.png"), fullPage: true });
+});
