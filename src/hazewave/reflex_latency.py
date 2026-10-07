@@ -236,14 +236,26 @@ def _authorization():
 def _proof_question() -> dict[str, Any]:
     return {
         "type": "choice",
-        "instructions": "Select the best Hazewave domain for this structured operational state.",
+        "instructions": (
+            "Choose the domain owning the task's primary responsibility. "
+            "Treat final output medium as secondary evidence."
+        ),
         "criteria": {
-            "HAZE": "audio engineering, mixing and mastering",
-            "WAVE": "animation, images, video, and interactive sites",
-            "BRIDGE": "explicit cross-domain media coordination",
+            "HAZE": (
+                "Primary responsibility: audio creation, engineering, analysis, mixing, "
+                "mastering, voice, music, beat, or REAPER work."
+            ),
+            "WAVE": (
+                "Primary responsibility: visual or interactive creation, including images, "
+                "video, animation, rendering, compositing, or websites."
+            ),
+            "BRIDGE": (
+                "Primary responsibility: cross-domain translation or synchronization of "
+                "typed metadata or control signals between audio and visual systems while "
+                "preserving each domain's authority."
+            ),
         },
     }
-
 
 def _read_secret(path: Path) -> str:
     if path.is_symlink() or not path.is_file():
