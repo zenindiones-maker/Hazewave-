@@ -3,7 +3,7 @@ import { HazewaveAudioEngine } from "./audio/SyntheticAudioEngine";
 import { bridgeFixtureManifest } from "./bridge/visualManifest";
 import { detectQuality } from "./quality/quality";
 import { PlayerMachine, type PlayerPhase } from "./state/playerMachine";
-import { ScrollConductor } from "./story/ScrollConductor";
+import { ScrollConductor, type StoryRuntimeState } from "./story/ScrollConductor";
 
 interface StageController {
   select(trackId: string): Promise<void>;
@@ -21,6 +21,12 @@ interface AtmosphereController {
   setEnergy(value: number): void;
   setProgress(value: number): void;
   setPlaying(playing: boolean): void;
+  dispose(): void;
+}
+
+interface LivingWorldController {
+  setStoryState(state: StoryRuntimeState): void;
+  setAudioEnergy(value: number): void;
   dispose(): void;
 }
 
@@ -50,6 +56,7 @@ export function bootHazewaveSite(): void {
   );
   const enterArchive = document.querySelector<HTMLButtonElement>("#enter-archive");
   const loader = document.querySelector<HTMLElement>("#site-loader");
+  const backdropHost = document.querySelector<HTMLElement>(".site-backdrop");
   const backdropImage = document.querySelector<HTMLImageElement>(".site-backdrop img");
   const wheel = document.querySelector<HTMLElement>("#player-wheel");
   const wheelControl = document.querySelector<HTMLElement>("#wheel-ring-control");
@@ -69,7 +76,38 @@ export function bootHazewaveSite(): void {
   document.documentElement.dataset.qualityTier = quality.tier;
   document.documentElement.dataset.reducedMotion = String(quality.reducedMotion);
 
-  const conductor = new ScrollConductor(quality.reducedMotion);
+  let livingWorld: LivingWorldController | null = null;
+  let pendingStoryState: StoryRuntimeState | null = null;
+
+  const conductor = new ScrollConductor(
+    quality.reducedMotion,
+    (state) => {
+      pendingStoryState = state;
+      livingWorld?.setStoryState(state);
+    }
+  );
+
+  const livingWorldEligible =
+    !quality.reducedMotion &&
+    quality.tier !== "LOW" &&
+    Boolean(backdropHost && backdropImage);
+
+  if (livingWorldEligible && backdropHost && backdropImage) {
+    void import("./world/LivingWorldStage")
+      .then(({ LivingWorldStage }) =>
+        LivingWorldStage.create(backdropHost, backdropImage, quality)
+      )
+      .then((created) => {
+        livingWorld = created;
+        if (pendingStoryState) created.setStoryState(pendingStoryState);
+      })
+      .catch((error) => {
+        backdropHost.dataset.worldRuntime = "fallback";
+        console.warn("Hazewave living-world WebGL2 fallback:", error);
+      });
+  } else if (backdropHost) {
+    backdropHost.dataset.worldRuntime = "css-fallback";
+  }
 
   if (enterArchive) {
     enterArchive.addEventListener("click", () => conductor.scrollTo("#archive"));
@@ -709,6 +747,7 @@ export function bootHazewaveSite(): void {
     const energy = audio.energy();
     experience?.setSignalEnergy(energy);
     atmosphere?.setEnergy(energy);
+    livingWorld?.setAudioEnergy(energy);
     if ((spectrumFrame++ & 1) === 0) {
       experience?.setSpectrum(audio.spectrumBands(8));
     }
@@ -814,6 +853,11 @@ export function bootHazewaveSite(): void {
         frameP95Ms: stageHost.dataset.frameP95Ms ?? "warming",
         performanceMode: stageHost.dataset.performance ?? "standard",
         gpuAtmosphere: stageHost.dataset.gpuAtmosphere ?? "off",
+        worldRuntime: backdropHost?.dataset.worldRuntime ?? "unavailable",
+        storyProgress: pendingStoryState
+          ? Number(pendingStoryState.globalProgress.toFixed(4))
+          : 0,
+        storyBeat: pendingStoryState?.narrativeBeat ?? "WORLD_SLEEP",
         selectionToContactMs:
           lastSelectionToContactMs === null ? null : Number(lastSelectionToContactMs.toFixed(1)),
         contactToAudioMs:
@@ -848,6 +892,7 @@ export function bootHazewaveSite(): void {
       document.removeEventListener("visibilitychange", syncVisibility);
       experience?.dispose();
       atmosphere?.dispose();
+      livingWorld?.dispose();
       conductor.dispose();
     },
     { once: true }
