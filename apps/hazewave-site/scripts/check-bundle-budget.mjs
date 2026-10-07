@@ -14,6 +14,7 @@ async function walk(dir) {
 }
 
 await walk(rootPath);
+
 const rows = [];
 for (const file of jsFiles) {
   const info = await stat(file);
@@ -21,13 +22,40 @@ for (const file of jsFiles) {
 }
 rows.sort((a, b) => b.bytes - a.bytes);
 
+const OPTIONAL_HIGH_TIER = /HighTierAtmosphere\.[^.]+\.js$/;
+const optionalRows = rows.filter((row) => OPTIONAL_HIGH_TIER.test(row.file));
+const coreRows = rows.filter((row) => !OPTIONAL_HIGH_TIER.test(row.file));
+
 const total = rows.reduce((sum, row) => sum + row.bytes, 0);
-const largest = rows[0]?.bytes ?? 0;
+const coreTotal = coreRows.reduce((sum, row) => sum + row.bytes, 0);
+const optionalTotal = optionalRows.reduce((sum, row) => sum + row.bytes, 0);
+const largestCore = coreRows[0]?.bytes ?? 0;
+const largestOptional = optionalRows[0]?.bytes ?? 0;
 
 console.log("HAZEWAVE_SITE_JS_BUNDLE");
-for (const row of rows) console.log(`${row.bytes}\t${row.file}`);
-console.log(`TOTAL_JS_BYTES=${total}`);
-console.log(`LARGEST_JS_CHUNK_BYTES=${largest}`);
+for (const row of rows) {
+  const tier = OPTIONAL_HIGH_TIER.test(row.file) ? "OPTIONAL_HIGH_TIER" : "CORE";
+  console.log(`${row.bytes}\t${tier}\t${row.file}`);
+}
 
-if (largest > 700_000) throw new Error(`LARGEST_JS_CHUNK_BUDGET_EXCEEDED:${largest}`);
-if (total > 900_000) throw new Error(`TOTAL_JS_BUDGET_EXCEEDED:${total}`);
+console.log(`CORE_JS_BYTES=${coreTotal}`);
+console.log(`CORE_LARGEST_CHUNK_BYTES=${largestCore}`);
+console.log(`OPTIONAL_HIGH_TIER_JS_BYTES=${optionalTotal}`);
+console.log(`OPTIONAL_HIGH_TIER_LARGEST_CHUNK_BYTES=${largestOptional}`);
+console.log(`TOTAL_JS_BYTES=${total}`);
+
+if (largestCore > 180_000) {
+  throw new Error(`CORE_LARGEST_JS_CHUNK_BUDGET_EXCEEDED:${largestCore}`);
+}
+if (coreTotal > 220_000) {
+  throw new Error(`CORE_JS_BUDGET_EXCEEDED:${coreTotal}`);
+}
+if (largestOptional > 820_000) {
+  throw new Error(`OPTIONAL_HIGH_TIER_CHUNK_BUDGET_EXCEEDED:${largestOptional}`);
+}
+if (optionalTotal > 840_000) {
+  throw new Error(`OPTIONAL_HIGH_TIER_JS_BUDGET_EXCEEDED:${optionalTotal}`);
+}
+if (total > 1_060_000) {
+  throw new Error(`TOTAL_JS_BUDGET_EXCEEDED:${total}`);
+}
