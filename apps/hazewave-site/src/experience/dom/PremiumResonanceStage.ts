@@ -35,6 +35,7 @@ export class PremiumResonanceStage {
   private frameSamples: number[] = [];
   private lastFrame = performance.now();
   private metricCounter = 0;
+  private readonly activeAnimations = new Set<gsap.core.Animation>();
   private slowFrameWindows = 0;
   private recoveryFrameWindows = 0;
   private pointerMoveHandler: ((event: PointerEvent) => void) | null = null;
@@ -220,6 +221,8 @@ export class PremiumResonanceStage {
 
   dispose(): void {
     cancelAnimationFrame(this.raf);
+    for (const animation of this.activeAnimations) animation.kill();
+    this.activeAnimations.clear();
     gsap.killTweensOf(".cinematic-artifact-clone");
     if (this.pointerMoveHandler) this.host.removeEventListener("pointermove", this.pointerMoveHandler);
     if (this.pointerLeaveHandler) this.host.removeEventListener("pointerleave", this.pointerLeaveHandler);
@@ -320,14 +323,16 @@ export class PremiumResonanceStage {
     gsap.set(this.deck, { opacity: 0, y: 22, scale: 0.975 });
     gsap.set(this.artifacts, { opacity: 0, y: 20 });
 
-    const timeline = gsap.timeline({
-      onComplete: () => {
-        this.host.dataset.revealState = "settled";
-      },
-      onInterrupt: () => {
-        this.host.dataset.revealState = "settled";
-      }
+    let timeline: gsap.core.Timeline;
+    const settleReveal = () => {
+      this.host.dataset.revealState = "settled";
+      this.activeAnimations.delete(timeline);
+    };
+    timeline = gsap.timeline({
+      onComplete: settleReveal,
+      onInterrupt: settleReveal
     });
+    this.activeAnimations.add(timeline);
     timeline.to(this.deck, {
       opacity: 1,
       y: 0,
@@ -725,20 +730,32 @@ export class PremiumResonanceStage {
 
   private tween(target: gsap.TweenTarget, vars: gsap.TweenVars): Promise<void> {
     return new Promise((resolve) => {
-      gsap.to(target, {
+      let tween: gsap.core.Tween;
+      const settle = () => {
+        this.activeAnimations.delete(tween);
+        resolve();
+      };
+      tween = gsap.to(target, {
         ...vars,
-        onComplete: resolve,
-        onInterrupt: resolve
+        onComplete: settle,
+        onInterrupt: settle
       });
+      this.activeAnimations.add(tween);
     });
   }
 
   private timeline(build: (timeline: gsap.core.Timeline) => void): Promise<void> {
     return new Promise((resolve) => {
-      const timeline = gsap.timeline({
-        onComplete: resolve,
-        onInterrupt: resolve
+      let timeline: gsap.core.Timeline;
+      const settle = () => {
+        this.activeAnimations.delete(timeline);
+        resolve();
+      };
+      timeline = gsap.timeline({
+        onComplete: settle,
+        onInterrupt: settle
       });
+      this.activeAnimations.add(timeline);
       build(timeline);
     });
   }
