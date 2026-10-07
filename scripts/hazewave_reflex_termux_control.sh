@@ -4,7 +4,10 @@ umask 077
 
 REPO_SLUG="${HAZEWAVE_REFLEX_REPO:-zenindiones-maker/Hazewave-}"
 DEFAULT_CS="hazewave-zero-cost-4jxp45676rq6279xx"
-REF="${HAZEWAVE_REFLEX_REF:-work/hazewave-always-ready-v1}"
+DEFAULT_REF="work/hazewave-always-ready-v1"
+REF_PIN_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/hazewave/reflex"
+REF_PIN_FILE="$REF_PIN_DIR/ref"
+REF=""
 MAIN_REPO="/workspaces/Hazewave-"
 RUN_ROOT="${HOME}/.local/share/hazewave/reflex-shadow-runtime"
 WORKTREE="${RUN_ROOT}/checkout"
@@ -16,6 +19,90 @@ fail() {
     printf '%s\n' "HAZEWAVE_REFLEX_CONTROL=FAIL:$*" >&2
     exit 20
 }
+
+validate_ref() {
+    local candidate="$1"
+    [[ -n "$candidate" ]] || fail "REF_EMPTY"
+    [[ "${#candidate}" -le 200 ]] || fail "REF_TOO_LONG"
+    [[ "$candidate" =~ ^[A-Za-z0-9._/-]+$ ]] || fail "REF_CHARACTERS_INVALID"
+    [[ "$candidate" != *".."* ]] || fail "REF_DOTDOT_INVALID"
+    [[ "$candidate" != *"//"* ]] || fail "REF_DOUBLE_SLASH_INVALID"
+    [[ "$candidate" != *"@{"* ]] || fail "REF_REFLOG_SYNTAX_INVALID"
+    git check-ref-format --branch "$candidate" >/dev/null 2>&1       || fail "REF_GIT_FORMAT_INVALID:$candidate"
+}
+
+resolve_ref() {
+    local candidate mode extra
+
+    if [[ -n "${HAZEWAVE_REFLEX_REF:-}" ]]; then
+        candidate="$HAZEWAVE_REFLEX_REF"
+        validate_ref "$candidate"
+        echo "REFLEX_REF_SOURCE=ENVIRONMENT" >&2
+        printf '%s\n' "$candidate"
+        return 0
+    fi
+
+    if [[ -e "$REF_PIN_FILE" || -L "$REF_PIN_FILE" ]]; then
+        [[ -f "$REF_PIN_FILE" && ! -L "$REF_PIN_FILE" ]]           || fail "REF_PIN_FILE_INVALID_TYPE"
+        mode="$(stat -c %a "$REF_PIN_FILE" 2>/dev/null || true)"
+        [[ "$mode" == "600" ]] || fail "REF_PIN_FILE_PERMISSIONS_INVALID:$mode"
+        [[ "$(wc -c < "$REF_PIN_FILE")" -le 256 ]] || fail "REF_PIN_FILE_TOO_LARGE"
+        IFS= read -r candidate < "$REF_PIN_FILE" || fail "REF_PIN_FILE_UNREADABLE"
+        extra="$(tail -n +2 "$REF_PIN_FILE" 2>/dev/null || true)"
+        [[ -z "$extra" ]] || fail "REF_PIN_FILE_MULTILINE"
+        validate_ref "$candidate"
+        echo "REFLEX_REF_SOURCE=PINNED_CONFIG" >&2
+        printf '%s\n' "$candidate"
+        return 0
+    fi
+
+    validate_ref "$DEFAULT_REF"
+    echo "REFLEX_REF_SOURCE=DEFAULT" >&2
+    printf '%s\n' "$DEFAULT_REF"
+}
+
+pin_ref() {
+    local candidate="$1" tmp
+    validate_ref "$candidate"
+    mkdir -p "$REF_PIN_DIR"
+    chmod 700 "$REF_PIN_DIR"
+    [[ ! -L "$REF_PIN_FILE" ]] || fail "REF_PIN_FILE_SYMLINK_FORBIDDEN"
+    tmp="$(mktemp "$REF_PIN_DIR/.ref.XXXXXX")"
+    printf '%s\n' "$candidate" > "$tmp"
+    chmod 600 "$tmp"
+    mv -f "$tmp" "$REF_PIN_FILE"
+    chmod 600 "$REF_PIN_FILE"
+    echo "REFLEX_REF_PIN=PASS"
+    echo "REFLEX_REF_PINNED=$candidate"
+    echo "REFLEX_REF_PIN_FILE=$REF_PIN_FILE"
+}
+
+clear_ref_pin() {
+    if [[ -L "$REF_PIN_FILE" ]]; then
+        fail "REF_PIN_FILE_SYMLINK_FORBIDDEN"
+    fi
+    rm -f "$REF_PIN_FILE"
+    echo "REFLEX_REF_CLEAR=PASS"
+    echo "REFLEX_REF_FALLBACK=$DEFAULT_REF"
+}
+
+case "$action" in
+    ref-pin)
+        candidate="${2:-}"
+        [[ -n "$candidate" ]] || {
+            echo "usage: hazewave-reflex ref-pin BRANCH" >&2
+            exit 2
+        }
+        pin_ref "$candidate"
+        exit 0
+        ;;
+    ref-clear)
+        clear_ref_pin
+        exit 0
+        ;;
+esac
+
+REF="$(resolve_ref)"
 
 codespace_metadata_row() {
     local target="$1"
@@ -296,6 +383,16 @@ run_remote() {
 action="${1:-status}"
 
 case "$action" in
+    ref-status)
+        echo "REFLEX_TARGET_REF=$REF"
+        echo "REFLEX_REF_PIN_FILE=$REF_PIN_FILE"
+        if [[ -f "$REF_PIN_FILE" && ! -L "$REF_PIN_FILE" ]]; then
+            echo "REFLEX_REF_PIN_PRESENT=TRUE"
+        else
+            echo "REFLEX_REF_PIN_PRESENT=FALSE"
+        fi
+        ;;
+
     install-check)
         echo "CONTROLLER=PASS"
         echo "PATH=${BASH_SOURCE[0]}"
@@ -415,7 +512,7 @@ case "$action" in
 
     *)
         cat >&2 <<'USAGE'
-usage: hazewave-reflex {status|list|wake|ready|stop|doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-retire-stale-selection|latency-tune|latency-report|latency-engine-tune|latency-engine-profile|latency-engine-report|latency-scale-probe|install-check}
+usage: hazewave-reflex {ref-pin BRANCH|ref-clear|ref-status|status|list|wake|ready|stop|doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-retire-stale-selection|latency-tune|latency-report|latency-engine-tune|latency-engine-profile|latency-engine-report|latency-scale-probe|install-check}
 USAGE
         exit 2
         ;;
