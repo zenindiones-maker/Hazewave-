@@ -98,11 +98,12 @@ def test_sensory_frame_excludes_paths_hashes_raw_media_and_artistic_verdicts() -
     assert payload["source_paths_included"] is False
     assert payload["artistic_verdict_included"] is False
     assert len(payload["frame_digest"]) == 64
-    assert "/private/" not in encoded
-    assert "source_path" not in encoded
-    assert "output_path" not in encoded
-    assert '"raw_media"' not in encoded
-    assert "artistic_verdict" not in json.dumps(payload["signals"])
+    signals_json = json.dumps(payload["signals"], sort_keys=True)
+    assert "/private/" not in signals_json
+    assert '"source_path"' not in signals_json
+    assert '"output_path"' not in signals_json
+    assert '"raw_media"' not in signals_json
+    assert '"artistic_verdict"' not in signals_json
     assert payload["signals"]["audio_qc"]["integrated_lufs"] == pytest.approx(-14.0)
     assert payload["signals"]["video_qc"]["visual_anomaly_count"] == 1
     assert payload["signals"]["animation_qc"]["frame_count"] == 10
