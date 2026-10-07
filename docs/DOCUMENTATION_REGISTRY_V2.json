@@ -323,6 +323,24 @@
         "music_experience"
       ],
       "description": "Execution specification for WAVE to build the Hazewave interactive music site with a premium cinematic interaction bar, zero-cost-first capability acquisition, dependency admission gates, mobile/performance/accessibility requirements and real implementation deliverables."
+    },
+    {
+      "id": "wave-design-frontier-2026",
+      "path": "docs/wave/WAVE_DESIGN_FRONTIER_2026.md",
+      "type": "CAPABILITY_STANDARD",
+      "authority": "CANONICAL",
+      "status": "DEVELOPMENT",
+      "owner": "WAVE",
+      "applies_to": [
+        "WAVE",
+        "visual.site",
+        "visual.render",
+        "visual.animate",
+        "visual.image",
+        "interactive_web",
+        "design_system"
+      ],
+      "description": "2026 frontier standard for WAVE visual design, interaction, WebGPU/TSL, GSAP motion, authoring tools, audio-reactive design, performance tiers and evidence-based capability adoption."
     }
   ]
 }
