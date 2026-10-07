@@ -942,3 +942,30 @@ test("living water exposes the reflection model without replacing owner art", as
     "/media/hazewave-world.jpg.webp"
   );
 });
+
+
+test("artist identity emerges inside the persistent world instead of a giant card", async ({ page }) => {
+  await page.goto("/");
+
+  await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.12);
+  await expect(page.locator("html")).toHaveAttribute("data-scroll-artist", "aether");
+  await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "EMERGE");
+
+  const aether = page.locator(".world-artist-echo[data-world-artist-id='aether']");
+  const monolith = page.locator(".world-artist-echo[data-world-artist-id='monolith']");
+
+  await expect.poll(
+    async () => Number(await aether.evaluate((node) => getComputedStyle(node).opacity)),
+    { timeout: 2_000 }
+  ).toBeGreaterThan(0.5);
+
+  expect(Number(await monolith.evaluate((node) => getComputedStyle(node).opacity))).toBeLessThan(0.1);
+
+  await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.90);
+  await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "TRANSITION");
+
+  await expect.poll(
+    async () => Number(await aether.evaluate((node) => getComputedStyle(node).opacity)),
+    { timeout: 2_000 }
+  ).toBeLessThan(0.5);
+});
