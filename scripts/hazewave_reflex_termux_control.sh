@@ -166,6 +166,35 @@ case "$action" in
         gh codespace list           -R "$REPO_SLUG"           --limit 20           --json name,state,repository,lastUsedAt,machineName
         ;;
 
+    wake)
+        gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
+        ensure_codespace
+        current_state="$(gh codespace view -c "$CS" --json state --jq '.state')" || fail "CODESPACE_VIEW_FAILED"
+        if [[ "$current_state" != "Available" ]]; then
+            gh api --method POST -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2026-03-10" "/user/codespaces/$CS/start" >/dev/null || fail "CODESPACE_START_FAILED"
+        fi
+        for _ in $(seq 1 60); do
+            current_state="$(gh codespace view -c "$CS" --json state --jq '.state')" || fail "CODESPACE_VIEW_FAILED"
+            echo "REFLEX_CODESPACE_STATE=$current_state"
+            [[ "$current_state" == "Available" ]] && break
+            sleep 2
+        done
+        [[ "$current_state" == "Available" ]] || fail "CODESPACE_START_TIMEOUT"
+        echo "REFLEX_CODESPACE_WAKE=PASS"
+        echo "REFLEX_TARGET_CODESPACE=$CS"
+        ;;
+
+    stop)
+        gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
+        ensure_codespace
+        current_state="$(gh codespace view -c "$CS" --json state --jq '.state')" || fail "CODESPACE_VIEW_FAILED"
+        if [[ "$current_state" == "Available" ]]; then
+            gh codespace stop -c "$CS" || fail "CODESPACE_STOP_FAILED"
+        fi
+        echo "REFLEX_CODESPACE_STOP_REQUESTED=PASS"
+        echo "REFLEX_TARGET_CODESPACE=$CS"
+        ;;
+
     doctor|prepare|smoke|report)
         gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
         run_remote "$action"
@@ -198,7 +227,7 @@ case "$action" in
 
     *)
         cat >&2 <<'USAGE'
-usage: hazewave-reflex {status|list|doctor|prepare|serve|smoke|observe EVENT.json|report|install-check}
+usage: hazewave-reflex {status|list|wake|stop|doctor|prepare|serve|smoke|observe EVENT.json|report|install-check}
 USAGE
         exit 2
         ;;
