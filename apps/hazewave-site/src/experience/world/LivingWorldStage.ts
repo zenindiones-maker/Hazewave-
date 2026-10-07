@@ -206,6 +206,59 @@ void main() {
       foregroundBand * 0.0022
     );
 
+  // Each demo artist changes the physics of the SAME owner artwork instead of
+  // swapping backgrounds. The signatures are intentionally restrained:
+  // REFRACT bends space, WEIGHT pulls it downward, GROW opens it radially.
+  float refractSignature =
+    1.0 - smoothstep(0.0, 0.18, abs(uArtistSignature - 0.50));
+  float weightSignature =
+    1.0 - smoothstep(0.0, 0.18, abs(uArtistSignature - 0.28));
+  float growSignature =
+    1.0 - smoothstep(0.0, 0.18, abs(uArtistSignature - 0.72));
+
+  vec2 artistDelta = cameraUv - uArtistFocusPoint;
+  artistDelta.x *= uViewportAspect;
+  float artistDistance = length(artistDelta);
+  vec2 artistDirection =
+    artistDistance > 0.0001
+      ? artistDelta / artistDistance
+      : vec2(0.0);
+
+  float signaturePresence =
+    uArtistInfluence *
+    (0.46 + phaseVisual * 0.24 + phaseTransition * 0.16);
+
+  float refractWave =
+    sin(
+      artistDistance * 34.0 -
+      uChapterProgress * 8.0 +
+      uTime * 0.16
+    ) *
+    exp(-artistDistance * 3.7);
+
+  cameraUv +=
+    artistDirection *
+    refractWave *
+    refractSignature *
+    signaturePresence *
+    0.0018;
+
+  cameraUv.y +=
+    weightSignature *
+    signaturePresence *
+    smoothstep(0.04, 0.62, artistDistance) *
+    (0.0010 + uVelocity * 0.00055);
+
+  float growField =
+    exp(-artistDistance * 4.8) *
+    (0.54 + 0.46 * sin(uChapterProgress * 4.6 + uTime * 0.10));
+  cameraUv -=
+    artistDirection *
+    growField *
+    growSignature *
+    signaturePresence *
+    0.00155;
+
   float waterMask =
     smoothstep(0.69, 0.80, screenTop) *
     (1.0 - smoothstep(0.995, 1.0, screenTop));
@@ -376,6 +429,12 @@ void main() {
     (0.016 + uAudio * 0.010 + uHigh * 0.005);
 
   world += lighthouseColor * lighthouseReflection;
+
+  float focusHalo =
+    exp(-artistDistance * 8.4) *
+    uArtistFocus *
+    (0.014 + uArtistInfluence * 0.018);
+  world += uArtistAccent * focusHalo;
 
   float particleDrive =
     uParticles *
