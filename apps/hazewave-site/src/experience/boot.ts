@@ -939,7 +939,9 @@ export function bootHazewaveSite(): void {
     atmosphere?.setEnergy(energy);
     livingWorld?.setAudioEnergy(energy);
     if ((spectrumFrame++ & 1) === 0) {
-      experience?.setSpectrum(audio.spectrumBands(8));
+      const spectrum = audio.spectrumBands(8);
+      experience?.setSpectrum(spectrum);
+      livingWorld?.setSpectrum(spectrum);
     }
 
     const activeTrack = audio.track;
