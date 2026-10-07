@@ -131,7 +131,10 @@ ensure_codespace() {
 
 copy_controller() {
     ensure_codespace
-    gh codespace cp       -c "$CS"       "${BASH_SOURCE[0]}"       "remote:$REMOTE_SELF"       || fail "TERMUX_CONTROLLER_COPY_FAILED"
+    gh codespace ssh -c "$CS" \
+      "umask 077; cat > '$REMOTE_SELF' && chmod 700 '$REMOTE_SELF'" \
+      < "${BASH_SOURCE[0]}" \
+      || fail "TERMUX_CONTROLLER_COPY_FAILED"
 }
 
 run_remote() {
@@ -216,8 +219,11 @@ case "$action" in
         }
         ensure_codespace
         copy_controller
-        remote_event="/tmp/hazewave-reflex-event-$$.json"
-        gh codespace cp -c "$CS" "$event" "remote:$remote_event" || fail "TERMUX_EVENT_COPY_FAILED"
+        remote_event="/tmp/hazewave-reflex-event-$.json"
+        gh codespace ssh -c "$CS" \
+          "umask 077; cat > '$remote_event' && chmod 600 '$remote_event'" \
+          < "$event" \
+          || fail "TERMUX_EVENT_COPY_FAILED"
         set +e
         gh codespace ssh -c "$CS"           "HAZEWAVE_REFLEX_EXPECTED_CODESPACE='$CS' bash '$REMOTE_SELF' _remote observe '$remote_event'; rc=\$?; rm -f '$remote_event'; exit \$rc"
         rc=$?
