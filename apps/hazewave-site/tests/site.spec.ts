@@ -186,3 +186,22 @@ test("mobile object selection keeps the stage viewport stable", async ({ page })
   const after = await page.evaluate(() => window.scrollY);
   expect(Math.abs(after - before)).toBeLessThan(4);
 });
+
+
+test("mobile premium composition has no debug beacon or page overflow", async ({ page }) => {
+  const viewport = page.viewportSize();
+  test.skip(!viewport || viewport.width > 600, "mobile-only composition proof");
+
+  await page.goto("/");
+  await expect(page.locator(".deck-beacon")).toBeHidden();
+
+  const overflow = await page.evaluate(() => ({
+    width: window.innerWidth,
+    scrollWidth: document.documentElement.scrollWidth
+  }));
+
+  expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.width + 1);
+  await expect(page.locator(".artifact-field")).toBeVisible();
+  await expect(page.locator("[data-track-id='aether-01'] .artifact-contacts i")).toHaveCount(5);
+  await expect(page.locator("#deck-slot .slot-contact-rail i")).toHaveCount(5);
+});
