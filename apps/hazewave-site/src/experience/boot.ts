@@ -52,6 +52,7 @@ export function bootHazewaveSite(): void {
   const loader = document.querySelector<HTMLElement>("#site-loader");
   const backdropImage = document.querySelector<HTMLImageElement>(".site-backdrop img");
   const wheel = document.querySelector<HTMLElement>("#player-wheel");
+  const wheelControl = document.querySelector<HTMLElement>("#wheel-ring-control");
   const wheelVolume = document.querySelector<HTMLElement>("#wheel-volume");
   const wheelActions = Array.from(
     document.querySelectorAll<HTMLButtonElement>("[data-wheel-action]")
@@ -385,11 +386,11 @@ export function bootHazewaveSite(): void {
   };
 
   const syncWheelVolume = () => {
-    if (!wheel || !wheelVolume) return;
+    if (!wheelControl || !wheelVolume) return;
     const percent = Math.round(audio.volume * 100);
     wheelVolume.textContent = String(percent);
-    wheel.setAttribute("aria-valuenow", String(percent));
-    wheel.setAttribute("aria-valuetext", `Volume ${percent}%`);
+    wheelControl.setAttribute("aria-valuenow", String(percent));
+    wheelControl.setAttribute("aria-valuetext", `Volume ${percent}%`);
   };
 
   const setWheelVolume = (value: number) => {
@@ -408,26 +409,26 @@ export function bootHazewaveSite(): void {
 
   syncWheelVolume();
 
-  if (wheel) {
+  if (wheel && wheelControl) {
     let pointerId: number | null = null;
     let lastAngle = 0;
 
     const angleForPointer = (event: PointerEvent) => {
-      const rect = wheel.getBoundingClientRect();
+      const rect = wheelControl.getBoundingClientRect();
       const x = event.clientX - (rect.left + rect.width / 2);
       const y = event.clientY - (rect.top + rect.height / 2);
       return Math.atan2(y, x);
     };
 
-    wheel.addEventListener("pointerdown", (event) => {
+    wheelControl.addEventListener("pointerdown", (event) => {
       if ((event.target as Element | null)?.closest("button")) return;
       pointerId = event.pointerId;
       lastAngle = angleForPointer(event);
-      wheel.setPointerCapture(event.pointerId);
+      wheelControl.setPointerCapture(event.pointerId);
       event.preventDefault();
     });
 
-    wheel.addEventListener("pointermove", (event) => {
+    wheelControl.addEventListener("pointermove", (event) => {
       if (pointerId !== event.pointerId) return;
       const angle = angleForPointer(event);
       let delta = angle - lastAngle;
@@ -440,12 +441,12 @@ export function bootHazewaveSite(): void {
     const releaseWheel = (event: PointerEvent) => {
       if (pointerId !== event.pointerId) return;
       pointerId = null;
-      try { wheel.releasePointerCapture(event.pointerId); } catch {}
+      try { wheelControl.releasePointerCapture(event.pointerId); } catch {}
     };
-    wheel.addEventListener("pointerup", releaseWheel);
-    wheel.addEventListener("pointercancel", releaseWheel);
+    wheelControl.addEventListener("pointerup", releaseWheel);
+    wheelControl.addEventListener("pointercancel", releaseWheel);
 
-    wheel.addEventListener("keydown", (event) => {
+    wheelControl.addEventListener("keydown", (event) => {
       if (event.key === "ArrowUp" || event.key === "ArrowRight") {
         event.preventDefault();
         setWheelVolume(audio.volume + 0.05);
