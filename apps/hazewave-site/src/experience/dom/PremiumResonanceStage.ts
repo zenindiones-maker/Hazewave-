@@ -46,6 +46,7 @@ export class PremiumResonanceStage {
 
     this.host.dataset.runtime = "DOM_CINEMATIC";
     this.host.dataset.quality = quality.tier;
+    this.reveal();
     this.frame();
   }
 
@@ -108,6 +109,33 @@ export class PremiumResonanceStage {
   dispose(): void {
     cancelAnimationFrame(this.raf);
     gsap.killTweensOf(".cinematic-artifact-clone");
+  }
+
+  private reveal(): void {
+    if (this.quality.reducedMotion) return;
+
+    gsap.set(this.deck, { opacity: 0, y: 22, scale: 0.975 });
+    gsap.set(this.artifacts, { opacity: 0, y: 20 });
+
+    const timeline = gsap.timeline();
+    timeline.to(this.deck, {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      duration: 0.72,
+      ease: "power3.out"
+    });
+    timeline.to(
+      this.artifacts,
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.42,
+        stagger: 0.055,
+        ease: "power3.out"
+      },
+      "-=0.38"
+    );
   }
 
   private async animateSelection(source: HTMLButtonElement, title: string, artist: string): Promise<void> {
