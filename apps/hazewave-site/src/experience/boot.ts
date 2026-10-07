@@ -814,15 +814,18 @@ export function bootHazewaveSite(): void {
       return Math.atan2(y, x);
     };
 
-    wheel.addEventListener("pointerdown", (event) => {
-      if ((event.target as Element | null)?.closest("button")) return;
+    // The visual wheel container is intentionally non-hit-testable. The
+    // dedicated ring owns rotary pointer input while its sibling keys remain
+    // independent physical targets. This avoids the ring swallowing taps on
+    // mobile after transformed/scaled deck layout.
+    wheelControl.addEventListener("pointerdown", (event) => {
       pointerId = event.pointerId;
       lastAngle = angleForPointer(event);
-      wheel.setPointerCapture(event.pointerId);
+      wheelControl.setPointerCapture(event.pointerId);
       event.preventDefault();
     });
 
-    wheel.addEventListener("pointermove", (event) => {
+    wheelControl.addEventListener("pointermove", (event) => {
       if (pointerId !== event.pointerId) return;
       const angle = angleForPointer(event);
       let delta = angle - lastAngle;
@@ -846,10 +849,10 @@ export function bootHazewaveSite(): void {
     const releaseWheel = (event: PointerEvent) => {
       if (pointerId !== event.pointerId) return;
       pointerId = null;
-      try { wheel.releasePointerCapture(event.pointerId); } catch {}
+      try { wheelControl.releasePointerCapture(event.pointerId); } catch {}
     };
-    wheel.addEventListener("pointerup", releaseWheel);
-    wheel.addEventListener("pointercancel", releaseWheel);
+    wheelControl.addEventListener("pointerup", releaseWheel);
+    wheelControl.addEventListener("pointercancel", releaseWheel);
 
     wheelControl.addEventListener("keydown", (event) => {
       if (wheelMode === "tracks") {
