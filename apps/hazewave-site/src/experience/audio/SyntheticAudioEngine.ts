@@ -32,6 +32,9 @@ export class HazewaveAudioEngine {
       this.master.gain.value = 0.82;
       this.analyser = this.context.createAnalyser();
       this.analyser.fftSize = 256;
+      this.analyser.minDecibels = -92;
+      this.analyser.maxDecibels = -12;
+      this.analyser.smoothingTimeConstant = 0.86;
       this.energyBuffer = new Uint8Array(this.analyser.frequencyBinCount);
       this.uiMaster = this.context.createGain();
       this.uiMaster.gain.value = 0.16;
