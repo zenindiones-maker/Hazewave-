@@ -234,3 +234,22 @@ test("keyboard arrows navigate physical music objects", async ({ page }) => {
   await page.keyboard.press("Home");
   await expect(first).toBeFocused();
 });
+
+
+test("track end becomes replayable without desynchronizing the Deck", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("[data-track-id='aether-01']").click();
+  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
+
+  const seek = page.locator("#player-seek");
+  await seek.fill("23.85");
+  await seek.dispatchEvent("change");
+
+  await expect(page.locator("#state-label")).toHaveText("ENDED", { timeout: 2_000 });
+  await expect(page.locator("#toggle-play")).toHaveText("REPLAY");
+  await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
+
+  await page.locator("#toggle-play").click();
+  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 2_000 });
+  await expect(page.locator("#toggle-play")).toHaveText("PAUSE");
+});
