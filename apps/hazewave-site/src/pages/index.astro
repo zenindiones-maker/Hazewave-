@@ -21,6 +21,19 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
       <span class="site-backdrop-water"></span>
       <span class="site-backdrop-fog"></span>
       <span class="site-backdrop-light"></span>
+      <div class="world-artist-echoes" aria-hidden="true">
+        {artistChapters.map((chapter, index) => (
+          <span
+            class="world-artist-echo"
+            data-world-artist-id={chapter.id}
+            style={`--echo-accent:${chapter.world.accent};--echo-index:${index};`}
+          >
+            <small>0{index + 1} / DEMO WORLD</small>
+            <strong>{chapter.displayName}</strong>
+            <i>{chapter.world.transitionSignature}</i>
+          </span>
+        ))}
+      </div>
       <span class="site-backdrop-scrim"></span>
     </div>
 
