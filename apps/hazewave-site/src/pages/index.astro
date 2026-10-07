@@ -339,11 +339,18 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
               data-authority={chapter.authority}
               style={`--chapter-accent:${chapter.world.accent};--chapter-secondary:${chapter.world.secondary};--chapter-bg:${chapter.world.background};--chapter-index:${artistIndex};`}
             >
-              <div class="artist-chapter-mark" aria-hidden="true">
+              <button
+                class="artist-chapter-mark"
+                type="button"
+                data-artist-focus={chapter.id}
+                aria-expanded="false"
+                aria-controls={`artist-focus-${chapter.id}`}
+                aria-label={`Entrar no mundo de ${chapter.displayName}`}
+              >
                 <span>0{artistIndex + 1}</span>
-                <i></i>
+                <i aria-hidden="true"></i>
                 <small>{chapter.world.transitionSignature}</small>
-              </div>
+              </button>
 
               <div class="artist-chapter-copy">
                 <span class="artist-chapter-kicker">DEMO ARTIST WORLD</span>
@@ -369,6 +376,40 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
                 <span>WORLD SIGNAL</span>
                 <strong>{chapter.authority}</strong>
                 <i></i>
+              </div>
+
+              <div
+                id={`artist-focus-${chapter.id}`}
+                class="artist-focus-portal"
+                data-artist-focus-panel={chapter.id}
+                data-open="false"
+              >
+                <div class="artist-focus-meta">
+                  <span>IN-WORLD FOCUS</span>
+                  <strong>{chapter.displayName}</strong>
+                </div>
+
+                <div class="artist-focus-video" data-video-portal={chapter.id} data-authorized={String(Boolean(chapter.videoSource))}>
+                  {chapter.videoSource ? (
+                    <button
+                      type="button"
+                      data-video-source={chapter.videoSource}
+                      data-video-artist={chapter.id}
+                      aria-label={`Abrir clipe autorizado de ${chapter.displayName}`}
+                    >
+                      OPEN VISUAL
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      aria-label={`Clipe de ${chapter.displayName} ainda não autorizado`}
+                    >
+                      VIDEO AUTHORITY UNSET
+                    </button>
+                  )}
+                  <div class="artist-video-mount" data-video-mount={chapter.id}></div>
+                </div>
               </div>
             </article>
           ))}
