@@ -242,7 +242,7 @@ def test_robust_route_uses_observation_deadline_wider_than_latency_gate() -> Non
         executor=executor,
     )
 
-    assert calls[0]["timeout_seconds"] == 10.0
+    assert calls[0]["timeout_seconds"] == 30.0
     assert result.base_verdict.threshold_eligible is False
     assert "LATENCY_BUDGET_EXCEEDED" in result.base_verdict.reasons
     assert result.disposition == "SHADOW_RECOMMENDATION"
