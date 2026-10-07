@@ -424,23 +424,31 @@ function compileShader(
 
 function createProgram(gl: GL): WebGLProgram {
   const vertex = compileShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER);
-  const fragment = compileShader(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER);
-  const program = gl.createProgram();
-  if (!program) throw new Error("WORLD_PROGRAM_ALLOCATION_FAILED");
+  let fragment: WebGLShader | null = null;
+  let program: WebGLProgram | null = null;
 
-  gl.attachShader(program, vertex);
-  gl.attachShader(program, fragment);
-  gl.linkProgram(program);
-  gl.deleteShader(vertex);
-  gl.deleteShader(fragment);
+  try {
+    fragment = compileShader(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER);
+    program = gl.createProgram();
+    if (!program) throw new Error("WORLD_PROGRAM_ALLOCATION_FAILED");
 
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    const info = gl.getProgramInfoLog(program) ?? "unknown link error";
-    gl.deleteProgram(program);
-    throw new Error(`WORLD_PROGRAM_LINK_FAILED:${info}`);
+    gl.attachShader(program, vertex);
+    gl.attachShader(program, fragment);
+    gl.linkProgram(program);
+
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      const info = gl.getProgramInfoLog(program) ?? "unknown link error";
+      throw new Error(`WORLD_PROGRAM_LINK_FAILED:${info}`);
+    }
+
+    return program;
+  } catch (error) {
+    if (program) gl.deleteProgram(program);
+    throw error;
+  } finally {
+    gl.deleteShader(vertex);
+    if (fragment) gl.deleteShader(fragment);
   }
-
-  return program;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -709,6 +717,13 @@ export class LivingWorldStage {
     this.texture = gl.createTexture();
 
     if (!this.vao || !this.texture) {
+      if (this.texture) gl.deleteTexture(this.texture);
+      if (this.vao) gl.deleteVertexArray(this.vao);
+      if (this.program) gl.deleteProgram(this.program);
+      this.texture = null;
+      this.vao = null;
+      this.program = null;
+      this.uniformLocations.clear();
       throw new Error("WORLD_GPU_RESOURCE_ALLOCATION_FAILED");
     }
 
