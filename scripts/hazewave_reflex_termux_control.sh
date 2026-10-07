@@ -156,7 +156,7 @@ remote_main() {
     export HAZEWAVE_REFLEX_CANDIDATE_REF="refs/remotes/origin/$REF"
 
     case "$action" in
-        doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|report|latency-profiles|latency-selected|latency-retire-stale-selection|latency-tune|latency-report|latency-engine-tune|latency-engine-report|latency-scale-probe)
+        doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|report|latency-profiles|latency-selected|latency-retire-stale-selection|latency-tune|latency-report|latency-engine-tune|latency-engine-profile|latency-engine-report|latency-scale-probe)
             exec bash "$control" "$action"
             ;;
         observe)
@@ -366,6 +366,12 @@ case "$action" in
         run_remote "$action"
         ;;
 
+    latency-engine-profile)
+        gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
+        ensure_codespace_available
+        run_remote "$action"
+        ;;
+
     latency-engine-report)
         gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
         ensure_codespace_available
@@ -409,7 +415,7 @@ case "$action" in
 
     *)
         cat >&2 <<'USAGE'
-usage: hazewave-reflex {status|list|wake|ready|stop|doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-retire-stale-selection|latency-tune|latency-report|latency-engine-tune|latency-engine-report|latency-scale-probe|install-check}
+usage: hazewave-reflex {status|list|wake|ready|stop|doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-retire-stale-selection|latency-tune|latency-report|latency-engine-tune|latency-engine-profile|latency-engine-report|latency-scale-probe|install-check}
 USAGE
         exit 2
         ;;
