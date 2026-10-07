@@ -133,7 +133,9 @@ export class HighTierAtmosphere {
     const gpu = (navigator as Navigator & { gpu?: WebGpuHandle }).gpu;
     if (!gpu) throw new Error("WEBGPU_UNAVAILABLE");
 
-    const adapter = await gpu.requestAdapter({ powerPreference: "high-performance" });
+    // This atmosphere is deliberately light. Let the user agent select the adapter
+    // instead of forcing a high-power GPU, which can unnecessarily hurt battery life.
+    const adapter = await gpu.requestAdapter();
     if (!adapter) throw new Error("WEBGPU_ADAPTER_UNAVAILABLE");
 
     const device = await adapter.requestDevice();
@@ -334,7 +336,15 @@ export class HighTierAtmosphere {
 
     pass.setPipeline(this.pipeline);
     pass.setBindGroup(0, this.bindGroup);
-    pass.draw(6, this.particleCount);
+
+    const reduced = this.host.dataset.performance === "reduced";
+    const drawCount = reduced
+      ? Math.max(18, Math.ceil(this.particleCount * 0.45))
+      : this.playing
+        ? this.particleCount
+        : Math.max(24, Math.ceil(this.particleCount * 0.62));
+
+    pass.draw(6, drawCount);
     pass.end();
 
     this.device.queue.submit([encoder.finish()]);
