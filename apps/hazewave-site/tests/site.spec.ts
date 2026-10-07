@@ -387,7 +387,9 @@ test("archive exposes one physical cassette per artist while wheel owns tracklis
 
   const cassettes = page.locator("[data-artist-cassette='true']");
   await expect(cassettes).toHaveCount(3);
-  await expect(cassettes).toHaveAttribute("data-loaded", "false");
+  expect(await cassettes.evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute("data-loaded"))
+  )).toEqual(["false", "false", "false"]);
 
   await page.locator("[data-track-id='aether-01']").click();
   await expect(page.locator("#player-title")).toHaveText("Pale Current", { timeout: 6_000 });
