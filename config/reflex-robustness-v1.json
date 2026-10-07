@@ -9,10 +9,10 @@
     "capabilities": [
       "decision.route"
     ],
-    "strategy": "CYCLIC_ROTATIONS_IN_ONE_SYSTEM_ONE_BATCH",
+    "strategy": "COMPLETE_PERMUTATIONS_IN_ONE_SYSTEM_ONE_BATCH",
     "aggregation": "ARITHMETIC_MEAN_PROBABILITIES",
-    "max_labels": 8,
-    "max_rotations": 4,
+    "max_labels": 3,
+    "max_rotations": 6,
     "min_winner_agreement": 1,
     "max_normalized_jsd": 0.08,
     "raw_system_one_confidence_correctness_probability": false
