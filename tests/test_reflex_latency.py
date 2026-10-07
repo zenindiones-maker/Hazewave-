@@ -7,6 +7,7 @@ import pytest
 from jsonschema import Draft202012Validator
 
 import hazewave.reflex_latency as latency
+import hazewave.reflex_shadow_runtime as shadow_runtime
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -66,6 +67,10 @@ def test_latency_policy_validates_against_schema() -> None:
     loaded = latency.load_latency_policy()
     assert loaded["activation_state"] == "MEASURE_BEFORE_ACTIVATE"
     assert loaded["provider_authority"] == "NONE"
+
+
+def test_latency_benchmark_uses_the_same_route_question_as_shadow_runtime() -> None:
+    assert latency._proof_question() == shadow_runtime._proof_question()
 
 
 def test_latency_profiles_only_expose_allowlisted_openmp_controls() -> None:
