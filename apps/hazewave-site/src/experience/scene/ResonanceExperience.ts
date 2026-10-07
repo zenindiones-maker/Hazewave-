@@ -230,7 +230,7 @@ export class ResonanceExperience {
     await this.animate(680, (t) => {
       const p = path.getPoint(easeInOutCubic(t));
       record.group.position.copy(p);
-      THREE.Quaternion.slerp(startQuaternion, alignQuaternion, record.group.quaternion, easeInOutCubic(t));
+      record.group.quaternion.copy(startQuaternion).slerp(alignQuaternion, easeInOutCubic(t));
       record.group.scale.setScalar(1.06 - 0.04 * t);
       this.camera.position.x = THREE.MathUtils.lerp(0, start.x * -0.06, t);
     });
@@ -273,7 +273,7 @@ export class ResonanceExperience {
     const qStart = record.group.quaternion.clone();
     await this.animate(this.quality.reducedMotion ? 40 : 430, (t) => {
       record.group.position.lerpVectors(retreat, record.homePosition, easeInOutCubic(t));
-      THREE.Quaternion.slerp(qStart, record.homeQuaternion, record.group.quaternion, easeInOutCubic(t));
+      record.group.quaternion.copy(qStart).slerp(record.homeQuaternion, easeInOutCubic(t));
     });
   }
 
