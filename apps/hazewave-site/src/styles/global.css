@@ -328,6 +328,20 @@ h1{
   background:linear-gradient(115deg,rgba(255,255,255,.2),transparent 26%,transparent 68%,rgba(255,255,255,.07));
   mix-blend-mode:screen;opacity:.62
 }
+.artifact-artwork{
+  position:absolute;z-index:1;inset:10px;width:calc(100% - 20px);height:calc(100% - 20px);
+  color:var(--accent);opacity:.58;overflow:visible
+}
+.artifact-artwork *{
+  fill:none;stroke:currentColor;stroke-width:1.5;vector-effect:non-scaling-stroke
+}
+.artwork-aether circle:nth-child(2){opacity:.58}
+.artwork-aether circle:nth-child(3){fill:currentColor;stroke:none;opacity:.85}
+.artwork-aether path{opacity:.44}
+.artwork-monolith rect:first-child{opacity:.7}
+.artwork-monolith rect:nth-child(2),.artwork-monolith path{opacity:.35}
+.artwork-flora path:nth-child(n+2){fill:color-mix(in srgb,var(--accent),transparent 76%);opacity:.78}
+.artwork-flora circle{fill:currentColor;stroke:none;opacity:.9}
 .artifact-signal{
   position:absolute;z-index:2;left:50%;top:49%;width:56px;height:56px;transform:translate(-50%,-50%);
   border-radius:50%;border:1px solid color-mix(in srgb,var(--accent),transparent 30%);
