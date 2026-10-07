@@ -75,3 +75,15 @@ test("premium idle composition is reviewable", async ({ page }, testInfo) => {
   await page.waitForTimeout(900);
   await page.screenshot({ path: testInfo.outputPath("idle-premium.png"), fullPage: true });
 });
+
+
+test("artist world and physical dock remain coherent", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /Tocar Pale Current/ }).click();
+  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
+  await expect(page.locator("#premium-stage")).toHaveAttribute("data-artist", "aether");
+  await expect(page.locator("#world-release")).toHaveText("GLASS SIGNAL");
+  await expect(page.locator("#world-track")).toHaveText("PALE CURRENT");
+  await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
+  await expect(page.locator(".artist-index-card")).toHaveCount(3);
+});
