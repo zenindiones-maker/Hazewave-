@@ -61,7 +61,7 @@
           }
         },
         "strategy": {
-          "const": "CYCLIC_ROTATIONS_IN_ONE_SYSTEM_ONE_BATCH"
+          "const": "COMPLETE_PERMUTATIONS_IN_ONE_SYSTEM_ONE_BATCH"
         },
         "aggregation": {
           "const": "ARITHMETIC_MEAN_PROBABILITIES"
@@ -69,12 +69,12 @@
         "max_labels": {
           "type": "integer",
           "minimum": 2,
-          "maximum": 8
+          "maximum": 3
         },
         "max_rotations": {
           "type": "integer",
-          "minimum": 2,
-          "maximum": 8
+          "minimum": 6,
+          "maximum": 6
         },
         "min_winner_agreement": {
           "type": "number",
