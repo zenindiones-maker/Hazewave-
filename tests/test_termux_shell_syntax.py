@@ -213,4 +213,5 @@ def test_reflex_qi_profiler_patch_is_scoped_to_phase_profile_builder_and_binary_
     assert "REFLEX_QI_GEMM" in phase_block
     assert 'qi_path.write_text(qi_text, encoding="utf-8")' in phase_block
     assert 'grep -Fq "REFLEX_QI_GEMM" "$stage/c/qi_gemm.h"' in phase_block
-    assert 'strings "$stage/c/laya" | grep -Fq "REFLEX_QI_GEMM"' in phase_block
+    assert 'grep -aFq "REFLEX_QI_GEMM" "$stage/c/laya"' in phase_block
+    assert 'strings "$stage/c/laya" | grep -Fq "REFLEX_QI_GEMM"' not in phase_block
