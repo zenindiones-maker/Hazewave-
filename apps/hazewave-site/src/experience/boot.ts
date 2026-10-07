@@ -8,6 +8,7 @@ interface StageController {
   select(trackId: string): Promise<void>;
   setPlaying(playing: boolean): void;
   setSection(section: "intro" | "verse" | "break" | "chorus" | "outro"): void;
+  setBeatPulse(value: number): void;
   setSignalEnergy(value: number): void;
   dispose(): void;
 }
@@ -166,6 +167,11 @@ export function bootHazewaveSite(): void {
     const activeTrack = audio.track;
     if (activeTrack && audio.state === "PLAYING") {
       const position = audio.positionSeconds();
+      const secondsPerBeat = 60 / Math.max(activeTrack.visual.bpm, 1);
+      const beatPhase = (position % secondsPerBeat) / secondsPerBeat;
+      const beatPulse = Math.max(0, 1 - beatPhase / 0.24);
+      experience?.setBeatPulse(beatPulse);
+
       const semanticSection =
         [...activeTrack.visual.sections].reverse().find((section) => position >= section.at) ??
         activeTrack.visual.sections[0];
