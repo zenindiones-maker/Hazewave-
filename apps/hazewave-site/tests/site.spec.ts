@@ -762,3 +762,43 @@ test("video portals remain fail-closed and lazy while production video authority
   await expect(page.locator("[data-video-mount] iframe")).toHaveCount(0);
   await expect(page.locator("[data-video-mount] video")).toHaveCount(0);
 });
+
+
+test("LOW tier keeps the owner world alive without requiring WebGL", async ({ page }) => {
+  const viewport = page.viewportSize();
+  test.skip(!viewport || viewport.width > 430, "LOW-tier fallback proof runs on mobile portrait");
+
+  await page.goto("/");
+  const host = page.locator(".site-backdrop");
+
+  await expect(host).toHaveAttribute("data-world-runtime", "css-fallback");
+  await expect(page.locator(".site-backdrop-water")).toHaveCount(1);
+  await expect(page.locator(".site-backdrop-fog")).toHaveCount(1);
+  await expect(page.locator(".site-backdrop-light")).toHaveCount(1);
+
+  await focusStorySection(page, "#threshold");
+  const sleepingWater = await page.evaluate(() =>
+    Number.parseFloat(
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--story-world-water")
+        .trim() || "0"
+    )
+  );
+
+  await focusStoryFraction(page, "#artist-worlds", 0.4);
+  const awakened = await page.evaluate(() => {
+    const style = getComputedStyle(document.documentElement);
+    return {
+      water: Number.parseFloat(style.getPropertyValue("--story-world-water").trim() || "0"),
+      fog: Number.parseFloat(style.getPropertyValue("--story-world-fog").trim() || "0"),
+      lighthouse: Number.parseFloat(style.getPropertyValue("--story-world-lighthouse").trim() || "0"),
+      waterShift: style.getPropertyValue("--story-water-shift-x").trim()
+    };
+  });
+
+  expect(awakened.water).toBeGreaterThan(sleepingWater);
+  expect(awakened.fog).toBeGreaterThan(0);
+  expect(awakened.lighthouse).toBeGreaterThan(0);
+  expect(awakened.waterShift).not.toBe("");
+  await expect(host.locator("img")).toHaveAttribute("src", "/media/hazewave-world.jpg.webp");
+});
