@@ -8,10 +8,6 @@ import { getArtist, getTrack } from "../../data/catalog";
 
 type PhaseSink = (phase: PlayerPhase) => void;
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
 function center(rect: DOMRect) {
   return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 }
@@ -112,8 +108,6 @@ export class PremiumResonanceStage {
                 ease: "power3.out"
               });
             });
-          } else {
-            await sleep(24);
           }
 
           return;
@@ -146,7 +140,6 @@ export class PremiumResonanceStage {
         this.onPhase("CONTACT");
         this.host.dataset.phase = "contact";
         this.deck.dataset.state = "contact";
-        await sleep(24);
         return;
       }
 
@@ -600,7 +593,6 @@ export class PremiumResonanceStage {
     this.onPhase("ACTIVATING");
     this.host.dataset.phase = "activating";
     this.deck.dataset.state = "activating";
-    await sleep(110);
   }
 
   private async eject(trackId: string): Promise<void> {
