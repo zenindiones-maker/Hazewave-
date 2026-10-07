@@ -1183,7 +1183,10 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
     left:0;right:0;bottom:72px;transform:none;width:auto;height:146px;
     display:flex;align-items:flex-end;gap:9px;padding:8px 18px;
     overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;
-    scrollbar-width:none;overscroll-behavior-x:contain
+    scroll-padding-inline:18px;touch-action:pan-x;
+    scrollbar-width:none;overscroll-behavior-x:contain;
+    -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 12px,#000 calc(100% - 12px),transparent 100%);
+    mask-image:linear-gradient(90deg,transparent 0,#000 12px,#000 calc(100% - 12px),transparent 100%)
   }
   .artifact-field::before{bottom:30px;height:22px}
   .artifact-field::after{bottom:26px;left:8px;right:8px}
