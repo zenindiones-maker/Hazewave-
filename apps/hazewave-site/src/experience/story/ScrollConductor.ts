@@ -180,6 +180,12 @@ export class ScrollConductor {
     this.lastScrollY = window.scrollY;
     this.lastScrollAt = now;
     this.updateTarget();
+
+    // Layout can move after first paint (responsive art direction, fonts,
+    // content-visibility and dynamic stages). Re-measure semantic chapter
+    // starts once per animation frame instead of trusting boot-time offsets.
+    cancelAnimationFrame(this.layoutRefreshRaf);
+    this.layoutRefreshRaf = requestAnimationFrame(this.refresh);
   };
 
   private updateTarget(): void {
