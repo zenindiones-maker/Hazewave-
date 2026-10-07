@@ -67,6 +67,9 @@ jobs:
       - name: Clean install
         run: npm ci --ignore-scripts --no-audit --no-fund
 
+      - name: Validate A15 runtime proof script
+        run: bash -n scripts/a15-runtime-proof.sh
+
       - name: Typecheck
         run: npx tsc --noEmit
 
