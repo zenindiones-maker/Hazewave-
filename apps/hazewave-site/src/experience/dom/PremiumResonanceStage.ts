@@ -53,7 +53,7 @@ export class PremiumResonanceStage {
       host.querySelectorAll<HTMLElement>(".screen-meter i")
     );
     this.artifacts = Array.from(
-      host.querySelectorAll<HTMLButtonElement>(".resonance-artifact[data-track-id]")
+      host.querySelectorAll<HTMLButtonElement>(".resonance-artifact[data-artist]")
     );
 
     this.host.dataset.runtime = "DOM_CINEMATIC";
@@ -65,16 +65,61 @@ export class PremiumResonanceStage {
 
   async select(trackId: string): Promise<void> {
     if (this.busy || this.activeTrackId === trackId) return;
-    const source = this.artifacts.find((artifact) => artifact.dataset.trackId === trackId);
-    if (!source) throw new Error(`ARTIFACT_NOT_FOUND:${trackId}`);
+
+    const track = getTrack(trackId);
+    const artist = getArtist(track.artistId);
+    const source = this.artifacts.find((artifact) => artifact.dataset.artist === artist.id);
+    if (!source) throw new Error(`ARTIST_CASSETTE_NOT_FOUND:${artist.id}`);
 
     this.busy = true;
     try {
-      if (this.activeTrackId) await this.eject(this.activeTrackId);
+      if (this.activeTrackId) {
+        const previousTrack = getTrack(this.activeTrackId);
+
+        if (previousTrack.artistId === track.artistId) {
+          this.activeTrackId = trackId;
+          this.host.style.setProperty("--world-accent", artist.identity.accent);
+          this.host.style.setProperty("--world-secondary", artist.identity.secondary);
+          this.host.style.setProperty("--world-bg", artist.identity.background);
+          this.host.dataset.artist = artist.id;
+          this.host.dataset.motion = artist.identity.world.motionSignature.toLowerCase();
+
+          this.artifacts.forEach((artifact) => {
+            artifact.dataset.focus = artifact === source ? "selected" : "receded";
+          });
+
+          source.dataset.loaded = "true";
+          this.screenTitle.textContent = track.title;
+          this.screenArtist.textContent = artist.name.replace(" / DEMO", "");
+          this.onPhase("CONTACT");
+          this.host.dataset.phase = "contact";
+          this.deck.dataset.state = "contact";
+
+          if (!this.quality.reducedMotion) {
+            await this.timeline((tl) => {
+              tl.fromTo(
+                ".deck-contact-flash",
+                { opacity: 0, scale: 0.78 },
+                { opacity: 0.66, scale: 1.08, duration: 0.07, ease: "power1.out" }
+              );
+              tl.to(".deck-contact-flash", {
+                opacity: 0,
+                scale: 1.34,
+                duration: 0.18,
+                ease: "power3.out"
+              });
+            });
+          } else {
+            await sleep(24);
+          }
+
+          return;
+        }
+
+        await this.eject(this.activeTrackId);
+      }
 
       this.activeTrackId = trackId;
-      const track = getTrack(trackId);
-      const artist = getArtist(track.artistId);
 
       this.host.style.setProperty("--world-accent", artist.identity.accent);
       this.host.style.setProperty("--world-secondary", artist.identity.secondary);
@@ -512,11 +557,10 @@ export class PremiumResonanceStage {
   }
 
   private async eject(trackId: string): Promise<void> {
-    const source = this.artifacts.find((artifact) => artifact.dataset.trackId === trackId);
-    if (!source) return;
-
     const track = getTrack(trackId);
     const artist = getArtist(track.artistId);
+    const source = this.artifacts.find((artifact) => artifact.dataset.artist === artist.id);
+    if (!source) return;
 
     this.playing = false;
     this.onPhase("EJECT");
