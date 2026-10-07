@@ -108,6 +108,12 @@ export class PremiumResonanceStage {
     this.host.dataset.section = section;
   }
 
+  setBeatPulse(value: number): void {
+    const pulse = Math.max(0, Math.min(1, value));
+    this.host.style.setProperty("--beat-scale", (1 + pulse * 0.022).toFixed(4));
+    this.host.style.setProperty("--beat-opacity", (0.54 + pulse * 0.34).toFixed(3));
+  }
+
   setSignalEnergy(value: number): void {
     this.energy = Math.max(0, Math.min(1, value));
     this.host.style.setProperty("--audio-energy", this.energy.toFixed(3));
