@@ -2665,3 +2665,341 @@ body{background:transparent}
   .artist-chapter-mark,
   .artist-chapter-status{animation:none!important;transform:none!important}
 }
+
+
+
+/* ============================================================
+   IMMERSIVE SCROLL WORLD V2 — WORLD-FIRST ART DIRECTION
+   Keep the owner artwork visually authoritative. UI is secondary.
+   ============================================================ */
+
+#archive .scene-frame{
+  min-height:720px;
+  height:calc(100svh - 62px);
+  max-height:960px;
+  border-color:rgba(245,242,233,.055);
+  background:transparent;
+  box-shadow:inset 0 0 120px rgba(0,0,0,.12)
+}
+#archive .premium-stage{
+  background:
+    radial-gradient(circle at 67% 48%,color-mix(in srgb,var(--world-accent),transparent 94%),transparent 20%),
+    linear-gradient(90deg,rgba(0,0,0,.16),transparent 42%,rgba(0,0,0,.08));
+}
+#archive .world-lines{opacity:.055}
+#archive .world-grain{opacity:.012}
+#archive .world-signature{
+  top:48%;left:34%;width:58%;text-align:left;opacity:.34
+}
+#archive .world-signature span{
+  font-size:clamp(70px,9vw,150px);
+  -webkit-text-stroke-color:color-mix(in srgb,var(--world-accent),transparent 88%);
+  text-shadow:none
+}
+#archive .scene-copy{
+  top:clamp(38px,7vh,84px);
+  left:clamp(28px,6vw,92px);
+  max-width:320px
+}
+#archive .scene-copy h2{
+  margin:0;font-size:clamp(28px,3.2vw,44px);
+  line-height:.92;letter-spacing:-.045em;font-weight:560
+}
+#archive .scene-copy .intro{max-width:26ch;font-size:11px;color:rgba(245,242,233,.44)}
+
+#archive .deck-stage{
+  left:69%;
+  top:51%;
+  width:430px;
+  height:560px;
+  max-height:72vh;
+  transform:translate(-50%,-47%);
+}
+#archive .resonance-deck{
+  width:246px!important;
+  height:430px!important;
+  filter:drop-shadow(0 32px 70px rgba(0,0,0,.42))
+}
+#archive .deck-console{
+  width:232px!important;
+  height:116px!important;
+}
+#archive .deck-core{
+  width:166px!important;
+  height:166px!important;
+}
+#archive .deck-wheel{
+  width:154px;
+  height:154px
+}
+#archive .wheel-center{width:62px;height:62px}
+#archive .deck-slot{
+  width:54px!important;
+  height:58px!important
+}
+#archive .artifact-field{
+  left:clamp(28px,6vw,92px);
+  right:auto;
+  bottom:clamp(32px,8vh,86px);
+  transform:none;
+  width:min(430px,39vw);
+  height:116px;
+  display:flex;
+  align-items:flex-end;
+  gap:14px;
+  padding:0;
+  overflow:visible
+}
+#archive .artifact-field>.resonance-artifact{
+  position:relative!important;
+  left:auto!important;right:auto!important;bottom:auto!important;
+  flex:0 0 92px;
+  width:92px;
+  height:112px;
+  grid-template-rows:72px auto;
+  gap:7px;
+  transform:none!important
+}
+#archive .artifact-field .artifact-shell{height:72px}
+#archive .artifact-field .artifact-copy strong{font-size:9px}
+#archive .artifact-field .artifact-copy small,
+#archive .artifact-field .artifact-copy span{font-size:5px}
+#archive .artifact-field>.resonance-artifact:hover,
+#archive .artifact-field>.resonance-artifact:focus-visible,
+#archive .artifact-field>.resonance-artifact[data-focus="selected"]{
+  transform:translateY(-7px) scale(1.035)!important
+}
+#archive .world-meta{
+  right:clamp(24px,4vw,64px);
+  bottom:28px;
+  top:auto;
+  transform:none;
+  width:200px
+}
+#archive .world-meta strong{font-size:18px}
+#archive .deck-beacon{display:none!important}
+
+/* Dossiers are transparent story beats, not cards. */
+#dossiers{
+  min-height:110svh;
+  padding-top:12vh;
+  padding-bottom:12vh
+}
+#dossiers .section-heading{
+  max-width:620px;
+  margin-left:auto;
+  margin-right:6vw;
+  margin-bottom:12vh
+}
+#dossiers .section-heading h2{
+  font-size:clamp(34px,4.8vw,66px)
+}
+#dossiers .dossier-grid{
+  display:grid;
+  gap:20vh
+}
+#dossiers .artist-dossier{
+  min-height:78svh;
+  display:grid;
+  grid-template-columns:minmax(170px,.55fr) minmax(280px,.9fr) minmax(260px,.8fr);
+  align-items:center;
+  gap:clamp(24px,6vw,84px);
+  overflow:visible;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  backdrop-filter:none
+}
+#dossiers .artist-dossier:nth-child(even){
+  grid-template-columns:minmax(260px,.8fr) minmax(280px,.9fr) minmax(170px,.55fr)
+}
+#dossiers .artist-dossier:nth-child(even) .dossier-portrait{grid-column:3}
+#dossiers .artist-dossier:nth-child(even) .dossier-copy{grid-column:2;grid-row:1}
+#dossiers .artist-dossier:nth-child(even) .dossier-video{grid-column:1;grid-row:1}
+#dossiers .dossier-portrait{
+  min-height:260px;
+  border:1px solid color-mix(in srgb,var(--dossier-accent),transparent 78%);
+  border-radius:22px;
+  background:
+    radial-gradient(circle at 50% 42%,color-mix(in srgb,var(--dossier-accent),transparent 82%),transparent 42%),
+    rgba(0,0,0,.16);
+  backdrop-filter:blur(4px)
+}
+#dossiers .dossier-portrait strong{
+  font-size:clamp(72px,9vw,130px);
+  opacity:.34
+}
+#dossiers .dossier-copy{padding:0;background:transparent}
+#dossiers .dossier-copy h3{
+  font-size:clamp(42px,5.6vw,76px)
+}
+#dossiers .dossier-video{
+  min-height:0;
+  aspect-ratio:16/10;
+  border:1px solid rgba(245,242,233,.1);
+  border-radius:20px;
+  background:
+    linear-gradient(145deg,rgba(255,255,255,.035),transparent 48%),
+    rgba(0,0,0,.19);
+  backdrop-filter:blur(5px)
+}
+
+/* Merch is the final destination: two objects on one quiet stage. */
+#objects{
+  min-height:105svh;
+  display:grid;
+  align-content:center;
+  padding-top:12vh;
+  padding-bottom:13vh
+}
+#objects .section-heading{
+  max-width:680px;
+  margin-bottom:8vh
+}
+#objects .section-heading h2{
+  font-size:clamp(36px,5vw,70px)
+}
+#objects .merch-stand{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:clamp(18px,5vw,72px);
+  max-width:980px;
+  margin:0 auto;
+  width:100%
+}
+#objects .merch-object{
+  min-height:440px;
+  padding:10px 12px 18px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  backdrop-filter:none;
+  overflow:visible
+}
+#objects .merch-model{
+  min-height:330px;
+  filter:drop-shadow(0 32px 52px rgba(0,0,0,.46))
+}
+#objects .merch-copy{
+  padding-top:12px;
+  border-top:1px solid rgba(245,242,233,.1)
+}
+#objects .merch-note{
+  max-width:680px;
+  margin:34px auto 0;
+  text-align:center
+}
+
+/* The network is a real final chapter, not a short footer afterthought. */
+#network.social-footer{
+  min-height:58svh;
+  align-content:center;
+  margin-top:0;
+  padding-top:10vh;
+  padding-bottom:10vh
+}
+
+@media(max-width:980px){
+  #archive .scene-frame{
+    min-height:680px;
+    height:calc(100svh - 58px)
+  }
+  #archive .scene-copy{
+    left:18px;top:22px;max-width:220px
+  }
+  #archive .scene-copy h2{font-size:24px}
+  #archive .scene-copy .intro{display:none}
+  #archive .world-signature{
+    left:12%;top:32%;width:76%;opacity:.24
+  }
+  #archive .world-signature span{font-size:17vw}
+  #archive .deck-stage{
+    left:64%;
+    top:46%;
+    width:280px!important;
+    height:430px!important;
+    max-height:52vh!important;
+    transform:translate(-50%,-46%)!important
+  }
+  #archive .resonance-deck{
+    width:196px!important;
+    height:344px!important;
+    transform:translate(-50%,-50%) scale(.86)!important
+  }
+  #archive .artifact-field{
+    left:14px;right:14px;bottom:24px;
+    width:auto!important;height:104px!important;
+    display:flex!important;gap:10px!important;
+    overflow-x:auto!important;overflow-y:visible!important;
+    padding:5px 2px!important;
+    scroll-snap-type:x proximity
+  }
+  #archive .artifact-field>.resonance-artifact{
+    flex:0 0 82px!important;
+    width:82px!important;
+    height:98px!important;
+    grid-template-rows:62px auto!important;
+    scroll-snap-align:start
+  }
+  #archive .artifact-field .artifact-shell{height:62px!important}
+  #archive .world-meta{display:none}
+
+  #dossiers{
+    margin-left:14px;margin-right:14px;
+    padding-top:8vh;padding-bottom:8vh
+  }
+  #dossiers .section-heading{
+    margin:0 0 8vh;
+    max-width:350px
+  }
+  #dossiers .section-heading h2{font-size:36px}
+  #dossiers .dossier-grid{gap:14vh}
+  #dossiers .artist-dossier,
+  #dossiers .artist-dossier:nth-child(even){
+    min-height:72svh;
+    grid-template-columns:1fr;
+    gap:24px
+  }
+  #dossiers .artist-dossier:nth-child(even) .dossier-portrait,
+  #dossiers .artist-dossier:nth-child(even) .dossier-copy,
+  #dossiers .artist-dossier:nth-child(even) .dossier-video{
+    grid-column:1;grid-row:auto
+  }
+  #dossiers .dossier-portrait{min-height:180px}
+  #dossiers .dossier-video{min-height:0;aspect-ratio:16/9}
+  #dossiers .dossier-copy h3{font-size:44px}
+
+  #objects{
+    min-height:100svh;
+    margin-left:14px;margin-right:14px;
+    padding-top:9vh;padding-bottom:11vh
+  }
+  #objects .merch-stand{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    overflow:visible
+  }
+  #objects .merch-object{
+    min-height:330px;
+    width:auto;
+    flex:none
+  }
+  #objects .merch-model{min-height:230px}
+  #objects .merch-model-core{transform:scale(.72)}
+  #objects .merch-copy h3{font-size:22px}
+
+  #network.social-footer{
+    min-height:62svh;
+    margin-left:14px;margin-right:14px
+  }
+}
+
+@media(max-width:520px){
+  #archive .deck-stage{
+    left:66%;
+    top:45%;
+  }
+  #dossiers .artist-dossier{min-height:68svh}
+  #objects .merch-stand{grid-template-columns:1fr}
+  #objects .merch-object{min-height:390px}
+}
