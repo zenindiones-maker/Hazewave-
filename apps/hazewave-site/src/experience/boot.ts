@@ -22,6 +22,17 @@ export function bootHazewaveSite(): void {
 
   const machine = new PlayerMachine();
   const audio = new HazewaveAudioEngine();
+
+  const commitUiState = (update: () => void) => {
+    const transitionDocument = document as Document & {
+      startViewTransition?: (callback: () => void) => { finished: Promise<void> };
+    };
+    if (!quality.reducedMotion && transitionDocument.startViewTransition) {
+      transitionDocument.startViewTransition(update);
+    } else {
+      update();
+    }
+  };
   let experience: ResonanceExperience | null = null;
   let selectionToken = 0;
 
@@ -67,14 +78,18 @@ export function bootHazewaveSite(): void {
       const artist = getArtist(track.artistId);
       const manifest = bridgeFixtureManifest(track);
 
-      document.documentElement.style.setProperty("--active-accent", artist.identity.accent);
-      document.documentElement.dataset.activeArtist = artist.id;
-      const theme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-      if (theme) theme.content = artist.identity.background;
+      commitUiState(() => {
+        document.documentElement.style.setProperty("--active-accent", artist.identity.accent);
+        document.documentElement.dataset.activeArtist = artist.id;
+        const theme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+        if (theme) theme.content = artist.identity.background;
 
-      buttons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.trackId === trackId)));
-      title.textContent = track.title;
-      artistLabel.textContent = `${artist.name} / ${manifest.bpm} BPM / ${track.rights.class}`;
+        buttons.forEach((button) =>
+          button.setAttribute("aria-pressed", String(button.dataset.trackId === trackId))
+        );
+        title.textContent = track.title;
+        artistLabel.textContent = `${artist.name} / ${manifest.bpm} BPM / ${track.rights.class}`;
+      });
 
       // Prepare/unlock audio immediately inside the user-activation turn.
       // Final media tracks can therefore reuse this engine without redesigning
