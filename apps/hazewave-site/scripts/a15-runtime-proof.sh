@@ -12,6 +12,7 @@ REPO="zenindiones-maker/Hazewave-"
 WORKFLOW="WAVE Site CI"
 BRANCH="work/wave-hazewave-site-v1"
 ARTIFACT="hazewave-site-static-dist"
+EXPECTED_HEAD="$(git -C "$APP_DIR" rev-parse HEAD)"
 
 cd "$APP_DIR"
 mkdir -p "$CACHE_DIR"
@@ -21,6 +22,7 @@ echo "APP_DIR=$APP_DIR"
 echo "NODE=$(node --version 2>/dev/null || echo unavailable)"
 echo "PLATFORM=$(node -p 'process.platform' 2>/dev/null || echo unknown)"
 echo "ARCH=$(node -p 'process.arch' 2>/dev/null || echo unknown)"
+echo "EXPECTED_HEAD=$EXPECTED_HEAD"
 
 # Android/Termux is a runtime target, not the canonical Astro build host.
 # Astro 7 -> Satteri currently has no published Android arm64 native binding,
@@ -43,11 +45,13 @@ if [ "$(node -p 'process.platform' 2>/dev/null || true)" = "android" ]; then
   fi
 
   RUN_ID="$(
-    gh run list       --repo "$REPO"       --workflow "$WORKFLOW"       --branch "$BRANCH"       --status success       --limit 20       --json databaseId,headSha,conclusion       --jq '.[0].databaseId // empty'
+    gh run list       --repo "$REPO"       --workflow "$WORKFLOW"       --branch "$BRANCH"       --status success       --limit 50       --json databaseId,headSha,conclusion       --jq "map(select(.headSha == \"$EXPECTED_HEAD\"))[0].databaseId // empty"
   )"
 
   if [ -z "$RUN_ID" ]; then
-    echo "ERROR=NO_SUCCESSFUL_SITE_CI_RUN"
+    echo "ERROR=NO_SUCCESSFUL_SITE_CI_FOR_EXACT_HEAD"
+    echo "EXPECTED_HEAD=$EXPECTED_HEAD"
+    echo "ACTION=WAIT_FOR_EXACT_HEAD_CI_THEN_RETRY"
     exit 1
   fi
 
@@ -55,6 +59,7 @@ if [ "$(node -p 'process.platform' 2>/dev/null || true)" = "android" ]; then
   mkdir -p "$DIST_DIR"
 
   echo "CI_RUN_ID=$RUN_ID"
+  echo "CI_HEAD=$EXPECTED_HEAD"
   echo "CI_ARTIFACT=$ARTIFACT"
 
   gh run download "$RUN_ID"     --repo "$REPO"     --name "$ARTIFACT"     --dir "$DIST_DIR"
