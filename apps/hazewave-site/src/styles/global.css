@@ -272,7 +272,9 @@ h1{
 .deck-orbit{
   position:absolute;border-radius:50%;inset:-10px;
   border:1px solid color-mix(in srgb,var(--world-accent),transparent 62%);
-  opacity:.72
+  opacity:var(--beat-opacity,.72);
+  transform:scale(var(--beat-scale,1));
+  transition:transform 80ms linear,opacity 80ms linear
 }
 .deck-orbit-b{inset:17px;border-color:rgba(255,255,255,.11)}
 .deck-contact-flash{
@@ -321,7 +323,11 @@ h1{
 .deck-loaded-artifact .artifact-number,
 .deck-loaded-artifact .artifact-mark{display:none}
 .deck-loaded-artifact .artifact-artwork{inset:7px;width:calc(100% - 14px);height:calc(100% - 14px);opacity:.7}
-.deck-loaded-artifact .artifact-signal{width:34px;height:34px}
+.deck-loaded-artifact .artifact-signal{
+  width:34px;height:34px;
+  transform:translate(-50%,-50%) scale(var(--beat-scale,1));
+  opacity:var(--beat-opacity,.72)
+}
 
 .deck-neck{
   position:absolute;left:50%;top:286px;width:80px;height:74px;transform:translateX(-50%);
