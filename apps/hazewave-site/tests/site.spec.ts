@@ -336,6 +336,20 @@ test("persistent owner artwork drives one reversible story world", async ({ page
 test("physical wheel controls volume and track navigation", async ({ page }) => {
   await page.goto("/");
   await page.locator("#archive").scrollIntoViewIfNeeded();
+  await page.locator("#player-wheel").scrollIntoViewIfNeeded();
+
+  const nextButton = page.locator("[data-wheel-action='next']");
+  const nextBox = await nextButton.boundingBox();
+  expect(nextBox).not.toBeNull();
+
+  const nextHit = await page.evaluate(({ x, y }) => {
+    const hit = document.elementFromPoint(x, y);
+    return Boolean(hit?.closest("[data-wheel-action='next']"));
+  }, {
+    x: nextBox!.x + nextBox!.width / 2,
+    y: nextBox!.y + nextBox!.height / 2
+  });
+  expect(nextHit).toBe(true);
 
   const volume = page.locator("#wheel-ring-control");
   await volume.focus();
