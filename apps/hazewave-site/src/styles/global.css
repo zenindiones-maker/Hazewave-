@@ -1312,7 +1312,7 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
   .deck-screen strong{font-size:11px}
   .deck-shadow{width:228px}
   .artifact-field{
-    left:0;right:0;bottom:72px;transform:none;width:auto;height:146px;
+    left:0;right:0;bottom:70px;transform:none;width:auto;height:128px;
     display:flex;align-items:flex-end;gap:9px;padding:8px 18px;
     overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;
     scroll-padding-inline:18px;touch-action:pan-x;
@@ -1325,7 +1325,7 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
   .artifact-field::-webkit-scrollbar{display:none}
   .artifact-field > .resonance-artifact{
     position:relative;left:auto;right:auto;bottom:auto;
-    flex:0 0 90px;width:90px;height:146px;grid-template-rows:112px auto;gap:7px;
+    flex:0 0 94px;width:94px;height:116px;grid-template-rows:112px;gap:0;
     transform:none;scroll-snap-align:center
   }
   .artifact-field > .resonance-artifact:hover,
@@ -1333,8 +1333,7 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
   .artifact-field > .resonance-artifact[data-focus="selected"]{transform:translateY(-7px) scale(1.035)}
   .artifact-shell{height:112px}
   .artifact-signal{width:46px;height:46px}
-  .artifact-copy strong{font-size:10px}
-  .artifact-copy small,.artifact-copy span{font-size:6px}
+  .artifact-field > .resonance-artifact > .artifact-copy{display:none}
   .player{
     position:fixed;z-index:60;left:12px;right:12px;bottom:12px;margin:0;
     min-height:76px;padding:10px 12px;border-radius:18px;
