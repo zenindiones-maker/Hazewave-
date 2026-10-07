@@ -33,6 +33,52 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
             <div class="world-lines" aria-hidden="true"></div>
             <div class="world-grain" aria-hidden="true"></div>
 
+            <div class="artist-worlds" aria-hidden="true">
+              <div class="artist-world artist-world-aether" data-world="aether">
+                <svg viewBox="0 0 900 900" focusable="false">
+                  <defs>
+                    <linearGradient id="aether-stroke" x1="0" x2="1">
+                      <stop offset="0" stop-color="#a7ffe0" stop-opacity="0" />
+                      <stop offset=".5" stop-color="#a7ffe0" stop-opacity=".75" />
+                      <stop offset="1" stop-color="#a7ffe0" stop-opacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <circle class="world-ring ring-a" cx="450" cy="450" r="260" />
+                  <circle class="world-ring ring-b" cx="450" cy="450" r="330" />
+                  <path class="world-curve curve-a" d="M60 560 C210 260 620 180 840 420" />
+                  <path class="world-curve curve-b" d="M80 650 C300 410 600 430 820 610" />
+                  <path class="world-scan" d="M120 455 H780" stroke="url(#aether-stroke)" />
+                </svg>
+              </div>
+
+              <div class="artist-world artist-world-monolith" data-world="monolith">
+                <span class="slab slab-a"></span>
+                <span class="slab slab-b"></span>
+                <span class="slab slab-c"></span>
+                <span class="slab slab-d"></span>
+                <span class="fault fault-a"></span>
+                <span class="fault fault-b"></span>
+              </div>
+
+              <div class="artist-world artist-world-flora" data-world="flora">
+                <svg viewBox="0 0 900 900" focusable="false">
+                  <path class="flora-stem stem-a" d="M90 820 C250 620 250 360 430 120" />
+                  <path class="flora-stem stem-b" d="M810 800 C650 620 660 390 490 100" />
+                  <path class="flora-leaf leaf-a" d="M270 550 C160 520 130 430 155 355 C255 370 315 445 270 550 Z" />
+                  <path class="flora-leaf leaf-b" d="M625 460 C650 345 735 305 810 330 C785 430 715 485 625 460 Z" />
+                  <path class="flora-leaf leaf-c" d="M455 635 C545 595 635 630 690 710 C585 755 495 720 455 635 Z" />
+                  <circle class="flora-spore spore-a" cx="430" cy="120" r="12" />
+                  <circle class="flora-spore spore-b" cx="490" cy="100" r="9" />
+                  <circle class="flora-spore spore-c" cx="560" cy="255" r="7" />
+                </svg>
+              </div>
+            </div>
+
+            <div class="world-meta" aria-hidden="true">
+              <span id="world-release">RESONANCE ARCHIVE</span>
+              <strong id="world-track">SELECT A SIGNAL</strong>
+            </div>
+
             <div class="scene-copy">
               <p class="eyebrow">HAZEWAVE / RESONANCE OBJECTS</p>
               <h1 id="experience-title">Toque. Conecte. Escute.</h1>
@@ -152,6 +198,33 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
         <div class="player-state">
           <span id="state-label" aria-live="polite">IDLE</span>
           <button id="toggle-play" type="button" disabled aria-label="Pausar ou continuar música">PAUSE</button>
+        </div>
+      </section>
+
+      <section class="artist-index" aria-labelledby="artist-index-title">
+        <header class="artist-index-header">
+          <p class="eyebrow">HAZEWAVE / ARTIST WORLDS</p>
+          <h2 id="artist-index-title">Cada artista ocupa um mundo.</h2>
+          <p>O mesmo player muda de matéria, ritmo e atmosfera conforme a música.</p>
+        </header>
+
+        <div class="artist-index-grid">
+          {artists.map((artist, artistIndex) => (
+            <article class="artist-index-card" data-artist-card={artist.id} style={`--card-accent:${artist.identity.accent};--card-world:${artist.identity.background};--card-index:${artistIndex};`}>
+              <div class="artist-index-art" aria-hidden="true">
+                <span class="artist-index-orbit"></span>
+                <span class="artist-index-core"></span>
+              </div>
+              <div class="artist-index-copy">
+                <span>0{artistIndex + 1}</span>
+                <h3>{artist.name.replace(" / DEMO", "")}</h3>
+                <p>{artist.releaseTitle}</p>
+                <ul>
+                  {artist.tracks.map((track) => <li>{track.title}<small>{track.visual.bpm} BPM</small></li>)}
+                </ul>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
 
