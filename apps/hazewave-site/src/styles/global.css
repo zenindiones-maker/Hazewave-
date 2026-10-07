@@ -378,6 +378,16 @@ h1{
   background:var(--world-accent);border-radius:2px;
   box-shadow:0 0 10px color-mix(in srgb,var(--world-accent),transparent 50%)
 }
+.slot-contact-rail{
+  position:absolute;left:50%;bottom:25px;transform:translateX(-50%);
+  width:52px;height:8px;display:flex;justify-content:space-between;align-items:center
+}
+.slot-contact-rail i{
+  width:6px;height:2px;border-radius:2px;
+  background:color-mix(in srgb,var(--world-accent),#fff 20%);
+  box-shadow:0 0 6px color-mix(in srgb,var(--world-accent),transparent 58%);
+  opacity:.72
+}
 .slot-label{
   position:absolute;left:50%;bottom:13px;transform:translateX(-50%);
   width:max-content;color:rgba(255,255,255,.28);
@@ -393,6 +403,8 @@ h1{
 }
 .deck-loaded-artifact .artifact-number,
 .deck-loaded-artifact .artifact-mark{display:none}
+.deck-loaded-artifact .artifact-contacts{bottom:5px;width:42px}
+.deck-loaded-artifact .artifact-contacts i{width:5px;height:2px;opacity:.92}
 .deck-loaded-artifact .artifact-artwork{inset:7px;width:calc(100% - 14px);height:calc(100% - 14px);opacity:.7}
 .deck-loaded-artifact .artifact-signal{
   width:34px;height:34px;
@@ -476,8 +488,8 @@ h1{
 }
 .resonance-artifact{
   --accent:#a7ffe0;--secondary:#47786f;
-  position:absolute;bottom:0;width:112px;height:166px;
-  display:grid;grid-template-rows:112px auto;gap:10px;padding:0;
+  position:absolute;bottom:0;width:104px;height:182px;
+  display:grid;grid-template-rows:132px auto;gap:10px;padding:0;
   border:0;background:transparent;text-align:left;cursor:pointer;
   pointer-events:auto;color:#fff;
   transform-style:preserve-3d;
@@ -501,7 +513,7 @@ h1{
 .resonance-artifact[data-loaded="pending"]{opacity:.16}
 .resonance-artifact[data-loaded="true"]{opacity:.12;filter:saturate(.4)}
 .artifact-shell{
-  position:relative;display:block;width:100%;height:112px;overflow:hidden;
+  position:relative;display:block;width:100%;height:132px;overflow:hidden;
   clip-path:polygon(12% 0,88% 0,100% 12%,100% 88%,88% 100%,12% 100%,0 88%,0 12%);
   transform:perspective(720px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg));
   transform-style:preserve-3d;
@@ -612,8 +624,18 @@ h1{
   position:absolute;z-index:4;left:10px;top:10px;
   font:750 7px/1 ui-monospace,monospace;color:rgba(255,255,255,.68);letter-spacing:.1em
 }
+.artifact-contacts{
+  position:absolute;z-index:4;left:50%;bottom:9px;transform:translateX(-50%);
+  width:52px;height:8px;display:flex;align-items:center;justify-content:space-between
+}
+.artifact-contacts i{
+  width:6px;height:3px;border-radius:1px;
+  background:linear-gradient(180deg,#f0e7c8,#8d7a47);
+  box-shadow:0 1px 0 rgba(255,255,255,.24),0 0 6px rgba(240,231,200,.08);
+  opacity:.72
+}
 .artifact-mark{
-  position:absolute;z-index:4;right:10px;bottom:10px;width:24px;height:2px;
+  position:absolute;z-index:4;right:10px;top:11px;width:24px;height:2px;
   background:var(--accent);box-shadow:0 0 12px color-mix(in srgb,var(--accent),transparent 45%)
 }
 .artifact-copy{display:grid;gap:2px;padding:0 3px;min-width:0}
@@ -1006,14 +1028,14 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
   .artifact-field::-webkit-scrollbar{display:none}
   .artifact-field > .resonance-artifact{
     position:relative;left:auto;right:auto;bottom:auto;
-    flex:0 0 96px;width:96px;height:142px;grid-template-rows:96px auto;gap:8px;
+    flex:0 0 90px;width:90px;height:146px;grid-template-rows:112px auto;gap:7px;
     transform:none;scroll-snap-align:center
   }
   .artifact-field > .resonance-artifact:hover,
   .artifact-field > .resonance-artifact:focus-visible{transform:translateY(-6px)}
   .artifact-field > .resonance-artifact[data-focus="selected"]{transform:translateY(-7px) scale(1.035)}
-  .artifact-shell{height:96px}
-  .artifact-signal{width:48px;height:48px}
+  .artifact-shell{height:112px}
+  .artifact-signal{width:46px;height:46px}
   .artifact-copy strong{font-size:10px}
   .artifact-copy small,.artifact-copy span{font-size:6px}
   .player{
