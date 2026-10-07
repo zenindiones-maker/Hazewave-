@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("renders semantic catalog and reaches PLAYING from one click", async ({ page }, testInfo) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /Escolha um artefato/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Toque\. Conecte\. Escute\./ })).toBeVisible();
   await expect(page.locator("[data-track-id]")).toHaveCount(6);
 
   await page.getByRole("button", { name: /Tocar Pale Current/ }).click();
