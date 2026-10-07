@@ -874,6 +874,10 @@ h1{
 }
 .artifact-glass{
   position:absolute;inset:0;z-index:3;pointer-events:none;
+  background:
+    radial-gradient(circle at var(--cassette-light-x,38%) var(--cassette-light-y,24%),rgba(255,255,255,.19),transparent 22%),
+    linear-gradient(115deg,rgba(255,255,255,.13),transparent 26%,transparent 68%,rgba(255,255,255,.055))!important;
+  transition:background 90ms linear;
   background:linear-gradient(115deg,rgba(255,255,255,.2),transparent 26%,transparent 68%,rgba(255,255,255,.07));
   mix-blend-mode:screen;opacity:.62
 }
@@ -956,6 +960,11 @@ h1{
   color:#fff;background:transparent;border:0
 }
 .cinematic-artifact-clone .artifact-copy{display:none}
+.cinematic-artifact-clone .artifact-shell{
+  --cassette-tilt-x:0deg!important;
+  --cassette-tilt-y:0deg!important;
+  transform:none!important
+}
 .cinematic-artifact-clone{
   filter:
     drop-shadow(0 18px 18px rgba(0,0,0,.48))
@@ -1417,6 +1426,7 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
 }
 
 @media(prefers-reduced-motion:reduce){
+  .artifact-shell{transform:none!important;transition:none!important}
   .premium-stage[data-phase="idle"] .artifact-signal,
   .premium-stage[data-phase="idle"] .artifact-mark{animation:none!important}
   .gpu-atmosphere{display:none!important}
@@ -1629,8 +1639,19 @@ body{background:transparent}
 
 /* Turn the music objects into clearly readable physical cassettes. */
 .artifact-shell{
+  --cassette-tilt-x:0deg;
+  --cassette-tilt-y:0deg;
+  --cassette-light-x:38%;
+  --cassette-light-y:24%;
   clip-path:none!important;border-radius:10px!important;aspect-ratio:1.58/1!important;
   height:auto!important;
+  transform:
+    perspective(720px)
+    rotateX(var(--cassette-tilt-x))
+    rotateY(var(--cassette-tilt-y))
+    translateZ(0);
+  transform-style:preserve-3d;
+  transition:transform 150ms cubic-bezier(.2,.8,.2,1);
   background:
     linear-gradient(145deg,rgba(255,255,255,.14),rgba(255,255,255,.025) 32%,rgba(0,0,0,.18)),
     color-mix(in srgb,var(--secondary),#0b0b0b 42%)!important;
