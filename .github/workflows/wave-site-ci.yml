@@ -82,6 +82,15 @@ jobs:
       - name: Browser tests
         run: npm test -- --workers=1 --project=chromium-desktop --project=chromium-mobile
 
+      - name: Preserve static runtime
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hazewave-site-static-dist
+          path: apps/hazewave-site/dist
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Preserve generated lockfile
         if: always()
         uses: actions/upload-artifact@v4
