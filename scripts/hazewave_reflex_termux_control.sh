@@ -4,7 +4,7 @@ umask 077
 
 REPO_SLUG="${HAZEWAVE_REFLEX_REPO:-zenindiones-maker/Hazewave-}"
 DEFAULT_CS="redesigned-space-bassoon-gxp67g5g7r739w59"
-REF="${HAZEWAVE_REFLEX_REF:-work/reflex-latency-v1}"
+REF="${HAZEWAVE_REFLEX_REF:-work/hazewave-always-ready-v1}"
 MAIN_REPO="/workspaces/Hazewave-"
 RUN_ROOT="${HOME}/.local/share/hazewave/reflex-shadow-runtime"
 WORKTREE="${RUN_ROOT}/checkout"
@@ -129,7 +129,7 @@ remote_main() {
     export HAZEWAVE_REFLEX_EXPECTED_CODESPACE="$expected_codespace"
 
     case "$action" in
-        doctor|prepare|serve|serve-stop|smoke|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report)
+        doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report)
             exec bash "$control" "$action"
             ;;
         observe)
@@ -202,6 +202,35 @@ ensure_codespace() {
     fi
 }
 
+
+ensure_codespace_available() {
+    ensure_codespace
+    local current_state
+    current_state="$(gh codespace view -c "$CS" --json state --jq '.state')" \
+      || fail "CODESPACE_VIEW_FAILED"
+
+    if [[ "$current_state" != "Available" ]]; then
+        echo "REFLEX_CODESPACE_WAKE_REASON=$current_state"
+        gh api \
+          --method POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2026-03-10" \
+          "/user/codespaces/$CS/start" >/dev/null \
+          || fail "CODESPACE_START_FAILED"
+    fi
+
+    for _ in $(seq 1 60); do
+        current_state="$(gh codespace view -c "$CS" --json state --jq '.state')" \
+          || fail "CODESPACE_VIEW_FAILED"
+        echo "REFLEX_CODESPACE_STATE=$current_state"
+        [[ "$current_state" == "Available" ]] && break
+        sleep 2
+    done
+
+    [[ "$current_state" == "Available" ]] || fail "CODESPACE_START_TIMEOUT"
+    echo "REFLEX_CODESPACE_WAKE=PASS"
+}
+
 copy_controller() {
     ensure_codespace
     gh codespace ssh -c "$CS" \
@@ -253,27 +282,16 @@ case "$action" in
 
     wake)
         gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
-        ensure_codespace
-        current_state="$(gh codespace view -c "$CS" --json state --jq '.state')" \
-          || fail "CODESPACE_VIEW_FAILED"
-        if [[ "$current_state" != "Available" ]]; then
-            gh api \
-              --method POST \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2026-03-10" \
-              "/user/codespaces/$CS/start" >/dev/null \
-              || fail "CODESPACE_START_FAILED"
-        fi
-        for _ in $(seq 1 60); do
-            current_state="$(gh codespace view -c "$CS" --json state --jq '.state')" \
-              || fail "CODESPACE_VIEW_FAILED"
-            echo "REFLEX_CODESPACE_STATE=$current_state"
-            [[ "$current_state" == "Available" ]] && break
-            sleep 2
-        done
-        [[ "$current_state" == "Available" ]] || fail "CODESPACE_START_TIMEOUT"
-        echo "REFLEX_CODESPACE_WAKE=PASS"
+        ensure_codespace_available
         echo "REFLEX_TARGET_CODESPACE=$CS"
+        ;;
+
+    ready)
+        gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
+        ensure_codespace_available
+        run_remote reconcile
+        echo "HAZEWAVE_REMOTE_READY=PASS"
+        echo "HAZEWAVE_WORKSTATION_READY=PASS"
         ;;
 
     stop)
@@ -288,7 +306,7 @@ case "$action" in
         echo "REFLEX_TARGET_CODESPACE=$CS"
         ;;
 
-    doctor|prepare|serve-stop|smoke|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report)
+    doctor|prepare|serve-stop|reconcile|runtime-status|smoke|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report)
         gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
         run_remote "$action"
         ;;
@@ -325,7 +343,7 @@ case "$action" in
 
     *)
         cat >&2 <<'USAGE'
-usage: hazewave-reflex {status|list|wake|stop|doctor|prepare|serve|serve-stop|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report|install-check}
+usage: hazewave-reflex {status|list|wake|ready|stop|doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report|install-check}
 USAGE
         exit 2
         ;;
