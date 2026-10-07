@@ -20,6 +20,8 @@ def _report(
     label: str = "HAZE",
     robust: bool = True,
     failures: int = 0,
+    probabilities: dict[str, float] | None = None,
+    runtime_fingerprint: dict | None = None,
 ) -> dict:
     policy = latency.load_latency_policy()
     return {
@@ -30,6 +32,9 @@ def _report(
         "failed_requests": failures,
         "selected_labels": [label],
         "all_robust_eligible": robust,
+        "aggregate_probability_signature": probabilities
+        or {"HAZE": 0.91, "WAVE": 0.05, "BRIDGE": 0.04},
+        "runtime_fingerprint": runtime_fingerprint or latency._runtime_fingerprint(),
         "latency": {
             "wall": {
                 "count": 7,
@@ -128,6 +133,61 @@ def test_selector_rejects_label_or_robustness_drift(tmp_path: Path) -> None:
     assert "ROBUST_ELIGIBILITY_FAILED" in reasons["close_2t"]
 
 
+def test_selector_rejects_probability_or_runtime_drift(tmp_path: Path) -> None:
+    run = tmp_path / "run"
+    state = tmp_path / "state"
+    baseline_runtime = latency._runtime_fingerprint()
+    _write_report(
+        run,
+        _report(
+            profile="baseline_2t",
+            p50=100.0,
+            p95=120.0,
+            runtime_fingerprint=baseline_runtime,
+        ),
+    )
+    _write_report(
+        run,
+        _report(
+            profile="close_2t",
+            p50=70.0,
+            p95=80.0,
+            probabilities={"HAZE": 0.90, "WAVE": 0.06, "BRIDGE": 0.04},
+            runtime_fingerprint=baseline_runtime,
+        ),
+    )
+    drifted = dict(baseline_runtime)
+    drifted["fingerprint_sha256"] = "f" * 64
+    _write_report(
+        run,
+        _report(
+            profile="spread_2t",
+            p50=70.0,
+            p95=80.0,
+            runtime_fingerprint=drifted,
+        ),
+    )
+
+    selected = latency.select_profile(run_dir=run, state_root=state)
+
+    assert selected["profile"] == "baseline_2t"
+    reasons = {
+        row["profile"]: set(row["reasons"])
+        for row in selected["rejected"]
+    }
+    assert "AGGREGATE_PROBABILITY_DRIFT" in reasons["close_2t"]
+    assert "RUNTIME_FINGERPRINT_DRIFT" in reasons["spread_2t"]
+
+
+def test_selector_refuses_non_robust_baseline(tmp_path: Path) -> None:
+    run = tmp_path / "run"
+    _write_report(run, _report(profile="baseline_2t", p50=100.0, p95=120.0, robust=False))
+    _write_report(run, _report(profile="single_1t", p50=90.0, p95=100.0))
+
+    with pytest.raises(latency.ReflexLatencyError, match="BASELINE_NOT_ROBUST"):
+        latency.select_profile(run_dir=run, state_root=tmp_path / "state")
+
+
 def test_selected_profile_fails_closed_on_policy_drift(tmp_path: Path) -> None:
     state = tmp_path / "state"
     target = state / "latency" / "selected-profile.json"
@@ -138,6 +198,7 @@ def test_selected_profile_fails_closed_on_policy_drift(tmp_path: Path) -> None:
                 "schema": "HazewaveReflexLatencySelection/v1",
                 "policy_sha256": "0" * 64,
                 "profile": "single_1t",
+                "runtime_fingerprint": latency._runtime_fingerprint(),
             }
         ),
         encoding="utf-8",
