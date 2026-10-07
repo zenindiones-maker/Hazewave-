@@ -1296,8 +1296,6 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
   white-space:pre-wrap;pointer-events:none
 }
 
-@media(max-width:980px){
-  
 @media(min-aspect-ratio:4/3){
   .site-backdrop::before{
     display:block;
@@ -1310,7 +1308,8 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
   .site-backdrop::before{display:none}
 }
 
-.story-rail{display:none}
+@media(max-width:980px){
+  .story-rail{display:none}
   .shell{padding:0 0 104px}
   .masthead{height:58px;padding:0 16px}
   .masthead-meta{display:none}
