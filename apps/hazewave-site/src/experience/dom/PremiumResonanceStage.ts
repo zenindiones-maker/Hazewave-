@@ -690,12 +690,37 @@ export class PremiumResonanceStage {
       this.frameSamples.push(delta);
       if (this.frameSamples.length > 180) this.frameSamples.shift();
       this.metricCounter += 1;
-      if (this.metricCounter % 30 === 0 && this.frameSamples.length >= 30) {
+
+      const shouldPublishTelemetry =
+        this.frameSamples.length === 8 ||
+        (this.frameSamples.length >= 8 && this.metricCounter % 12 === 0);
+
+      if (shouldPublishTelemetry) {
         const sorted = [...this.frameSamples].sort((a, b) => a - b);
-        const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] ?? 0;
-        const average = this.frameSamples.reduce((sum, value) => sum + value, 0) / this.frameSamples.length;
+        const p95 =
+          sorted[
+            Math.min(
+              sorted.length - 1,
+              Math.floor(sorted.length * 0.95)
+            )
+          ] ?? 0;
+        const average =
+          this.frameSamples.reduce((sum, value) => sum + value, 0) /
+          this.frameSamples.length;
+
         this.host.dataset.fps = (1000 / average).toFixed(1);
         this.host.dataset.frameP95Ms = p95.toFixed(1);
+      }
+
+      if (this.metricCounter % 30 === 0 && this.frameSamples.length >= 30) {
+        const sorted = [...this.frameSamples].sort((a, b) => a - b);
+        const p95 =
+          sorted[
+            Math.min(
+              sorted.length - 1,
+              Math.floor(sorted.length * 0.95)
+            )
+          ] ?? 0;
 
         if (p95 > 34) {
           this.slowFrameWindows += 1;

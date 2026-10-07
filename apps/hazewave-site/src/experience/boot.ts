@@ -161,6 +161,23 @@ export function bootHazewaveSite(): void {
     enterArchive.addEventListener("click", () => conductor.scrollTo("#archive"));
   }
 
+  player.dataset.context = "journey";
+  const archiveSection = document.querySelector<HTMLElement>("#archive");
+  const archivePlayerObserver =
+    archiveSection && "IntersectionObserver" in window
+      ? new IntersectionObserver(
+          ([entry]) => {
+            player.dataset.context =
+              entry?.isIntersecting && entry.intersectionRatio >= 0.28
+                ? "archive"
+                : "journey";
+          },
+          { threshold: [0, 0.28, 0.55] }
+        )
+      : null;
+
+  if (archiveSection) archivePlayerObserver?.observe(archiveSection);
+
   let focusedArtist: ArtistId | null = null;
 
   const unmountAuthorizedVideo = (artistId: ArtistId) => {
@@ -787,21 +804,21 @@ export function bootHazewaveSite(): void {
     let trackRotationAccumulator = 0;
 
     const angleForPointer = (event: PointerEvent) => {
-      const rect = wheelControl.getBoundingClientRect();
+      const rect = wheel.getBoundingClientRect();
       const x = event.clientX - (rect.left + rect.width / 2);
       const y = event.clientY - (rect.top + rect.height / 2);
       return Math.atan2(y, x);
     };
 
-    wheelControl.addEventListener("pointerdown", (event) => {
+    wheel.addEventListener("pointerdown", (event) => {
       if ((event.target as Element | null)?.closest("button")) return;
       pointerId = event.pointerId;
       lastAngle = angleForPointer(event);
-      wheelControl.setPointerCapture(event.pointerId);
+      wheel.setPointerCapture(event.pointerId);
       event.preventDefault();
     });
 
-    wheelControl.addEventListener("pointermove", (event) => {
+    wheel.addEventListener("pointermove", (event) => {
       if (pointerId !== event.pointerId) return;
       const angle = angleForPointer(event);
       let delta = angle - lastAngle;
@@ -825,10 +842,10 @@ export function bootHazewaveSite(): void {
     const releaseWheel = (event: PointerEvent) => {
       if (pointerId !== event.pointerId) return;
       pointerId = null;
-      try { wheelControl.releasePointerCapture(event.pointerId); } catch {}
+      try { wheel.releasePointerCapture(event.pointerId); } catch {}
     };
-    wheelControl.addEventListener("pointerup", releaseWheel);
-    wheelControl.addEventListener("pointercancel", releaseWheel);
+    wheel.addEventListener("pointerup", releaseWheel);
+    wheel.addEventListener("pointercancel", releaseWheel);
 
     wheelControl.addEventListener("keydown", (event) => {
       if (wheelMode === "tracks") {
@@ -1154,6 +1171,7 @@ export function bootHazewaveSite(): void {
       experience?.dispose();
       atmosphere?.dispose();
       livingWorld?.dispose();
+      archivePlayerObserver?.disconnect();
       artistJourney.dispose();
       conductor.dispose();
     },

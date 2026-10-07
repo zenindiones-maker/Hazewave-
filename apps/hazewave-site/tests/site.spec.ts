@@ -846,7 +846,13 @@ test("LOW tier keeps the owner world alive without requiring WebGL", async ({ pa
 test("authorized video lifecycle unloads media on close without production data", async ({ page }) => {
   await page.goto("/");
 
+  const focus = page.locator("[data-artist-focus='aether']");
+  await focus.scrollIntoViewIfNeeded();
+  await focus.click();
+
   const portal = page.locator("[data-video-portal='aether']");
+  await expect(portal).toHaveAttribute("data-open", "true");
+
   const open = portal.locator("button").first();
 
   await open.evaluate((element) => {
