@@ -84,6 +84,32 @@ def test_question_scale_probe_uses_complete_live_permutation_prefixes() -> None:
     assert list(probe[3]) == list(probe[6])[:3]
 
 
+def test_single_question_probe_is_valid_without_fake_ensemble_metrics() -> None:
+    question = shadow_runtime._proof_question()
+    questions = latency.question_scale_probe_questions(question)[1]
+    qid = next(iter(questions))
+    answers = {
+        qid: {
+            "choice": "BRIDGE",
+            "probabilities": {"HAZE": 0.20, "WAVE": 0.30, "BRIDGE": 0.50},
+            "confidence": 0.25,
+        }
+    }
+
+    row = latency.ensemble_probe_diagnostics(questions, answers)
+
+    assert row["mode"] == "SINGLE_DECISION"
+    assert row["aggregate_winner"] == "BRIDGE"
+    assert row["aggregate_probabilities"] == {
+        "HAZE": 0.20,
+        "WAVE": 0.30,
+        "BRIDGE": 0.50,
+    }
+    assert row["winner_agreement"] is None
+    assert row["normalized_jsd"] is None
+    assert len(row["permutation_answers"]) == 1
+
+
 def test_ensemble_probe_diagnostics_preserve_order_probabilities_and_aggregate() -> None:
     question = shadow_runtime._proof_question()
     questions = latency.question_scale_probe_questions(question)[6]
