@@ -91,7 +91,7 @@ test("artist world and physical dock remain coherent", async ({ page }) => {
   await expect(page.locator("#world-release")).toHaveText("GLASS SIGNAL");
   await expect(page.locator("#world-track")).toHaveText("PALE CURRENT");
   await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
-  await expect(page.locator(".artist-index-card")).toHaveCount(3);
+  await expect(page.locator("[data-artist-chapter]")).toHaveCount(3);
 });
 
 
@@ -586,5 +586,29 @@ test("living world checkpoints produce reviewable viewport proofs", async ({ pag
       path: testInfo.outputPath(`${beat.name}.png`),
       fullPage: false
     });
+  }
+});
+
+
+test("artist journey resolves one deterministic world at a time", async ({ page }) => {
+  await page.goto("/");
+
+  const chapters = [
+    { id: "aether", locator: "[data-artist-chapter='aether']" },
+    { id: "monolith", locator: "[data-artist-chapter='monolith']" },
+    { id: "flora", locator: "[data-artist-chapter='flora']" }
+  ] as const;
+
+  for (const chapter of chapters) {
+    await page.locator(chapter.locator).scrollIntoViewIfNeeded();
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-scroll-artist",
+      chapter.id,
+      { timeout: 2_500 }
+    );
+    await expect(page.locator(chapter.locator)).toHaveAttribute(
+      "data-authority",
+      "DEMO_ONLY"
+    );
   }
 });
