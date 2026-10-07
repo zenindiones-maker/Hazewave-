@@ -307,10 +307,12 @@ case "$action" in
         gh auth status --hostname github.com || fail "TERMUX_GITHUB_AUTH_INVALID"
         ensure_codespace
         echo "REFLEX_CODESPACE_DISCOVERY=PASS"
-        gh codespace view \
-          -c "$CS" \
-          --json name,state,machineDisplayName,lastUsedAt,idleTimeoutMinutes,repository \
-          || fail "CODESPACE_VIEW_FAILED"
+        gh codespace list \
+          -R "$REPO_SLUG" \
+          --limit 100 \
+          --json name,state,repository,lastUsedAt,machineName \
+          --jq ".[] | select(.name == \"$CS\")" \
+          || fail "CODESPACE_LIST_FAILED"
         echo "REFLEX_CONTROL_PATH=${BASH_SOURCE[0]}"
         echo "REFLEX_TARGET_CODESPACE=$CS"
         echo "REFLEX_TARGET_REF=$REF"
@@ -341,8 +343,63 @@ case "$action" in
     stop)
         gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
         ensure_codespace
-        current_state="$(gh codespace view -c "$CS" --json state --jq '.state')" \
-          || fail "CODESPACE_VIEW_FAILED"
+        row="$(codespace_metadata_row "$CS")" \
+          || fail "CODESPACE_LIST_FAILED"
+        [[ -n "$row" ]] || fail "CODESPACE_NOT_LISTED"
+        IFS=
+        echo "REFLEX_CODESPACE_STOP_REQUESTED=PASS"
+        echo "REFLEX_TARGET_CODESPACE=$CS"
+        ;;
+
+    smoke)
+        gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
+        ensure_codespace_available
+        run_remote "$action"
+        ;;
+
+    doctor|prepare|serve-stop|reconcile|runtime-status|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report)
+        gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
+        run_remote "$action"
+        ;;
+
+    serve)
+        gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
+        echo "REFLEX_SERVE_SESSION=ATTACHED"
+        echo "REFLEX_SERVE_NOTE=keep_this_termux_tab_open"
+        run_remote serve
+        ;;
+
+    observe)
+        gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
+        event="${2:-}"
+        [[ -n "$event" && -f "$event" ]] || {
+            echo "usage: hazewave-reflex observe /caminho/event.json" >&2
+            exit 2
+        }
+        ensure_codespace_available
+        attest_codespace_control_plane
+        copy_controller
+        remote_event="/tmp/hazewave-reflex-event-${BASHPID}.json"
+        gh codespace ssh -c "$CS" \
+          "umask 077; cat > '$remote_event' && chmod 600 '$remote_event'" \
+          < "$event" \
+          || fail "TERMUX_EVENT_COPY_FAILED"
+        set +e
+        gh codespace ssh -c "$CS" \
+          "HAZEWAVE_REFLEX_CONTROL_PLANE_ATTESTED=1 HAZEWAVE_REFLEX_EXPECTED_CODESPACE='$CS' HAZEWAVE_REFLEX_EXPECTED_REPO='$REPO_SLUG' HAZEWAVE_REFLEX_REF='$REF' bash '$REMOTE_SELF' _remote observe '$remote_event'; rc=\$?; rm -f '$remote_event'; exit \$rc"
+        rc=$?
+        set -e
+        [[ $rc -eq 0 ]] || fail "REMOTE_ACTION_FAILED:observe:$rc"
+        ;;
+
+    *)
+        cat >&2 <<'USAGE'
+usage: hazewave-reflex {status|list|wake|ready|stop|doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report|install-check}
+USAGE
+        exit 2
+        ;;
+esac
+\t' read -r _ _ current_state <<< "$row"
         if [[ "$current_state" == "Available" ]]; then
             gh codespace stop -c "$CS" || fail "CODESPACE_STOP_FAILED"
         fi
