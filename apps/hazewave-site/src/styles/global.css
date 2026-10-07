@@ -1583,22 +1583,29 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
 .world-artist-echo[data-world-artist-id="monolith"]{left:7vw;top:39vh}
 .world-artist-echo[data-world-artist-id="flora"]{right:10vw;bottom:18vh;text-align:right}
 
+:root{
+  --world-echo-opacity:.66;
+  --world-echo-y:0px;
+  --world-echo-scale:1;
+  --world-echo-blur:0px
+}
+:root[data-artist-phase="MUSIC"]{--world-echo-opacity:.74}
+:root[data-artist-phase="VISUAL"]{--world-echo-opacity:.82}
+:root[data-artist-phase="TRANSITION"]{
+  --world-echo-opacity:.28;
+  --world-echo-y:-10px;
+  --world-echo-scale:.992;
+  --world-echo-blur:2px
+}
 :root[data-story-chapter="artists"][data-scroll-artist="aether"] .world-artist-echo[data-world-artist-id="aether"],
 :root[data-story-chapter="dossiers"][data-scroll-artist="aether"] .world-artist-echo[data-world-artist-id="aether"],
 :root[data-story-chapter="artists"][data-scroll-artist="monolith"] .world-artist-echo[data-world-artist-id="monolith"],
 :root[data-story-chapter="dossiers"][data-scroll-artist="monolith"] .world-artist-echo[data-world-artist-id="monolith"],
 :root[data-story-chapter="artists"][data-scroll-artist="flora"] .world-artist-echo[data-world-artist-id="flora"],
 :root[data-story-chapter="dossiers"][data-scroll-artist="flora"] .world-artist-echo[data-world-artist-id="flora"]{
-  opacity:.66;
-  transform:translate3d(0,0,0) scale(1);
-  filter:blur(0)
-}
-:root[data-artist-phase="MUSIC"] .world-artist-echo{opacity:.74}
-:root[data-artist-phase="VISUAL"] .world-artist-echo{opacity:.82}
-:root[data-artist-phase="TRANSITION"] .world-artist-echo{
-  opacity:.28;
-  transform:translate3d(0,-10px,0) scale(.992);
-  filter:blur(2px)
+  opacity:var(--world-echo-opacity);
+  transform:translate3d(0,var(--world-echo-y),0) scale(var(--world-echo-scale));
+  filter:blur(var(--world-echo-blur))
 }
 
 .site-backdrop-light{
