@@ -127,8 +127,8 @@ def test_reflex_termux_supports_persistent_ref_pin_without_weakening_env_overrid
     assert 'REF_PIN_FILE=' in text
     assert 'resolve_ref()' in text
     assert 'HAZEWAVE_REFLEX_REF' in text
-    assert 'ref-pin)' in text
-    assert 'ref-clear)' in text
+    assert 'if [[ "$action" == "ref-pin" ]]; then' in text
+    assert 'if [[ "$action" == "ref-clear" ]]; then' in text
     assert 'REFLEX_REF_SOURCE=PINNED_CONFIG' in text
     assert 'REFLEX_REF_SOURCE=ENVIRONMENT' in text
     assert 'chmod 600 "$REF_PIN_FILE"' in text
