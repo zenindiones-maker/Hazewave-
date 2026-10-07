@@ -11,6 +11,7 @@ interface StageController {
   setBeatPulse(value: number): void;
   setSignalEnergy(value: number): void;
   setSpectrum(values: readonly number[]): void;
+  setTrackProgress(value: number): void;
   dispose(): void;
 }
 
@@ -345,6 +346,11 @@ export function bootHazewaveSite(): void {
     const activeTrack = audio.track;
     if (activeTrack) {
       const position = audio.positionSeconds();
+      const trackProgress = Math.max(
+        0,
+        Math.min(1, position / Math.max(activeTrack.durationSeconds, 0.001))
+      );
+      experience?.setTrackProgress(trackProgress);
       if (document.activeElement !== seek) seek.value = String(Math.min(position, activeTrack.durationSeconds));
       timeCurrent.textContent = formatTime(position);
 
