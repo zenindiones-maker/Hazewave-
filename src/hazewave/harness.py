@@ -140,6 +140,9 @@ _CROSS_DOMAIN_CAPABILITIES: Final[frozenset[str]] = frozenset(
         "code.generate",
         "code.review",
         "embedding.create",
+        "decision.route",
+        "decision.gate",
+        "decision.score",
     }
 )
 
