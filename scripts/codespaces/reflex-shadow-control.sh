@@ -1118,7 +1118,7 @@ PY
 
   make -C "$stage/c" laya >/dev/null || { rm -rf "$stage"; die "ENGINE_PROFILE_BUILD_FAILED"; }
   [[ -x "$stage/c/laya" ]] || { rm -rf "$stage"; die "ENGINE_PROFILE_BINARY_MISSING"; }
-  strings "$stage/c/laya" | grep -Fq "REFLEX_QI_GEMM" \
+  grep -aFq "REFLEX_QI_GEMM" "$stage/c/laya" \
     || { rm -rf "$stage"; die "ENGINE_PROFILE_QI_BINARY_MARKER_MISSING"; }
 
   local patch_sha binary_sha
