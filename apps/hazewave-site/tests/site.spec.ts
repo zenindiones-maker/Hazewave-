@@ -1,1079 +1,167 @@
 import { expect, test, type Page } from "@playwright/test";
-import { ownerConfirmedSocialHandles, productionArtists, productionIdentity } from "../src/data/productionAuthority";
 
-async function focusStorySection(page: Page, selector: string): Promise<void> {
-  const locator = page.locator(selector);
-  await locator.evaluate((element) => {
-    const rect = element.getBoundingClientRect();
-    const top = window.scrollY + rect.top;
-    const probeInside = Math.min(
-      Math.max(rect.height * 0.32, 24),
-      window.innerHeight * 0.38
-    );
-    const target = top + probeInside - window.innerHeight * 0.5;
-    window.scrollTo({ top: Math.max(0, target), behavior: "auto" });
+const REAL_ARTISTS = [
+  "Barak Ozama Beats",
+  "Indionesbala",
+  "Baazü",
+  "Aquaverno",
+  "Hemorragia Cósmica"
+] as const;
+
+async function fireWave(page: Page, xRatio = 0.7, yRatio = 0.52) {
+  const field = page.locator("#living-field");
+  const box = await field.boundingBox();
+  expect(box).not.toBeNull();
+  const x = box!.x + box!.width * xRatio;
+  const y = box!.y + box!.height * yRatio;
+  await page.mouse.click(x, y);
+  await expect(field).toHaveAttribute("data-wave-active", "true", { timeout: 2_000 });
+}
+
+test("Living Resonance Field owns the first viewport and old primary UI is absent", async ({ page }, testInfo) => {
+  await page.goto("/");
+
+  await expect(page.locator("#living-field")).toBeVisible();
+  await expect(page.locator("#hazewave-world-source")).toHaveAttribute(
+    "src",
+    "/media/hazewave-world.jpg.webp"
+  );
+  await expect(page.getByRole("heading", { name: "HAZEWAVE" })).toBeVisible();
+  await expect(page.getByText("Núcleo Sonoro Independente", { exact: true })).toBeVisible();
+  await expect(page.getByText("Santos", { exact: true })).toBeVisible();
+
+  await expect(page.getByRole("button", { name: "EXPLORE" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "LISTEN" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "SEARCH" })).toBeVisible();
+
+  await expect(page.locator("#resonance-deck")).toHaveCount(0);
+  await expect(page.locator("#player-wheel")).toHaveCount(0);
+  await expect(page.locator("[data-artist-cassette='true']")).toHaveCount(0);
+
+  await page.screenshot({ path: testInfo.outputPath("living-field-desktop.png"), fullPage: false });
+});
+
+test("production discovery exposes the five real owner-supplied artists and no DEMO authority", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("[data-artist-signal]")).toHaveCount(5);
+
+  for (const artist of REAL_ARTISTS) {
+    await expect(page.getByRole("button", { name: new RegExp(artist, "i") })).toBeAttached();
+  }
+
+  const body = await page.locator("body").innerText();
+  expect(body).not.toContain("AETHER");
+  expect(body).not.toContain("MONOLITH");
+  expect(body).not.toContain("FLORA");
+  expect(body).not.toContain("DEMO CONTENT");
+});
+
+test("Wave-through-Haze disturbs the owner artwork and reveals a real artist signal", async ({ page }, testInfo) => {
+  await page.goto("/");
+  const field = page.locator("#living-field");
+  await expect(field).toHaveAttribute("data-field-runtime", /webgl2|css-fallback/, { timeout: 4_000 });
+
+  await fireWave(page, 0.72, 0.5);
+  await expect(page.locator("[data-artist-signal][data-revealed='true']")).toHaveCount(1, {
+    timeout: 2_000
   });
 
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-      )
-  );
-}
-
-async function focusStoryFraction(
-  page: Page,
-  selector: string,
-  fraction: number
-): Promise<void> {
-  const locator = page.locator(selector);
-  await locator.evaluate((element, rawFraction) => {
-    const fraction = Math.max(0, Math.min(1, Number(rawFraction)));
-    const rect = element.getBoundingClientRect();
-    const top = window.scrollY + rect.top;
-    const probeInside = Math.max(1, rect.height * fraction);
-    const target = top + probeInside - window.innerHeight * 0.5;
-    window.scrollTo({ top: Math.max(0, target), behavior: "auto" });
-  }, fraction);
-
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-      )
-  );
-}
-
-test("renders semantic catalog and reaches PLAYING from one click", async ({ page }, testInfo) => {
-  await page.goto("/");
-  await expect(page.locator("#experience-title")).toHaveText("Escolha a fita.");
-  await expect(page.locator("[data-artist-cassette='true']")).toHaveCount(3);
-
-  await page.locator("[data-track-id='aether-01']").dispatchEvent("click");
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
-  await expect(page.locator("#player-title")).toHaveText("Pale Current");
-  await expect(page.locator("[data-track-id='aether-01']")).toHaveAttribute("aria-pressed", "true");
-  await page.screenshot({ path: testInfo.outputPath("playing.png"), fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath("wave-through-haze.png"), fullPage: false });
 });
 
-test("pause, resume and track replacement preserve coherent UI state", async ({ page }) => {
+test("Aquaverno emerges from the field and browser back restores Hazewave", async ({ page }, testInfo) => {
   await page.goto("/");
-  await page.locator("[data-track-id='aether-01']").click();
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
+  await page.locator("[data-artist-signal='aquaverno']").click();
 
-  await page.locator("#toggle-play").click();
-  await expect(page.locator("#state-label")).toHaveText("PAUSED");
-  await expect(page.locator("#toggle-play")).toHaveText("PLAY");
+  await expect(page.locator("html")).toHaveAttribute("data-active-artist", "aquaverno");
+  await expect(page.locator("[data-artist-world='aquaverno']")).toHaveAttribute("data-active", "true");
+  await expect(page.locator("[data-artist-world='aquaverno'] img")).toHaveAttribute(
+    "src",
+    "/media/artists/aquaverno.webp"
+  );
+  expect(new URL(page.url()).searchParams.get("artist")).toBe("aquaverno");
 
-  await page.locator("#toggle-play").click();
-  await expect(page.locator("#state-label")).toHaveText("PLAYING");
-  await expect(page.locator("#toggle-play")).toHaveText("PAUSE");
+  await page.screenshot({ path: testInfo.outputPath("artist-world-aquaverno.png"), fullPage: false });
 
-  await page.locator("[data-wheel-action='next']").click();
-  await expect(page.locator("#player-title")).toHaveText("Soft Voltage", { timeout: 6_000 });
-  await expect(page.locator("[data-track-id='aether-01']")).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
-
-  await page.locator("[data-track-id='monolith-01']").click();
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 7_000 });
-  await expect(page.locator("#player-title")).toHaveText("Weightless Iron");
+  await page.goBack();
+  await expect(page.locator("html")).not.toHaveAttribute("data-active-artist", "aquaverno");
+  expect(new URL(page.url()).searchParams.get("artist")).toBeNull();
 });
 
-test("reduced motion keeps selection and playback functional", async ({ page }) => {
+test("Hemorragia Cósmica is a materially different artist world, not a skin", async ({ page }, testInfo) => {
+  await page.goto("/?artist=hemorragia-cosmica");
+
+  await expect(page.locator("html")).toHaveAttribute("data-active-artist", "hemorragia-cosmica");
+  const world = page.locator("[data-artist-world='hemorragia-cosmica']");
+  await expect(world).toHaveAttribute("data-active", "true");
+  await expect(world).toHaveAttribute("data-world-system", "pressure-wire");
+  await expect(world.locator("img")).toHaveAttribute(
+    "src",
+    "/media/artists/hemorragia-cosmica.webp"
+  );
+  await expect(world.locator(".hemorragia-wire")).toHaveCount(3);
+
+  await page.screenshot({ path: testInfo.outputPath("artist-world-hemorragia-cosmica.png"), fullPage: false });
+});
+
+test("direct Aquaverno deep link bypasses exploration and resolves the correct world", async ({ page }) => {
+  await page.goto("/?artist=aquaverno");
+  await expect(page.locator("html")).toHaveAttribute("data-active-artist", "aquaverno");
+  await expect(page.locator("[data-artist-world='aquaverno']")).toHaveAttribute("data-active", "true");
+});
+
+test("minimal transport is conventional and fail-closed without authorized audio", async ({ page }) => {
+  await page.goto("/?artist=aquaverno");
+  const transport = page.locator("#persistent-transport");
+  await expect(transport).toBeVisible();
+  await expect(transport.getByRole("button", { name: "Anterior" })).toBeVisible();
+  await expect(transport.getByRole("button", { name: "Tocar" })).toBeDisabled();
+  await expect(transport.getByRole("button", { name: "Próxima" })).toBeVisible();
+  await expect(transport.getByText("Áudio ainda não materializado", { exact: true })).toBeVisible();
+  await expect(page.locator("#player-wheel")).toHaveCount(0);
+});
+
+test("search reaches a real artist without traversing the field", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "SEARCH" }).click();
+  const dialog = page.getByRole("dialog", { name: "Buscar artista" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Hemorragia Cósmica" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-active-artist", "hemorragia-cosmica");
+});
+
+test("reduced motion keeps field, discovery and artist entry authored and functional", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await page.locator("[data-track-id='flora-01']").click();
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 3_000 });
-  await expect(page.locator("#player-title")).toHaveText("Moss Circuit");
+  await expect(page.locator("#living-field")).toHaveAttribute("data-motion", "reduced");
+  await page.locator("[data-artist-signal='aquaverno']").click();
+  await expect(page.locator("html")).toHaveAttribute("data-active-artist", "aquaverno");
 });
 
-
-test("opt-in diagnostics exposes real runtime proof fields", async ({ page }) => {
-  await page.goto("/?diagnostics=1");
-  const panel = page.locator("#hazewave-diagnostics");
-  await expect(panel).toBeVisible();
-  await expect(panel).toContainText("HAZEWAVE_WAVE_SITE_V1");
-  await expect(panel).toContainText("frameP95Ms");
-  await expect(page.locator("#premium-stage")).toHaveAttribute(
-    "data-frame-p95-ms",
-    /\d+(\.\d+)?/,
-    { timeout: 3_000 }
-  );
-  await expect(page.locator("html")).toHaveAttribute("data-quality-tier", /LOW|MEDIUM|HIGH|ULTRA/);
-});
-
-
-test("normal experience keeps diagnostics opt-in", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator("#hazewave-diagnostics")).toHaveCount(0);
-  await expect(page.locator(".artifact-field")).toBeVisible();
-  await expect(page.locator("[data-track-id='aether-01']")).toBeVisible();
-});
-
-
-test("premium stage replaces WebGL hero with cinematic resonance objects", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator("#premium-stage")).toBeVisible();
-  await expect(page.locator("#resonance-deck")).toBeVisible();
-  await expect(page.locator(".resonance-artifact")).toHaveCount(3);
-  await expect(page.locator("#resonance-canvas")).toHaveCount(0);
-  await expect(page.locator("#runtime-label")).toContainText("CINEMATIC DOM");
-});
-
-
-test("premium idle composition is reviewable", async ({ page }, testInfo) => {
-  await page.goto("/");
-  await expect(page.locator("#resonance-deck")).toBeVisible();
-  await expect(page.locator(".resonance-artifact")).toHaveCount(3);
-  await expect(page.locator("#premium-stage")).toHaveAttribute(
-    "data-reveal-state",
-    "settled",
-    { timeout: 2_500 }
-  );
-  await page.screenshot({ path: testInfo.outputPath("idle-premium.png"), fullPage: true });
-});
-
-
-test("artist world and physical dock remain coherent", async ({ page }) => {
-  await page.goto("/");
-  await page.locator("[data-track-id='aether-01']").click();
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
-  await expect(page.locator("#premium-stage")).toHaveAttribute("data-artist", "aether");
-  await expect(page.locator("#world-release")).toHaveText("GLASS SIGNAL");
-  await expect(page.locator("#world-track")).toHaveText("PALE CURRENT");
-  await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
-  await expect(page.locator("[data-artist-chapter]")).toHaveCount(3);
-});
-
-
-test("seek transport is wired to audio state", async ({ page }) => {
-  await page.goto("/");
-  await page.locator("[data-track-id='aether-01']").click();
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
-
-  const seek = page.locator("#player-seek");
-  await expect(seek).toBeEnabled();
-  await seek.fill("5");
-  await seek.dispatchEvent("change");
-
-  await expect.poll(
-    async () => Number(await seek.inputValue()),
-    { timeout: 2_000 }
-  ).toBeGreaterThan(4.8);
-  await expect(page.locator("#player-time-total")).toHaveText("0:24");
-});
-
-
-test("cinematic object remains visible during mobile travel", async ({ page }, testInfo) => {
-  await page.goto("/");
-  await page.locator("[data-track-id='aether-01']").click();
-
-  await expect(page.locator("#state-label")).toHaveText("TRAVEL", { timeout: 2_000 });
-  const clone = page.locator(".cinematic-artifact-clone");
-  await expect(clone).toHaveCount(1);
-  await expect(clone).toBeVisible();
-
-  const sourceBox = await page.locator(".artifact-field > [data-track-id='aether-01']").boundingBox();
-  expect(sourceBox).not.toBeNull();
-
-  const sourceCenter = {
-    x: sourceBox!.x + sourceBox!.width / 2,
-    y: sourceBox!.y + sourceBox!.height / 2
-  };
-
-  await expect.poll(
-    async () => {
-      const movingBox = await clone.boundingBox();
-      if (!movingBox) return 0;
-      const cloneCenter = {
-        x: movingBox.x + movingBox.width / 2,
-        y: movingBox.y + movingBox.height / 2
-      };
-      return Math.hypot(cloneCenter.x - sourceCenter.x, cloneCenter.y - sourceCenter.y);
-    },
-    {
-      message: "selected cassette must visibly leave its shelf position during TRAVEL",
-      timeout: 1_200,
-      intervals: [60, 80, 100]
-    }
-  ).toBeGreaterThan(28);
-
-  const box = await clone.boundingBox();
-  expect(box).not.toBeNull();
-  expect(box!.width).toBeGreaterThan(40);
-  expect(box!.height).toBeGreaterThan(40);
-  expect(box!.x + box!.width).toBeGreaterThan(0);
-  expect(box!.x).toBeLessThan(await page.evaluate(() => window.innerWidth));
-  expect(box!.y + box!.height).toBeGreaterThan(0);
-  expect(box!.y).toBeLessThan(await page.evaluate(() => window.innerHeight));
-
-  await page.screenshot({ path: testInfo.outputPath("travel-visible.png"), fullPage: false });
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
-});
-
-
-test("archive track re-enters the same physical playback flow", async ({ page }) => {
-  await page.goto("/");
-  const archiveButton = page.locator(".artist-index [data-archive-track-id='flora-02']");
-  await archiveButton.scrollIntoViewIfNeeded();
-  await archiveButton.click();
-
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 7_000 });
-  await expect(page.locator("#player-title")).toHaveText("Root Signal");
-  await expect(page.locator("#premium-stage")).toHaveAttribute("data-artist", "flora");
-  await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
-});
-
-
-test("semantic section map follows typed track structure", async ({ page }) => {
-  await page.goto("/");
-  await page.locator("[data-track-id='aether-01']").click();
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
-  await expect(page.locator("#player-sections .player-section-marker")).toHaveCount(3);
-  await expect(page.locator("#player-section-label")).toHaveText(/INTRO|CHORUS|OUTRO/);
-});
-
-
-test("mobile object selection keeps the stage viewport stable", async ({ page }) => {
+test("mobile field is separately composed, touchable and overflow-free", async ({ page }, testInfo) => {
   const viewport = page.viewportSize();
-  test.skip(!viewport || viewport.width > 600, "mobile-only viewport stability proof");
+  test.skip(!viewport || viewport.width > 700, "mobile-only proof");
 
   await page.goto("/");
-  const archive = page.locator("#archive");
-  await archive.scrollIntoViewIfNeeded();
-
-  const artifact = page.locator("[data-track-id='aether-01']");
-  const shell = artifact.locator(".artifact-shell");
-  await expect(shell).toBeVisible();
-
-  const box = await shell.boundingBox();
+  const field = page.locator("#living-field");
+  const box = await field.boundingBox();
   expect(box).not.toBeNull();
-
-  const x = box!.x + box!.width / 2;
-  const y = box!.y + box!.height / 2;
-
-  expect(x).toBeGreaterThan(0);
-  expect(x).toBeLessThan(viewport!.width);
-  expect(y).toBeGreaterThan(0);
-  expect(y).toBeLessThan(viewport!.height);
-
-  const hitTarget = await page.evaluate(({ x, y }) => {
-    const hit = document.elementFromPoint(x, y);
-    return Boolean(hit?.closest("[data-track-id='aether-01']"));
-  }, { x, y });
-  expect(hitTarget).toBe(true);
-
-  const before = await page.evaluate(() => window.scrollY);
-  await page.touchscreen.tap(x, y);
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
-
-  const after = await page.evaluate(() => window.scrollY);
-  expect(Math.abs(after - before)).toBeLessThan(4);
-});
-
-
-test("mobile premium composition has no debug beacon or page overflow", async ({ page }) => {
-  const viewport = page.viewportSize();
-  test.skip(!viewport || viewport.width > 600, "mobile-only composition proof");
-
-  await page.goto("/");
-  await expect(page.locator(".deck-beacon")).toBeHidden();
+  await page.touchscreen.tap(box!.x + box!.width * 0.48, box!.y + box!.height * 0.46);
+  await expect(field).toHaveAttribute("data-wave-active", "true", { timeout: 2_000 });
 
   const overflow = await page.evaluate(() => ({
     width: window.innerWidth,
     scrollWidth: document.documentElement.scrollWidth
   }));
-
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.width + 1);
-  await expect(page.locator(".artifact-field")).toBeVisible();
-  await expect(page.locator("[data-track-id='aether-01'] .artifact-contacts i")).toHaveCount(5);
-  await expect(page.locator("#deck-slot .slot-contact-rail i")).toHaveCount(5);
-});
 
-
-test("keyboard arrows navigate physical music objects", async ({ page }) => {
-  await page.goto("/");
-  const first = page.locator("[data-track-id='aether-01']");
-  const second = page.locator("[data-track-id='monolith-01']");
-  const last = page.locator("[data-track-id='flora-01']");
-
-  await first.focus();
-  await page.keyboard.press("ArrowRight");
-  await expect(second).toBeFocused();
-
-  await page.keyboard.press("End");
-  await expect(last).toBeFocused();
-
-  await page.keyboard.press("Home");
-  await expect(first).toBeFocused();
-});
-
-
-test("track end becomes replayable without desynchronizing the Deck", async ({ page }) => {
-  await page.goto("/");
-  await page.locator("[data-track-id='aether-01']").click();
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
-
-  const seek = page.locator("#player-seek");
-  await seek.fill("23.85");
-  await seek.dispatchEvent("change");
-
-  await expect(page.locator("#state-label")).toHaveText("ENDED", { timeout: 2_000 });
-  await expect(page.locator("#toggle-play")).toHaveText("REPLAY");
-  await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
-
-  await page.locator("#toggle-play").click();
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 2_000 });
-  await expect(page.locator("#toggle-play")).toHaveText("PAUSE");
-});
-
-
-test("seeking while paused does not restart playback", async ({ page }) => {
-  await page.goto("/");
-  const secondary = page.locator(".artist-index [data-archive-track-id='aether-02']");
-  await secondary.scrollIntoViewIfNeeded();
-  await secondary.click();
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 7_000 });
-
-  await page.locator("#toggle-play").click();
-  await expect(page.locator("#state-label")).toHaveText("PAUSED");
-
-  const seek = page.locator("#player-seek");
-  await seek.fill("8");
-  await seek.dispatchEvent("change");
-
-  await expect.poll(
-    async () => Number(await seek.inputValue()),
-    { timeout: 2_000 }
-  ).toBeGreaterThan(7.8);
-  await expect(page.locator("#state-label")).toHaveText("PAUSED");
-  await expect(page.locator("#toggle-play")).toHaveText("PLAY");
-});
-
-
-test("diagnostics report real selection and audio-start latency", async ({ page }) => {
-  await page.goto("/?diagnostics=1");
-  await page.locator("[data-track-id='aether-01']").click();
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
-
-  const panel = page.locator("#hazewave-diagnostics");
-  await expect(panel).toContainText("selectionToContactMs");
-  await expect(panel).toContainText("contactToAudioMs");
-  await expect(panel).toContainText("selectionToPlayingMs");
-  await expect(page.locator("#premium-stage")).toHaveAttribute("data-selection-to-playing-ms", /\d+(\.\d+)?/);
-});
-
-
-test("three artist worlds remain visually reviewable in PLAYING", async ({ page }, testInfo) => {
-  await page.goto("/");
-
-  const worlds = [
-    { trackId: "aether-01", artist: "aether" },
-    { trackId: "monolith-01", artist: "monolith" },
-    { trackId: "flora-01", artist: "flora" }
-  ] as const;
-
-  for (const world of worlds) {
-    await page.locator(`[data-track-id='${world.trackId}']`).click();
-    await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 7_000 });
-    await expect(page.locator("#premium-stage")).toHaveAttribute("data-artist", world.artist);
-    await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
-    await page.screenshot({
-      path: testInfo.outputPath(`playing-world-${world.artist}.png`),
-      fullPage: false
-    });
-  }
-});
-
-
-test("persistent owner artwork drives one reversible story world", async ({ page }) => {
-  await page.goto("/");
-  const backdrop = page.locator(".site-backdrop img");
-  await expect(backdrop).toHaveAttribute("src", "/media/hazewave-world.jpg.webp");
-
-  await focusStorySection(page, "#dossiers");
-  await expect(page.locator("html")).toHaveAttribute("data-story-chapter", "dossiers", { timeout: 2_000 });
-
-  await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "auto" }));
-  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-  await expect(page.locator("html")).toHaveAttribute("data-story-chapter", "network", { timeout: 2_000 });
-
-  await focusStorySection(page, "#threshold");
-  await expect(page.locator("html")).toHaveAttribute("data-story-chapter", /threshold|archive/, { timeout: 2_000 });
-});
-
-test("physical wheel controls volume and track navigation", async ({ page }) => {
-  await page.goto("/");
-  await page.locator("#archive").scrollIntoViewIfNeeded();
-  await page.locator("#player-wheel").scrollIntoViewIfNeeded();
-
-  const nextButton = page.locator("[data-wheel-action='next']");
-  const nextBox = await nextButton.boundingBox();
-  expect(nextBox).not.toBeNull();
-
-  const nextHit = await page.evaluate(({ x, y }) => {
-    const hit = document.elementFromPoint(x, y);
-    return Boolean(hit?.closest("[data-wheel-action='next']"));
-  }, {
-    x: nextBox!.x + nextBox!.width / 2,
-    y: nextBox!.y + nextBox!.height / 2
-  });
-  expect(nextHit).toBe(true);
-
-  const volume = page.locator("#wheel-ring-control");
-  await volume.focus();
-  await expect(volume).toHaveAttribute("aria-valuenow", "82");
-  await page.keyboard.press("ArrowRight");
-  await expect(volume).toHaveAttribute("aria-valuenow", "87");
-
-  await page.locator("[data-wheel-action='next']").click();
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
-  await expect(page.locator("#player-title")).toHaveText("Pale Current");
-
-  await page.locator("[data-wheel-action='next']").click();
-  await expect(page.locator("#player-title")).toHaveText("Soft Voltage", { timeout: 7_000 });
-});
-
-test("merch remains fail-closed while owner-authorized social handles stay usable", async ({ page }) => {
-  await page.goto("/");
-  await page.locator(".merch-zone").scrollIntoViewIfNeeded();
-  await expect(page.locator(".merch-object")).toHaveCount(2);
-  await expect(page.locator("[data-merch-id='hazewave-cap'] .merch-contact")).toBeDisabled();
-  await expect(page.locator("[data-merch-id='hazewave-tee'] .merch-contact")).toBeDisabled();
-
-  await expect(page.locator(".social-footer a")).toHaveText([
-    "@virundun",
-    "@barakozamabeats",
-    "@indionesbala"
-  ]);
-});
-
-
-test("archive exposes one physical cassette per artist while wheel owns tracklist", async ({ page }) => {
-  await page.goto("/");
-  await page.locator("#archive").scrollIntoViewIfNeeded();
-
-  const cassettes = page.locator("[data-artist-cassette='true']");
-  await expect(cassettes).toHaveCount(3);
-  expect(await cassettes.evaluateAll((nodes) =>
-    nodes.map((node) => node.getAttribute("data-loaded"))
-  )).toEqual(["false", "false", "false"]);
-
-  await page.locator("[data-track-id='aether-01']").click();
-  await expect(page.locator("#player-title")).toHaveText("Pale Current", { timeout: 6_000 });
-  await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
-
-  await page.locator("[data-wheel-action='next']").click();
-  await expect(page.locator("#player-title")).toHaveText("Soft Voltage", { timeout: 6_000 });
-  await expect(page.locator("#premium-stage")).toHaveAttribute("data-artist", "aether");
-  await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
-  await expect(page.locator("[data-track-id='aether-01']")).toHaveAttribute("aria-pressed", "true");
-});
-
-
-test("production content stays fail-closed until owner-authorized assets arrive", () => {
-  expect(productionIdentity.projectName.state).toBe("OWNER_CONFIRMED");
-  expect(productionIdentity.worldArtwork.state).toBe("OWNER_CONFIRMED");
-  expect(productionIdentity.finalArtistRoster.state).toBe("UNSET");
-  expect(productionIdentity.finalAudioCatalog.state).toBe("UNSET");
-  expect(productionIdentity.whatsappDestination.state).toBe("UNSET");
-  expect(productionArtists).toHaveLength(0);
-  expect(ownerConfirmedSocialHandles.map((entry) => entry.handle)).toEqual([
-    "@virundun",
-    "@barakozamabeats",
-    "@indionesbala"
-  ]);
-});
-
-
-test("wheel LIST mode exposes the loaded artist tracklist", async ({ page }) => {
-  await page.goto("/");
-  await page.locator("#archive").scrollIntoViewIfNeeded();
-  await page.locator("[data-track-id='aether-01']").click();
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 7_000 });
-
-  await page.locator("[data-wheel-action='archive']").click();
-  await expect(page.locator("#player-wheel")).toHaveAttribute("data-mode", "tracks");
-  await expect(page.locator("#deck-screen")).toHaveAttribute("data-view", "list");
-  await expect(page.locator("#deck-tracklist button")).toHaveCount(2);
-  await expect(page.locator("#deck-tracklist [data-deck-track-id='aether-01']")).toHaveAttribute("data-active", "true");
-
-  await page.locator("[data-wheel-action='next']").click();
-  await expect(page.locator("#player-title")).toHaveText("Soft Voltage", { timeout: 7_000 });
-  await expect(page.locator("#deck-tracklist [data-deck-track-id='aether-02']")).toHaveAttribute("data-active", "true");
-
-  await page.locator("[data-wheel-action='archive']").click();
-  await expect(page.locator("#player-wheel")).toHaveAttribute("data-mode", "volume");
-  await expect(page.locator("#deck-screen")).toHaveAttribute("data-view", "now");
-});
-
-
-test("rapid wheel input keeps the latest requested track instead of erroring", async ({ page }) => {
-  await page.goto("/");
-  await page.locator("#archive").scrollIntoViewIfNeeded();
-
-  await page.locator("[data-track-id='aether-01']").click();
-  await expect(page.locator("#player-title")).toHaveText("Pale Current", { timeout: 3_000 });
-
-  await page.locator("[data-wheel-action='next']").click();
-  await expect(page.locator("#player-title")).toHaveText("Soft Voltage", { timeout: 8_000 });
-  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 8_000 });
-  await expect(page.locator("#runtime-label")).not.toContainText("ERROR");
-});
-
-
-test("story rail follows the persistent-world chapter conductor", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator(".story-rail a")).toHaveCount(6);
-
-  await page.locator(".story-rail [data-story-link='dossiers']").click();
-  await expect(page.locator("html")).toHaveAttribute("data-story-chapter", "dossiers", { timeout: 3_000 });
-  await expect(page.locator(".story-rail [data-story-link='dossiers']")).toBeVisible();
-
-  await page.locator(".story-rail [data-story-link='archive']").click();
-  await expect(page.locator("#archive")).toBeInViewport({ ratio: 0.3 });
-  await expect(page.locator("html")).toHaveAttribute("data-story-chapter", "archive", { timeout: 2_500 });
-});
-
-
-test("living world scroll state is reversible and deterministic", async ({ page }) => {
-  await page.goto("/");
-
-  const progress = async () =>
-    Number(
-      await page.locator("html").evaluate((element) =>
-        getComputedStyle(element).getPropertyValue("--story-global-progress").trim()
-      )
-    );
-
-  await focusStorySection(page, "#threshold");
-  await expect(page.locator("html")).toHaveAttribute("data-story-beat", "WORLD_SLEEP");
-  const start = await progress();
-
-  await focusStorySection(page, "#artist-worlds");
-  await expect(page.locator("html")).toHaveAttribute(
-    "data-story-beat",
-    /ARTIST_DISCOVERY|ARTIST_FOCUS/,
-    { timeout: 2_500 }
-  );
-  const middle = await progress();
-  expect(middle).toBeGreaterThan(start);
-
-  await focusStorySection(page, "#objects");
-  await expect(page.locator("html")).toHaveAttribute(
-    "data-story-beat",
-    /MERCH_APPROACH|FINAL_DESCENT/,
-    { timeout: 2_500 }
-  );
-  const end = await progress();
-  expect(end).toBeGreaterThan(middle);
-
-  await focusStorySection(page, "#threshold");
-  await expect(page.locator("html")).toHaveAttribute(
-    "data-story-beat",
-    "WORLD_SLEEP",
-    { timeout: 2_500 }
-  );
-  const reversed = await progress();
-  expect(reversed).toBeLessThan(middle);
-});
-
-test("living world keeps the owner artwork as authoritative fallback", async ({ page }) => {
-  await page.goto("/");
-
-  const host = page.locator(".site-backdrop");
-  const image = host.locator("img");
-
-  await expect(image).toHaveAttribute("src", "/media/hazewave-world.jpg.webp");
-  await expect(host).toHaveAttribute(
-    "data-world-runtime",
-    /webgl2|css-fallback|fallback/
-  );
-
-  const viewport = page.viewportSize();
-  if (viewport && viewport.width <= 430) {
-    await expect(host).toHaveAttribute("data-world-runtime", "css-fallback");
-  }
-});
-
-test("WebGL world context loss falls back and restores without blanking essential content", async ({ page }) => {
-  const viewport = page.viewportSize();
-  test.skip(!viewport || viewport.width <= 430, "WebGL world is intentionally disabled on LOW mobile tier");
-
-  await page.goto("/");
-  const host = page.locator(".site-backdrop");
-
-  await expect(host).toHaveAttribute(
-    "data-world-runtime",
-    /webgl2|fallback/,
-    { timeout: 4_000 }
-  );
-
-  const canvas = page.locator(".living-world-canvas");
-  if (await canvas.count() === 0) test.skip(true, "WebGL2 unavailable in this browser runtime");
-
-  const extensionAvailable = await canvas.evaluate((element) => {
-    const gl = (element as HTMLCanvasElement).getContext("webgl2");
-    return Boolean(gl?.getExtension("WEBGL_lose_context"));
-  });
-
-  test.skip(!extensionAvailable, "WEBGL_lose_context unavailable in this browser runtime");
-
-  await canvas.evaluate((element) => {
-    const gl = (element as HTMLCanvasElement).getContext("webgl2");
-    gl?.getExtension("WEBGL_lose_context")?.loseContext();
-  });
-
-  await expect(host).toHaveAttribute("data-world-runtime", "fallback-context-lost", {
-    timeout: 3_000
-  });
-  await expect(host.locator("img")).toBeVisible();
-
-  await canvas.evaluate((element) => {
-    const gl = (element as HTMLCanvasElement).getContext("webgl2");
-    gl?.getExtension("WEBGL_lose_context")?.restoreContext();
-  });
-
-  await expect(host).toHaveAttribute(
-    "data-world-runtime",
-    /webgl2|fallback-restore-failed/,
-    { timeout: 4_000 }
-  );
-  await expect(host.locator("img")).toBeVisible();
-});
-
-test("owner artwork remains visibly authoritative beneath GPU enhancement", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator("#site-loader")).toHaveCount(0, { timeout: 5_000 });
-
-  const host = page.locator(".site-backdrop");
-  const image = host.locator("img");
-  await expect(image).toBeVisible();
-
-  const opacity = Number(await image.evaluate((element) =>
-    getComputedStyle(element).opacity
-  ));
-  expect(opacity).toBeGreaterThanOrEqual(0.95);
-
-  const runtime = await host.getAttribute("data-world-runtime");
-  if (runtime === "webgl2") {
-    const canvas = host.locator(".living-world-canvas");
-    await expect(canvas).toBeVisible();
-    await expect(canvas).toHaveCSS("mix-blend-mode", "screen");
-  }
-});
-
-test("living world checkpoints produce the full narrative visual proof matrix", async ({ page }, testInfo) => {
-  test.setTimeout(120_000);
-  const capture = async (name: string) => {
-    await page.screenshot({
-      path: testInfo.outputPath(`${testInfo.project.name}-${name}.png`),
-      fullPage: false
-    });
-  };
-
-  const runBeatSequence = async (prefix: string) => {
-    await focusStorySection(page, "#threshold");
-    await capture(`${prefix}-world-sleep`);
-
-    await focusStoryFraction(page, "#archive", 0.36);
-    await capture(`${prefix}-world-awakening`);
-
-    await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.12);
-    await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "EMERGE");
-    await capture(`${prefix}-artist-01-enter`);
-
-    await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.36);
-    await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "MUSIC");
-    const aetherFocus = page.locator("[data-artist-focus='aether']");
-    await aetherFocus.click();
-    await expect(page.locator("[data-artist-focus-panel='aether']")).toHaveAttribute("data-open", "true");
-    await capture(`${prefix}-artist-01-focus`);
-
-    await aetherFocus.click();
-    await expect(page.locator("[data-artist-focus-panel='aether']")).toHaveAttribute("data-open", "false");
-
-    await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.88);
-    await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "TRANSITION");
-    await capture(`${prefix}-artist-transition`);
-
-    await focusStoryFraction(page, "[data-artist-chapter='monolith']", 0.12);
-    await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "EMERGE");
-    await capture(`${prefix}-artist-02-enter`);
-
-    await focusStoryFraction(page, "[data-artist-chapter='flora']", 0.12);
-    await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "EMERGE");
-    await capture(`${prefix}-artist-03-enter`);
-
-    await focusStoryFraction(page, "#objects", 0.24);
-    await capture(`${prefix}-merch-approach`);
-
-    await page.evaluate(() =>
-      window.scrollTo({
-        top: document.documentElement.scrollHeight,
-        behavior: "auto"
-      })
-    );
-    await page.evaluate(
-      () =>
-        new Promise<void>((resolve) =>
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-        )
-    );
-    await capture(`${prefix}-merch-final`);
-  };
-
-  await page.goto("/");
-  await expect(page.locator("#site-loader")).toHaveCount(0, { timeout: 5_000 });
-
-  const viewport = page.viewportSize();
-  if (!viewport) throw new Error("VIEWPORT_UNAVAILABLE");
-
-  if (testInfo.project.name === "chromium-desktop") {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await runBeatSequence("desktop-standard");
-
-    await page.setViewportSize({ width: 1920, height: 1080 });
-    await runBeatSequence("desktop-wide");
-  } else {
-    await runBeatSequence("mobile-portrait");
-  }
-});
-
-
-test("artist journey resolves one deterministic world at a time", async ({ page }) => {
-  await page.goto("/");
-
-  const chapters = [
-    { id: "aether", locator: "[data-artist-chapter='aether']" },
-    { id: "monolith", locator: "[data-artist-chapter='monolith']" },
-    { id: "flora", locator: "[data-artist-chapter='flora']" }
-  ] as const;
-
-  for (const chapter of chapters) {
-    await page.locator(chapter.locator).scrollIntoViewIfNeeded();
-    await expect(page.locator("html")).toHaveAttribute(
-      "data-scroll-artist",
-      chapter.id,
-      { timeout: 2_500 }
-    );
-    await expect(page.locator(chapter.locator)).toHaveAttribute(
-      "data-authority",
-      "DEMO_ONLY"
-    );
-  }
-});
-
-
-test("artist focus portal is reversible and preserves keyboard focus", async ({ page }) => {
-  await page.goto("/");
-
-  const chapter = page.locator("[data-artist-chapter='aether']");
-  await focusStorySection(page, "[data-artist-chapter='aether']");
-
-  const trigger = chapter.locator("[data-artist-focus='aether']");
-  const panel = chapter.locator("[data-artist-focus-panel='aether']");
-
-  await trigger.focus();
-  await trigger.press("Enter");
-
-  await expect(trigger).toHaveAttribute("aria-expanded", "true");
-  await expect(panel).toHaveAttribute("data-open", "true");
-  await expect(chapter).toHaveAttribute("data-focused", "true");
-  await expect(page.locator("html")).toHaveAttribute("data-focused-artist", "aether");
-
-  await page.keyboard.press("Escape");
-
-  await expect(trigger).toHaveAttribute("aria-expanded", "false");
-  await expect(panel).toHaveAttribute("data-open", "false");
-  await expect(chapter).toHaveAttribute("data-focused", "false");
-  await expect(page.locator("html")).not.toHaveAttribute("data-focused-artist", /.+/);
-  await expect(trigger).toBeFocused();
-});
-
-test("video portals remain fail-closed and lazy while production video authority is unset", async ({ page }) => {
-  await page.goto("/");
-
-  await expect(page.locator("[data-video-source]")).toHaveCount(0);
-  await expect(page.locator("[data-video-portal]")).toHaveCount(3);
-  await expect(page.locator("[data-video-portal] button:disabled")).toHaveCount(3);
-  await expect(page.locator("[data-video-mount] iframe")).toHaveCount(0);
-  await expect(page.locator("[data-video-mount] video")).toHaveCount(0);
-});
-
-
-test("LOW tier keeps the owner world alive without requiring WebGL", async ({ page }) => {
-  const viewport = page.viewportSize();
-  test.skip(!viewport || viewport.width > 430, "LOW-tier fallback proof runs on mobile portrait");
-
-  await page.goto("/");
-  const host = page.locator(".site-backdrop");
-
-  await expect(host).toHaveAttribute("data-world-runtime", "css-fallback");
-  await expect(page.locator(".site-backdrop-water-image")).toHaveCount(1);
-  await expect(page.locator(".site-backdrop-water")).toHaveCount(1);
-  await expect(page.locator(".site-backdrop-fog")).toHaveCount(1);
-  await expect(page.locator(".site-backdrop-light")).toHaveCount(1);
-
-  const waterImage = page.locator(".site-backdrop-water-image");
-  const waterBackground = await waterImage.evaluate((element) =>
-    getComputedStyle(element).backgroundImage
-  );
-  expect(waterBackground).toContain("hazewave-world.jpg.webp");
-
-  await focusStorySection(page, "#threshold");
-  const sleepingWater = await page.evaluate(() =>
-    Number.parseFloat(
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--story-world-water")
-        .trim() || "0"
-    )
-  );
-
-  await focusStoryFraction(page, "#artist-worlds", 0.4);
-  const awakened = await page.evaluate(() => {
-    const style = getComputedStyle(document.documentElement);
-    return {
-      water: Number.parseFloat(style.getPropertyValue("--story-world-water").trim() || "0"),
-      fog: Number.parseFloat(style.getPropertyValue("--story-world-fog").trim() || "0"),
-      lighthouse: Number.parseFloat(style.getPropertyValue("--story-world-lighthouse").trim() || "0"),
-      waterShift: style.getPropertyValue("--story-water-shift-x").trim()
-    };
-  });
-
-  expect(awakened.water).toBeGreaterThan(sleepingWater);
-  expect(awakened.fog).toBeGreaterThan(0);
-  expect(awakened.lighthouse).toBeGreaterThan(0);
-  expect(awakened.waterShift).not.toBe("");
-
-  const waterLayerState = await waterImage.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return {
-      opacity: Number.parseFloat(style.opacity || "0"),
-      transform: style.transform
-    };
-  });
-
-  expect(waterLayerState.opacity).toBeGreaterThan(0);
-  expect(waterLayerState.transform).not.toBe("none");
-  await expect(host.locator("img")).toHaveAttribute("src", "/media/hazewave-world.jpg.webp");
-});
-
-
-test("authorized video lifecycle unloads media on close without production data", async ({ page }) => {
-  await page.goto("/");
-
-  const focus = page.locator("[data-artist-focus='aether']");
-  await focus.scrollIntoViewIfNeeded();
-  await focus.click();
-
-  const portal = page.locator("[data-video-portal='aether']");
-  await expect(portal).toHaveAttribute("data-open", "true");
-
-  const open = portal.locator("button").first();
-
-  await open.evaluate((element) => {
-    const button = element as HTMLButtonElement;
-    button.disabled = false;
-    button.dataset.videoSource = "/media/__synthetic_video_lifecycle_test__.mp4";
-    button.dataset.videoArtist = "aether";
-    button.textContent = "OPEN VISUAL";
-  });
-
-  await open.click();
-
-  const mount = page.locator("[data-video-mount='aether']");
-  await expect(mount).toHaveAttribute("data-loaded", "true");
-  await expect(mount.locator("video")).toHaveCount(1);
-
-  const close = portal.locator("[data-video-close='aether']");
-  await expect(close).toBeVisible();
-  await close.click();
-
-  await expect(mount.locator("video,iframe")).toHaveCount(0);
-  await expect(mount).not.toHaveAttribute("data-loaded", "true");
-  await expect(open).toBeEnabled();
-});
-
-
-test("artist micro-beats are deterministic and reversible", async ({ page }) => {
-  await page.goto("/");
-
-  const chapter = "[data-artist-chapter='aether']";
-
-  await focusStoryFraction(page, chapter, 0.10);
-  await expect(page.locator("html")).toHaveAttribute("data-scroll-artist", "aether");
-  await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "EMERGE");
-
-  await focusStoryFraction(page, chapter, 0.34);
-  await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "MUSIC");
-
-  await focusStoryFraction(page, chapter, 0.63);
-  await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "VISUAL");
-
-  await focusStoryFraction(page, chapter, 0.90);
-  await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "TRANSITION");
-
-  await focusStoryFraction(page, chapter, 0.12);
-  await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "EMERGE");
-});
-
-test("living world exposes layered owner-art 2.5D depth without replacing the source", async ({ page }) => {
-  const viewport = page.viewportSize();
-  test.skip(!viewport || viewport.width <= 430, "LOW tier intentionally uses CSS fallback");
-
-  await page.goto("/");
-  const host = page.locator(".site-backdrop");
-
-  await expect(host).toHaveAttribute(
-    "data-world-runtime",
-    /webgl2|fallback/,
-    { timeout: 4_000 }
-  );
-
-  if ((await host.getAttribute("data-world-runtime")) === "webgl2") {
-    await expect(host).toHaveAttribute("data-world-depth-model", "layered-owner-art-2.5d");
-    await expect(host.locator("img")).toHaveAttribute("src", "/media/hazewave-world.jpg.webp");
-    await expect(host.locator("img")).toBeVisible();
-
-    await expect.poll(
-      async () => Number(await host.getAttribute("data-world-decoded-image-mib")),
-      { timeout: 2_000 }
-    ).toBeGreaterThan(0);
-
-    await expect.poll(
-      async () => Number(await host.getAttribute("data-world-color-buffer-mib")),
-      { timeout: 2_000 }
-    ).toBeGreaterThan(0);
-  }
-});
-
-
-test("living water exposes the reflection model without replacing owner art", async ({ page }) => {
-  const viewport = page.viewportSize();
-  test.skip(!viewport || viewport.width <= 430, "LOW mobile tier uses the CSS living-world fallback");
-
-  await page.goto("/");
-  const host = page.locator(".site-backdrop");
-
-  await expect(host).toHaveAttribute(
-    "data-world-runtime",
-    /webgl2|fallback/,
-    { timeout: 4_000 }
-  );
-
-  if ((await host.getAttribute("data-world-runtime")) !== "webgl2") {
-    test.skip(true, "WebGL2 unavailable in this browser runtime");
+  const actions = page.locator(".primary-paths button");
+  for (let index = 0; index < await actions.count(); index += 1) {
+    const target = actions.nth(index);
+    const rect = await target.boundingBox();
+    expect(rect).not.toBeNull();
+    expect(rect!.height).toBeGreaterThanOrEqual(44);
   }
 
-  await expect(host).toHaveAttribute(
-    "data-world-water-model",
-    "procedural-flow-reflection-v2"
-  );
-  await expect(host.locator(".site-backdrop-source")).toHaveAttribute(
-    "src",
-    "/media/hazewave-world.jpg.webp"
-  );
-});
-
-
-test("artist identity emerges inside the persistent world instead of a giant card", async ({ page }) => {
-  await page.goto("/");
-
-  await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.12);
-  await expect(page.locator("html")).toHaveAttribute("data-scroll-artist", "aether");
-  await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "EMERGE");
-
-  const aether = page.locator(".world-artist-echo[data-world-artist-id='aether']");
-  const monolith = page.locator(".world-artist-echo[data-world-artist-id='monolith']");
-
-  await expect.poll(
-    async () => Number(await aether.evaluate((node) => getComputedStyle(node).opacity)),
-    { timeout: 2_000 }
-  ).toBeGreaterThan(0.5);
-
-  expect(Number(await monolith.evaluate((node) => getComputedStyle(node).opacity))).toBeLessThan(0.1);
-
-  await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.90);
-  await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "TRANSITION");
-
-  await expect.poll(
-    async () => Number(await aether.evaluate((node) => getComputedStyle(node).opacity)),
-    { timeout: 2_000 }
-  ).toBeLessThan(0.5);
-});
-
-
-test("in-world artist signal opens focus without leaving the persistent world", async ({ page }) => {
-  const viewport = page.viewportSize();
-  test.skip(!viewport || viewport.width <= 980, "desktop world signal is intentionally replaced by chapter controls on touch layouts");
-
-  await page.goto("/");
-  await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.34);
-
-  const control = page.locator("[data-world-focus-control='aether']");
-  await expect(control).toBeVisible();
-  await control.click();
-
-  await expect(control).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator("html")).toHaveAttribute("data-focused-artist", "aether");
-  await expect(page.locator("[data-artist-focus-panel='aether']")).toHaveAttribute(
-    "data-open",
-    "true"
-  );
-  await expect(page.locator(".site-backdrop-source")).toBeVisible();
-});
-
-
-test("living world enforces an absolute GPU pixel budget when WebGL2 is active", async ({ page }) => {
-  const viewport = page.viewportSize();
-  test.skip(!viewport || viewport.width <= 430, "LOW mobile tier uses the CSS living-world fallback");
-
-  await page.goto("/");
-  const host = page.locator(".site-backdrop");
-
-  await expect(host).toHaveAttribute("data-world-runtime", /webgl2|fallback/, {
-    timeout: 4_000
-  });
-
-  if ((await host.getAttribute("data-world-runtime")) !== "webgl2") {
-    test.skip(true, "WebGL2 unavailable in this browser runtime");
-  }
-
-  await expect.poll(
-    async () => Number(await host.getAttribute("data-world-pixel-count")),
-    { timeout: 2_500 }
-  ).toBeGreaterThan(0);
-
-  const pixelCount = Number(await host.getAttribute("data-world-pixel-count"));
-  const pixelBudget = Number(await host.getAttribute("data-world-pixel-budget"));
-
-  expect(pixelBudget).toBeGreaterThan(0);
-  expect(pixelCount).toBeLessThanOrEqual(pixelBudget);
-  await expect(host.locator(".site-backdrop-source")).toBeVisible();
-});
-
-test("artist focus deepens the same persistent owner-art world", async ({ page }) => {
-  const viewport = page.viewportSize();
-  test.skip(!viewport || viewport.width <= 980, "desktop in-world focus proof");
-
-  await page.goto("/");
-  await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.34);
-
-  const host = page.locator(".site-backdrop");
-  const control = page.locator("[data-world-focus-control='aether']");
-
-  await expect(control).toBeVisible();
-  await control.click();
-
-  await expect(host).toHaveAttribute("data-world-artist-focus", "true", {
-    timeout: 2_500
-  });
-  await expect(host.locator(".site-backdrop-source")).toBeVisible();
-
-  await page.keyboard.press("Escape");
-  await expect(host).toHaveAttribute("data-world-artist-focus", "false", {
-    timeout: 2_500
-  });
+  await page.screenshot({ path: testInfo.outputPath("living-field-mobile.png"), fullPage: false });
 });
