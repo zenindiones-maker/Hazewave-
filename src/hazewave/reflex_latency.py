@@ -20,7 +20,7 @@ from hazewave.colibri import (
     execute_colibri_system_one,
 )
 from hazewave.harness import HAZE, HazewaveTask, issue_authorization, route_task
-from hazewave.reflex_robustness import complete_choice_permutations, execute_robust_reflex_route
+from hazewave.reflex_robustness import aggregate_choice_answers, complete_choice_permutations, execute_robust_reflex_route
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -257,6 +257,91 @@ def _proof_question() -> dict[str, Any]:
             ),
         },
     }
+
+def ensemble_probe_diagnostics(
+    questions: Mapping[str, Mapping[str, Any]],
+    answers: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    if list(questions) != list(answers):
+        raise ReflexLatencyError("REFLEX_ENSEMBLE_PROBE_ANSWER_ORDER_MISMATCH")
+
+    ordered_answers: list[Mapping[str, Any]] = []
+    permutation_answers: list[dict[str, Any]] = []
+    for question_id, question in questions.items():
+        criteria = question.get("criteria")
+        answer = answers.get(question_id)
+        if not isinstance(criteria, Mapping) or not isinstance(answer, Mapping):
+            raise ReflexLatencyError("REFLEX_ENSEMBLE_PROBE_ROW_INVALID")
+        probabilities = answer.get("probabilities")
+        winner = str(answer.get("choice") or "")
+        if not isinstance(probabilities, Mapping) or not winner:
+            raise ReflexLatencyError("REFLEX_ENSEMBLE_PROBE_ANSWER_INVALID")
+        permutation_answers.append({
+            "question_id": question_id,
+            "order": [str(label) for label in criteria],
+            "winner": winner,
+            "probabilities": {
+                str(label): float(value)
+                for label, value in probabilities.items()
+            },
+        })
+        ordered_answers.append(answer)
+
+    ensemble = aggregate_choice_answers(ordered_answers)
+    return {
+        "aggregate_winner": ensemble.aggregate_winner,
+        "aggregate_probabilities": dict(ensemble.aggregate_probabilities),
+        "aggregate_peak_probability": ensemble.aggregate_peak_probability,
+        "winner_agreement": ensemble.winner_agreement,
+        "normalized_jsd": ensemble.normalized_jsd,
+        "permutation_answers": permutation_answers,
+    }
+
+
+def summarize_ensemble_repeatability(rows: list[Mapping[str, Any]]) -> dict[str, Any]:
+    if len(rows) < 2:
+        raise ReflexLatencyError("REFLEX_REPEATABILITY_REQUIRES_MULTIPLE_RUNS")
+
+    winners = [str(row.get("aggregate_winner") or "") for row in rows]
+    if any(not winner for winner in winners):
+        raise ReflexLatencyError("REFLEX_REPEATABILITY_WINNER_MISSING")
+
+    probability_rows: list[dict[str, float]] = []
+    labels: set[str] | None = None
+    for row in rows:
+        probs = row.get("aggregate_probabilities")
+        if not isinstance(probs, Mapping):
+            raise ReflexLatencyError("REFLEX_REPEATABILITY_PROBABILITIES_MISSING")
+        parsed = {str(label): float(value) for label, value in probs.items()}
+        current_labels = set(parsed)
+        if labels is None:
+            labels = current_labels
+        elif current_labels != labels:
+            raise ReflexLatencyError("REFLEX_REPEATABILITY_LABEL_SET_DRIFT")
+        probability_rows.append(parsed)
+
+    counts = {winner: winners.count(winner) for winner in sorted(set(winners))}
+    modal_winner = max(counts, key=counts.get)
+    agreement = counts[modal_winner] / len(winners)
+    max_delta = max(
+        max(row[label] for row in probability_rows)
+        - min(row[label] for row in probability_rows)
+        for label in sorted(labels or ())
+    )
+    mean = {
+        label: sum(row[label] for row in probability_rows) / len(probability_rows)
+        for label in sorted(labels or ())
+    }
+    return {
+        "repeat_count": len(rows),
+        "aggregate_winners": winners,
+        "modal_aggregate_winner": modal_winner,
+        "aggregate_winner_agreement": agreement,
+        "aggregate_winner_stable": agreement == 1.0,
+        "mean_aggregate_probabilities": mean,
+        "max_aggregate_probability_delta": max_delta,
+    }
+
 
 def question_scale_probe_questions(
     question: Mapping[str, Any],
