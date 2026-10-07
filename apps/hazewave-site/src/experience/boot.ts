@@ -157,9 +157,39 @@ export function bootHazewaveSite(): void {
 
   let focusedArtist: ArtistId | null = null;
 
+  const unmountAuthorizedVideo = (artistId: ArtistId) => {
+    const mount = document.querySelector<HTMLElement>(`[data-video-mount="${artistId}"]`);
+    if (!mount) return;
+
+    mount.querySelectorAll("video").forEach((video) => {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    });
+
+    mount.replaceChildren();
+    delete mount.dataset.loaded;
+
+    const openButton = document.querySelector<HTMLButtonElement>(
+      `[data-video-source][data-video-artist="${artistId}"]`
+    );
+    if (openButton) {
+      openButton.disabled = false;
+      openButton.textContent = "OPEN VISUAL";
+    }
+
+    document
+      .querySelector<HTMLButtonElement>(`[data-video-close="${artistId}"]`)
+      ?.remove();
+  };
+
   const setArtistFocus = (artistId: ArtistId | null, restoreFocus = false) => {
     const previous = focusedArtist;
     focusedArtist = artistId;
+
+    if (previous && previous !== artistId) {
+      unmountAuthorizedVideo(previous);
+    }
 
     document.querySelectorAll<HTMLButtonElement>("[data-artist-focus]").forEach((button) => {
       const active = button.dataset.artistFocus === artistId;
@@ -234,6 +264,22 @@ export function bootHazewaveSite(): void {
     mount.dataset.loaded = "true";
     button.textContent = "VISUAL LOADED";
     button.disabled = true;
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "artist-video-close";
+    close.dataset.videoClose = artistId;
+    close.textContent = "CLOSE VISUAL";
+    close.setAttribute("aria-label", "Fechar clipe autorizado");
+    close.addEventListener(
+      "click",
+      () => {
+        unmountAuthorizedVideo(artistId);
+        button.focus({ preventScroll: true });
+      },
+      { once: true }
+    );
+    mount.parentElement?.append(close);
   };
 
   const onArtistJourneyClick = (event: MouseEvent) => {
