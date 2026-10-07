@@ -307,6 +307,22 @@
         "runtime"
       ],
       "description": "Operational reference for the Hazewave-governed zero-cost FreeLLMAPI fabric, supported surfaces, MCP restrictions, data boundaries and runtime adoption gates."
+    },
+    {
+      "id": "wave-hazewave-interactive-music-site-v1",
+      "path": "docs/wave/WAVE_HAZEWAVE_INTERACTIVE_MUSIC_SITE_V1.md",
+      "type": "PROJECT_SPEC",
+      "authority": "CANONICAL",
+      "status": "DEVELOPMENT",
+      "owner": "WAVE",
+      "applies_to": [
+        "WAVE",
+        "BRIDGE",
+        "brand_site",
+        "interactive_web",
+        "music_experience"
+      ],
+      "description": "Execution specification for WAVE to build the Hazewave interactive music site with a premium cinematic interaction bar, zero-cost-first capability acquisition, dependency admission gates, mobile/performance/accessibility requirements and real implementation deliverables."
     }
   ]
 }
