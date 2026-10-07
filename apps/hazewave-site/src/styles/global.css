@@ -446,13 +446,13 @@ h1{
   .scene-copy{
     top:22px;left:20px;max-width:calc(100% - 40px)
   }
-  .eyebrow{font-size:7px;margin-bottom:7px}
-  h1{max-width:11em;font-size:clamp(25px,6.7vw,31px);line-height:.94}
+  .eyebrow{font-size:7px;margin-bottom:0}
+  h1{display:none}
   .intro{display:none}
   .runtime-badge{right:18px;top:22px;opacity:.5}
   .runtime-badge .pulse{display:none}
   .deck-stage{
-    top:45%;width:100%;height:58vh;max-height:490px;transform:translate(-50%,-45%)
+    top:42%;width:100%;height:60vh;max-height:500px;transform:translate(-50%,-47%)
   }
   .resonance-deck{width:250px;height:430px}
   .deck-outer-halo{top:69px;width:212px;height:212px}
@@ -495,7 +495,6 @@ h1{
 
 @media(max-width:420px){
   .scene-copy{top:18px}
-  h1{font-size:25px}
   .deck-stage{top:47%;transform:translate(-50%,-43%)}
   .artifact-field{padding-left:14px;padding-right:14px}
   .runtime-badge{display:none}
