@@ -787,3 +787,84 @@ It is:
 - actual browser screenshots/video/metrics decide whether a technique survives.
 
 New technology is admitted only when it improves the experience enough to justify its cost.
+
+
+## 23. Narrative architecture correction — persistent world before effects
+
+The current owner direction is accepted at the architectural level:
+
+- story before effect;
+- one persistent visual world;
+- linear progression through authored beats;
+- the scroll position is deterministic story state;
+- render state may ease toward story state, but must never become the authority;
+- media/player/merch/social content remains semantic DOM above the world.
+
+The production chapter ledger is now explicit data rather than scattered scroll callbacks:
+
+```
+THRESHOLD
+-> ARCHIVE
+-> ARTIST WORLDS
+-> DOSSIERS
+-> OBJECTS / MERCH
+-> NETWORK
+```
+
+Each chapter owns a bounded world-frame target for scale, pan, grade and vignette. The same scroll position must resolve to the same target state after reverse scrolling and reload.
+
+### Important corrections to generic "Awwwards stack" advice
+
+No framework/library is a quality credential by itself.
+
+**Next.js is NOT required.**
+The current Astro shell remains the stronger fit because it produces semantic static HTML and only ships JavaScript for the interactive experience. Astro's official islands model explicitly targets this split:
+https://docs.astro.build/en/concepts/islands/
+
+**React Three Fiber is NOT required.**
+Direct Three.js remains available for genuine 3D/GLB needs, but React/R3F must prove a concrete authoring or lifecycle advantage before adoption.
+
+**Lenis is OPTIONAL, not architectural authority.**
+Lenis is MIT and its upstream docs include a GSAP integration, but the product already has real A15 frame-budget evidence. Native scrolling remains authoritative until a bounded desktop-only Lenis spike proves perceptual benefit without mobile regression:
+https://github.com/darkroomengineering/lenis
+
+If Lenis is admitted, use one ticker only and preserve native accessibility/sticky behavior. Do not run duplicate RAF loops.
+
+**GSAP ScrollTrigger is a tool, not the story model.**
+Its official docs validate pin/scrub/snap and responsive match-media workflows, but chapter state stays in the Hazewave scene ledger rather than being hidden inside many independent ScrollTriggers:
+https://gsap.com/docs/v3/Plugins/ScrollTrigger/
+
+### Scroll-driven CSS correction
+
+CSS `animation-timeline: scroll()/view()` is valuable for progressive, non-critical reveals, but current MDN still marks these surfaces as limited availability rather than universal Baseline support:
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/animation-timeline
+
+Therefore:
+- use CSS scroll timelines where they reduce main-thread work;
+- keep a static fallback;
+- never make audio, navigation, selection or chapter correctness depend on them.
+
+### Unverified numerical claims are rejected
+
+Claims such as fixed percentages for "time on page", "memory", or "90% of winning sites" are not admitted into Hazewave design decisions without a primary study or reproducible dataset.
+
+WAVE adopts techniques based on:
+- official platform behavior;
+- measured runtime evidence;
+- accessibility;
+- maintainability;
+- visual result.
+
+## 24. Owner artwork world rule
+
+The owner-supplied lighthouse artwork is the persistent background world for the current Hazewave direction.
+
+Rules:
+- the page scrolls above the same artwork;
+- chapter progression may pan/zoom/grade the artwork, but may not replace it with unrelated stock imagery;
+- reduced-motion keeps the image stable;
+- the background never becomes a hidden video dependency;
+- final full-resolution asset must preserve the owner artwork rather than regenerate it;
+- authored foreground interactions must remain legible over both the purple and acid-green regions of the artwork.
+
+The current repository contains a lightweight exact-image derivative for runtime proof. Replace it with the owner-supplied full-resolution source before publication; do not change composition.
