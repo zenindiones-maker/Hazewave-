@@ -987,6 +987,10 @@ export function bootHazewaveSite(): void {
         performanceMode: stageHost.dataset.performance ?? "standard",
         gpuAtmosphere: stageHost.dataset.gpuAtmosphere ?? "off",
         worldRuntime: backdropHost?.dataset.worldRuntime ?? "unavailable",
+        worldActivity: backdropHost?.dataset.worldActivity ?? "fallback",
+        worldPerformance: backdropHost?.dataset.worldPerformance ?? "fallback",
+        worldFps: backdropHost?.dataset.worldFps ?? "warming",
+        worldFrameP95Ms: backdropHost?.dataset.worldFrameP95Ms ?? "warming",
         storyProgress: pendingStoryState
           ? Number(pendingStoryState.globalProgress.toFixed(4))
           : 0,
