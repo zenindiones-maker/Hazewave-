@@ -272,3 +272,16 @@ test("seeking while paused does not restart playback", async ({ page }) => {
   await expect(page.locator("#toggle-play")).toHaveText("PLAY");
   expect(Number(await seek.inputValue())).toBeGreaterThan(7.8);
 });
+
+
+test("diagnostics report real selection and audio-start latency", async ({ page }) => {
+  await page.goto("/?diagnostics=1");
+  await page.locator("[data-track-id='aether-01']").click();
+  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
+
+  const panel = page.locator("#hazewave-diagnostics");
+  await expect(panel).toContainText("selectionToContactMs");
+  await expect(panel).toContainText("contactToAudioMs");
+  await expect(panel).toContainText("selectionToPlayingMs");
+  await expect(page.locator("#premium-stage")).toHaveAttribute("data-selection-to-playing-ms", /\d+(\.\d+)?/);
+});
