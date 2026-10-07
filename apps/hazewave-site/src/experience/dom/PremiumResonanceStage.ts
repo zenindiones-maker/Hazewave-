@@ -146,6 +146,14 @@ export class PremiumResonanceStage {
     });
   }
 
+  setTrackProgress(value: number): void {
+    const progress = Math.max(0, Math.min(1, value));
+    this.host.style.setProperty("--track-progress", progress.toFixed(4));
+    this.host.style.setProperty("--track-progress-turn", `${(progress * 320).toFixed(2)}deg`);
+    this.host.style.setProperty("--track-progress-scan", `${(-82 + progress * 164).toFixed(2)}px`);
+    this.host.style.setProperty("--track-progress-drift", `${((progress - 0.5) * 22).toFixed(2)}px`);
+  }
+
   dispose(): void {
     cancelAnimationFrame(this.raf);
     gsap.killTweensOf(".cinematic-artifact-clone");
