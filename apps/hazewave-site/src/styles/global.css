@@ -268,6 +268,24 @@ button{appearance:none}
 .premium-stage[data-playing="true"] .world-meta strong{
   color:color-mix(in srgb,var(--world-accent),transparent 72%)
 }
+.premium-stage[data-artist="aether"]{
+  background:
+    radial-gradient(circle at 50% 35%,rgba(112,226,209,.16) 0%,transparent 24%),
+    radial-gradient(circle at 16% 72%,rgba(71,120,111,.09) 0%,transparent 32%),
+    linear-gradient(180deg,#071211 0%,#020504 82%)
+}
+.premium-stage[data-artist="monolith"]{
+  background:
+    radial-gradient(circle at 50% 34%,rgba(232,217,197,.10) 0%,transparent 22%),
+    radial-gradient(circle at 80% 68%,rgba(101,90,84,.11) 0%,transparent 30%),
+    linear-gradient(180deg,#0d0b0a 0%,#030303 82%)
+}
+.premium-stage[data-artist="flora"]{
+  background:
+    radial-gradient(circle at 50% 34%,rgba(216,255,122,.13) 0%,transparent 23%),
+    radial-gradient(circle at 18% 72%,rgba(114,136,73,.12) 0%,transparent 31%),
+    linear-gradient(180deg,#0d1208 0%,#030503 82%)
+}
 .premium-stage[data-section="intro"] .world-glow{opacity:calc(var(--audio-glow,.68) * .76)}
 .premium-stage[data-artist="aether"][data-section="verse"] .artist-world-aether,
 .premium-stage[data-artist="monolith"][data-section="verse"] .artist-world-monolith,
@@ -723,6 +741,7 @@ h1{
   opacity:.9
 }
 .resonance-artifact[data-artist="aether"] .artifact-shell{
+  clip-path:polygon(18% 0,82% 0,100% 14%,94% 88%,84% 100%,16% 100%,6% 88%,0 14%);
   background:
     linear-gradient(145deg,rgba(255,255,255,.24),rgba(255,255,255,.035) 28%,rgba(167,255,224,.08) 60%,rgba(255,255,255,.025)),
     linear-gradient(155deg,#527d75,#10201d 70%);
@@ -733,6 +752,7 @@ h1{
     0 0 26px rgba(167,255,224,.07)
 }
 .resonance-artifact[data-artist="monolith"] .artifact-shell{
+  clip-path:polygon(8% 0,92% 0,100% 8%,100% 96%,96% 100%,4% 100%,0 96%,0 8%);
   background:
     linear-gradient(90deg,rgba(255,255,255,.04) 0 2%,transparent 2% 7%,rgba(255,255,255,.025) 7% 9%,transparent 9%),
     linear-gradient(145deg,#6d625a,#211e1c 72%);
@@ -743,6 +763,7 @@ h1{
     0 20px 42px rgba(0,0,0,.5)
 }
 .resonance-artifact[data-artist="flora"] .artifact-shell{
+  clip-path:polygon(20% 0,80% 0,100% 20%,94% 80%,78% 100%,22% 100%,6% 80%,0 20%);
   background:
     radial-gradient(circle at 32% 24%,rgba(216,255,122,.17),transparent 22%),
     linear-gradient(145deg,#7d934d,#1a2412 70%);
