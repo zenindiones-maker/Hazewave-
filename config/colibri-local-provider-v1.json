@@ -1,0 +1,85 @@
+{
+  "schema": "HazewaveColibriLocalProviderPolicy/v1",
+  "project_id": "HAZEWAVE",
+  "authority": "HAZEWAVE_HARNESS",
+  "provider": "colibri",
+  "provider_authority": "NONE",
+  "trust_lane": "LOCAL_PRIVATE",
+  "upstream": {
+    "repository": "JustVugg/colibri",
+    "release_tag": "v2.0.0",
+    "source_commit": "bf2442915d6e3dd4cdfd2eb9c2a3d2aa44a25850",
+    "engine_license": "Apache-2.0",
+    "linux_x86_64_release_sha256": "aef2c1e7d5cbad3d27cc90d8432775acdc315ec51f6d7a67a2f13a936f9978ce"
+  },
+  "transport": {
+    "base_url": "http://127.0.0.1:28080",
+    "loopback_only": true,
+    "api_key_required": true,
+    "external_bind_forbidden": true
+  },
+  "runtime_policy": {
+    "role": "SUBORDINATE_LOCAL_EXECUTION_PROVIDER",
+    "decision_authority": "ADVISORY_ONLY",
+    "auto_install": false,
+    "auto_download": false,
+    "paid_fallback": "FORBIDDEN",
+    "unknown_cost": "DENY",
+    "raw_media_ingress": false,
+    "mcp_install_authority": "FORBIDDEN",
+    "security_or_promotion_self_approval": false
+  },
+  "resource_policy": {
+    "reserve_system_ram_gb": 3.0,
+    "runtime_headroom_ram_gb": 1.0,
+    "reserve_disk_gb": 6.0,
+    "current_workstation_lane": "DECISION_ONLY"
+  },
+  "data_policy": {
+    "allowed_classes": ["PUBLIC", "INTERNAL_NON_SECRET", "PRIVATE_MEDIA"],
+    "forbidden_classes": ["CREDENTIAL"]
+  },
+  "decision_policy": {
+    "min_choice_confidence": 0.8,
+    "low_confidence_action": "FAIL_CLOSED_OR_DEFER_TO_EXISTING_HARNESS_RULE",
+    "direct_human_language": "en",
+    "pt_br_direct_classification": "NOT_QUALIFIED",
+    "may_expand_harness_authority": false
+  },
+  "models": [
+    {
+      "id": "laya",
+      "api_model": "laya",
+      "mode": "decision",
+      "repository": "convaiinnovations/laya",
+      "revision": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+      "primary_weight_sha256": "891102d372688fc2a094dac56a384bc537b87c63f21f9f3dac0be2b7cbc8d86c",
+      "download_gb": 0.85,
+      "ram_min_gb": 1.7,
+      "ram_good_gb": 1.7,
+      "license": "Apache-2.0",
+      "languages": ["en"],
+      "allowed_capabilities": ["decision.route", "decision.gate", "decision.score"],
+      "execution_enabled": true,
+      "production_allowed": true,
+      "recommended_current_tier": true
+    },
+    {
+      "id": "gliner2.5-decide",
+      "api_model": "gliner2.5-decide",
+      "mode": "decision",
+      "repository": "fastino/GLiNER2.5-Decide",
+      "revision": "5a7adf7",
+      "primary_weight_sha256": "40a5a23ff860dc3dff426cecd1048cacdd29c648c96db209dad818e9686dc997",
+      "download_gb": 1.95,
+      "ram_min_gb": 1.9,
+      "ram_good_gb": 1.9,
+      "license": "Apache-2.0",
+      "languages": ["en"],
+      "allowed_capabilities": ["decision.route", "decision.gate", "decision.score"],
+      "execution_enabled": false,
+      "production_allowed": false,
+      "recommended_current_tier": false
+    }
+  ]
+}
