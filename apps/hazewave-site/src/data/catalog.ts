@@ -6,6 +6,13 @@ export interface VisualIdentity {
   secondary: string;
   metalness: number;
   roughness: number;
+  world: {
+    fogDensity: number;
+    ambientIntensity: number;
+    deckGlow: number;
+    cameraDrift: number;
+    motionSignature: "FLOAT" | "MASS" | "GROW";
+  };
 }
 
 export interface AudioSource {
@@ -50,7 +57,7 @@ export const artists: Artist[] = [
     id: "aether",
     name: "AETHER / DEMO",
     releaseTitle: "Glass Signal",
-    identity: { background: "#071111", accent: "#a7ffe0", secondary: "#47786f", metalness: 0.72, roughness: 0.2 },
+    identity: { background: "#071111", accent: "#a7ffe0", secondary: "#47786f", metalness: 0.72, roughness: 0.2, world: { fogDensity: 0.028, ambientIntensity: 1.18, deckGlow: 1.08, cameraDrift: 0.85, motionSignature: "FLOAT" } },
     tracks: [
       {
         id: "aether-01", artistId: "aether", releaseId: "glass-signal", title: "Pale Current", durationSeconds: 24,
@@ -70,7 +77,7 @@ export const artists: Artist[] = [
     id: "monolith",
     name: "MONOLITH / DEMO",
     releaseTitle: "Pressure Memory",
-    identity: { background: "#0b0b0e", accent: "#e8d9c5", secondary: "#655a54", metalness: 0.9, roughness: 0.34 },
+    identity: { background: "#0b0b0e", accent: "#e8d9c5", secondary: "#655a54", metalness: 0.9, roughness: 0.34, world: { fogDensity: 0.038, ambientIntensity: 0.92, deckGlow: 0.9, cameraDrift: 0.36, motionSignature: "MASS" } },
     tracks: [
       {
         id: "monolith-01", artistId: "monolith", releaseId: "pressure-memory", title: "Weightless Iron", durationSeconds: 24,
@@ -90,7 +97,7 @@ export const artists: Artist[] = [
     id: "flora",
     name: "FLORA / DEMO",
     releaseTitle: "Living Static",
-    identity: { background: "#101209", accent: "#d8ff7a", secondary: "#728849", metalness: 0.38, roughness: 0.48 },
+    identity: { background: "#101209", accent: "#d8ff7a", secondary: "#728849", metalness: 0.38, roughness: 0.48, world: { fogDensity: 0.032, ambientIntensity: 1.08, deckGlow: 1.2, cameraDrift: 0.62, motionSignature: "GROW" } },
     tracks: [
       {
         id: "flora-01", artistId: "flora", releaseId: "living-static", title: "Moss Circuit", durationSeconds: 24,
