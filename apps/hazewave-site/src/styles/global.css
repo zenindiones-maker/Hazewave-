@@ -541,6 +541,9 @@ h1{
 }
 .deck-loaded-artifact .artifact-number,
 .deck-loaded-artifact .artifact-mark{display:none}
+.deck-loaded-artifact .artifact-face-copy{left:7px;right:7px;bottom:16px}
+.deck-loaded-artifact .artifact-face-copy strong{font-size:5px}
+.deck-loaded-artifact .artifact-face-copy small{display:none}
 .deck-loaded-artifact .artifact-contacts{bottom:5px;width:42px}
 .deck-loaded-artifact .artifact-contacts i{width:5px;height:2px;opacity:.92}
 .deck-loaded-artifact .artifact-artwork{inset:7px;width:calc(100% - 14px);height:calc(100% - 14px);opacity:.7}
@@ -808,6 +811,19 @@ h1{
 .artifact-number{
   position:absolute;z-index:4;left:10px;top:10px;
   font:750 7px/1 ui-monospace,monospace;color:rgba(255,255,255,.68);letter-spacing:.1em
+}
+.artifact-face-copy{
+  position:absolute;z-index:4;left:10px;right:10px;bottom:24px;
+  display:grid;gap:2px;min-width:0;pointer-events:none
+}
+.artifact-face-copy strong{
+  color:rgba(255,255,255,.86);font-size:7px;line-height:1.05;font-weight:700;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.artifact-face-copy small{
+  color:color-mix(in srgb,var(--accent),#fff 10%);
+  font:700 5px/1 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.72
 }
 .artifact-contacts{
   position:absolute;z-index:4;left:50%;bottom:9px;transform:translateX(-50%);
