@@ -100,3 +100,12 @@ def test_smoke_lazy_wakes_existing_codespace_before_remote_probe() -> None:
     assert "ensure_codespace_available" in smoke_case
     assert 'run_remote "$action"' in smoke_case
     assert "gh codespace create" not in smoke_case
+
+
+def test_remote_smoke_reconciles_runtime_before_live_inference() -> None:
+    remote = REMOTE.read_text(encoding="utf-8")
+    smoke = remote.split("smoke() {", 1)[1].split("observe() {", 1)[0]
+    reconcile_pos = smoke.find("reconcile")
+    inference_pos = smoke.find("hazewave.reflex_shadow_runtime smoke")
+    assert reconcile_pos >= 0
+    assert inference_pos > reconcile_pos
