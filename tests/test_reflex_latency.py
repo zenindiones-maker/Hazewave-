@@ -84,6 +84,58 @@ def test_question_scale_probe_uses_complete_live_permutation_prefixes() -> None:
     assert list(probe[3]) == list(probe[6])[:3]
 
 
+def test_ensemble_probe_diagnostics_preserve_order_probabilities_and_aggregate() -> None:
+    question = shadow_runtime._proof_question()
+    questions = latency.question_scale_probe_questions(question)[6]
+    answers = {}
+    for index, qid in enumerate(questions):
+        if index < 5:
+            probs = {"HAZE": 0.08, "WAVE": 0.12, "BRIDGE": 0.80}
+            choice = "BRIDGE"
+        else:
+            probs = {"HAZE": 0.08, "WAVE": 0.72, "BRIDGE": 0.20}
+            choice = "WAVE"
+        answers[qid] = {
+            "choice": choice,
+            "probabilities": probs,
+            "confidence": (3 * probs[choice] - 1) / 2,
+        }
+
+    row = latency.ensemble_probe_diagnostics(questions, answers)
+
+    assert row["aggregate_winner"] == "BRIDGE"
+    assert row["winner_agreement"] == pytest.approx(5 / 6)
+    assert len(row["permutation_answers"]) == 6
+    assert row["permutation_answers"][0]["order"] == ["HAZE", "WAVE", "BRIDGE"]
+    assert row["permutation_answers"][-1]["order"] == ["BRIDGE", "WAVE", "HAZE"]
+    assert row["permutation_answers"][-1]["winner"] == "WAVE"
+    assert row["permutation_answers"][-1]["probabilities"]["WAVE"] == pytest.approx(0.72)
+
+
+def test_repeatability_summary_blocks_aggregate_winner_drift() -> None:
+    rows = [
+        {
+            "aggregate_winner": "BRIDGE",
+            "aggregate_probabilities": {"HAZE": 0.10, "WAVE": 0.35, "BRIDGE": 0.55},
+        },
+        {
+            "aggregate_winner": "BRIDGE",
+            "aggregate_probabilities": {"HAZE": 0.11, "WAVE": 0.34, "BRIDGE": 0.55},
+        },
+        {
+            "aggregate_winner": "WAVE",
+            "aggregate_probabilities": {"HAZE": 0.10, "WAVE": 0.46, "BRIDGE": 0.44},
+        },
+    ]
+
+    summary = latency.summarize_ensemble_repeatability(rows)
+
+    assert summary["repeat_count"] == 3
+    assert summary["aggregate_winner_agreement"] == pytest.approx(2 / 3)
+    assert summary["aggregate_winner_stable"] is False
+    assert summary["max_aggregate_probability_delta"] == pytest.approx(0.12)
+
+
 def test_latency_benchmark_uses_the_same_route_question_as_shadow_runtime() -> None:
     assert latency._proof_question() == shadow_runtime._proof_question()
 
