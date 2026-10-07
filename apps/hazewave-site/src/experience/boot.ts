@@ -56,6 +56,16 @@ export function bootHazewaveSite(): void {
 
   const machine = new PlayerMachine();
   const audio = new HazewaveAudioEngine();
+  const mediaSession = "mediaSession" in navigator ? navigator.mediaSession : null;
+
+  const setMediaPlaybackState = (state: "none" | "paused" | "playing") => {
+    if (!mediaSession) return;
+    try {
+      mediaSession.playbackState = state;
+    } catch {
+      // Progressive enhancement only.
+    }
+  };
 
   const formatTime = (seconds: number) => {
     const safe = Math.max(0, Number.isFinite(seconds) ? seconds : 0);
@@ -247,6 +257,18 @@ export function bootHazewaveSite(): void {
         if (deckBeaconSection) deckBeaconSection.textContent = "INTRO";
       }, `artist-${artist.id}`);
 
+      if (mediaSession && "MediaMetadata" in window) {
+        try {
+          mediaSession.metadata = new MediaMetadata({
+            title: track.title,
+            artist: artist.name.replace(" / DEMO", ""),
+            album: artist.releaseTitle
+          });
+        } catch {
+          // Metadata support varies independently from navigator.mediaSession.
+        }
+      }
+
       pendingAtmosphereArtist = artist.id;
       atmosphere?.setArtist(artist.id);
       await audio.prepare(track);
@@ -270,6 +292,7 @@ export function bootHazewaveSite(): void {
 
       stateLabel.textContent = machine.phase;
       stage?.setPlaying(true);
+      setMediaPlaybackState("playing");
       atmosphereShouldPlay = true;
       atmosphere?.setPlaying(true);
       toggle.disabled = false;
@@ -336,6 +359,7 @@ export function bootHazewaveSite(): void {
       if (machine.phase === "PLAYING") machine.transition("PAUSED");
       stateLabel.textContent = machine.phase;
       toggle.textContent = "PLAY";
+      setMediaPlaybackState("paused");
       experience?.setPlaying(false);
       atmosphereShouldPlay = false;
       atmosphere?.setPlaying(false);
@@ -344,6 +368,7 @@ export function bootHazewaveSite(): void {
         if (machine.phase === "PAUSED") machine.transition("PLAYING");
         stateLabel.textContent = machine.phase;
         toggle.textContent = "PAUSE";
+        setMediaPlaybackState("playing");
         experience?.setPlaying(true);
         atmosphereShouldPlay = true;
         atmosphere?.setPlaying(true);
@@ -353,6 +378,7 @@ export function bootHazewaveSite(): void {
         if (machine.phase === "ENDED") machine.transition("PLAYING");
         stateLabel.textContent = machine.phase;
         toggle.textContent = "PAUSE";
+        setMediaPlaybackState("playing");
         experience?.setPlaying(true);
         atmosphereShouldPlay = true;
         atmosphere?.setPlaying(true);
@@ -360,8 +386,48 @@ export function bootHazewaveSite(): void {
     }
   });
 
+  if (mediaSession) {
+    const bindMediaAction = (
+      action: MediaSessionAction,
+      handler: MediaSessionActionHandler | null
+    ) => {
+      try {
+        mediaSession.setActionHandler(action, handler);
+      } catch {
+        // Individual actions have different browser/platform support.
+      }
+    };
+
+    bindMediaAction("play", () => {
+      if (audio.state === "PAUSED" || audio.state === "ENDED") toggle.click();
+    });
+    bindMediaAction("pause", () => {
+      if (audio.state === "PLAYING") toggle.click();
+    });
+    bindMediaAction("seekto", (details) => {
+      if (typeof details.seekTime !== "number") return;
+      void audio.seek(details.seekTime);
+      seek.value = String(details.seekTime);
+      timeCurrent.textContent = formatTime(details.seekTime);
+    });
+    bindMediaAction("nexttrack", () => {
+      const activeId = machine.activeTrackId;
+      const index = buttons.findIndex((button) => button.dataset.trackId === activeId);
+      const next = buttons[(Math.max(index, -1) + 1) % buttons.length]?.dataset.trackId;
+      if (next) void selectTrack(next);
+    });
+    bindMediaAction("previoustrack", () => {
+      const activeId = machine.activeTrackId;
+      const index = buttons.findIndex((button) => button.dataset.trackId === activeId);
+      const previousIndex = index <= 0 ? buttons.length - 1 : index - 1;
+      const previous = buttons[previousIndex]?.dataset.trackId;
+      if (previous) void selectTrack(previous);
+    });
+  }
+
   let lastSemanticSection: "intro" | "verse" | "break" | "chorus" | "outro" | null = null;
   let spectrumFrame = 0;
+  let mediaPositionFrame = 0;
 
   const signalLoop = () => {
     const energy = audio.energy();
@@ -384,6 +450,22 @@ export function bootHazewaveSite(): void {
       if (document.activeElement !== seek) seek.value = String(Math.min(position, activeTrack.durationSeconds));
       timeCurrent.textContent = formatTime(position);
 
+      if (
+        mediaSession &&
+        (mediaPositionFrame++ % 30 === 0) &&
+        "setPositionState" in mediaSession
+      ) {
+        try {
+          mediaSession.setPositionState({
+            duration: Math.max(activeTrack.durationSeconds, 0.001),
+            playbackRate: 1,
+            position: Math.min(position, activeTrack.durationSeconds)
+          });
+        } catch {
+          // Position state is optional and rejects invalid/transient values.
+        }
+      }
+
       if (audio.state !== "PLAYING") {
         requestAnimationFrame(signalLoop);
         return;
@@ -394,6 +476,7 @@ export function bootHazewaveSite(): void {
         if (machine.phase === "PLAYING") machine.transition("ENDED");
         stateLabel.textContent = machine.phase;
         toggle.textContent = "REPLAY";
+        setMediaPlaybackState("paused");
         experience?.setPlaying(false);
         atmosphereShouldPlay = false;
         atmosphere?.setPlaying(false);
