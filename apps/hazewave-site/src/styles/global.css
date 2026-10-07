@@ -55,9 +55,19 @@ button{appearance:none}
   --world-accent:var(--active-accent);
   --world-secondary:var(--active-secondary);
   --world-bg:#071111;
+  --pointer-x:50%;
+  --pointer-y:42%;
   background:
     radial-gradient(circle at 50% 50%,color-mix(in srgb,var(--world-accent),transparent 94%) 0%,transparent 28%),
     linear-gradient(180deg,color-mix(in srgb,var(--world-bg),#000 22%) 0%,#030504 78%)
+}
+.premium-stage::after{
+  content:"";position:absolute;inset:0;z-index:4;pointer-events:none;
+  background:
+    radial-gradient(circle at var(--pointer-x) var(--pointer-y),
+      color-mix(in srgb,var(--world-accent),transparent 88%) 0,
+      transparent 18%);
+  opacity:.46;mix-blend-mode:screen;transition:background 140ms linear
 }
 .world-glow{
   position:absolute;inset:-20%;pointer-events:none;
