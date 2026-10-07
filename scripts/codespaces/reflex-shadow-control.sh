@@ -460,6 +460,7 @@ build_scheduler_engine_variant() {
   fi
 
   [[ ! -e "$root" ]] || die "ENGINE_TUNE_DERIVED_ROOT_OCCUPIED:$variant"
+  mkdir -p "$(dirname "$root")"
   local stage
   stage="$(mktemp -d "$root.stage.XXXXXX")"
   mkdir -p "$stage"
