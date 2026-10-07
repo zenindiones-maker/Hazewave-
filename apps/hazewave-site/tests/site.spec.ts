@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { ownerConfirmedSocialHandles, productionArtists, productionIdentity } from "../src/data/productionAuthority";
 
 test("renders semantic catalog and reaches PLAYING from one click", async ({ page }, testInfo) => {
   await page.goto("/");
@@ -397,4 +398,19 @@ test("archive exposes one physical cassette per artist while wheel owns tracklis
   await expect(page.locator("#premium-stage")).toHaveAttribute("data-artist", "aether");
   await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
   await expect(page.locator("[data-track-id='aether-01']")).toHaveAttribute("aria-pressed", "true");
+});
+
+
+test("production content stays fail-closed until owner-authorized assets arrive", () => {
+  expect(productionIdentity.projectName.state).toBe("OWNER_CONFIRMED");
+  expect(productionIdentity.worldArtwork.state).toBe("OWNER_CONFIRMED");
+  expect(productionIdentity.finalArtistRoster.state).toBe("UNSET");
+  expect(productionIdentity.finalAudioCatalog.state).toBe("UNSET");
+  expect(productionIdentity.whatsappDestination.state).toBe("UNSET");
+  expect(productionArtists).toHaveLength(0);
+  expect(ownerConfirmedSocialHandles.map((entry) => entry.handle)).toEqual([
+    "@virundun",
+    "@barakozamabeats",
+    "@indionesbala"
+  ]);
 });
