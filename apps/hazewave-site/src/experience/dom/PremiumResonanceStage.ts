@@ -22,6 +22,7 @@ export class PremiumResonanceStage {
   private slot: HTMLElement;
   private screenTitle: HTMLElement;
   private screenArtist: HTMLElement;
+  private screenMeterBars: HTMLElement[];
   private artifacts: HTMLButtonElement[];
   private onPhase: PhaseSink;
   private quality: QualityProfile;
@@ -48,6 +49,9 @@ export class PremiumResonanceStage {
     this.slot = this.requireElement<HTMLElement>("#deck-slot");
     this.screenTitle = this.requireElement<HTMLElement>("#deck-screen-title");
     this.screenArtist = this.requireElement<HTMLElement>("#deck-screen-artist");
+    this.screenMeterBars = Array.from(
+      host.querySelectorAll<HTMLElement>(".screen-meter i")
+    );
     this.artifacts = Array.from(
       host.querySelectorAll<HTMLButtonElement>(".resonance-artifact[data-track-id]")
     );
@@ -126,6 +130,14 @@ export class PremiumResonanceStage {
     this.host.style.setProperty("--audio-glow", (0.68 + this.energy * 0.24).toFixed(3));
     this.host.style.setProperty("--audio-scale", (1 + this.energy * 0.018).toFixed(4));
     this.host.style.setProperty("--audio-lift", `${(this.energy * 5).toFixed(2)}px`);
+  }
+
+  setSpectrum(values: readonly number[]): void {
+    this.screenMeterBars.forEach((bar, index) => {
+      const value = Math.max(0, Math.min(1, values[index] ?? 0));
+      bar.style.setProperty("--meter-level", (0.16 + value * 0.84).toFixed(3));
+      bar.style.setProperty("--meter-opacity", (0.28 + value * 0.72).toFixed(3));
+    });
   }
 
   dispose(): void {
