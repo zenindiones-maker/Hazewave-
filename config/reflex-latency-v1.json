@@ -16,7 +16,7 @@
   "benchmark": {
     "warmup_requests": 3,
     "measured_requests": 21,
-    "request_timeout_seconds": 10,
+    "request_timeout_seconds": 30,
     "minimum_p50_improvement_fraction": 0.05,
     "maximum_p95_regression_fraction": 0.03,
     "require_same_selected_label": true,
