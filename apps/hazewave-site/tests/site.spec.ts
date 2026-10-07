@@ -904,3 +904,31 @@ test("living world exposes layered owner-art 2.5D depth without replacing the so
     await expect(host.locator("img")).toBeVisible();
   }
 });
+
+
+test("living water exposes the reflection model without replacing owner art", async ({ page }) => {
+  const viewport = page.viewportSize();
+  test.skip(!viewport || viewport.width <= 430, "LOW mobile tier uses the CSS living-world fallback");
+
+  await page.goto("/");
+  const host = page.locator(".site-backdrop");
+
+  await expect(host).toHaveAttribute(
+    "data-world-runtime",
+    /webgl2|fallback/,
+    { timeout: 4_000 }
+  );
+
+  if ((await host.getAttribute("data-world-runtime")) !== "webgl2") {
+    test.skip(true, "WebGL2 unavailable in this browser runtime");
+  }
+
+  await expect(host).toHaveAttribute(
+    "data-world-water-model",
+    "procedural-flow-reflection-v2"
+  );
+  await expect(host.locator(".site-backdrop-source")).toHaveAttribute(
+    "src",
+    "/media/hazewave-world.jpg.webp"
+  );
+});
