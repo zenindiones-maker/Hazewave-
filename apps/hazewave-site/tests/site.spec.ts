@@ -72,5 +72,6 @@ test("premium idle composition is reviewable", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.locator("#resonance-deck")).toBeVisible();
   await expect(page.locator(".resonance-artifact")).toHaveCount(6);
+  await page.waitForTimeout(900);
   await page.screenshot({ path: testInfo.outputPath("idle-premium.png"), fullPage: true });
 });
