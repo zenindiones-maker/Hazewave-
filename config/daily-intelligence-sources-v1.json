@@ -209,6 +209,30 @@
       "tier": "A_AUTHORITATIVE",
       "source_kind": "OFFICIAL_API_DOCUMENTATION",
       "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "colibri-upstream-releases",
+      "url": "https://github.com/JustVugg/colibri/releases",
+      "domains": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "UPSTREAM_RELEASE",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "laya-upstream-model-card",
+      "url": "https://huggingface.co/convaiinnovations/laya",
+      "domains": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "UPSTREAM_MODEL_DOCUMENTATION",
+      "data_classification": "PUBLIC"
     }
   ]
 }
