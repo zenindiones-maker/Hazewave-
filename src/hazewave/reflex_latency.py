@@ -940,17 +940,24 @@ def exec_server(
     port: int,
     profile: str | None,
     state_root: Path,
+    engine_bin: Path | None = None,
 ) -> None:
     policy = load_latency_policy()
     chosen = profile or runtime_profile(state_root=state_root, policy=policy)
     profile_env = profile_environment(chosen, policy=policy)
     secret = _read_secret(secret_file)
     launcher = source_root / "c" / "coli"
-    engine = source_root / "c" / "laya"
+    engine = (engine_bin if engine_bin is not None else source_root / "c" / "laya").resolve()
     if not launcher.is_file() or not engine.is_file():
         raise ReflexLatencyError("REFLEX_LATENCY_ENGINE_MISSING")
+    if engine.is_symlink():
+        raise ReflexLatencyError("REFLEX_LATENCY_ENGINE_SYMLINK_FORBIDDEN")
+    if not os.access(engine, os.X_OK):
+        raise ReflexLatencyError("REFLEX_LATENCY_ENGINE_NOT_EXECUTABLE")
+    engine_sha256 = sha256(engine.read_bytes()).hexdigest()
 
     env = os.environ.copy()
+    env.pop("COLI_ENGINE", None)
     for key in policy["safety"]["allowed_environment_keys"]:
         env.pop(key, None)
     env.update(profile_env)
@@ -960,6 +967,8 @@ def exec_server(
     env["HAZEWAVE_REFLEX_LATENCY_PROFILE"] = chosen
 
     print(f"REFLEX_LATENCY_PROFILE={chosen}", file=sys.stderr, flush=True)
+    print(f"REFLEX_LATENCY_ENGINE_BIN={engine}", file=sys.stderr, flush=True)
+    print(f"REFLEX_LATENCY_ENGINE_SHA256={engine_sha256}", file=sys.stderr, flush=True)
     for key in sorted(profile_env):
         print(f"REFLEX_LATENCY_ENV_{key}={profile_env[key]}", file=sys.stderr, flush=True)
 
@@ -970,6 +979,8 @@ def exec_server(
         "127.0.0.1",
         "--port",
         str(port),
+        "--engine",
+        str(engine),
         "--model-id",
         "laya",
     ]
@@ -1013,6 +1024,7 @@ def _main(argv: list[str] | None = None) -> int:
     p_server.add_argument("--state-root", type=Path, default=DEFAULT_STATE)
     p_server.add_argument("--port", type=int, default=28080)
     p_server.add_argument("--profile")
+    p_server.add_argument("--engine-bin", type=Path)
 
     args = parser.parse_args(argv)
     policy = load_latency_policy()
@@ -1067,6 +1079,7 @@ def _main(argv: list[str] | None = None) -> int:
             port=args.port,
             profile=args.profile,
             state_root=args.state_root,
+            engine_bin=args.engine_bin,
         )
         return 0
     raise AssertionError("unreachable")
