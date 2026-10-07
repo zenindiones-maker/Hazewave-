@@ -302,6 +302,27 @@ latency_selected() {
   "$PYTHON_BIN" -m hazewave.reflex_latency selected --state-root "$STATE_ROOT"
 }
 
+serve_stop() {
+  ensure_checkout
+  if port_is_free; then
+    echo "REFLEX_SERVE_STOP=ALREADY_STOPPED"
+    echo "REFLEX_BIND=127.0.0.1:$PORT"
+    return 0
+  fi
+
+  [[ -x "$SOURCE_ROOT/c/coli" ]] || die "COLIBRI_LAUNCHER_MISSING"
+  "$SOURCE_ROOT/c/coli" stop --port "$PORT" || die "REFLEX_SERVE_STOP_FAILED"
+
+  for _ in $(seq 1 40); do
+    port_is_free && break
+    sleep 0.25
+  done
+
+  port_is_free || die "REFLEX_SERVE_PORT_STILL_BUSY"
+  echo "REFLEX_SERVE_STOP=PASS"
+  echo "REFLEX_BIND=127.0.0.1:$PORT"
+}
+
 latency_tune() {
   ensure_checkout
   "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE" >/dev/null || die "RUNTIME_DOCTOR_BLOCKED"
@@ -445,7 +466,8 @@ case "${1:-}" in
   report) report ;;
   latency-profiles) latency_profiles ;;
   latency-selected) latency_selected ;;
+  serve-stop) serve_stop ;;
   latency-tune) latency_tune ;;
   latency-report) latency_report ;;
-  *) echo "usage: $0 {doctor|prepare|serve|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report}" >&2; exit 2 ;;
+  *) echo "usage: $0 {doctor|prepare|serve|serve-stop|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report}" >&2; exit 2 ;;
 esac
