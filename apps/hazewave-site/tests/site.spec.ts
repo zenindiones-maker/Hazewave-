@@ -118,7 +118,7 @@ test("cinematic object remains visible during mobile travel", async ({ page }, t
   await page.waitForTimeout(280);
 
   const box = await clone.boundingBox();
-  const sourceBox = await page.locator("[data-track-id='aether-01']").boundingBox();
+  const sourceBox = await page.locator(".artifact-field > [data-track-id='aether-01']").boundingBox();
   expect(box).not.toBeNull();
   expect(sourceBox).not.toBeNull();
   expect(box!.width).toBeGreaterThan(40);
