@@ -11,6 +11,8 @@ export interface ArtistChapterWorld {
   particleResponse: number;
   lightResponse: number;
   cameraDrift: number;
+  focusPoint: readonly [number, number];
+  focusZoom: number;
   transitionSignature: "REFRACT" | "WEIGHT" | "GROW";
 }
 
@@ -33,25 +35,36 @@ const behaviorByArtist: Record<
   ArtistId,
   Pick<
     ArtistChapterWorld,
-    "waterResponse" | "particleResponse" | "lightResponse" | "transitionSignature"
+    | "waterResponse"
+    | "particleResponse"
+    | "lightResponse"
+    | "focusPoint"
+    | "focusZoom"
+    | "transitionSignature"
   >
 > = {
   aether: {
     waterResponse: 0.72,
     particleResponse: 0.5,
     lightResponse: 0.68,
+    focusPoint: [0.43, 0.47],
+    focusZoom: 0.028,
     transitionSignature: "REFRACT"
   },
   monolith: {
     waterResponse: 0.34,
     particleResponse: 0.2,
     lightResponse: 0.42,
+    focusPoint: [0.57, 0.45],
+    focusZoom: 0.019,
     transitionSignature: "WEIGHT"
   },
   flora: {
     waterResponse: 0.58,
     particleResponse: 0.74,
     lightResponse: 0.56,
+    focusPoint: [0.5, 0.41],
+    focusZoom: 0.024,
     transitionSignature: "GROW"
   }
 };
@@ -86,6 +99,8 @@ export const artistChapters: readonly ArtistChapter[] = artists.map((artist) => 
       particleResponse: behavior.particleResponse,
       lightResponse: behavior.lightResponse,
       cameraDrift: artist.identity.world.cameraDrift,
+      focusPoint: behavior.focusPoint,
+      focusZoom: behavior.focusZoom,
       transitionSignature: behavior.transitionSignature
     }
   };
