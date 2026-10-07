@@ -218,6 +218,7 @@ def test_outcome_ledger_persists_digest_and_labels_not_raw_state(tmp_path: Path)
         decision_key="domain.route.v1",
         actual_label="HAZE",
         label_source="HUMAN",
+        label_evidence_digest="1" * 64,
         observed_at="2026-10-07T01:30:00+00:00",
     )
     path = tmp_path / "reflex" / "outcomes.jsonl"
@@ -261,6 +262,7 @@ def test_calibration_report_measures_coverage_risk_brier_and_latency() -> None:
             decision_key="domain.route.v1",
             actual_label="HAZE",
             label_source="DETERMINISTIC",
+            label_evidence_digest="3" * 64,
             observed_at="2026-10-07T01:30:00+00:00",
         ),
         build_reflex_outcome(
@@ -268,16 +270,18 @@ def test_calibration_report_measures_coverage_risk_brier_and_latency() -> None:
             decision_key="domain.route.v1",
             actual_label="WAVE",
             label_source="HUMAN",
+            label_evidence_digest="2" * 64,
             observed_at="2026-10-07T01:31:00+00:00",
         ),
     )
 
     report = evaluate_reflex_outcomes(outcomes)
     assert report.sample_count == 2
-    assert report.accepted_count == 1
-    assert report.coverage == pytest.approx(0.5)
+    assert report.actual_accept_count == 1
+    assert report.threshold_eligible_count == 1
+    assert report.shadow_coverage == pytest.approx(0.5)
     assert report.accuracy == pytest.approx(0.5)
-    assert report.selective_risk == pytest.approx(0.0)
+    assert report.selective_risk_if_activated == pytest.approx(0.0)
     assert report.multiclass_brier > 0
     assert report.latency_p50_ms == pytest.approx(200.0)
     assert report.latency_p95_ms == pytest.approx(290.0)
@@ -299,6 +303,7 @@ def test_recalibration_never_self_promotes_from_tiny_sample() -> None:
             decision_key="domain.route.v1",
             actual_label="HAZE",
             label_source="HUMAN",
+            label_evidence_digest="2" * 64,
             observed_at="2026-10-07T01:30:00+00:00",
         ),
     )
@@ -345,6 +350,7 @@ def test_default_route_policy_is_shadow_until_hazewave_calibration_exists() -> N
 
     assert verdict.disposition == "SHADOW_RECOMMENDATION"
     assert verdict.reasons[0] == "HAZEWAVE_CALIBRATION_REQUIRED"
+    assert verdict.threshold_eligible is True
     assert verdict.grants_execution_authority is False
 
 
@@ -413,3 +419,55 @@ def test_latency_budget_escalates_a_calibrated_route() -> None:
 
     assert verdict.disposition == "ESCALATE"
     assert "LATENCY_BUDGET_EXCEEDED" in verdict.reasons
+
+
+
+def test_outcome_requires_label_evidence_digest() -> None:
+    verdict = govern_reflex_result(
+        authorization=_authorization(),
+        result=_result(
+            {"HAZE": 0.90, "WAVE": 0.07, "BRIDGE": 0.03},
+            confidence=0.85,
+            choice="HAZE",
+        ),
+        question_id="q",
+    )
+    with pytest.raises(ValueError, match="REFLEX_LABEL_EVIDENCE_DIGEST_INVALID"):
+        build_reflex_outcome(
+            verdict=verdict,
+            decision_key="domain.route.v1",
+            actual_label="HAZE",
+            label_source="HUMAN",
+            label_evidence_digest="not-a-digest",
+            observed_at="2026-10-07T02:00:00+00:00",
+        )
+
+
+def test_calibration_refuses_mixed_policy_or_decision_cohorts() -> None:
+    verdict = govern_reflex_result(
+        authorization=_authorization(),
+        result=_result(
+            {"HAZE": 0.90, "WAVE": 0.07, "BRIDGE": 0.03},
+            confidence=0.85,
+            choice="HAZE",
+        ),
+        question_id="q",
+    )
+    first = build_reflex_outcome(
+        verdict=verdict,
+        decision_key="domain.route.v1",
+        actual_label="HAZE",
+        label_source="HUMAN",
+        label_evidence_digest="4" * 64,
+        observed_at="2026-10-07T02:00:00+00:00",
+    )
+    second = build_reflex_outcome(
+        verdict=verdict,
+        decision_key="different.route.v1",
+        actual_label="HAZE",
+        label_source="HUMAN",
+        label_evidence_digest="5" * 64,
+        observed_at="2026-10-07T02:01:00+00:00",
+    )
+    with pytest.raises(ValueError, match="REFLEX_CALIBRATION_COHORT_MIXED"):
+        evaluate_reflex_outcomes((first, second))
