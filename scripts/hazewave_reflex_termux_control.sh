@@ -127,6 +127,7 @@ remote_main() {
     echo "REFLEX_REMOTE_ACTION=$action"
 
     export HAZEWAVE_REFLEX_EXPECTED_CODESPACE="$expected_codespace"
+    export HAZEWAVE_REFLEX_CANDIDATE_REF="refs/remotes/origin/$REF"
 
     case "$action" in
         doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report)
