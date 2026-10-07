@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("renders semantic catalog and reaches PLAYING from one click", async ({ page }) => {
+test("renders semantic catalog and reaches PLAYING from one click", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /Música como objeto/ })).toBeVisible();
   await expect(page.locator("[data-track-id]")).toHaveCount(6);
@@ -9,6 +9,7 @@ test("renders semantic catalog and reaches PLAYING from one click", async ({ pag
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
   await expect(page.locator("#player-title")).toHaveText("Pale Current");
   await expect(page.locator("[data-track-id='aether-01']")).toHaveAttribute("aria-pressed", "true");
+  await page.screenshot({ path: testInfo.outputPath("playing.png"), fullPage: true });
 });
 
 test("pause, resume and track replacement preserve coherent UI state", async ({ page }) => {
