@@ -17,7 +17,16 @@ PORT=28080
 die() { printf '%s\n' "REFLEX_SHADOW_FAIL_CLOSED=$*" >&2; exit 18; }
 
 check_codespace() {
-  [[ "${CODESPACE_NAME:-}" == "$EXPECTED_CODESPACE" ]] || die "EXISTING_CODESPACE_IDENTITY_NOT_VERIFIED"
+  local actual="${CODESPACE_NAME:-}"
+  local shared="/workspaces/.codespaces/shared/environment-variables.json"
+
+  if [[ "$actual" != "$EXPECTED_CODESPACE" && -f "$shared" ]] && command -v python >/dev/null 2>&1; then
+    actual="$(python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("CODESPACE_NAME",""))' "$shared" 2>/dev/null || true)"
+  fi
+
+  [[ "$actual" == "$EXPECTED_CODESPACE" ]] || die "EXISTING_CODESPACE_IDENTITY_NOT_VERIFIED"
+  export CODESPACE_NAME="$actual"
+
   [[ -d "$MAIN_REPO/.git" ]] || die "EXISTING_HAZEWAVE_REPO_MISSING"
   [[ "$(uname -s)" == "Linux" && "$(uname -m)" == "x86_64" ]] || die "LINUX_X86_64_REQUIRED"
   command -v git >/dev/null || die "GIT_MISSING"
