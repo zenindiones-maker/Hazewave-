@@ -13,6 +13,13 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#050706" />
     <meta name="description" content="Hazewave — experiência musical interativa criada por HAZE + WAVE." />
+    <link
+      rel="preload"
+      as="image"
+      href={siteIdentity.backgroundAsset}
+      type="image/webp"
+      fetchpriority="high"
+    />
     <title>Hazewave — Resonance World</title>
   </head>
   <body>
