@@ -480,3 +480,111 @@ test("story rail follows the persistent-world chapter conductor", async ({ page 
   await expect(page.locator("#archive")).toBeInViewport({ ratio: 0.3 });
   await expect(page.locator("html")).toHaveAttribute("data-story-chapter", "archive", { timeout: 2_500 });
 });
+
+
+test("living world scroll state is reversible and deterministic", async ({ page }) => {
+  await page.goto("/");
+
+  const progress = async () =>
+    Number(
+      await page.locator("html").evaluate((element) =>
+        getComputedStyle(element).getPropertyValue("--story-global-progress").trim()
+      )
+    );
+
+  await page.locator("#threshold").scrollIntoViewIfNeeded();
+  await expect(page.locator("html")).toHaveAttribute("data-story-beat", "WORLD_SLEEP");
+  const start = await progress();
+
+  await page.locator("#artist-worlds").scrollIntoViewIfNeeded();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-story-beat",
+    /ARTIST_DISCOVERY|ARTIST_FOCUS/,
+    { timeout: 2_500 }
+  );
+  const middle = await progress();
+  expect(middle).toBeGreaterThan(start);
+
+  await page.locator("#objects").scrollIntoViewIfNeeded();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-story-beat",
+    /MERCH_APPROACH|FINAL_DESCENT/,
+    { timeout: 2_500 }
+  );
+  const end = await progress();
+  expect(end).toBeGreaterThan(middle);
+
+  await page.locator("#threshold").scrollIntoViewIfNeeded();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-story-beat",
+    /WORLD_SLEEP|WORLD_AWAKENING/,
+    { timeout: 2_500 }
+  );
+  const reversed = await progress();
+  expect(reversed).toBeLessThan(middle);
+});
+
+test("living world keeps the owner artwork as authoritative fallback", async ({ page }) => {
+  await page.goto("/");
+
+  const host = page.locator(".site-backdrop");
+  const image = host.locator("img");
+
+  await expect(image).toHaveAttribute("src", "/media/hazewave-world.jpg.webp");
+  await expect(host).toHaveAttribute(
+    "data-world-runtime",
+    /webgl2|css-fallback|fallback/
+  );
+
+  const viewport = page.viewportSize();
+  if (viewport && viewport.width <= 430) {
+    await expect(host).toHaveAttribute("data-world-runtime", "css-fallback");
+  }
+});
+
+test("WebGL world context loss falls back instead of blanking essential content", async ({ page }) => {
+  const viewport = page.viewportSize();
+  test.skip(!viewport || viewport.width <= 430, "WebGL world is intentionally disabled on LOW mobile tier");
+
+  await page.goto("/");
+  const host = page.locator(".site-backdrop");
+
+  await expect(host).toHaveAttribute(
+    "data-world-runtime",
+    /webgl2|fallback/,
+    { timeout: 4_000 }
+  );
+
+  const canvas = page.locator(".living-world-canvas");
+  if (await canvas.count() === 0) test.skip(true, "WebGL2 unavailable in this browser runtime");
+
+  await canvas.evaluate((element) => {
+    element.dispatchEvent(new Event("webglcontextlost", { cancelable: true }));
+  });
+
+  await expect(host).toHaveAttribute("data-world-runtime", "fallback-context-lost");
+  await expect(host.locator("img")).toBeVisible();
+});
+
+test("living world checkpoints produce reviewable viewport proofs", async ({ page }, testInfo) => {
+  const viewport = page.viewportSize();
+  test.skip(!viewport || viewport.width < 1000, "desktop visual-proof capture");
+
+  await page.goto("/");
+
+  const beats = [
+    { selector: "#threshold", name: "world-sleep" },
+    { selector: "#archive", name: "world-awakening" },
+    { selector: "#artist-worlds", name: "artist-discovery" },
+    { selector: "#objects", name: "merch-approach" }
+  ] as const;
+
+  for (const beat of beats) {
+    await page.locator(beat.selector).scrollIntoViewIfNeeded();
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+    await page.screenshot({
+      path: testInfo.outputPath(`${beat.name}.png`),
+      fullPage: false
+    });
+  }
+});
