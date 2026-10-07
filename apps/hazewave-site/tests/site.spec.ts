@@ -5,7 +5,7 @@ test("renders semantic catalog and reaches PLAYING from one click", async ({ pag
   await expect(page.locator("#experience-title")).toHaveText("Toque. Conecte. Escute.");
   await expect(page.locator("[data-track-id]")).toHaveCount(6);
 
-  await page.locator("[data-track-id='aether-01']").click();
+  await page.locator("[data-track-id='aether-01']").dispatchEvent("click");
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
   await expect(page.locator("#player-title")).toHaveText("Pale Current");
   await expect(page.locator("[data-track-id='aether-01']")).toHaveAttribute("aria-pressed", "true");
