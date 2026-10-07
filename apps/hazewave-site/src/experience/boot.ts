@@ -36,6 +36,10 @@ export function bootHazewaveSite(): void {
   const worldArtistName = document.querySelector<HTMLElement>("#world-artist-name");
   const worldRelease = document.querySelector<HTMLElement>("#world-release");
   const worldTrack = document.querySelector<HTMLElement>("#world-track");
+  const deckBeacon = document.querySelector<HTMLElement>(".deck-beacon");
+  const deckBeaconTrack = document.querySelector<HTMLElement>("#deck-beacon-track");
+  const deckBeaconArtist = document.querySelector<HTMLElement>("#deck-beacon-artist");
+  const deckBeaconSection = document.querySelector<HTMLElement>("#deck-beacon-section");
   const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-track-id]"));
   const archiveButtons = Array.from(
     document.querySelectorAll<HTMLButtonElement>("[data-archive-track-id]")
@@ -218,6 +222,10 @@ export function bootHazewaveSite(): void {
         if (worldArtistName) worldArtistName.textContent = artist.name.replace(" / DEMO", "").toUpperCase();
         if (worldRelease) worldRelease.textContent = artist.releaseTitle.toUpperCase();
         if (worldTrack) worldTrack.textContent = track.title.toUpperCase();
+        if (deckBeacon) deckBeacon.dataset.active = "true";
+        if (deckBeaconTrack) deckBeaconTrack.textContent = track.title.toUpperCase();
+        if (deckBeaconArtist) deckBeaconArtist.textContent = artist.name.replace(" / DEMO", "").toUpperCase();
+        if (deckBeaconSection) deckBeaconSection.textContent = "INTRO";
       }, `artist-${artist.id}`);
 
       pendingAtmosphereArtist = artist.id;
@@ -338,6 +346,7 @@ export function bootHazewaveSite(): void {
         lastSemanticSection = semanticSection.kind;
         experience?.setSection(semanticSection.kind);
         sectionLabel.textContent = semanticSection.kind.toUpperCase();
+        if (deckBeaconSection) deckBeaconSection.textContent = semanticSection.kind.toUpperCase();
         sectionMap.querySelectorAll<HTMLElement>(".player-section-marker").forEach((marker) => {
           marker.dataset.active = String(marker.dataset.sectionKind === semanticSection.kind);
         });
