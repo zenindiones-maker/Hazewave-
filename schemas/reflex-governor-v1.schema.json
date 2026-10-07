@@ -1,0 +1,411 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hazewave.local/schemas/reflex-governor-v1.schema.json",
+  "title": "Hazewave Reflex Governor Policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "project_id",
+    "authority",
+    "provider_authority",
+    "role",
+    "mode",
+    "source_provider",
+    "source_model",
+    "safety",
+    "request_limits",
+    "profiles",
+    "cascade",
+    "learning",
+    "specialization"
+  ],
+  "properties": {
+    "schema": {
+      "const": "HazewaveReflexGovernorPolicy/v1"
+    },
+    "project_id": {
+      "const": "HAZEWAVE"
+    },
+    "authority": {
+      "const": "HAZEWAVE_HARNESS"
+    },
+    "provider_authority": {
+      "const": "NONE"
+    },
+    "role": {
+      "const": "LOCAL_REFLEX_GOVERNOR"
+    },
+    "mode": {
+      "const": "SELECTIVE_CASCADE"
+    },
+    "source_provider": {
+      "const": "colibri"
+    },
+    "source_model": {
+      "const": "laya"
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deterministic_rules_first",
+        "raw_system_one_confidence_is_correctness_probability",
+        "raw_system_one_confidence_automation_authority",
+        "credentials_forbidden",
+        "raw_private_media_forbidden",
+        "auto_threshold_mutation",
+        "auto_model_promotion",
+        "security_self_approval",
+        "publication_self_approval"
+      ],
+      "properties": {
+        "deterministic_rules_first": {
+          "const": true
+        },
+        "raw_system_one_confidence_is_correctness_probability": {
+          "const": false
+        },
+        "raw_system_one_confidence_automation_authority": {
+          "const": "NONE"
+        },
+        "credentials_forbidden": {
+          "const": true
+        },
+        "raw_private_media_forbidden": {
+          "const": true
+        },
+        "auto_threshold_mutation": {
+          "const": false
+        },
+        "auto_model_promotion": {
+          "const": false
+        },
+        "security_self_approval": {
+          "const": false
+        },
+        "publication_self_approval": {
+          "const": false
+        }
+      }
+    },
+    "request_limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_questions_per_request",
+        "max_choice_labels",
+        "max_state_bytes",
+        "max_question_bytes",
+        "max_response_bytes"
+      ],
+      "properties": {
+        "max_questions_per_request": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "max_choice_labels": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 16
+        },
+        "max_state_bytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 262144
+        },
+        "max_question_bytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65536
+        },
+        "max_response_bytes": {
+          "type": "integer",
+          "minimum": 4096,
+          "maximum": 4194304
+        }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision.route",
+        "decision.gate",
+        "decision.score"
+      ],
+      "properties": {
+        "decision.route": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "question_type",
+            "acceptance_mode",
+            "min_peak_probability",
+            "min_top2_margin",
+            "max_normalized_entropy",
+            "max_latency_ms",
+            "reject_action"
+          ],
+          "properties": {
+            "question_type": {
+              "enum": [
+                "choice",
+                "score"
+              ]
+            },
+            "acceptance_mode": {
+              "enum": [
+                "SELECTIVE",
+                "SHADOW_ONLY"
+              ]
+            },
+            "min_peak_probability": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "min_top2_margin": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "max_normalized_entropy": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "max_latency_ms": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 30000
+            },
+            "reject_action": {
+              "enum": [
+                "ESCALATE_9ROUTER_REASON_DEEP",
+                "REQUIRE_HUMAN_OR_DETERMINISTIC_RULE"
+              ]
+            }
+          }
+        },
+        "decision.gate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "question_type",
+            "acceptance_mode",
+            "min_peak_probability",
+            "min_top2_margin",
+            "max_normalized_entropy",
+            "max_latency_ms",
+            "reject_action"
+          ],
+          "properties": {
+            "question_type": {
+              "enum": [
+                "choice",
+                "score"
+              ]
+            },
+            "acceptance_mode": {
+              "enum": [
+                "SELECTIVE",
+                "SHADOW_ONLY"
+              ]
+            },
+            "min_peak_probability": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "min_top2_margin": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "max_normalized_entropy": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "max_latency_ms": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 30000
+            },
+            "reject_action": {
+              "enum": [
+                "ESCALATE_9ROUTER_REASON_DEEP",
+                "REQUIRE_HUMAN_OR_DETERMINISTIC_RULE"
+              ]
+            }
+          }
+        },
+        "decision.score": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "question_type",
+            "acceptance_mode",
+            "min_peak_probability",
+            "min_top2_margin",
+            "max_normalized_entropy",
+            "max_latency_ms",
+            "reject_action"
+          ],
+          "properties": {
+            "question_type": {
+              "enum": [
+                "choice",
+                "score"
+              ]
+            },
+            "acceptance_mode": {
+              "enum": [
+                "SELECTIVE",
+                "SHADOW_ONLY"
+              ]
+            },
+            "min_peak_probability": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "min_top2_margin": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "max_normalized_entropy": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "max_latency_ms": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 30000
+            },
+            "reject_action": {
+              "enum": [
+                "ESCALATE_9ROUTER_REASON_DEEP",
+                "REQUIRE_HUMAN_OR_DETERMINISTIC_RULE"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "cascade": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "prefixItems": [
+        {
+          "const": "DETERMINISTIC_RULE"
+        },
+        {
+          "const": "COLIBRI_LAYA_SELECTIVE"
+        },
+        {
+          "const": "9ROUTER_ZERO_COST_REASONING"
+        },
+        {
+          "const": "HUMAN_REVIEW"
+        }
+      ],
+      "items": false
+    },
+    "learning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome_ledger_schema",
+        "raw_state_persistence",
+        "persist_request_digest_only",
+        "append_only",
+        "minimum_labeled_samples_for_recalibration",
+        "minimum_labeled_samples_per_decision_key",
+        "holdout_fraction",
+        "required_metrics",
+        "promotion_requires_human_review",
+        "promotion_requires_runtime_proof"
+      ],
+      "properties": {
+        "outcome_ledger_schema": {
+          "const": "HazewaveReflexOutcome/v1"
+        },
+        "raw_state_persistence": {
+          "const": false
+        },
+        "persist_request_digest_only": {
+          "const": true
+        },
+        "append_only": {
+          "const": true
+        },
+        "minimum_labeled_samples_for_recalibration": {
+          "type": "integer",
+          "minimum": 100
+        },
+        "minimum_labeled_samples_per_decision_key": {
+          "type": "integer",
+          "minimum": 20
+        },
+        "holdout_fraction": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 0.5
+        },
+        "required_metrics": {
+          "type": "array",
+          "minItems": 7,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "accuracy",
+              "coverage",
+              "selective_risk",
+              "ece",
+              "multiclass_brier",
+              "latency_p50_ms",
+              "latency_p95_ms"
+            ]
+          }
+        },
+        "promotion_requires_human_review": {
+          "const": true
+        },
+        "promotion_requires_runtime_proof": {
+          "const": true
+        }
+      }
+    },
+    "specialization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hazewave_specialist_model_status",
+        "training_data_source",
+        "zero_shot_base_is_production_specialist",
+        "target"
+      ],
+      "properties": {
+        "hazewave_specialist_model_status": {
+          "const": "NOT_TRAINED"
+        },
+        "training_data_source": {
+          "const": "LABELED_REFLEX_OUTCOMES_ONLY"
+        },
+        "zero_shot_base_is_production_specialist": {
+          "const": false
+        },
+        "target": {
+          "const": "HAZEWAVE_DOMAIN_SPECIFIC_LAYA_CHECKPOINT"
+        }
+      }
+    }
+  }
+}
