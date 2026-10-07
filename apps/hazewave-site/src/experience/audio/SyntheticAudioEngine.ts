@@ -19,9 +19,19 @@ export class HazewaveAudioEngine {
   private startedAt = 0;
   private pausedAt = 0;
   private energyBuffer: Uint8Array<ArrayBuffer> | null = null;
+  private outputVolume = 0.82;
 
   get state(): AudioStatus { return this.status; }
   get track(): Track | null { return this.currentTrack; }
+  get volume(): number { return this.outputVolume; }
+
+  setVolume(value: number): void {
+    this.outputVolume = Math.max(0, Math.min(1, value));
+    if (!this.context || !this.master) return;
+    const now = this.context.currentTime;
+    this.master.gain.cancelScheduledValues(now);
+    this.master.gain.setTargetAtTime(this.outputVolume, now, 0.018);
+  }
 
   async unlock(): Promise<void> {
     if (!this.context) {
@@ -29,7 +39,7 @@ export class HazewaveAudioEngine {
       this.master = this.context.createGain();
       // Keep the product bus near unity so final owner-authorized media is not
       // accidentally attenuated. Synthetic fixtures are gain-staged locally.
-      this.master.gain.value = 0.82;
+      this.master.gain.value = this.outputVolume;
       this.analyser = this.context.createAnalyser();
       this.analyser.fftSize = 256;
       this.analyser.minDecibels = -92;
