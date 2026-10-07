@@ -17,6 +17,9 @@ export function bootHazewaveSite(): void {
   if (!canvas || !runtimeLabel || !stateLabel || !title || !artistLabel || !toggle) return;
 
   const quality = detectQuality();
+  document.documentElement.dataset.qualityTier = quality.tier;
+  document.documentElement.dataset.reducedMotion = String(quality.reducedMotion);
+
   const machine = new PlayerMachine();
   const audio = new HazewaveAudioEngine();
   let experience: ResonanceExperience | null = null;
@@ -63,6 +66,11 @@ export function bootHazewaveSite(): void {
       const track = getTrack(trackId);
       const artist = getArtist(track.artistId);
       const manifest = bridgeFixtureManifest(track);
+
+      document.documentElement.style.setProperty("--active-accent", artist.identity.accent);
+      document.documentElement.dataset.activeArtist = artist.id;
+      const theme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+      if (theme) theme.content = artist.identity.background;
 
       buttons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.trackId === trackId)));
       title.textContent = track.title;
@@ -125,5 +133,40 @@ export function bootHazewaveSite(): void {
   };
   requestAnimationFrame(signalLoop);
 
-  window.addEventListener("pagehide", () => experience?.dispose(), { once: true });
+  const diagnosticsEnabled = new URLSearchParams(window.location.search).get("diagnostics") === "1";
+  let diagnosticsTimer: number | null = null;
+  if (diagnosticsEnabled) {
+    const panel = document.createElement("pre");
+    panel.id = "hazewave-diagnostics";
+    panel.setAttribute("aria-label", "Hazewave runtime diagnostics");
+    document.body.append(panel);
+
+    const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? null;
+    const renderDiagnostics = () => {
+      const snapshot = {
+        project: "HAZEWAVE_WAVE_SITE_V1",
+        quality: quality.tier,
+        reducedMotion: quality.reducedMotion,
+        renderer: runtimeLabel.textContent,
+        viewport: `${window.innerWidth}x${window.innerHeight}`,
+        dpr: window.devicePixelRatio,
+        fps: canvas.dataset.fps ?? "warming",
+        frameP95Ms: canvas.dataset.frameP95Ms ?? "warming",
+        audioState: audio.state,
+        appState: machine.phase,
+        hardwareConcurrency: navigator.hardwareConcurrency,
+        deviceMemoryGiB: deviceMemory,
+        userAgent: navigator.userAgent
+      };
+      panel.textContent = JSON.stringify(snapshot, null, 2);
+      document.documentElement.dataset.runtimeProof = JSON.stringify(snapshot);
+    };
+    renderDiagnostics();
+    diagnosticsTimer = window.setInterval(renderDiagnostics, 1000);
+  }
+
+  window.addEventListener("pagehide", () => {
+    if (diagnosticsTimer !== null) window.clearInterval(diagnosticsTimer);
+    experience?.dispose();
+  }, { once: true });
 }
