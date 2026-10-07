@@ -3,9 +3,11 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
   timeout: 20_000,
+  outputDir: "test-results",
   use: {
     baseURL: "http://127.0.0.1:4321",
-    trace: "retain-on-failure"
+    trace: "retain-on-failure",
+    video: "on"
   },
   webServer: {
     command: "npm run preview -- --host 127.0.0.1 --port 4321",
