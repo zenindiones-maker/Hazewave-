@@ -13,7 +13,7 @@
     "aggregation": "ARITHMETIC_MEAN_PROBABILITIES",
     "max_labels": 3,
     "max_rotations": 6,
-    "min_winner_agreement": 1,
+    "min_winner_agreement": 0.8333333333333334,
     "max_normalized_jsd": 0.08,
     "raw_system_one_confidence_correctness_probability": false
   },
