@@ -797,6 +797,76 @@ def select_profile(
     return {**selection, "selection_path": str(selection_path), "active_profile_path": str(active_path)}
 
 
+
+def retire_stale_selection(
+    *,
+    state_root: Path = DEFAULT_STATE,
+    policy: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    selected = dict(policy) if policy is not None else load_latency_policy()
+    current_policy_sha = policy_digest(selected)
+    default = str(selected["runtime"]["persistent_profile_default"])
+    active_path = state_root / "latency" / "selected-profile.json"
+    if not active_path.exists():
+        return {
+            "schema": "HazewaveReflexLatencySelectionRetirement/v1",
+            "status": "NO_ACTIVE_SELECTION",
+            "current_policy_sha256": current_policy_sha,
+            "default_profile": default,
+            "archive_path": None,
+            "provider_authority": "NONE",
+            "grants_execution_authority": False,
+            "production_calibrated": False,
+        }
+
+    try:
+        row = json.loads(active_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_UNREADABLE") from exc
+    if row.get("schema") != "HazewaveReflexLatencySelection/v1":
+        raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_SCHEMA_INVALID")
+
+    retired_policy_sha = row.get("policy_sha256")
+    if (
+        not isinstance(retired_policy_sha, str)
+        or len(retired_policy_sha) != 64
+        or any(ch not in "0123456789abcdef" for ch in retired_policy_sha)
+    ):
+        raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_POLICY_SHA_INVALID")
+    if retired_policy_sha == current_policy_sha:
+        raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_NOT_STALE")
+
+    retired_profile = row.get("profile")
+    if not isinstance(retired_profile, str) or not retired_profile:
+        raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_PROFILE_INVALID")
+
+    selection_sha = row.get("selection_sha256")
+    if not isinstance(selection_sha, str) or len(selection_sha) != 64:
+        selection_sha = _digest(row)
+
+    archive_root = state_root / "latency" / "retired-selections"
+    archive_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(archive_root, 0o700)
+    archive_path = archive_root / (
+        f"{retired_policy_sha[:12]}-{selection_sha[:12]}.json"
+    )
+    if archive_path.exists():
+        raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_ARCHIVE_EXISTS")
+
+    os.replace(active_path, archive_path)
+    return {
+        "schema": "HazewaveReflexLatencySelectionRetirement/v1",
+        "status": "STALE_SELECTION_RETIRED",
+        "retired_profile": retired_profile,
+        "retired_policy_sha256": retired_policy_sha,
+        "current_policy_sha256": current_policy_sha,
+        "default_profile": default,
+        "archive_path": str(archive_path),
+        "provider_authority": "NONE",
+        "grants_execution_authority": False,
+        "production_calibrated": False,
+    }
+
 def selected_profile(
     *,
     state_root: Path = DEFAULT_STATE,
@@ -930,6 +1000,9 @@ def _main(argv: list[str] | None = None) -> int:
     p_selected = sub.add_parser("selected")
     p_selected.add_argument("--state-root", type=Path, default=DEFAULT_STATE)
 
+    p_retire = sub.add_parser("retire-stale-selection")
+    p_retire.add_argument("--state-root", type=Path, default=DEFAULT_STATE)
+
     p_resolved = sub.add_parser("resolved")
     p_resolved.add_argument("--state-root", type=Path, default=DEFAULT_STATE)
 
@@ -974,6 +1047,10 @@ def _main(argv: list[str] | None = None) -> int:
         return 0 if report["status"] == "PASS" else 4
     if args.command == "select":
         reply = select_profile(run_dir=args.run_dir, state_root=args.state_root)
+        print(json.dumps(reply, sort_keys=True))
+        return 0
+    if args.command == "retire-stale-selection":
+        reply = retire_stale_selection(state_root=args.state_root, policy=policy)
         print(json.dumps(reply, sort_keys=True))
         return 0
     if args.command == "selected":
