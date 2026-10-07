@@ -144,6 +144,23 @@ export class PremiumResonanceStage {
       bar.style.setProperty("--meter-level", (0.16 + value * 0.84).toFixed(3));
       bar.style.setProperty("--meter-opacity", (0.28 + value * 0.72).toFixed(3));
     });
+
+    const average = (from: number, to: number) => {
+      let total = 0;
+      let samples = 0;
+      for (let index = from; index < Math.min(to, values.length); index += 1) {
+        total += Math.max(0, Math.min(1, values[index] ?? 0));
+        samples += 1;
+      }
+      return samples > 0 ? total / samples : 0;
+    };
+
+    const low = average(0, 2);
+    const mid = average(2, 5);
+    const high = average(5, 8);
+    this.host.style.setProperty("--spectrum-low", low.toFixed(3));
+    this.host.style.setProperty("--spectrum-mid", mid.toFixed(3));
+    this.host.style.setProperty("--spectrum-high", high.toFixed(3));
   }
 
   setTrackProgress(value: number): void {
