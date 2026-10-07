@@ -35,7 +35,8 @@
       "max_latency_ms": 3000,
       "reject_action": "ESCALATE_9ROUTER_REASON_DEEP",
       "production_calibrated": false,
-      "calibration_basis": "HAZEWAVE_LABELED_OUTCOMES_REQUIRED"
+      "calibration_basis": "HAZEWAVE_LABELED_OUTCOMES_REQUIRED",
+      "transport_timeout_ms": 10000
     },
     "decision.gate": {
       "question_type": "choice",
@@ -46,7 +47,8 @@
       "max_latency_ms": 3000,
       "reject_action": "REQUIRE_HUMAN_OR_DETERMINISTIC_RULE",
       "production_calibrated": false,
-      "calibration_basis": "HAZEWAVE_LABELED_OUTCOMES_REQUIRED"
+      "calibration_basis": "HAZEWAVE_LABELED_OUTCOMES_REQUIRED",
+      "transport_timeout_ms": 10000
     },
     "decision.score": {
       "question_type": "score",
@@ -57,7 +59,8 @@
       "max_latency_ms": 3000,
       "reject_action": "ESCALATE_9ROUTER_REASON_DEEP",
       "production_calibrated": false,
-      "calibration_basis": "HAZEWAVE_LABELED_OUTCOMES_REQUIRED"
+      "calibration_basis": "HAZEWAVE_LABELED_OUTCOMES_REQUIRED",
+      "transport_timeout_ms": 10000
     }
   },
   "cascade": [

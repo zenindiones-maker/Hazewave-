@@ -146,6 +146,7 @@
             "min_top2_margin",
             "max_normalized_entropy",
             "max_latency_ms",
+            "transport_timeout_ms",
             "reject_action",
             "production_calibrated",
             "calibration_basis"
@@ -194,6 +195,11 @@
             },
             "calibration_basis": {
               "const": "HAZEWAVE_LABELED_OUTCOMES_REQUIRED"
+            },
+            "transport_timeout_ms": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 30000
             }
           }
         },
@@ -207,6 +213,7 @@
             "min_top2_margin",
             "max_normalized_entropy",
             "max_latency_ms",
+            "transport_timeout_ms",
             "reject_action",
             "production_calibrated",
             "calibration_basis"
@@ -255,6 +262,11 @@
             },
             "calibration_basis": {
               "const": "HAZEWAVE_LABELED_OUTCOMES_REQUIRED"
+            },
+            "transport_timeout_ms": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 30000
             }
           }
         },
@@ -268,6 +280,7 @@
             "min_top2_margin",
             "max_normalized_entropy",
             "max_latency_ms",
+            "transport_timeout_ms",
             "reject_action",
             "production_calibrated",
             "calibration_basis"
@@ -316,6 +329,11 @@
             },
             "calibration_basis": {
               "const": "HAZEWAVE_LABELED_OUTCOMES_REQUIRED"
+            },
+            "transport_timeout_ms": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 30000
             }
           }
         }

@@ -562,6 +562,22 @@
         "termux"
       ],
       "description": "Termux-first procedure for sequential latency profiling, profile selection, restart and live smoke verification."
+    },
+    {
+      "id": "hazewave-always-ready-v1-runbook",
+      "path": "docs/runbooks/HAZEWAVE_ALWAYS_READY_V1.md",
+      "type": "RUNBOOK",
+      "authority": "OPERATIONAL",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "codespaces",
+        "termux",
+        "reflex",
+        "runtime",
+        "zero-cost"
+      ],
+      "description": "Operational lazy-wake and detached reconciliation procedure for the existing zero-cost Hazewave Codespace."
     }
   ]
 }

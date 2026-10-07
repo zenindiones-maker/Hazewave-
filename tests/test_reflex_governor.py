@@ -18,6 +18,7 @@ from hazewave.reflex import (
     load_reflex_outcomes,
     load_reflex_policy,
     reflex_recalibration_readiness,
+    reflex_transport_timeout_seconds,
     validate_reflex_request,
 )
 
@@ -501,3 +502,68 @@ def test_outcome_ledger_detects_tampering(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="REFLEX_OUTCOME_DIGEST_MISMATCH"):
         load_reflex_outcomes(path)
+
+
+def test_transport_timeout_is_separate_from_latency_eligibility_budget() -> None:
+    captured = {}
+
+    def fake_executor(**kwargs):
+        captured.update(kwargs)
+        return _result(
+            {"HAZE": 0.95, "WAVE": 0.03, "BRIDGE": 0.02},
+            confidence=0.925,
+            choice="HAZE",
+            latency_ms=3500.0,
+        )
+
+    question = {
+        "type": "choice",
+        "instructions": "Which domain owns this structured task?",
+        "criteria": {
+            "HAZE": "audio",
+            "WAVE": "visual",
+            "BRIDGE": "typed cross-domain translation",
+        },
+    }
+
+    verdict = execute_reflex_choice(
+        authorization=_authorization(),
+        question_id="q",
+        state={"kind": "audio_mix"},
+        question=question,
+        api_key="k" * 32,
+        deterministic_precheck_complete=True,
+        model_installed=True,
+        model_revision_verified=True,
+        executor=fake_executor,
+    )
+
+    assert captured["timeout_seconds"] == pytest.approx(10.0)
+    assert verdict.latency_ms == pytest.approx(3500.0)
+    assert verdict.threshold_eligible is False
+    assert "LATENCY_BUDGET_EXCEEDED" in verdict.reasons
+    assert verdict.disposition == "SHADOW_RECOMMENDATION"
+
+
+def test_reflex_policy_rejects_transport_timeout_below_latency_budget(
+    tmp_path: Path,
+) -> None:
+    policy = json.loads(
+        (ROOT / "config/reflex-governor-v1.json").read_text(encoding="utf-8")
+    )
+    policy["profiles"]["decision.route"]["transport_timeout_ms"] = 2000
+    target = tmp_path / "bad-policy.json"
+    target.write_text(json.dumps(policy), encoding="utf-8")
+
+    with pytest.raises(
+        ValueError,
+        match="REFLEX_TRANSPORT_TIMEOUT_BELOW_LATENCY_BUDGET",
+    ):
+        load_reflex_policy(target)
+
+
+def test_transport_deadline_is_wider_than_latency_eligibility_budget() -> None:
+    profile = load_reflex_policy()["profiles"]["decision.route"]
+    assert float(profile["max_latency_ms"]) == 3000.0
+    assert reflex_transport_timeout_seconds(profile) == 10.0
+    assert reflex_transport_timeout_seconds(profile) > float(profile["max_latency_ms"]) / 1000.0

@@ -8,6 +8,10 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = (
     ROOT / "scripts" / "install_hazewave_termux_runtime.sh",
     ROOT / "scripts" / "hazewave_termux_control.sh",
+    ROOT / "scripts" / "hazewave_reflex_termux_control.sh",
+    ROOT / "scripts" / "install_hazewave_always_ready_termux.sh",
+    ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh",
+    ROOT / "scripts" / "codespaces" / "start-always-ready.sh",
 )
 
 

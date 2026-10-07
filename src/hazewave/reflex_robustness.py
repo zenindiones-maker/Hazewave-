@@ -14,6 +14,7 @@ from hazewave.reflex import (
     ReflexVerdict,
     govern_reflex_result,
     load_reflex_policy,
+    reflex_transport_timeout_seconds,
     validate_reflex_request,
 )
 
@@ -301,7 +302,7 @@ def execute_robust_reflex_route(
         model_revision_verified=model_revision_verified,
         hardware=hardware,
         base_url=base_url,
-        timeout_seconds=float(profile.get("max_latency_ms") or 3000.0) / 1000.0,
+        timeout_seconds=reflex_transport_timeout_seconds(profile),
         transport=transport,
     )
     ordered_answers = []

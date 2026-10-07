@@ -154,6 +154,15 @@ def load_reflex_policy(path: str | Path | None = None) -> dict[str, Any]:
         raise ValueError("REFLEX_AUTO_THRESHOLD_MUTATION_FORBIDDEN")
     if safety.get("auto_model_promotion") is not False:
         raise ValueError("REFLEX_AUTO_MODEL_PROMOTION_FORBIDDEN")
+    for capability, profile in (payload.get("profiles") or {}).items():
+        if not isinstance(profile, Mapping):
+            raise ValueError(f"REFLEX_PROFILE_INVALID:{capability}")
+        latency_budget = float(profile.get("max_latency_ms") or 0.0)
+        transport_timeout = float(profile.get("transport_timeout_ms") or 0.0)
+        if latency_budget <= 0.0 or transport_timeout <= 0.0:
+            raise ValueError(f"REFLEX_TIMEOUT_POLICY_INVALID:{capability}")
+        if transport_timeout < latency_budget:
+            raise ValueError(f"REFLEX_TRANSPORT_TIMEOUT_BELOW_LATENCY_BUDGET:{capability}")
     return payload
 
 
@@ -382,6 +391,18 @@ def govern_reflex_result(
 Executor = Callable[..., ColibriDecisionResult]
 
 
+def reflex_transport_timeout_seconds(profile: Mapping[str, Any]) -> float:
+    """Bounded HTTP deadline wider than the acceptance latency budget.
+
+    The governor's max_latency_ms is an eligibility threshold, not a socket
+    deadline. Shadow/calibration must be able to observe and record a slow
+    response so that it becomes threshold_eligible=False evidence rather than
+    disappearing as a transport timeout.
+    """
+    budget_seconds = float(profile.get("max_latency_ms") or 3000.0) / 1000.0
+    return min(30.0, max(10.0, budget_seconds * 2.0))
+
+
 def execute_reflex_choice(
     *,
     authorization: HazewaveAuthorization,
@@ -426,7 +447,7 @@ def execute_reflex_choice(
         model_revision_verified=model_revision_verified,
         hardware=hardware,
         base_url=base_url,
-        timeout_seconds=float(profile.get("max_latency_ms") or 3000.0) / 1000.0,
+        timeout_seconds=float(profile.get("transport_timeout_ms") or 10000.0) / 1000.0,
         transport=transport,
     )
     return govern_reflex_result(
