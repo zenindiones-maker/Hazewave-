@@ -163,7 +163,7 @@ export function bootHazewaveSite(): void {
       const cuePan = phase === "SELECTED" ? cuePanForActiveObject() : 0;
       const activeTrack = machine.activeTrackId ? getTrack(machine.activeTrackId) : null;
       const motion = activeTrack
-        ? activeTrack.visual.motionSignature
+        ? getArtist(activeTrack.artistId).identity.world.motionSignature
         : "FLOAT";
       audio.cue(phase, cuePan, motion);
     }
