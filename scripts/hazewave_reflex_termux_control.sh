@@ -17,17 +17,42 @@ fail() {
     exit 20
 }
 
+codespace_metadata_row() {
+    local target="$1"
+
+    gh codespace list --limit 100 --json name,state,repository \
+      --jq ".[] | select(.name == \"$target\") | [.name,.repository,.state] | @tsv"
+}
+
+codespace_state_action() {
+    local state="$1"
+
+    case "$state" in
+        Available)
+            printf '%s\n' "READY"
+            ;;
+        Shutdown)
+            printf '%s\n' "START"
+            ;;
+        ShuttingDown|Stopping|Queued|Starting|Provisioning|Rebuilding)
+            printf '%s\n' "WAIT"
+            ;;
+        *)
+            printf '%s\n' "FAIL"
+            ;;
+    esac
+}
+
 attest_codespace_control_plane() {
-    local actual_name actual_repo actual_state
+    local actual_name actual_repo actual_state row
 
     ensure_codespace
 
-    actual_name="$(gh codespace view -c "$CS" --json name --jq '.name')" \
-      || fail "CONTROL_PLANE_CODESPACE_NAME_UNAVAILABLE"
-    actual_repo="$(gh codespace view -c "$CS" --json repository --jq '.repository')" \
-      || fail "CONTROL_PLANE_CODESPACE_REPO_UNAVAILABLE"
-    actual_state="$(gh codespace view -c "$CS" --json state --jq '.state')" \
-      || fail "CONTROL_PLANE_CODESPACE_STATE_UNAVAILABLE"
+    row="$(codespace_metadata_row "$CS")" \
+      || fail "CONTROL_PLANE_CODESPACE_METADATA_UNAVAILABLE"
+    [[ -n "$row" ]] || fail "CONTROL_PLANE_CODESPACE_NOT_LISTED"
+
+    IFS=$'\t' read -r actual_name actual_repo actual_state <<< "$row"
 
     [[ "$actual_name" == "$CS" ]] \
       || fail "CONTROL_PLANE_CODESPACE_NAME_MISMATCH"
@@ -157,17 +182,21 @@ command -v gh >/dev/null 2>&1 || fail "TERMUX_GH_MISSING"
 resolve_codespace() {
     local configured="${HAZEWAVE_REFLEX_CODESPACE:-}"
     local rows=()
-    local name
+    local name row
 
     if [[ -n "$configured" ]]; then
-        if gh codespace view -c "$configured" --json name >/dev/null 2>&1; then
+        row="$(codespace_metadata_row "$configured")" \
+          || fail "CODESPACE_LIST_FAILED"
+        if [[ -n "$row" ]]; then
             printf '%s\n' "$configured"
             return 0
         fi
         fail "CONFIGURED_CODESPACE_NOT_ACCESSIBLE:$configured"
     fi
 
-    if gh codespace view -c "$DEFAULT_CS" --json name >/dev/null 2>&1; then
+    row="$(codespace_metadata_row "$DEFAULT_CS")" \
+      || fail "CODESPACE_LIST_FAILED"
+    if [[ -n "$row" ]]; then
         printf '%s\n' "$DEFAULT_CS"
         return 0
     fi
@@ -207,14 +236,25 @@ ensure_codespace() {
 
 ensure_codespace_available() {
     ensure_codespace
-    local current_state
-    current_state="$(gh codespace view -c "$CS" --json state --jq '.state')" \
-      || fail "CODESPACE_VIEW_FAILED"
+    local current_state row action
+    local start_requested=0
 
-    case "$current_state" in
-        Available)
-            ;;
-        Shutdown)
+    for _ in $(seq 1 90); do
+        row="$(codespace_metadata_row "$CS")" \
+          || fail "CODESPACE_LIST_FAILED"
+        [[ -n "$row" ]] || fail "CODESPACE_NOT_LISTED"
+
+        IFS=$'\t' read -r _ _ current_state <<< "$row"
+        echo "REFLEX_CODESPACE_STATE=$current_state"
+
+        action="$(codespace_state_action "$current_state")"
+
+        if [[ "$action" == "READY" ]]; then
+            echo "REFLEX_CODESPACE_WAKE=PASS"
+            return 0
+        fi
+
+        if [[ "$action" == "START" && "$start_requested" == "0" ]]; then
             echo "REFLEX_CODESPACE_WAKE_REASON=$current_state"
             gh api \
               --method POST \
@@ -222,25 +262,17 @@ ensure_codespace_available() {
               -H "X-GitHub-Api-Version: 2026-03-10" \
               "/user/codespaces/$CS/start" >/dev/null \
               || fail "CODESPACE_START_FAILED"
-            ;;
-        Starting|Provisioning|Rebuilding)
+            start_requested=1
+        elif [[ "$action" == "WAIT" || "$action" == "START" ]]; then
             echo "REFLEX_CODESPACE_WAKE_REASON=WAIT_TRANSITION:$current_state"
-            ;;
-        *)
+        else
             fail "CODESPACE_STATE_NOT_STARTABLE:$current_state"
-            ;;
-    esac
+        fi
 
-    for _ in $(seq 1 60); do
-        current_state="$(gh codespace view -c "$CS" --json state --jq '.state')" \
-          || fail "CODESPACE_VIEW_FAILED"
-        echo "REFLEX_CODESPACE_STATE=$current_state"
-        [[ "$current_state" == "Available" ]] && break
         sleep 2
     done
 
-    [[ "$current_state" == "Available" ]] || fail "CODESPACE_START_TIMEOUT"
-    echo "REFLEX_CODESPACE_WAKE=PASS"
+    fail "CODESPACE_START_TIMEOUT"
 }
 
 copy_controller() {
