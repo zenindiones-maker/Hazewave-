@@ -72,6 +72,7 @@ export function bootHazewaveSite(): void {
   const merchButtons = Array.from(
     document.querySelectorAll<HTMLButtonElement>("[data-merch-message]")
   );
+  const artistJourneyRoot = document.querySelector<HTMLElement>("#artist-worlds");
 
   if (!stageHost || !player || !runtimeLabel || !stateLabel || !title || !artistLabel || !toggle || !seek || !sectionMap || !sectionLabel || !timeCurrent || !timeTotal) return;
 
@@ -142,6 +143,114 @@ export function bootHazewaveSite(): void {
   if (enterArchive) {
     enterArchive.addEventListener("click", () => conductor.scrollTo("#archive"));
   }
+
+  let focusedArtist: ArtistId | null = null;
+
+  const setArtistFocus = (artistId: ArtistId | null, restoreFocus = false) => {
+    const previous = focusedArtist;
+    focusedArtist = artistId;
+
+    document.querySelectorAll<HTMLButtonElement>("[data-artist-focus]").forEach((button) => {
+      const active = button.dataset.artistFocus === artistId;
+      button.setAttribute("aria-expanded", String(active));
+    });
+
+    document.querySelectorAll<HTMLElement>("[data-artist-focus-panel]").forEach((panel) => {
+      panel.dataset.open = String(panel.dataset.artistFocusPanel === artistId);
+    });
+
+    document.querySelectorAll<HTMLElement>("[data-artist-chapter]").forEach((chapter) => {
+      chapter.dataset.focused = String(chapter.dataset.artistChapter === artistId);
+    });
+
+    if (artistId) {
+      document.documentElement.dataset.focusedArtist = artistId;
+    } else {
+      delete document.documentElement.dataset.focusedArtist;
+    }
+
+    if (restoreFocus && previous) {
+      document
+        .querySelector<HTMLButtonElement>(`[data-artist-focus="${previous}"]`)
+        ?.focus({ preventScroll: true });
+    }
+  };
+
+  const mountAuthorizedVideo = (button: HTMLButtonElement) => {
+    const source = button.dataset.videoSource?.trim();
+    const artistId = button.dataset.videoArtist as ArtistId | undefined;
+    if (!source || !artistId) return;
+
+    const mount = document.querySelector<HTMLElement>(`[data-video-mount="${artistId}"]`);
+    if (!mount || mount.dataset.loaded === "true") return;
+
+    let url: URL;
+    try {
+      url = new URL(source, window.location.origin);
+    } catch {
+      button.textContent = "INVALID VIDEO SOURCE";
+      return;
+    }
+
+    const isLocal = url.origin === window.location.origin;
+    const isYouTube =
+      url.origin === "https://www.youtube.com" ||
+      url.origin === "https://www.youtube-nocookie.com";
+    const isVimeo = url.origin === "https://player.vimeo.com";
+
+    if (isLocal) {
+      const video = document.createElement("video");
+      video.controls = true;
+      video.preload = "metadata";
+      video.playsInline = true;
+      video.src = url.pathname + url.search;
+      video.setAttribute("aria-label", "Clipe autorizado");
+      mount.append(video);
+    } else if (isYouTube || isVimeo) {
+      const iframe = document.createElement("iframe");
+      iframe.src = url.toString();
+      iframe.loading = "lazy";
+      iframe.allow = "accelerometer; autoplay; encrypted-media; picture-in-picture";
+      iframe.allowFullscreen = true;
+      iframe.referrerPolicy = "strict-origin-when-cross-origin";
+      iframe.title = "Clipe autorizado";
+      mount.append(iframe);
+    } else {
+      button.textContent = "VIDEO SOURCE BLOCKED";
+      return;
+    }
+
+    mount.dataset.loaded = "true";
+    button.textContent = "VISUAL LOADED";
+    button.disabled = true;
+  };
+
+  const onArtistJourneyClick = (event: MouseEvent) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const videoButton = target.closest<HTMLButtonElement>("[data-video-source]");
+    if (videoButton) {
+      mountAuthorizedVideo(videoButton);
+      return;
+    }
+
+    const focusButton = target.closest<HTMLButtonElement>("[data-artist-focus]");
+    const artistId = focusButton?.dataset.artistFocus as ArtistId | undefined;
+    if (!focusButton || !artistId) return;
+
+    const next = focusedArtist === artistId ? null : artistId;
+    setArtistFocus(next);
+  };
+
+  const onArtistJourneyKeydown = (event: KeyboardEvent) => {
+    if (event.key !== "Escape" || !focusedArtist) return;
+    event.preventDefault();
+    setArtistFocus(null, true);
+  };
+
+  artistJourneyRoot?.addEventListener("click", onArtistJourneyClick);
+  document.addEventListener("keydown", onArtistJourneyKeydown);
 
   if (loader) {
     let loaderSettled = false;
@@ -914,6 +1023,16 @@ export function bootHazewaveSite(): void {
     () => {
       if (diagnosticsTimer !== null) window.clearInterval(diagnosticsTimer);
       document.removeEventListener("visibilitychange", syncVisibility);
+      artistJourneyRoot?.removeEventListener("click", onArtistJourneyClick);
+      document.removeEventListener("keydown", onArtistJourneyKeydown);
+      document.querySelectorAll<HTMLVideoElement>("[data-video-mount] video").forEach((video) => {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+      });
+      document.querySelectorAll<HTMLIFrameElement>("[data-video-mount] iframe").forEach((iframe) => {
+        iframe.src = "about:blank";
+      });
       experience?.dispose();
       atmosphere?.dispose();
       livingWorld?.dispose();
