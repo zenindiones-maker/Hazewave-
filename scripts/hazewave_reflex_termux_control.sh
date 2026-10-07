@@ -156,7 +156,7 @@ remote_main() {
     export HAZEWAVE_REFLEX_CANDIDATE_REF="refs/remotes/origin/$REF"
 
     case "$action" in
-        doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report)
+        doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report|latency-scale-probe)
             exec bash "$control" "$action"
             ;;
         observe)
