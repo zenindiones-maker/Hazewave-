@@ -76,8 +76,8 @@ button{appearance:none}
 .world-grain{
   position:absolute;inset:0;pointer-events:none;opacity:.09;mix-blend-mode:screen;
   background-image:
-    repeating-radial-gradient(circle at 17% 31%,rgba(255,255,255,.18) 0 1px,transparent 1px 4px);
-  background-size:8px 8px
+    repeating-linear-gradient(115deg,rgba(255,255,255,.08) 0 1px,transparent 1px 10px);
+  background-size:18px 18px;opacity:.025
 }
 
 .scene-copy{
@@ -175,16 +175,16 @@ h1{
   opacity:0;transform:scale(.6);filter:blur(2px)
 }
 .deck-gate{
-  position:absolute;top:50%;width:36px;height:112px;margin-top:-56px;
-  border-radius:18px;
+  position:absolute;top:50%;width:24px;height:86px;margin-top:-43px;
+  border-radius:7px;
   background:
     linear-gradient(90deg,rgba(255,255,255,.45),rgba(255,255,255,.1) 22%,rgba(255,255,255,.34) 70%,rgba(255,255,255,.08)),
     color-mix(in srgb,var(--world-accent),#101412 74%);
   border:1px solid rgba(255,255,255,.18);
   box-shadow:0 0 24px color-mix(in srgb,var(--world-accent),transparent 82%)
 }
-.deck-gate-left{left:28px}
-.deck-gate-right{right:28px}
+.deck-gate-left{left:39px}
+.deck-gate-right{right:39px}
 .deck-slot{
   position:absolute;left:50%;top:50%;width:86px;height:112px;transform:translate(-50%,-50%);
   border-radius:22px;
@@ -204,6 +204,18 @@ h1{
   width:max-content;color:rgba(255,255,255,.28);
   font:700 6px/1 ui-monospace,monospace;letter-spacing:.13em
 }
+.deck-loaded-artifact{
+  position:absolute!important;z-index:5;left:50%;top:50%;
+  width:64px!important;height:82px!important;
+  transform:translate(-50%,-50%) scale(.92)!important;
+  margin:0!important;opacity:.95!important;filter:none!important;
+  box-shadow:0 0 24px color-mix(in srgb,var(--world-accent),transparent 76%)!important;
+  pointer-events:none
+}
+.deck-loaded-artifact .artifact-number,
+.deck-loaded-artifact .artifact-mark{display:none}
+.deck-loaded-artifact .artifact-artwork{inset:7px;width:calc(100% - 14px);height:calc(100% - 14px);opacity:.7}
+.deck-loaded-artifact .artifact-signal{width:34px;height:34px}
 
 .deck-neck{
   position:absolute;left:50%;top:286px;width:80px;height:74px;transform:translateX(-50%);
@@ -432,20 +444,20 @@ h1{
   .scene-copy{
     top:22px;left:20px;max-width:calc(100% - 40px)
   }
-  .eyebrow{font-size:7px;margin-bottom:8px}
-  h1{max-width:10em;font-size:clamp(31px,8.2vw,40px);line-height:.9}
-  .intro{font-size:11px;margin-top:10px;max-width:28ch}
+  .eyebrow{font-size:7px;margin-bottom:7px}
+  h1{max-width:11em;font-size:clamp(25px,6.7vw,31px);line-height:.94}
+  .intro{display:none}
   .runtime-badge{right:18px;top:22px;opacity:.5}
   .runtime-badge .pulse{display:none}
   .deck-stage{
-    top:48%;width:100%;height:56vh;max-height:470px;transform:translate(-50%,-44%)
+    top:45%;width:100%;height:58vh;max-height:490px;transform:translate(-50%,-45%)
   }
   .resonance-deck{width:250px;height:430px}
   .deck-outer-halo{top:69px;width:212px;height:212px}
   .deck-arch{top:24px;width:196px;height:257px;border-radius:100px 100px 40px 40px}
   .deck-core{top:83px;width:166px;height:166px}
-  .deck-gate{width:31px;height:94px;margin-top:-47px}
-  .deck-gate-left{left:24px}.deck-gate-right{right:24px}
+  .deck-gate{width:18px;height:70px;margin-top:-35px;border-radius:6px}
+  .deck-gate-left{left:34px}.deck-gate-right{right:34px}
   .deck-slot{width:74px;height:94px}
   .deck-neck{top:239px;width:68px;height:60px}
   .deck-console{top:286px;width:236px;height:112px;padding:12px;grid-template-columns:1fr 44px}
@@ -480,9 +492,8 @@ h1{
 }
 
 @media(max-width:420px){
-  .intro{display:none}
-  .scene-copy{top:20px}
-  h1{font-size:31px}
+  .scene-copy{top:18px}
+  h1{font-size:25px}
   .deck-stage{top:47%;transform:translate(-50%,-43%)}
   .artifact-field{padding-left:14px;padding-right:14px}
   .runtime-badge{display:none}
