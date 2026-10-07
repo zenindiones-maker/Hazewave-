@@ -378,6 +378,7 @@ def execute_reflex_choice(
     state: str | Mapping[str, Any],
     question: Mapping[str, Any],
     api_key: str,
+    deterministic_precheck_complete: bool,
     data_classification: str = "INTERNAL_NON_SECRET",
     state_language: str = "en",
     execution_context: str = "DEVELOPMENT",
@@ -390,6 +391,8 @@ def execute_reflex_choice(
     executor: Executor = execute_colibri_system_one,
 ) -> ReflexVerdict:
     selected = dict(policy) if policy is not None else load_reflex_policy()
+    if deterministic_precheck_complete is not True:
+        raise ReflexDecisionError("REFLEX_DETERMINISTIC_PRECHECK_REQUIRED")
     questions = {question_id: dict(question)}
     validate_reflex_request(
         authorization=authorization,
