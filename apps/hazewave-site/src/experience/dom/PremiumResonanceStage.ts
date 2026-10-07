@@ -38,6 +38,7 @@ export class PremiumResonanceStage {
   private recoveryFrameWindows = 0;
   private pointerMoveHandler: ((event: PointerEvent) => void) | null = null;
   private pointerLeaveHandler: (() => void) | null = null;
+  private hoveredArtifact: HTMLButtonElement | null = null;
 
   constructor(host: HTMLElement, quality: QualityProfile, onPhase: PhaseSink) {
     this.host = host;
@@ -144,6 +145,27 @@ export class PremiumResonanceStage {
       this.host.style.setProperty("--pointer-y", `${(((ny + 1) * 0.5) * 100).toFixed(1)}%`);
       this.host.style.setProperty("--world-parallax-x", `${(nx * -5).toFixed(2)}px`);
       this.host.style.setProperty("--world-parallax-y", `${(ny * -3).toFixed(2)}px`);
+
+      const artifact = (event.target as Element | null)?.closest<HTMLButtonElement>(".resonance-artifact") ?? null;
+      if (artifact !== this.hoveredArtifact) {
+        if (this.hoveredArtifact) {
+          this.hoveredArtifact.style.removeProperty("--tilt-x");
+          this.hoveredArtifact.style.removeProperty("--tilt-y");
+          this.hoveredArtifact.style.removeProperty("--shine-x");
+          this.hoveredArtifact.style.removeProperty("--shine-y");
+        }
+        this.hoveredArtifact = artifact;
+      }
+
+      if (artifact) {
+        const rect = artifact.getBoundingClientRect();
+        const localX = ((event.clientX - rect.left) / Math.max(rect.width, 1) - 0.5) * 2;
+        const localY = ((event.clientY - rect.top) / Math.max(rect.height, 1) - 0.5) * 2;
+        artifact.style.setProperty("--tilt-x", `${(-localY * 7).toFixed(2)}deg`);
+        artifact.style.setProperty("--tilt-y", `${(localX * 9).toFixed(2)}deg`);
+        artifact.style.setProperty("--shine-x", `${(((localX + 1) * 0.5) * 100).toFixed(1)}%`);
+        artifact.style.setProperty("--shine-y", `${(((localY + 1) * 0.5) * 100).toFixed(1)}%`);
+      }
     };
 
     this.pointerLeaveHandler = () => {
@@ -153,6 +175,13 @@ export class PremiumResonanceStage {
       this.host.style.setProperty("--world-parallax-y", "0px");
       this.host.style.setProperty("--pointer-x", "50%");
       this.host.style.setProperty("--pointer-y", "42%");
+      if (this.hoveredArtifact) {
+        this.hoveredArtifact.style.removeProperty("--tilt-x");
+        this.hoveredArtifact.style.removeProperty("--tilt-y");
+        this.hoveredArtifact.style.removeProperty("--shine-x");
+        this.hoveredArtifact.style.removeProperty("--shine-y");
+        this.hoveredArtifact = null;
+      }
     };
 
     this.host.addEventListener("pointermove", this.pointerMoveHandler, { passive: true });
