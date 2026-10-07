@@ -15,6 +15,7 @@ interface StageController {
 
 export function bootHazewaveSite(): void {
   const stageHost = document.querySelector<HTMLElement>("#premium-stage");
+  const player = document.querySelector<HTMLElement>(".player");
   const runtimeLabel = document.querySelector<HTMLElement>("#runtime-label");
   const stateLabel = document.querySelector<HTMLElement>("#state-label");
   const title = document.querySelector<HTMLElement>("#player-title");
@@ -28,7 +29,7 @@ export function bootHazewaveSite(): void {
   const worldTrack = document.querySelector<HTMLElement>("#world-track");
   const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-track-id]"));
 
-  if (!stageHost || !runtimeLabel || !stateLabel || !title || !artistLabel || !toggle || !seek || !timeCurrent || !timeTotal) return;
+  if (!stageHost || !player || !runtimeLabel || !stateLabel || !title || !artistLabel || !toggle || !seek || !timeCurrent || !timeTotal) return;
 
   const quality = detectQuality();
   document.documentElement.dataset.qualityTier = quality.tier;
@@ -109,6 +110,7 @@ export function bootHazewaveSite(): void {
           button.setAttribute("aria-pressed", String(button.dataset.trackId === trackId))
         );
 
+        player.dataset.active = "true";
         title.textContent = track.title;
         artistLabel.textContent = `${artist.name.replace(" / DEMO", "")} · ${artist.releaseTitle} · ${manifest.bpm} BPM`;
         seek.max = String(track.durationSeconds);
