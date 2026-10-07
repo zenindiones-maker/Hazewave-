@@ -452,3 +452,17 @@ test("wheel LIST mode exposes the loaded artist tracklist", async ({ page }) => 
   await expect(page.locator("#player-wheel")).toHaveAttribute("data-mode", "volume");
   await expect(page.locator("#deck-screen")).toHaveAttribute("data-view", "now");
 });
+
+
+test("rapid wheel input keeps the latest requested track instead of erroring", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#archive").scrollIntoViewIfNeeded();
+
+  await page.locator("[data-track-id='aether-01']").click();
+  await expect(page.locator("#player-title")).toHaveText("Pale Current", { timeout: 3_000 });
+
+  await page.locator("[data-wheel-action='next']").click();
+  await expect(page.locator("#player-title")).toHaveText("Soft Voltage", { timeout: 8_000 });
+  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 8_000 });
+  await expect(page.locator("#runtime-label")).not.toContainText("ERROR");
+});
