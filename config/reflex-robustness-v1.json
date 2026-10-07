@@ -1,0 +1,76 @@
+{
+  "schema": "HazewaveReflexRobustnessPolicy/v1",
+  "project_id": "HAZEWAVE",
+  "authority": "HAZEWAVE_HARNESS",
+  "provider_authority": "NONE",
+  "activation_state": "SHADOW_ONLY",
+  "option_order_ensemble": {
+    "enabled": true,
+    "capabilities": [
+      "decision.route"
+    ],
+    "strategy": "CYCLIC_ROTATIONS_IN_ONE_SYSTEM_ONE_BATCH",
+    "aggregation": "ARITHMETIC_MEAN_PROBABILITIES",
+    "max_labels": 8,
+    "max_rotations": 4,
+    "min_winner_agreement": 1,
+    "max_normalized_jsd": 0.08,
+    "raw_system_one_confidence_correctness_probability": false
+  },
+  "sensory_frame": {
+    "schema": "HazewaveReflexSensoryFrame/v1",
+    "raw_media_allowed": false,
+    "source_paths_allowed": false,
+    "artistic_verdict_allowed": false,
+    "credentials_allowed": false,
+    "allowed_sources": [
+      "AudioQCReport/v1",
+      "ProfessionalAudioAnalysisReport/v1",
+      "VideoQCReport/v1",
+      "AnimationQCReport/v1"
+    ],
+    "max_technical_flags_per_surface": 32,
+    "runtime_metric_allowlist": [
+      "available_ram_gb",
+      "disk_free_gb",
+      "cpu_load_1",
+      "active_render_jobs"
+    ]
+  },
+  "risk_control": {
+    "status": "CALIBRATION_CANDIDATE_ONLY",
+    "method": "HOEFFDING_ONE_SIDED_UPPER_BOUND",
+    "target_selective_risk": 0.05,
+    "delta": 0.05,
+    "minimum_total_labeled_samples": 750,
+    "minimum_accepted_samples": 600,
+    "activation_authority": "NONE",
+    "auto_threshold_mutation": false,
+    "iid_assumption_must_be_reviewed": true
+  },
+  "benchmark": {
+    "status": "SHADOW_ONLY",
+    "minimum_cases_before_review": 100,
+    "perturbations": [
+      "OPTION_ORDER_ROTATION",
+      "STATE_KEY_ORDER_REVERSAL"
+    ],
+    "required_metrics": [
+      "base_accuracy",
+      "ensemble_accuracy",
+      "option_order_flip_rate",
+      "state_order_flip_rate",
+      "mean_normalized_jsd",
+      "multiclass_brier",
+      "ece"
+    ],
+    "benchmark_pass_grants_production_authority": false
+  },
+  "promotion": {
+    "requires_real_codespace_runtime": true,
+    "requires_hazewave_labeled_holdout": true,
+    "requires_human_review": true,
+    "requires_security_review": true,
+    "automatic_promotion": false
+  }
+}
