@@ -5,7 +5,7 @@ test("renders semantic catalog and reaches PLAYING from one click", async ({ pag
   await expect(page.locator("#experience-title")).toHaveText("Toque. Conecte. Escute.");
   await expect(page.locator("[data-track-id]")).toHaveCount(6);
 
-  await page.getByRole("button", { name: /Tocar Pale Current/ }).click();
+  await page.locator("[data-track-id='aether-01']").click();
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
   await expect(page.locator("#player-title")).toHaveText("Pale Current");
   await expect(page.locator("[data-track-id='aether-01']")).toHaveAttribute("aria-pressed", "true");
@@ -14,7 +14,7 @@ test("renders semantic catalog and reaches PLAYING from one click", async ({ pag
 
 test("pause, resume and track replacement preserve coherent UI state", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: /Tocar Soft Voltage/ }).click();
+  await page.locator("[data-track-id='aether-02']").click();
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
 
   await page.locator("#toggle-play").click();
@@ -25,7 +25,7 @@ test("pause, resume and track replacement preserve coherent UI state", async ({ 
   await expect(page.locator("#state-label")).toHaveText("PLAYING");
   await expect(page.locator("#toggle-play")).toHaveText("PAUSE");
 
-  await page.getByRole("button", { name: /Tocar Weightless Iron/ }).click();
+  await page.locator("[data-track-id='monolith-01']").click();
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 7_000 });
   await expect(page.locator("#player-title")).toHaveText("Weightless Iron");
 });
@@ -33,7 +33,7 @@ test("pause, resume and track replacement preserve coherent UI state", async ({ 
 test("reduced motion keeps selection and playback functional", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await page.getByRole("button", { name: /Tocar Moss Circuit/ }).click();
+  await page.locator("[data-track-id='flora-01']").click();
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 3_000 });
   await expect(page.locator("#player-title")).toHaveText("Moss Circuit");
 });
@@ -54,7 +54,7 @@ test("normal experience keeps diagnostics opt-in", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#hazewave-diagnostics")).toHaveCount(0);
   await expect(page.locator(".artifact-field")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Tocar Pale Current/ })).toBeVisible();
+  await expect(page.locator("[data-track-id='aether-01']")).toBeVisible();
 });
 
 
@@ -79,7 +79,7 @@ test("premium idle composition is reviewable", async ({ page }, testInfo) => {
 
 test("artist world and physical dock remain coherent", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: /Tocar Pale Current/ }).click();
+  await page.locator("[data-track-id='aether-01']").click();
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
   await expect(page.locator("#premium-stage")).toHaveAttribute("data-artist", "aether");
   await expect(page.locator("#world-release")).toHaveText("GLASS SIGNAL");
@@ -91,7 +91,7 @@ test("artist world and physical dock remain coherent", async ({ page }) => {
 
 test("seek transport is wired to audio state", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: /Tocar Pale Current/ }).click();
+  await page.locator("[data-track-id='aether-01']").click();
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
 
   const seek = page.locator("#player-seek");
@@ -108,7 +108,7 @@ test("seek transport is wired to audio state", async ({ page }) => {
 
 test("cinematic object remains visible during mobile travel", async ({ page }, testInfo) => {
   await page.goto("/");
-  await page.getByRole("button", { name: /Tocar Pale Current/ }).click();
+  await page.locator("[data-track-id='aether-01']").click();
 
   await expect(page.locator("#state-label")).toHaveText("TRAVEL", { timeout: 2_000 });
   const clone = page.locator(".cinematic-artifact-clone");
