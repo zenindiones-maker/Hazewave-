@@ -393,7 +393,7 @@ h1{
 
 .runtime-badge{
   position:absolute;z-index:22;right:24px;top:24px;
-  display:flex;align-items:center;gap:8px;
+  display:none;align-items:center;gap:8px;
   color:rgba(255,255,255,.35);
   font:700 8px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.14em
 }
