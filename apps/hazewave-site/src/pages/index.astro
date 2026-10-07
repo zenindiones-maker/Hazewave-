@@ -1,26 +1,27 @@
 ---
 import "../styles/living-field.css";
-import { realArtists } from "../data/realArtists";
+import { realArtists, materializedWorldArtists } from "../data/realArtists";
 
-const aquaverno = realArtists.find((artist) => artist.id === "aquaverno")!;
-const hemorragia = realArtists.find((artist) => artist.id === "hemorragia-cosmica")!;
+const aquaverno = materializedWorldArtists.find((artist) => artist.id === "aquaverno");
+const hemorragia = materializedWorldArtists.find((artist) => artist.id === "hemorragia-cosmica");
 ---
 
-<html lang="pt-BR" data-experience="living-resonance-field">
+<html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#050505" />
     <meta
       name="description"
-      content="Hazewave — Núcleo Sonoro Independente em Santos. Explore sinais de artistas dentro do Living Resonance Field."
+      content="Hazewave — Núcleo Sonoro Independente de Santos. Explore artistas através do Living Resonance Field."
     />
     <meta property="og:title" content="Hazewave — Living Resonance Field" />
     <meta
       property="og:description"
-      content="Um campo musical vivo onde artistas emergem do universo visual Hazewave."
+      content="Um campo vivo de descoberta musical onde cada artista emerge do universo Hazewave."
     />
     <meta property="og:image" content="/media/hazewave-world.jpg.webp" />
+    <meta property="og:type" content="website" />
     <link
       rel="preload"
       as="image"
@@ -30,26 +31,25 @@ const hemorragia = realArtists.find((artist) => artist.id === "hemorragia-cosmic
     />
     <title>Hazewave — Living Resonance Field</title>
   </head>
+
   <body>
     <main
       id="living-field"
       class="living-field"
-      data-field-runtime="boot"
+      data-field-runtime="initializing"
       data-wave-active="false"
       data-world-active="false"
-      data-transitioning="false"
+      aria-label="Hazewave Living Resonance Field"
     >
       <div class="field-origin" aria-hidden="true">
         <img
           id="hazewave-world-source"
           src="/media/hazewave-world.jpg.webp"
           alt=""
-          width="1024"
-          height="1536"
           decoding="async"
           fetchpriority="high"
         />
-        <canvas id="living-field-canvas"></canvas>
+        <canvas id="living-field-canvas" aria-hidden="true"></canvas>
         <span class="haze-layer"></span>
       </div>
 
@@ -59,9 +59,7 @@ const hemorragia = realArtists.find((artist) => artist.id === "hemorragia-cosmic
         <span>Santos</span>
       </header>
 
-      <div class="field-orientation" aria-hidden="true">
-        toque o campo · revele um sinal
-      </div>
+      <p class="field-orientation" aria-hidden="true">toque a névoa · encontre um sinal</p>
 
       <nav class="primary-paths" aria-label="Caminhos principais">
         <button type="button" data-primary-action="explore">EXPLORE</button>
@@ -70,112 +68,120 @@ const hemorragia = realArtists.find((artist) => artist.id === "hemorragia-cosmic
       </nav>
 
       <div class="signal-field" aria-label="Sinais de artistas">
-        {realArtists.map((artist) => (
-          <button
-            type="button"
-            class="artist-signal"
-            data-artist-signal={artist.id}
-            data-artist-name={artist.name}
-            data-materialized={String(artist.materializedWorld)}
-            data-revealed="false"
-            aria-label={"Abrir sinal de " + artist.name}
-          >
-            <span>{artist.name}</span>
-          </button>
-        ))}
+        {
+          realArtists.map((artist) => (
+            <button
+              type="button"
+              class="artist-signal"
+              data-artist-signal={artist.id}
+              data-artist-name={artist.name}
+              data-materialized={String(artist.materializedWorld)}
+              aria-label={`Entrar no sinal de ${artist.name}`}
+            >
+              <span>{artist.name}</span>
+            </button>
+          ))
+        }
       </div>
 
-      <p id="field-status" class="field-status" aria-live="polite">
-        A Haze esconde sinais. Uma Wave revela o que está próximo.
+      <p id="field-status" class="field-status" role="status" aria-live="polite">
+        Toque ou mova-se pelo campo. A Wave revela o que a Haze estava escondendo.
       </p>
 
-      <section class="artist-world-shell" aria-label="Mundos de artistas">
-        <article
-          class="artist-world"
-          data-artist-world="aquaverno"
-          data-world-system="tidal-depth"
-          data-active="false"
-          aria-label="Mundo visual de Aquaverno"
-        >
-          <img
-            class="aquaverno-art"
-            src={aquaverno.artwork!}
-            alt={aquaverno.artworkAlt}
-            width="360"
-            height="360"
-            loading="eager"
-            decoding="async"
-          />
-          <span class="aquaverno-tide" aria-hidden="true"></span>
-          <span class="aquaverno-tide" aria-hidden="true"></span>
-          <span class="aquaverno-tide" aria-hidden="true"></span>
-          <h2 class="artist-world-name">{aquaverno.name}</h2>
-        </article>
+      <div class="artist-world-shell">
+        <button id="world-back" class="world-back" type="button" hidden aria-label="Voltar para Hazewave">
+          ← HAZEWAVE
+        </button>
 
-        <article
-          class="artist-world"
-          data-artist-world="hemorragia-cosmica"
-          data-world-system="pressure-wire"
-          data-active="false"
-          aria-label="Mundo visual de Hemorragia Cósmica"
-        >
-          <img
-            class="hemorragia-art"
-            src={hemorragia.artwork!}
-            alt={hemorragia.artworkAlt}
-            width="460"
-            height="620"
-            loading="eager"
-            decoding="async"
-          />
-          <span class="hemorragia-wire" aria-hidden="true"></span>
-          <span class="hemorragia-wire" aria-hidden="true"></span>
-          <span class="hemorragia-wire" aria-hidden="true"></span>
-          <h2 class="artist-world-name">{hemorragia.name}</h2>
-        </article>
-      </section>
+        {
+          aquaverno && (
+            <section
+              class="artist-world"
+              data-artist-world={aquaverno.id}
+              data-world-system={aquaverno.worldSystem}
+              data-active="false"
+              aria-label={`Mundo visual de ${aquaverno.name}`}
+            >
+              <img
+                class="aquaverno-art"
+                src={aquaverno.artwork!}
+                alt={aquaverno.artworkAlt}
+                decoding="async"
+              />
+              <span class="aquaverno-tide" aria-hidden="true"></span>
+              <span class="aquaverno-tide" aria-hidden="true"></span>
+              <span class="aquaverno-tide" aria-hidden="true"></span>
+              <h2 class="artist-world-name">{aquaverno.name}</h2>
+            </section>
+          )
+        }
 
-      <button id="world-back" class="world-back" type="button" hidden aria-label="Voltar ao campo Hazewave">
-        ← CAMPO
-      </button>
+        {
+          hemorragia && (
+            <section
+              class="artist-world"
+              data-artist-world={hemorragia.id}
+              data-world-system={hemorragia.worldSystem}
+              data-active="false"
+              aria-label={`Mundo visual de ${hemorragia.name}`}
+            >
+              <img
+                class="hemorragia-art"
+                src={hemorragia.artwork!}
+                alt={hemorragia.artworkAlt}
+                decoding="async"
+              />
+              <span class="hemorragia-wire" aria-hidden="true"></span>
+              <span class="hemorragia-wire" aria-hidden="true"></span>
+              <span class="hemorragia-wire" aria-hidden="true"></span>
+              <h2 class="artist-world-name">{hemorragia.name}</h2>
+            </section>
+          )
+        }
+      </div>
 
       <section
         id="persistent-transport"
         class="persistent-transport"
         data-active="false"
-        aria-label="Player Hazewave"
         tabindex="-1"
+        aria-label="Player Hazewave"
       >
         <div class="transport-copy">
           <strong id="transport-artist">HAZEWAVE</strong>
           <span>Áudio ainda não materializado</span>
         </div>
+
         <div class="transport-controls" aria-label="Controles de reprodução">
-          <button type="button" disabled aria-label="Anterior">‹</button>
-          <button type="button" disabled aria-label="Tocar">▶</button>
-          <button type="button" disabled aria-label="Próxima">›</button>
+          <button type="button" aria-label="Anterior">‹</button>
+          <button type="button" aria-label="Tocar" disabled>▶</button>
+          <button type="button" aria-label="Próxima">›</button>
         </div>
-        <div class="transport-seek">
-          <input type="range" min="0" max="100" value="0" disabled aria-label="Posição da música" />
-          <small>AUDIO AUTHORITY UNSET</small>
-        </div>
+
+        <label class="transport-seek">
+          <span class="sr-only">Posição da faixa</span>
+          <input type="range" min="0" max="100" value="0" disabled aria-label="Posição da faixa" />
+          <small>SEM ÁUDIO AUTORIZADO</small>
+        </label>
       </section>
 
       <dialog id="artist-search" class="artist-search" aria-label="Buscar artista">
-        <div class="search-head">
-          <strong>Buscar artista</strong>
+        <header class="search-head">
+          <strong>Artistas Hazewave</strong>
           <button type="button" data-search-close aria-label="Fechar busca">×</button>
-        </div>
+        </header>
         <div class="search-list">
-          {realArtists.map((artist) => (
-            <button
-              type="button"
-              data-search-artist={artist.id}
-              data-materialized={String(artist.materializedWorld)}
-            >
-              {artist.name}
-            </button>
-          ))}
+          {
+            realArtists.map((artist) => (
+              <button
+                type="button"
+                data-search-artist={artist.id}
+                data-materialized={String(artist.materializedWorld)}
+              >
+                {artist.name}
+              </button>
+            ))
+          }
         </div>
       </dialog>
     </main>
