@@ -694,6 +694,22 @@ h1{
 .resonance-artifact[data-focus="selected"]{z-index:7;transform:translateY(-12px) scale(1.05)}
 .resonance-artifact[data-loaded="pending"]{opacity:.16}
 .resonance-artifact[data-loaded="true"]{opacity:.12;filter:saturate(.4)}
+.premium-stage[data-phase="idle"] .artifact-field > .resonance-artifact:first-child .artifact-signal{
+  animation:hazewaveDiscoverySignal 4.8s cubic-bezier(.2,.8,.2,1) 1.15s infinite
+}
+.premium-stage[data-phase="idle"] .artifact-field > .resonance-artifact:first-child .artifact-mark{
+  animation:hazewaveDiscoveryMark 4.8s cubic-bezier(.2,.8,.2,1) 1.15s infinite
+}
+@keyframes hazewaveDiscoverySignal{
+  0%,66%,100%{box-shadow:0 0 22px color-mix(in srgb,var(--accent),transparent 82%);opacity:1}
+  72%{box-shadow:0 0 42px color-mix(in srgb,var(--accent),transparent 58%);opacity:.96}
+  79%{box-shadow:0 0 26px color-mix(in srgb,var(--accent),transparent 72%);opacity:1}
+}
+@keyframes hazewaveDiscoveryMark{
+  0%,66%,100%{transform:scaleX(1);opacity:.72}
+  72%{transform:scaleX(1.22);opacity:1}
+  79%{transform:scaleX(1);opacity:.78}
+}
 .artifact-shell{
   position:relative;display:block;width:100%;height:132px;overflow:hidden;
   clip-path:polygon(12% 0,88% 0,100% 12%,100% 88%,88% 100%,12% 100%,0 88%,0 12%);
@@ -1340,6 +1356,8 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
 }
 
 @media(prefers-reduced-motion:reduce){
+  .premium-stage[data-phase="idle"] .artifact-signal,
+  .premium-stage[data-phase="idle"] .artifact-mark{animation:none!important}
   .gpu-atmosphere{display:none!important}
   .artist-world-aether .world-scan,
   .artist-world-monolith .fault,
