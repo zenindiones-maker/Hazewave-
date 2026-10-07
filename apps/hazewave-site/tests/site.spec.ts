@@ -855,3 +855,46 @@ test("authorized video lifecycle unloads media on close without production data"
   await expect(mount).not.toHaveAttribute("data-loaded", "true");
   await expect(open).toBeEnabled();
 });
+
+
+test("artist micro-beats are deterministic and reversible", async ({ page }) => {
+  await page.goto("/");
+
+  const chapter = "[data-artist-chapter='aether']";
+
+  await focusStoryFraction(page, chapter, 0.10);
+  await expect(page.locator("html")).toHaveAttribute("data-scroll-artist", "aether");
+  await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "EMERGE");
+
+  await focusStoryFraction(page, chapter, 0.34);
+  await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "MUSIC");
+
+  await focusStoryFraction(page, chapter, 0.63);
+  await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "VISUAL");
+
+  await focusStoryFraction(page, chapter, 0.90);
+  await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "TRANSITION");
+
+  await focusStoryFraction(page, chapter, 0.12);
+  await expect(page.locator("html")).toHaveAttribute("data-artist-phase", "EMERGE");
+});
+
+test("living world exposes layered owner-art 2.5D depth without replacing the source", async ({ page }) => {
+  const viewport = page.viewportSize();
+  test.skip(!viewport || viewport.width <= 430, "LOW tier intentionally uses CSS fallback");
+
+  await page.goto("/");
+  const host = page.locator(".site-backdrop");
+
+  await expect(host).toHaveAttribute(
+    "data-world-runtime",
+    /webgl2|fallback/,
+    { timeout: 4_000 }
+  );
+
+  if ((await host.getAttribute("data-world-runtime")) === "webgl2") {
+    await expect(host).toHaveAttribute("data-world-depth-model", "layered-owner-art-2.5d");
+    await expect(host.locator("img")).toHaveAttribute("src", "/media/hazewave-world.jpg.webp");
+    await expect(host.locator("img")).toBeVisible();
+  }
+});
