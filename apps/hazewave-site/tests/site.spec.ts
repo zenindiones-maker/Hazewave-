@@ -466,3 +466,17 @@ test("rapid wheel input keeps the latest requested track instead of erroring", a
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 8_000 });
   await expect(page.locator("#runtime-label")).not.toContainText("ERROR");
 });
+
+
+test("story rail follows the persistent-world chapter conductor", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator(".story-rail a")).toHaveCount(6);
+
+  await page.locator("#dossiers").scrollIntoViewIfNeeded();
+  await expect(page.locator("html")).toHaveAttribute("data-story-chapter", "dossiers", { timeout: 2_500 });
+  await expect(page.locator(".story-rail [data-story-link='dossiers']")).toBeVisible();
+
+  await page.locator(".story-rail [data-story-link='archive']").click();
+  await expect(page.locator("#archive")).toBeInViewport({ ratio: 0.3 });
+  await expect(page.locator("html")).toHaveAttribute("data-story-chapter", "archive", { timeout: 2_500 });
+});
