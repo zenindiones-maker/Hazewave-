@@ -130,20 +130,60 @@ void main() {
   float zoom = 1.0 + uDepth * 0.052 + uProgress * 0.012 + artistDepth;
   vec2 cameraUv = (screenUv - 0.5) / zoom + 0.5;
 
-  float depthWeight = mix(
-    0.20,
-    1.0,
-    smoothstep(0.10, 0.96, screenTop)
-  );
+  // Pseudo-depth bands keep the owner's exact artwork authoritative while
+  // allowing different regions of the same image to breathe at different
+  // amplitudes. The world remains one texture; no generated replacement art.
+  float skyBand =
+    1.0 - smoothstep(0.26, 0.46, screenTop);
+  float architectureBand =
+    smoothstep(0.18, 0.38, screenTop) *
+    (1.0 - smoothstep(0.70, 0.84, screenTop));
+  float waterDepthBand =
+    smoothstep(0.66, 0.88, screenTop);
+  float foregroundBand =
+    smoothstep(0.84, 0.99, screenTop);
+
+  float depthWeight =
+    skyBand * 0.14 +
+    architectureBand * 0.46 +
+    waterDepthBand * 0.78 +
+    foregroundBand * 1.0;
 
   vec2 pointerOffset =
     (uPointer - 0.5) *
-    (0.0038 + uDepth * 0.0052) *
+    (0.0027 + uDepth * 0.0058) *
     depthWeight;
 
+  float scrollDolly = (uProgress - 0.5) * uDepth;
   cameraUv += pointerOffset;
-  cameraUv.x += uVelocity * (0.0015 + uDepth * 0.0007) * depthWeight;
-  cameraUv.y -= uVelocity * 0.0009 * depthWeight;
+  cameraUv.x +=
+    uVelocity *
+    (0.00115 + uDepth * 0.0009) *
+    depthWeight;
+  cameraUv.y -=
+    uVelocity *
+    (0.00055 + foregroundBand * 0.00072) *
+    depthWeight;
+
+  // A restrained vertical separation produces a 2.5D camera feeling without
+  // cutting the source image into brittle independent planes.
+  cameraUv.y +=
+    scrollDolly *
+    (
+      skyBand * -0.0014 +
+      architectureBand * -0.0034 +
+      waterDepthBand * -0.0062 +
+      foregroundBand * -0.0084
+    );
+
+  cameraUv.x +=
+    sin(uProgress * 3.14159265) *
+    uDepth *
+    (
+      architectureBand * 0.0011 +
+      waterDepthBand * 0.0017 +
+      foregroundBand * 0.0022
+    );
 
   float waterMask =
     smoothstep(0.69, 0.80, screenTop) *
