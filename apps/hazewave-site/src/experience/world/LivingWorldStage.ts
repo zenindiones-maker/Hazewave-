@@ -417,6 +417,7 @@ export class LivingWorldStage {
   private previousFrameAt = performance.now();
   private performanceWindows = 0;
   private recoveryWindows = 0;
+  private restoreWatchdog = 0;
 
   private readonly onPointerMove = (event: PointerEvent) => {
     if (this.quality.reducedMotion) return;
@@ -443,11 +444,22 @@ export class LivingWorldStage {
     event.preventDefault();
     this.contextLost = true;
     cancelAnimationFrame(this.raf);
+    window.clearTimeout(this.restoreWatchdog);
     this.host.dataset.worldRuntime = "fallback-context-lost";
+
+    // A lost context is allowed to remain lost indefinitely by the platform.
+    // Keep the owner artwork usable immediately, then mark the GPU path as a
+    // stable fallback if a restore event never arrives within a bounded window.
+    this.restoreWatchdog = window.setTimeout(() => {
+      if (!this.disposed && this.contextLost) {
+        this.host.dataset.worldRuntime = "fallback-restore-failed";
+      }
+    }, 2_500);
   };
 
   private readonly onContextRestored = () => {
     if (this.disposed) return;
+    window.clearTimeout(this.restoreWatchdog);
     try {
       this.contextLost = false;
       this.buildResources();
@@ -499,6 +511,7 @@ export class LivingWorldStage {
     if (this.disposed) return;
     this.disposed = true;
     cancelAnimationFrame(this.raf);
+    window.clearTimeout(this.restoreWatchdog);
     this.resizeObserver?.disconnect();
     window.removeEventListener("pointermove", this.onPointerMove);
     document.removeEventListener("visibilitychange", this.onVisibility);
