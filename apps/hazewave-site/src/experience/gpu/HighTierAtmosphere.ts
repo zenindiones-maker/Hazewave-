@@ -59,7 +59,8 @@ fn vertex_main(
   let speed = 0.055 + hash(id * 1.71 + 3.0) * 0.085;
   let radius = 0.22 + hash(id * 2.37 + 7.0) * 0.64;
   let lift = 0.22 + hash(id * 3.11 + 13.0) * 0.31;
-  let orbit = phase + u.time * speed;
+  let progress = clamp(u.color.a, 0.0, 1.0);
+  let orbit = phase + u.time * speed + progress * (0.65 + seed * 0.9);
 
   var center = vec2f(
     cos(orbit) * radius,
@@ -67,13 +68,14 @@ fn vertex_main(
   );
 
   if (u.artist > 0.5 && u.artist < 1.5) {
-    center.x = floor(center.x * 10.0) / 10.0;
-    center.y = floor(center.y * 9.0) / 9.0;
+    center.x = floor((center.x + (progress - 0.5) * 0.08) * 10.0) / 10.0;
+    center.y = floor((center.y + (progress - 0.5) * 0.06) * 9.0) / 9.0;
   }
 
   if (u.artist > 1.5) {
-    center.y += sin(phase * 1.7 + u.time * 0.17) * 0.12;
+    center.y += sin(phase * 1.7 + u.time * 0.17 + progress * 4.0) * 0.12;
     center.x *= 0.9 + hash(id * 4.27) * 0.18;
+    center.x += sin(progress * 6.28318 + phase) * 0.035;
   }
 
   let breathe = 0.82 + (sin(u.time * (0.33 + speed) + phase) + 1.0) * 0.08;
@@ -118,6 +120,7 @@ export class HighTierAtmosphere {
   private readonly particleCount: number;
   private artist: ArtistId = "aether";
   private energy = 0;
+  private progress = 0;
   private playing = false;
   private disposed = false;
   private raf = 0;
@@ -253,6 +256,10 @@ export class HighTierAtmosphere {
     this.energy = Math.max(0, Math.min(1, value));
   }
 
+  setProgress(value: number): void {
+    this.progress = Math.max(0, Math.min(1, value));
+  }
+
   setPlaying(playing: boolean): void {
     this.playing = playing;
   }
@@ -299,7 +306,7 @@ export class HighTierAtmosphere {
     this.uniformData[4] = r;
     this.uniformData[5] = g;
     this.uniformData[6] = b;
-    this.uniformData[7] = 1;
+    this.uniformData[7] = this.progress;
 
     this.device.queue.writeBuffer(
       this.uniformBuffer,
