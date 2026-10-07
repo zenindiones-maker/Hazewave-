@@ -13,24 +13,44 @@ STATE_ROOT="${HOME}/.local/state/hazewave/reflex"
 WORKTREE="${RUN_ROOT}/checkout"
 SECRET_FILE="${STATE_ROOT}/colibri-api-key"
 PORT=28080
+PYTHON_BIN=""
 
 die() { printf '%s\n' "REFLEX_SHADOW_FAIL_CLOSED=$*" >&2; exit 18; }
+
+resolve_python() {
+  local candidate=""
+
+  for candidate in     "$MAIN_REPO/.venv/bin/python"     "$(command -v python3 2>/dev/null || true)"     "$(command -v python 2>/dev/null || true)"
+  do
+    [[ -n "$candidate" && -x "$candidate" ]] || continue
+    if "$candidate" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3,10) else 1)' >/dev/null 2>&1; then
+      PYTHON_BIN="$candidate"
+      export PYTHON_BIN
+      echo "REFLEX_PYTHON_BIN=$PYTHON_BIN"
+      "$PYTHON_BIN" --version
+      return 0
+    fi
+  done
+
+  die "PYTHON_3_10_PLUS_MISSING"
+}
 
 check_codespace() {
   local actual="${CODESPACE_NAME:-}"
   local shared="/workspaces/.codespaces/shared/environment-variables.json"
 
-  if [[ "$actual" != "$EXPECTED_CODESPACE" && -f "$shared" ]] && command -v python >/dev/null 2>&1; then
-    actual="$(python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("CODESPACE_NAME",""))' "$shared" 2>/dev/null || true)"
+  [[ -d "$MAIN_REPO/.git" ]] || die "EXISTING_HAZEWAVE_REPO_MISSING"
+  [[ "$(uname -s)" == "Linux" && "$(uname -m)" == "x86_64" ]] || die "LINUX_X86_64_REQUIRED"
+  command -v git >/dev/null || die "GIT_MISSING"
+
+  resolve_python
+
+  if [[ "$actual" != "$EXPECTED_CODESPACE" && -f "$shared" ]]; then
+    actual="$("$PYTHON_BIN" -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("CODESPACE_NAME",""))' "$shared" 2>/dev/null || true)"
   fi
 
   [[ "$actual" == "$EXPECTED_CODESPACE" ]] || die "EXISTING_CODESPACE_IDENTITY_NOT_VERIFIED"
   export CODESPACE_NAME="$actual"
-
-  [[ -d "$MAIN_REPO/.git" ]] || die "EXISTING_HAZEWAVE_REPO_MISSING"
-  [[ "$(uname -s)" == "Linux" && "$(uname -m)" == "x86_64" ]] || die "LINUX_X86_64_REQUIRED"
-  command -v git >/dev/null || die "GIT_MISSING"
-  command -v python >/dev/null || die "PYTHON_MISSING"
 }
 
 ensure_checkout() {
@@ -52,7 +72,7 @@ ensure_checkout() {
 }
 
 plan_resources() {
-  python - <<'PY'
+  "$PYTHON_BIN" - <<'PY'
 from hazewave.colibri import detect_colibri_hardware,plan_colibri_model
 from pathlib import Path
 h=detect_colibri_hardware(Path.home()/".local/share/hazewave/models/colibri/laya")
@@ -67,7 +87,7 @@ PY
 
 doctor() {
   ensure_checkout
-  python -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE"
+  "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE"
 }
 
 prepare() {
@@ -95,7 +115,7 @@ prepare() {
     "891102d372688fc2a094dac56a384bc537b87c63f21f9f3dac0be2b7cbc8d86c" \
     "$MODEL_ROOT/model.safetensors" | sha256sum -c - || die "MODEL_WEIGHT_HASH_MISMATCH"
   if [[ ! -f "$SECRET_FILE" ]]; then
-    python - "$SECRET_FILE" <<'PY'
+    "$PYTHON_BIN" - "$SECRET_FILE" <<'PY'
 import os,secrets,sys
 from pathlib import Path
 p=Path(sys.argv[1]);p.parent.mkdir(parents=True,exist_ok=True)
@@ -112,11 +132,11 @@ PY
 
 serve() {
   ensure_checkout
-  python -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE" >/dev/null || die "RUNTIME_DOCTOR_BLOCKED"
+  "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE" >/dev/null || die "RUNTIME_DOCTOR_BLOCKED"
   [[ -f "$SECRET_FILE" && ! -L "$SECRET_FILE" ]] || die "COLIBRI_SECRET_MISSING"
   [[ "$(stat -c %a "$SECRET_FILE")" == "600" ]] || die "COLIBRI_SECRET_PERMISSIONS_INVALID"
   # Do not kill/replace any other service; refuse the port when already in use.
-  python - "$PORT" <<'PY'
+  "$PYTHON_BIN" - "$PORT" <<'PY'
 import socket,sys
 s=socket.socket()
 try:
@@ -137,20 +157,20 @@ PY
 
 smoke() {
   ensure_checkout
-  python -m hazewave.reflex_shadow_runtime smoke \
+  "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime smoke \
     --repository-root "$WORKTREE" --secret-file "$SECRET_FILE"
 }
 
 observe() {
   ensure_checkout
   [[ -n "${1:-}" && -f "$1" ]] || die "OBSERVE_EVENT_FILE_REQUIRED"
-  python -m hazewave.reflex_shadow_runtime observe \
+  "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime observe \
     --repository-root "$WORKTREE" --secret-file "$SECRET_FILE" --event-file "$1"
 }
 
 report() {
   ensure_checkout
-  python -m hazewave.reflex_shadow_runtime report
+  "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime report
 }
 
 case "${1:-}" in
