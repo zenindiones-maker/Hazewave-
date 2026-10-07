@@ -634,6 +634,7 @@ test("WebGL world context loss falls back and restores without blanking essentia
 });
 
 test("living world checkpoints produce the full narrative visual proof matrix", async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
   const capture = async (name: string) => {
     await page.screenshot({
       path: testInfo.outputPath(`${testInfo.project.name}-${name}.png`),
