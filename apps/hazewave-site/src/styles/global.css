@@ -1551,10 +1551,11 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
 .living-world-canvas{
   position:absolute;z-index:1;inset:0;width:100%;height:100%;display:block;
   opacity:0;transition:opacity 320ms ease;
-  pointer-events:none
+  pointer-events:none;
+  mix-blend-mode:screen
 }
-.site-backdrop[data-world-runtime="webgl2"] .living-world-canvas{opacity:1}
-.site-backdrop[data-world-runtime="webgl2"] img{opacity:0}
+.site-backdrop[data-world-runtime="webgl2"] .living-world-canvas{opacity:.68}
+.site-backdrop[data-world-runtime="webgl2"] img{opacity:1}
 .site-backdrop[data-world-runtime^="fallback"] .living-world-canvas,
 .site-backdrop[data-world-runtime="css-fallback"] .living-world-canvas{opacity:0}
 .site-backdrop[data-world-runtime^="fallback"] img,
@@ -2843,6 +2844,7 @@ body{background:transparent}
   max-height:960px;
   border-color:rgba(245,242,233,.055);
   background:transparent;
+  backdrop-filter:none;
   box-shadow:inset 0 0 120px rgba(0,0,0,.12)
 }
 #archive .premium-stage{
