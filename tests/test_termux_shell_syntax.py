@@ -66,3 +66,11 @@ def test_reflex_codespace_metadata_avoids_full_details_view_endpoint() -> None:
     assert 'gh codespace list --limit 100 --json name,state,repository' in text
     assert 'gh codespace view -c "$CS" --json name' not in text
     assert 'gh codespace view -c "$CS" --json repository' not in text
+
+
+def test_reflex_termux_forwards_latency_scale_probe_to_remote_controller() -> None:
+    text = (ROOT / "scripts" / "hazewave_reflex_termux_control.sh").read_text(encoding="utf-8")
+
+    assert "latency-scale-probe" in text
+    remote_case = text.split('case "$action" in', 1)[1].split('esac', 1)[0]
+    assert "latency-scale-probe" in remote_case
