@@ -380,12 +380,12 @@ test("physical wheel controls volume and track navigation", async ({ page }) => 
   await expect(page.locator("#player-title")).toHaveText("Soft Voltage", { timeout: 7_000 });
 });
 
-test("merch and social surfaces preserve direct-contact architecture", async ({ page }) => {
+test("merch remains fail-closed while owner-authorized social handles stay usable", async ({ page }) => {
   await page.goto("/");
   await page.locator(".merch-zone").scrollIntoViewIfNeeded();
-  await expect(page.locator(".merch-object")).toHaveCount(3);
-  await expect(page.locator("[data-merch-id='collective-cap'] [data-merch-message]"))
-    .toHaveAttribute("data-merch-message", "Fala Hazewave, quero o boné Collective");
+  await expect(page.locator(".merch-object")).toHaveCount(2);
+  await expect(page.locator("[data-merch-id='hazewave-cap'] .merch-contact")).toBeDisabled();
+  await expect(page.locator("[data-merch-id='hazewave-tee'] .merch-contact")).toBeDisabled();
 
   await expect(page.locator(".social-footer a")).toHaveText([
     "@virundun",
