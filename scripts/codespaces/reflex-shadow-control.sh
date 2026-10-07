@@ -4,7 +4,7 @@ umask 077
 
 # Run from existing Hazewave Codespace; never switch the active branch.
 MAIN_REPO="/workspaces/Hazewave-"
-REF="work/reflex-latency-v1"
+REF="work/hazewave-always-ready-v1"
 EXPECTED_CODESPACE="${HAZEWAVE_REFLEX_EXPECTED_CODESPACE:-redesigned-space-bassoon-gxp67g5g7r739w59}"
 RUN_ROOT="${HOME}/.local/share/hazewave/reflex-shadow-runtime"
 SOURCE_ROOT="${HOME}/.local/share/hazewave/providers/colibri/source"
@@ -13,6 +13,15 @@ STATE_ROOT="${HOME}/.local/state/hazewave/reflex"
 WORKTREE="${RUN_ROOT}/checkout"
 SECRET_FILE="${STATE_ROOT}/colibri-api-key"
 PORT=28080
+SERVICE_ROOT="${STATE_ROOT}/service"
+SERVICE_PID_FILE="${SERVICE_ROOT}/reflex.pid"
+SERVICE_META_FILE="${SERVICE_ROOT}/service.json"
+SERVICE_LOG_FILE="${SERVICE_ROOT}/reflex.log"
+SERVICE_LOCK_FILE="${SERVICE_ROOT}/reconcile.lock"
+SERVICE_FAILURE_FILE="${SERVICE_ROOT}/restart-failures.json"
+SERVICE_RECEIPT_ROOT="${SERVICE_ROOT}/receipts"
+RESTART_WINDOW_SECONDS=900
+RESTART_BUDGET=3
 PYTHON_BIN=""
 HF_REPO="convaiinnovations/laya"
 HF_REVISION="7b928d828b7b0e022f929d9bd2e44165aa270148"
@@ -708,6 +717,255 @@ latency_engine_report() {
   fi
 }
 
+
+runtime_health_once() {
+  [[ -f "$SECRET_FILE" && ! -L "$SECRET_FILE" ]] || return 1
+  "$PYTHON_BIN" - "$PORT" "$SECRET_FILE" <<'PY' >/dev/null 2>&1
+import sys
+from pathlib import Path
+import httpx
+
+port = int(sys.argv[1])
+secret = Path(sys.argv[2]).read_text(encoding="utf-8").strip()
+try:
+    response = httpx.get(
+        f"http://127.0.0.1:{port}/health",
+        headers={"Authorization": f"Bearer {secret}"},
+        timeout=1.5,
+        trust_env=False,
+    )
+    body = response.json()
+except (httpx.HTTPError, ValueError, OSError):
+    raise SystemExit(1)
+raise SystemExit(0 if response.status_code == 200 and isinstance(body, dict) and body.get("status") == "ok" else 1)
+PY
+}
+
+restart_budget_check() {
+  mkdir -p "$SERVICE_ROOT"
+  chmod 700 "$SERVICE_ROOT"
+  "$PYTHON_BIN" - "$SERVICE_FAILURE_FILE" "$RESTART_WINDOW_SECONDS" "$RESTART_BUDGET" <<'PY'
+import json, sys, time
+from pathlib import Path
+
+path = Path(sys.argv[1])
+window = int(sys.argv[2])
+budget = int(sys.argv[3])
+now = int(time.time())
+rows = []
+if path.exists():
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        rows = [int(x) for x in payload.get("failures", [])]
+    except (OSError, ValueError, TypeError):
+        raise SystemExit("REFLEX_RESTART_LEDGER_INVALID")
+rows = [x for x in rows if now - x <= window]
+if len(rows) >= budget:
+    print(f"REFLEX_RESTART_BUDGET=EXHAUSTED:{len(rows)}/{budget}")
+    raise SystemExit(42)
+print(f"REFLEX_RESTART_BUDGET=PASS:{len(rows)}/{budget}")
+PY
+}
+
+restart_budget_record_failure() {
+  mkdir -p "$SERVICE_ROOT"
+  chmod 700 "$SERVICE_ROOT"
+  "$PYTHON_BIN" - "$SERVICE_FAILURE_FILE" "$RESTART_WINDOW_SECONDS" <<'PY'
+import json, os, sys, time
+from pathlib import Path
+
+path = Path(sys.argv[1])
+window = int(sys.argv[2])
+now = int(time.time())
+rows = []
+if path.exists():
+    try:
+        rows = [int(x) for x in json.loads(path.read_text(encoding="utf-8")).get("failures", [])]
+    except (OSError, ValueError, TypeError):
+        rows = []
+rows = [x for x in rows if now - x <= window]
+rows.append(now)
+tmp = path.with_name(path.name + ".tmp")
+fd = os.open(tmp, os.O_CREAT | os.O_TRUNC | os.O_WRONLY, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as out:
+    json.dump({"schema": "HazewaveReflexRestartFailures/v1", "failures": rows}, out, sort_keys=True, separators=(",", ":"))
+    out.write("\n")
+os.replace(tmp, path)
+PY
+}
+
+restart_budget_clear() {
+  rm -f "$SERVICE_FAILURE_FILE"
+}
+
+write_service_metadata() {
+  local action="$1"
+  local pid="$2"
+  local profile="$3"
+  local head source_sha model_sha stamp receipt
+  head="$(git -C "$WORKTREE" rev-parse HEAD)"
+  source_sha="$(git -C "$SOURCE_ROOT" rev-parse HEAD)"
+  model_sha="$(sha256sum "$MODEL_ROOT/model.safetensors" | awk '{print $1}')"
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  mkdir -p "$SERVICE_ROOT" "$SERVICE_RECEIPT_ROOT"
+  chmod 700 "$SERVICE_ROOT" "$SERVICE_RECEIPT_ROOT"
+  receipt="$SERVICE_RECEIPT_ROOT/${stamp}-${head:0:12}.json"
+
+  "$PYTHON_BIN" - "$SERVICE_META_FILE" "$receipt" "$action" "$pid" "$profile" "$head" "$source_sha" "$model_sha" "$PORT" <<'PY'
+import json, os, sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+meta_path = Path(sys.argv[1])
+receipt_path = Path(sys.argv[2])
+row = {
+    "schema": "HazewaveReflexServiceReadyReceipt/v1",
+    "status": "READY",
+    "startup_action": sys.argv[3],
+    "pid": int(sys.argv[4]),
+    "profile": sys.argv[5],
+    "worktree_head": sys.argv[6],
+    "source_commit": sys.argv[7],
+    "model_sha256": sys.argv[8],
+    "bind": f"127.0.0.1:{int(sys.argv[9])}",
+    "observed_at": datetime.now(timezone.utc).isoformat(),
+    "provider_authority": "NONE",
+    "grants_execution_authority": False,
+    "production_calibrated": False,
+}
+tmp = meta_path.with_name(meta_path.name + ".tmp")
+fd = os.open(tmp, os.O_CREAT | os.O_TRUNC | os.O_WRONLY, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as out:
+    json.dump(row, out, sort_keys=True, separators=(",", ":"))
+    out.write("\n")
+os.replace(tmp, meta_path)
+fd = os.open(receipt_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as out:
+    json.dump(row, out, sort_keys=True, separators=(",", ":"))
+    out.write("\n")
+PY
+  printf '%s\n' "$pid" >"$SERVICE_PID_FILE.tmp"
+  chmod 600 "$SERVICE_PID_FILE.tmp"
+  mv "$SERVICE_PID_FILE.tmp" "$SERVICE_PID_FILE"
+  echo "REFLEX_RUNTIME_RECEIPT=$receipt"
+}
+
+runtime_status() {
+  ensure_checkout
+  mkdir -p "$SERVICE_ROOT"
+  chmod 700 "$SERVICE_ROOT"
+  if port_is_free; then
+    echo "REFLEX_RUNTIME=STOPPED"
+    echo "REFLEX_BIND=127.0.0.1:$PORT"
+    return 0
+  fi
+  if runtime_health_once; then
+    echo "REFLEX_RUNTIME=READY"
+    echo "REFLEX_BIND=127.0.0.1:$PORT"
+    if [[ -f "$SERVICE_META_FILE" ]]; then
+      cat "$SERVICE_META_FILE"
+    else
+      echo "REFLEX_RUNTIME_METADATA=MISSING"
+    fi
+    return 0
+  fi
+  echo "REFLEX_RUNTIME=DEGRADED"
+  echo "REFLEX_RUNTIME_REASON=PORT_BOUND_HEALTH_FAILED"
+  return 18
+}
+
+reconcile() {
+  ensure_checkout
+  command -v flock >/dev/null || die "FLOCK_MISSING"
+  mkdir -p "$SERVICE_ROOT" "$SERVICE_RECEIPT_ROOT"
+  chmod 700 "$SERVICE_ROOT" "$SERVICE_RECEIPT_ROOT"
+
+  exec 9>"$SERVICE_LOCK_FILE"
+  flock -w 30 9 || die "REFLEX_RECONCILE_LOCK_TIMEOUT"
+
+  "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE" >/dev/null \
+    || die "RUNTIME_DOCTOR_BLOCKED"
+  [[ -f "$SECRET_FILE" && ! -L "$SECRET_FILE" ]] || die "COLIBRI_SECRET_MISSING"
+  [[ "$(stat -c %a "$SECRET_FILE")" == "600" ]] || die "COLIBRI_SECRET_PERMISSIONS_INVALID"
+  model_material_ready || die "MODEL_MATERIAL_NOT_PREPARED"
+  [[ -x "$SOURCE_ROOT/c/coli" && -x "$SOURCE_ROOT/c/laya" ]] || die "COLIBRI_RUNTIME_NOT_PREPARED"
+
+  local profile current_head meta_head pid
+  profile="$("$PYTHON_BIN" -m hazewave.reflex_latency selected --state-root "$STATE_ROOT")" \
+    || die "REFLEX_SELECTED_PROFILE_INVALID"
+  current_head="$(git -C "$WORKTREE" rev-parse HEAD)"
+
+  if ! port_is_free; then
+    if ! runtime_health_once; then
+      die "REFLEX_PORT_BOUND_UNHEALTHY"
+    fi
+
+    meta_head=""
+    pid=""
+    if [[ -f "$SERVICE_META_FILE" ]]; then
+      meta_head="$("$PYTHON_BIN" -c 'import json,sys; print(json.load(open(sys.argv[1],encoding="utf-8")).get("worktree_head",""))' "$SERVICE_META_FILE" 2>/dev/null || true)"
+      pid="$("$PYTHON_BIN" -c 'import json,sys; print(json.load(open(sys.argv[1],encoding="utf-8")).get("pid",""))' "$SERVICE_META_FILE" 2>/dev/null || true)"
+    fi
+
+    if [[ "$meta_head" == "$current_head" && "$pid" =~ ^[0-9]+$ && -d "/proc/$pid" ]]; then
+      echo "REFLEX_RECONCILE_ACTION=REUSE_HEALTHY"
+      echo "REFLEX_RUNTIME_PID=$pid"
+      echo "REFLEX_RUNTIME_PROFILE=$profile"
+      echo "REFLEX_RUNTIME=READY"
+      echo "HAZEWAVE_WORKSTATION_READY=PASS"
+      return 0
+    fi
+
+    [[ -n "$meta_head" ]] || die "REFLEX_HEALTHY_RUNTIME_UNTRACKED"
+    "$SOURCE_ROOT/c/coli" stop --port "$PORT" >/dev/null 2>&1 || die "REFLEX_STALE_RUNTIME_STOP_FAILED"
+    for _ in $(seq 1 40); do
+      port_is_free && break
+      sleep 0.25
+    done
+    port_is_free || die "REFLEX_STALE_RUNTIME_DID_NOT_RELEASE_PORT"
+    echo "REFLEX_RECONCILE_ACTION=RESTART_FOR_HEAD_DRIFT"
+  else
+    echo "REFLEX_RECONCILE_ACTION=START_MISSING"
+  fi
+
+  if ! restart_budget_check; then
+    echo "REFLEX_RUNTIME=DEGRADED"
+    echo "RESTART_BUDGET_EXHAUSTED=TRUE"
+    die "REFLEX_RESTART_BUDGET_EXHAUSTED"
+  fi
+
+  nohup "$PYTHON_BIN" -m hazewave.reflex_latency server \
+    --source-root "$SOURCE_ROOT" \
+    --model-root "$MODEL_ROOT" \
+    --secret-file "$SECRET_FILE" \
+    --state-root "$STATE_ROOT" \
+    --port "$PORT" \
+    >"$SERVICE_LOG_FILE" 2>&1 < /dev/null &
+  pid=$!
+  printf '%s\n' "$pid" >"$SERVICE_PID_FILE.tmp"
+  chmod 600 "$SERVICE_PID_FILE.tmp"
+  mv "$SERVICE_PID_FILE.tmp" "$SERVICE_PID_FILE"
+
+  if ! wait_health 180; then
+    restart_budget_record_failure
+    tail -n 80 "$SERVICE_LOG_FILE" >&2 || true
+    if kill -0 "$pid" 2>/dev/null; then
+      "$SOURCE_ROOT/c/coli" stop --port "$PORT" >/dev/null 2>&1 || true
+    fi
+    echo "REFLEX_RUNTIME=DEGRADED"
+    die "REFLEX_BACKGROUND_START_FAILED"
+  fi
+
+  restart_budget_clear
+  write_service_metadata "STARTED_OR_RECONCILED" "$pid" "$profile"
+  echo "REFLEX_RUNTIME_PID=$pid"
+  echo "REFLEX_RUNTIME_PROFILE=$profile"
+  echo "REFLEX_RUNTIME=READY"
+  echo "REFLEX_BIND=127.0.0.1:$PORT"
+  echo "REFLEX_BACKGROUND=DETACHED"
+  echo "HAZEWAVE_WORKSTATION_READY=PASS"
+}
+
 smoke() {
   ensure_checkout
   "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime smoke \
@@ -730,6 +988,8 @@ case "${1:-}" in
   doctor) doctor ;;
   prepare) prepare ;;
   serve) serve ;;
+  reconcile) reconcile ;;
+  runtime-status) runtime_status ;;
   smoke) smoke ;;
   observe) shift; observe "${1:-}" ;;
   report) report ;;
@@ -740,5 +1000,5 @@ case "${1:-}" in
   latency-report) latency_report ;;
   latency-engine-tune) latency_engine_tune ;;
   latency-engine-report) latency_engine_report ;;
-  *) echo "usage: $0 {doctor|prepare|serve|serve-stop|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report}" >&2; exit 2 ;;
+  *) echo "usage: $0 {doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report}" >&2; exit 2 ;;
 esac
