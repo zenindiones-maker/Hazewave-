@@ -1133,7 +1133,6 @@ export function bootHazewaveSite(): void {
         worldPixelCount: Number(backdropHost?.dataset.worldPixelCount ?? 0),
         worldPixelBudget: Number(backdropHost?.dataset.worldPixelBudget ?? 0),
         worldRenderScale: Number(backdropHost?.dataset.worldRenderScale ?? 1),
-        worldPerformance: backdropHost?.dataset.worldPerformance ?? "fallback",
         selectionToContactMs:
           lastSelectionToContactMs === null ? null : Number(lastSelectionToContactMs.toFixed(1)),
         contactToAudioMs:
