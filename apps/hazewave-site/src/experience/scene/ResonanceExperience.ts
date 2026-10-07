@@ -786,16 +786,16 @@ export class ResonanceExperience {
 
   private openGate(t: number): void {
     const u = easeOutQuint(THREE.MathUtils.clamp(t, 0, 1));
-    this.deck.gateLeft.position.x = THREE.MathUtils.lerp(-1.14, -1.42, u);
-    this.deck.gateRight.position.x = THREE.MathUtils.lerp(-0.54, -0.26, u);
+    this.deck.gateLeft.position.x = THREE.MathUtils.lerp(-1.62, -1.84, u);
+    this.deck.gateRight.position.x = THREE.MathUtils.lerp(-0.06, 0.16, u);
     this.deck.gateLeft.rotation.z = THREE.MathUtils.lerp(0, -0.18, u);
     this.deck.gateRight.rotation.z = THREE.MathUtils.lerp(0, 0.18, u);
   }
 
   private closeGate(t: number): void {
     const u = easeInOutCubic(THREE.MathUtils.clamp(t, 0, 1));
-    this.deck.gateLeft.position.x = THREE.MathUtils.lerp(-1.42, -1.14, u);
-    this.deck.gateRight.position.x = THREE.MathUtils.lerp(-0.26, -0.54, u);
+    this.deck.gateLeft.position.x = THREE.MathUtils.lerp(-1.84, -1.62, u);
+    this.deck.gateRight.position.x = THREE.MathUtils.lerp(0.16, -0.06, u);
     this.deck.gateLeft.rotation.z = THREE.MathUtils.lerp(-0.18, 0, u);
     this.deck.gateRight.rotation.z = THREE.MathUtils.lerp(0.18, 0, u);
   }
