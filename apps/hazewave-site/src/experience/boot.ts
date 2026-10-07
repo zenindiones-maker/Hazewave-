@@ -7,6 +7,7 @@ import { PlayerMachine, type PlayerPhase } from "./state/playerMachine";
 interface StageController {
   select(trackId: string): Promise<void>;
   setPlaying(playing: boolean): void;
+  setSection(section: "intro" | "verse" | "break" | "chorus" | "outro"): void;
   setSignalEnergy(value: number): void;
   dispose(): void;
 }
@@ -157,8 +158,24 @@ export function bootHazewaveSite(): void {
     }
   });
 
+  let lastSemanticSection: "intro" | "verse" | "break" | "chorus" | "outro" | null = null;
+
   const signalLoop = () => {
     experience?.setSignalEnergy(audio.energy());
+
+    const activeTrack = audio.track;
+    if (activeTrack && audio.state === "PLAYING") {
+      const position = audio.positionSeconds();
+      const semanticSection =
+        [...activeTrack.visual.sections].reverse().find((section) => position >= section.at) ??
+        activeTrack.visual.sections[0];
+
+      if (semanticSection && semanticSection.kind !== lastSemanticSection) {
+        lastSemanticSection = semanticSection.kind;
+        experience?.setSection(semanticSection.kind);
+      }
+    }
+
     requestAnimationFrame(signalLoop);
   };
   requestAnimationFrame(signalLoop);
