@@ -547,7 +547,7 @@ def test_transport_timeout_is_separate_from_latency_eligibility_budget() -> None
         executor=fake_executor,
     )
 
-    assert captured["timeout_seconds"] == pytest.approx(10.0)
+    assert captured["timeout_seconds"] == pytest.approx(30.0)
     assert verdict.latency_ms == pytest.approx(3500.0)
     assert verdict.threshold_eligible is False
     assert "LATENCY_BUDGET_EXCEEDED" in verdict.reasons
