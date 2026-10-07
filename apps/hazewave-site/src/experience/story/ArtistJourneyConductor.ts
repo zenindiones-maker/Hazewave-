@@ -1,5 +1,7 @@
 import type { ArtistId } from "../../data/catalog";
 
+export type ArtistJourneyPhase = "EMERGE" | "MUSIC" | "VISUAL" | "TRANSITION";
+
 interface ArtistAnchor {
   id: ArtistId;
   top: number;
@@ -9,11 +11,19 @@ interface ArtistAnchor {
 export interface ArtistJourneyState {
   artistId: ArtistId;
   progress: number;
+  phase: ArtistJourneyPhase;
 }
 
 type JourneySink = (state: ArtistJourneyState) => void;
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+
+function phaseForProgress(progress: number): ArtistJourneyPhase {
+  if (progress < 0.24) return "EMERGE";
+  if (progress < 0.52) return "MUSIC";
+  if (progress < 0.78) return "VISUAL";
+  return "TRANSITION";
+}
 
 /**
  * Exact semantic artist state derived from native scroll position.
@@ -30,6 +40,7 @@ export class ArtistJourneyConductor {
   private resizeTimer = 0;
   private activeId: ArtistId | null = null;
   private activeProgress = -1;
+  private activePhase: ArtistJourneyPhase | null = null;
 
   constructor(onChange?: JourneySink) {
     this.onChange = onChange;
@@ -96,9 +107,11 @@ export class ArtistJourneyConductor {
     }
 
     const progress = clamp01((position - active.top) / active.height);
+    const phase = phaseForProgress(progress);
 
     if (
       active.id === this.activeId &&
+      phase === this.activePhase &&
       Math.abs(progress - this.activeProgress) < 0.002
     ) {
       return;
@@ -106,12 +119,15 @@ export class ArtistJourneyConductor {
 
     this.activeId = active.id;
     this.activeProgress = progress;
+    this.activePhase = phase;
     this.root.dataset.scrollArtist = active.id;
+    this.root.dataset.artistPhase = phase;
     this.root.style.setProperty("--artist-chapter-progress", progress.toFixed(4));
 
     this.onChange?.({
       artistId: active.id,
-      progress
+      progress,
+      phase
     });
   }
 }
