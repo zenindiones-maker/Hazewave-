@@ -21,13 +21,26 @@ The design is **lazy wake + deterministic reconcile**, not keepalive.
 
 ## Normal Termux entry
 
-After the candidate controller is installed:
+The one-time installer `scripts/install_hazewave_always_ready_termux.sh` patches only the
+existing `hazewave()` entrypoint in `~/.config/project-shells.sh`. It requires the
+existing doctor call to be present exactly once, creates a backup before mutation, and
+refuses an ambiguous shell file.
+
+After that one-time install, normal use is:
+
+```bash
+hazewave
+```
+
+The existing local doctor runs first, followed by `hazewave-reflex ready`.
+
+For direct diagnostics, the underlying remote-ready command remains:
 
 ```bash
 hazewave-reflex ready
 ```
 
-This performs:
+The ready path performs:
 
 ```text
 GitHub auth
