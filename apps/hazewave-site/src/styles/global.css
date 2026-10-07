@@ -3215,17 +3215,17 @@ body{background:transparent}
   }
   #archive .world-signature span{font-size:17vw}
   #archive .deck-stage{
-    left:64%;
-    top:46%;
-    width:280px!important;
-    height:430px!important;
-    max-height:52vh!important;
+    left:72%;
+    top:49%;
+    width:230px!important;
+    height:340px!important;
+    max-height:43vh!important;
     transform:translate(-50%,-46%)!important
   }
   #archive .resonance-deck{
     width:196px!important;
     height:344px!important;
-    transform:translate(-50%,-50%) scale(.86)!important
+    transform:translate(-50%,-50%) scale(.68)!important
   }
   #archive .artifact-field{
     left:14px;right:14px;bottom:24px;
@@ -3298,8 +3298,8 @@ body{background:transparent}
 
 @media(max-width:520px){
   #archive .deck-stage{
-    left:66%;
-    top:45%;
+    left:73%;
+    top:50%;
   }
   #dossiers .artist-dossier{min-height:68svh}
   #objects .merch-stand{grid-template-columns:1fr}
