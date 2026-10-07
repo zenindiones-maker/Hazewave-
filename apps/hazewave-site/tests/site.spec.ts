@@ -53,6 +53,16 @@ test("opt-in diagnostics exposes real runtime proof fields", async ({ page }) =>
 test("normal experience keeps diagnostics opt-in", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#hazewave-diagnostics")).toHaveCount(0);
-  await expect(page.locator(".media-dock")).toBeVisible();
+  await expect(page.locator(".artifact-field")).toBeVisible();
   await expect(page.getByRole("button", { name: /Tocar Pale Current/ })).toBeVisible();
+});
+
+
+test("premium stage replaces WebGL hero with cinematic resonance objects", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("#premium-stage")).toBeVisible();
+  await expect(page.locator("#resonance-deck")).toBeVisible();
+  await expect(page.locator(".resonance-artifact")).toHaveCount(6);
+  await expect(page.locator("#resonance-canvas")).toHaveCount(0);
+  await expect(page.locator("#runtime-label")).toContainText("CINEMATIC DOM");
 });
