@@ -467,6 +467,55 @@
         "calibration"
       ],
       "description": "Actual commands to prepare, serve, smoke, observe and report without altering other Codespace worktrees."
+    },
+    {
+      "id": "reflex-robustness-policy-v1",
+      "path": "config/reflex-robustness-v1.json",
+      "type": "PROJECT_POLICY",
+      "authority": "NORMATIVE",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "reflex",
+        "robustness",
+        "calibration",
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "description": "Shadow-only option-order ensemble, sensory-frame, benchmark and risk-control policy."
+    },
+    {
+      "id": "adr-0010-reflex-robustness-risk",
+      "path": "docs/architecture/decisions/ADR-0010-reflex-robustness-risk.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "reflex",
+        "robustness",
+        "sensory",
+        "calibration",
+        "runtime"
+      ],
+      "description": "Defines the option-order ensemble, deterministic sensory frame, adversarial benchmark and evidence-only statistical risk boundary."
+    },
+    {
+      "id": "reflex-robustness-risk-v3-runbook",
+      "path": "docs/runbooks/REFLEX_ROBUSTNESS_RISK_V3.md",
+      "type": "RUNBOOK",
+      "authority": "OPERATIONAL",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "reflex",
+        "robustness",
+        "sensory",
+        "calibration",
+        "codespaces"
+      ],
+      "description": "Operational procedure for robust shadow smoke, sensory-state construction, order-sensitivity benchmarking and risk-threshold candidate review."
     }
   ]
 }

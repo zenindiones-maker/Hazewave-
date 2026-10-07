@@ -10,6 +10,7 @@ from jsonschema import Draft202012Validator
 
 from hazewave.colibri import ColibriDecisionResult, ColibriHardwareSnapshot, load_colibri_policy
 from hazewave.reflex import govern_reflex_result
+from hazewave.reflex_robustness import OrderEnsembleMetrics, RobustReflexVerdict
 import hazewave.reflex_shadow_runtime as runtime
 
 
@@ -60,6 +61,31 @@ def _verdict():
         authorization=runtime._authorization("task-123", "HAZE"),
         result=result,
         question_id="route",
+    )
+
+
+
+
+
+def _robust_verdict():
+    base = _verdict()
+    ensemble = OrderEnsembleMetrics(
+        rotations=3,
+        labels=("BRIDGE", "HAZE", "WAVE"),
+        per_rotation_winner=("HAZE", "HAZE", "HAZE"),
+        winner_agreement=1.0,
+        normalized_jsd=0.01,
+        aggregate_probabilities=(("BRIDGE", 0.03), ("HAZE", 0.90), ("WAVE", 0.07)),
+        aggregate_winner="HAZE",
+        aggregate_peak_probability=0.90,
+    )
+    return RobustReflexVerdict(
+        base_verdict=base,
+        ensemble=ensemble,
+        robust_eligible=True,
+        robustness_reasons=(),
+        disposition="SHADOW_RECOMMENDATION",
+        escalation_target="ESCALATE_9ROUTER_REASON_DEEP",
     )
 
 
@@ -145,9 +171,9 @@ def test_shadow_observe_is_private_and_idempotent(
 
     def fake_executor(**kwargs):
         calls.append(kwargs)
-        return _verdict()
+        return _robust_verdict()
 
-    monkeypatch.setattr(runtime, "execute_reflex_choice", fake_executor)
+    monkeypatch.setattr(runtime, "execute_robust_reflex_route", fake_executor)
     event = _event()
     first = runtime._observe(
         event=event, secret="s" * 32, hardware=_hardware(),
@@ -157,7 +183,10 @@ def test_shadow_observe_is_private_and_idempotent(
         event=event, secret="s" * 32, hardware=_hardware(),
         audit={"status": "READY_FOR_LIVE_PROBE"}, state_root=tmp_path,
     )
-    assert first["status"] == "OBSERVED_SHADOW_ONLY"
+    assert first["status"] == "OBSERVED_ROBUST_SHADOW_ONLY"
+    assert first["rotation_count"] == 3
+    assert first["winner_agreement"] == 1.0
+    assert first["robust_eligible"] is True
     assert first["replayed"] is False and second["replayed"] is True
     assert len(calls) == 1
     assert first["ground_truth_available"] is False
@@ -171,7 +200,7 @@ def test_shadow_observe_is_private_and_idempotent(
 def test_real_label_is_separate_from_model_prediction_and_bound_to_evidence(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(runtime, "execute_reflex_choice", lambda **kwargs: _verdict())
+    monkeypatch.setattr(runtime, "execute_robust_reflex_route", lambda **kwargs: _robust_verdict())
     event = _event(ground_truth={
         "actual_label": "WAVE",
         "label_source": "RUNTIME_QC",

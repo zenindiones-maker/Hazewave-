@@ -52,6 +52,7 @@ jobs:
           bash -n scripts/codespaces/hazewave-runtime-proof.sh
           bash -n scripts/codespaces/hazewave-termux-control.sh
           bash -n scripts/codespaces/reflex-shadow-control.sh
+          bash -n scripts/hazewave_reflex_termux_control.sh
 
       - name: Validate repository contracts
         run: python scripts/validate_repository_contracts.py

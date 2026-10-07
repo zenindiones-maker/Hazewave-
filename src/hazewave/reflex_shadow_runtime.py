@@ -30,15 +30,15 @@ from hazewave.reflex import (
     append_reflex_outcome,
     build_reflex_outcome,
     evaluate_reflex_outcomes,
-    execute_reflex_choice,
     load_reflex_outcomes,
     load_reflex_policy,
     reflex_recalibration_readiness,
 )
+from hazewave.reflex_robustness import execute_robust_reflex_route
 
-EXPECTED_CODESPACE = "redesigned-space-bassoon-gxp67g5g7r739w59"
-BASE_REFLEX_HEAD = "1fe4f275aadd1d6e720a0ad25a4b880ab9e614cc"
-CANDIDATE_REF = "refs/remotes/origin/work/reflex-shadow-runtime-v1"
+EXPECTED_CODESPACE = os.getenv("HAZEWAVE_REFLEX_EXPECTED_CODESPACE", "redesigned-space-bassoon-gxp67g5g7r739w59")
+BASE_REFLEX_HEAD = "1047f90bdf7516adbedeffb4ffa3982c7b0220ee"
+CANDIDATE_REF = "refs/remotes/origin/work/reflex-robustness-risk-v3"
 DEFAULT_SOURCE = Path.home() / ".local/share/hazewave/providers/colibri/source"
 DEFAULT_MODEL = Path.home() / ".local/share/hazewave/models/colibri/laya"
 DEFAULT_STATE = Path.home() / ".local/state/hazewave/reflex"
@@ -232,34 +232,39 @@ def _live_proof(
 ) -> dict[str, Any]:
     _assert_audit_ready(audit)
     auth = _authorization("reflex-live-smoke", HAZE)
-    result = execute_colibri_system_one(
-        authorization=auth, model_id="laya",
+    robust = execute_robust_reflex_route(
+        authorization=auth,
+        question_id="route",
         state={"activity": "audio", "requested_operation": "mix", "fixture": True},
-        questions={"route": _proof_question()},
-        api_key=secret, data_classification="INTERNAL_NON_SECRET",
-        state_language="en", model_installed=True,
-        model_revision_verified=True, hardware=hardware,
-        timeout_seconds=15,
+        question=_proof_question(),
+        api_key=secret,
+        deterministic_precheck_complete=True,
+        data_classification="INTERNAL_NON_SECRET",
+        state_language="en",
+        model_installed=True,
+        model_revision_verified=True,
+        hardware=hardware,
     )
-    # This synthetic sample is a transport/inference smoke test, not a labeled
-    # outcome and not a production accuracy or latency benchmark.
-    from hazewave.reflex import govern_reflex_result
-    verdict = govern_reflex_result(authorization=auth, result=result, question_id="route")
-    if verdict.disposition != "SHADOW_RECOMMENDATION":
+    verdict = robust.base_verdict
+    if robust.disposition != "SHADOW_RECOMMENDATION":
         raise ShadowRuntimeError("REFLEX_LIVE_PROOF_LEFT_SHADOW_MODE")
     receipt = {
-        "schema": "HazewaveReflexLiveSmokeReceipt/v1",
-        "status": "LIVE_INFERENCE_PASS",
+        "schema": "HazewaveReflexLiveSmokeReceipt/v2",
+        "status": "LIVE_ROBUST_ENSEMBLE_INFERENCE_PASS",
         "runtime_identity": "codespace:" + EXPECTED_CODESPACE,
         "worktree_head": audit["worktree_head"],
         "observed_at": datetime.now(timezone.utc).isoformat(),
-        "model_id": result.model_id,
+        "model_id": verdict.model_id,
         "model_sha256_verified": True,
-        "request_sha256": result.request_sha256,
-        "response_sha256": result.response_sha256,
-        "latency_ms": result.latency_ms,
-        "disposition": verdict.disposition,
+        "request_sha256": verdict.request_sha256,
+        "response_sha256": verdict.response_sha256,
+        "latency_ms": verdict.latency_ms,
+        "disposition": robust.disposition,
         "selected_label": verdict.metrics.selected_label,
+        "rotation_count": robust.ensemble.rotations,
+        "winner_agreement": robust.ensemble.winner_agreement,
+        "normalized_jsd": robust.ensemble.normalized_jsd,
+        "robust_eligible": robust.robust_eligible,
         "provider_authority": "NONE",
         "real_inference_proven": True,
         "accuracy_proven": False,
@@ -323,25 +328,36 @@ def _observe(
                 raise ShadowRuntimeError("REFLEX_SHADOW_EVENT_RECEIPT_CONFLICT")
             return {**recorded, "receipt_path": str(receipt_path), "replayed": True}
         auth = _authorization(item["task_id"], item["requested_domain"])
-        verdict = execute_reflex_choice(
-            authorization=auth, question_id="route", state=item["state"],
-            question=_proof_question(), api_key=secret,
+        robust = execute_robust_reflex_route(
+            authorization=auth,
+            question_id="route",
+            state=item["state"],
+            question=_proof_question(),
+            api_key=secret,
             deterministic_precheck_complete=True,
             data_classification=item["data_classification"],
-            state_language="en", model_installed=True,
-            model_revision_verified=True, hardware=hardware,
+            state_language="en",
+            model_installed=True,
+            model_revision_verified=True,
+            hardware=hardware,
         )
-        if verdict.disposition != "SHADOW_RECOMMENDATION":
+        verdict = robust.base_verdict
+        if robust.disposition != "SHADOW_RECOMMENDATION":
             raise ShadowRuntimeError("REFLEX_OBSERVATION_LEFT_SHADOW_MODE")
         receipt = {
-            "schema": "HazewaveReflexShadowObservationReceipt/v1",
-            "status": "OBSERVED_SHADOW_ONLY",
+            "schema": "HazewaveReflexShadowObservationReceipt/v2",
+            "status": "OBSERVED_ROBUST_SHADOW_ONLY",
             "event_digest": event_id,
             "task_id": item["task_id"],
             "decision_key": item["decision_key"],
-            "disposition": verdict.disposition,
+            "disposition": robust.disposition,
             "selected_label": verdict.metrics.selected_label,
             "threshold_eligible": verdict.threshold_eligible,
+            "robust_eligible": robust.robust_eligible,
+            "rotation_count": robust.ensemble.rotations,
+            "winner_agreement": robust.ensemble.winner_agreement,
+            "normalized_jsd": robust.ensemble.normalized_jsd,
+            "robustness_reasons": list(robust.robustness_reasons),
             "latency_ms": verdict.latency_ms,
             "policy_sha256": verdict.policy_sha256,
             "request_sha256": verdict.request_sha256,

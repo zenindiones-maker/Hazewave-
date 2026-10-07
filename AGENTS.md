@@ -63,6 +63,22 @@ System One's response field named `confidence` is an option-concentration statis
 
 Deterministic policy runs before model routing. Current checked-in reflex profiles are not production-calibrated and therefore remain shadow/advisory. No agent may flip calibration state, mutate thresholds from live traffic, promote a trained checkpoint, or use raw private media/credentials in the reflex lane without a reviewed policy revision and required runtime evidence.
 
+## Reflex robustness and sensory contract
+
+For option-order ensemble, sensory features, robustness benchmarks or risk calibration, agents MUST load:
+
+- `config/reflex-robustness-v1.json`
+- `docs/architecture/decisions/ADR-0010-reflex-robustness-risk.md`
+
+Rules:
+
+- option-order rotations are robustness evidence, not additional authority;
+- use one System One batch for rotations when supported; do not spawn multiple model services;
+- deterministic QC reports may feed the sensory frame, but raw audio/video/image bytes, source paths, credentials and artistic verdicts may not;
+- any risk threshold computed by the calibration layer is a candidate only and MUST NOT rewrite policy or activate production routing;
+- benchmark PASS never means production approval;
+- do not mix calibration/holdout evidence or silently convert shadow outcomes into training truth.
+
 ## Setup
 
 Development checkout:
