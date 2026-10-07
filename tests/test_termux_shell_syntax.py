@@ -84,3 +84,12 @@ def test_reflex_engine_tuner_uses_semantic_stability_not_production_latency_elig
 
     assert 'row.get("all_semantically_stable") is not True' in block
     assert 'row.get("all_robust_eligible") is not True' not in block
+
+
+def test_reflex_termux_forwards_stale_latency_selection_retirement() -> None:
+    termux = (ROOT / "scripts" / "hazewave_reflex_termux_control.sh").read_text(encoding="utf-8")
+    remote = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
+
+    assert "latency-retire-stale-selection" in termux
+    assert "latency-retire-stale-selection" in remote
+    assert "retire-stale-selection" in remote
