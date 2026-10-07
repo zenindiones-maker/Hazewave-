@@ -93,3 +93,13 @@ def test_reflex_termux_forwards_stale_latency_selection_retirement() -> None:
     assert "latency-retire-stale-selection" in termux
     assert "latency-retire-stale-selection" in remote
     assert "retire-stale-selection" in remote
+
+
+def test_reflex_engine_report_wakes_existing_codespace_before_reading_evidence() -> None:
+    text = (ROOT / "scripts" / "hazewave_reflex_termux_control.sh").read_text(encoding="utf-8")
+    start = text.index("    latency-engine-report)")
+    end = text.index("        ;;", start)
+    block = text[start:end]
+
+    assert "ensure_codespace_available" in block
+    assert 'run_remote "$action"' in block
