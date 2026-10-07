@@ -1,5 +1,26 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { ownerConfirmedSocialHandles, productionArtists, productionIdentity } from "../src/data/productionAuthority";
+
+async function focusStorySection(page: Page, selector: string): Promise<void> {
+  const locator = page.locator(selector);
+  await locator.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const top = window.scrollY + rect.top;
+    const probeInside = Math.min(
+      Math.max(rect.height * 0.32, 24),
+      window.innerHeight * 0.38
+    );
+    const target = top + probeInside - window.innerHeight * 0.5;
+    window.scrollTo({ top: Math.max(0, target), behavior: "auto" });
+  });
+
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      )
+  );
+}
 
 test("renders semantic catalog and reaches PLAYING from one click", async ({ page }, testInfo) => {
   await page.goto("/");
