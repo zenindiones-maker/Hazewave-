@@ -541,30 +541,57 @@ def load_reflex_outcomes(path: str | Path) -> tuple[ReflexOutcome, ...]:
         probabilities = payload.get("probabilities")
         if not isinstance(probabilities, dict):
             raise ValueError("REFLEX_OUTCOME_PROBABILITIES_INVALID")
-        rows.append(
-            ReflexOutcome(
-                observed_at=str(payload["observed_at"]),
-                decision_key=str(payload["decision_key"]),
-                task_id=str(payload["task_id"]),
-                capability_id=str(payload["capability_id"]),
-                domain=str(payload["domain"]),
-                model_id=str(payload["model_id"]),
-                request_sha256=str(payload["request_sha256"]),
-                predicted_label=str(payload["predicted_label"]),
-                actual_label=str(payload["actual_label"]),
-                probabilities=tuple(
-                    sorted((str(k), float(v)) for k, v in probabilities.items())
-                ),
-                accepted_by_governor=bool(payload["accepted_by_governor"]),
-                threshold_eligible=bool(payload["threshold_eligible"]),
-                label_source=str(payload["label_source"]),
-                label_evidence_digest=str(payload["label_evidence_digest"]),
-                latency_ms=float(payload["latency_ms"]),
-                policy_sha256=str(payload["policy_sha256"]),
-                outcome_id=str(payload["outcome_id"]),
-                raw_state_persisted=bool(payload.get("raw_state_persisted", False)),
-            )
+        outcome = ReflexOutcome(
+            observed_at=str(payload["observed_at"]),
+            decision_key=str(payload["decision_key"]),
+            task_id=str(payload["task_id"]),
+            capability_id=str(payload["capability_id"]),
+            domain=str(payload["domain"]),
+            model_id=str(payload["model_id"]),
+            request_sha256=str(payload["request_sha256"]),
+            predicted_label=str(payload["predicted_label"]),
+            actual_label=str(payload["actual_label"]),
+            probabilities=tuple(
+                sorted((str(k), float(v)) for k, v in probabilities.items())
+            ),
+            accepted_by_governor=bool(payload["accepted_by_governor"]),
+            threshold_eligible=bool(payload["threshold_eligible"]),
+            label_source=str(payload["label_source"]),
+            label_evidence_digest=str(payload["label_evidence_digest"]),
+            latency_ms=float(payload["latency_ms"]),
+            policy_sha256=str(payload["policy_sha256"]),
+            outcome_id=str(payload["outcome_id"]),
+            raw_state_persisted=bool(payload.get("raw_state_persisted", False)),
         )
+        if outcome.raw_state_persisted is not False:
+            raise ValueError("REFLEX_OUTCOME_RAW_STATE_PERSISTENCE_FORBIDDEN")
+        if (
+            len(outcome.label_evidence_digest) != 64
+            or any(ch not in "0123456789abcdef" for ch in outcome.label_evidence_digest)
+        ):
+            raise ValueError("REFLEX_OUTCOME_LABEL_EVIDENCE_DIGEST_INVALID")
+        material = {
+            "observed_at": outcome.observed_at,
+            "decision_key": outcome.decision_key,
+            "task_id": outcome.task_id,
+            "capability_id": outcome.capability_id,
+            "domain": outcome.domain,
+            "model_id": outcome.model_id,
+            "request_sha256": outcome.request_sha256,
+            "predicted_label": outcome.predicted_label,
+            "actual_label": outcome.actual_label,
+            "probabilities": dict(outcome.probabilities),
+            "accepted_by_governor": outcome.accepted_by_governor,
+            "threshold_eligible": outcome.threshold_eligible,
+            "label_source": outcome.label_source,
+            "label_evidence_digest": outcome.label_evidence_digest,
+            "latency_ms": outcome.latency_ms,
+            "policy_sha256": outcome.policy_sha256,
+            "raw_state_persisted": False,
+        }
+        if _sha256_json(material) != outcome.outcome_id:
+            raise ValueError("REFLEX_OUTCOME_DIGEST_MISMATCH")
+        rows.append(outcome)
     return tuple(rows)
 
 
