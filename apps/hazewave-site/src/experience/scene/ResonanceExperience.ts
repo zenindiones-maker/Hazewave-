@@ -287,79 +287,104 @@ export class ResonanceExperience {
 
   private buildDeck(): DeckParts {
     const root = new THREE.Group();
-    root.position.set(0, -1.0, -0.15);
+    root.position.set(0, -0.08, -0.55);
 
-    const housing = new THREE.Mesh(
-      extrudedPanel(5.35, 2.14, 0.7, 0.28),
-      new THREE.MeshPhysicalMaterial({
-        color: 0x101413,
-        metalness: 0.72,
-        roughness: 0.27,
-        clearcoat: 0.58,
-        clearcoatRoughness: 0.2
-      })
+    const bodyMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x0c1110,
+      metalness: 0.76,
+      roughness: 0.23,
+      clearcoat: 0.52,
+      clearcoatRoughness: 0.18
+    });
+
+    const spine = new THREE.Mesh(
+      extrudedPanel(2.7, 3.55, 0.62, 0.34),
+      bodyMaterial
     );
-    housing.castShadow = this.quality.shadows;
-    housing.receiveShadow = this.quality.shadows;
-    root.add(housing);
+    spine.castShadow = this.quality.shadows;
+    spine.receiveShadow = this.quality.shadows;
+    root.add(spine);
 
-    const crown = new THREE.Mesh(
-      extrudedPanel(5.0, 0.22, 0.1, 0.08),
+    const shoulder = new THREE.Mesh(
+      extrudedPanel(3.65, 0.52, 0.48, 0.2),
       new THREE.MeshStandardMaterial({
-        color: 0x272e2c,
-        metalness: 0.9,
+        color: 0x151b19,
+        metalness: 0.82,
         roughness: 0.2
       })
     );
-    crown.position.set(0, 0.84, 0.43);
-    root.add(crown);
+    shoulder.position.set(0, -1.35, -0.02);
+    root.add(shoulder);
 
-    const bay = new THREE.Mesh(
-      extrudedPanel(1.72, 1.62, 0.12, 0.24),
+    const crown = new THREE.Mesh(
+      new THREE.TorusGeometry(
+        1.17,
+        0.08,
+        this.quality.tier === "LOW" ? 10 : 18,
+        this.quality.tier === "LOW" ? 48 : 96,
+        Math.PI
+      ),
       new THREE.MeshStandardMaterial({
-        color: 0x030504,
-        metalness: 0.24,
-        roughness: 0.34
+        color: 0x29312f,
+        metalness: 0.9,
+        roughness: 0.18
       })
     );
-    bay.position.set(-0.84, 0.02, 0.47);
-    root.add(bay);
+    crown.position.set(0, 1.55, 0.28);
+    crown.rotation.z = Math.PI;
+    root.add(crown);
 
-    const bayBack = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.42, 1.32),
-      new THREE.MeshBasicMaterial({ color: 0x060a09, toneMapped: false })
+    const coreBack = new THREE.Mesh(
+      new THREE.CircleGeometry(0.84, this.quality.tier === "LOW" ? 40 : 72),
+      new THREE.MeshBasicMaterial({ color: 0x020504, toneMapped: false })
     );
-    bayBack.position.set(-0.84, 0.02, 0.545);
-    root.add(bayBack);
+    coreBack.position.set(0, 0.56, 0.42);
+    root.add(coreBack);
 
     const ringMaterial = new THREE.MeshStandardMaterial({
       color: 0xa7ffe0,
-      emissive: 0x3ecfaf,
-      emissiveIntensity: 1.8,
-      metalness: 0.55,
-      roughness: 0.18
+      emissive: 0x4fd9bd,
+      emissiveIntensity: 2.1,
+      metalness: 0.58,
+      roughness: 0.14
     });
     const ring = new THREE.Mesh(
-      new THREE.BoxGeometry(1.42, 0.055, 0.045),
+      new THREE.TorusGeometry(
+        0.9,
+        0.075,
+        this.quality.tier === "LOW" ? 12 : 22,
+        this.quality.tier === "LOW" ? 48 : 96
+      ),
       ringMaterial
     );
-    ring.position.set(-0.84, -0.73, 0.59);
+    ring.position.set(0, 0.56, 0.5);
     root.add(ring);
 
-    const gateMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xcbd3d0,
-      metalness: 0.92,
-      roughness: 0.2,
-      clearcoat: 0.38
+    const irisMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xd8dfdc,
+      metalness: 0.93,
+      roughness: 0.16,
+      clearcoat: 0.32
     });
-    const gateLeft = new THREE.Mesh(
-      extrudedPanel(0.12, 1.18, 0.12, 0.045),
-      gateMaterial
-    );
+    const gateLeft = new THREE.Mesh(extrudedPanel(0.38, 1.18, 0.13, 0.18), irisMaterial);
     const gateRight = gateLeft.clone();
-    gateLeft.position.set(-1.62, 0.02, 0.62);
-    gateRight.position.set(-0.06, 0.02, 0.62);
+    gateLeft.position.set(-0.46, 0.56, 0.58);
+    gateRight.position.set(0.46, 0.56, 0.58);
+    gateLeft.rotation.z = -0.12;
+    gateRight.rotation.z = 0.12;
     root.add(gateLeft, gateRight);
+
+    const coreLens = new THREE.Mesh(
+      new THREE.CircleGeometry(0.58, this.quality.tier === "LOW" ? 32 : 64),
+      new THREE.MeshBasicMaterial({
+        color: 0x0a1714,
+        transparent: true,
+        opacity: 0.92,
+        toneMapped: false
+      })
+    );
+    coreLens.position.set(0, 0.56, 0.62);
+    root.add(coreLens);
 
     const screenCanvas = document.createElement("canvas");
     screenCanvas.width = 1024;
@@ -369,55 +394,43 @@ export class ResonanceExperience {
     screenTexture.colorSpace = THREE.SRGBColorSpace;
 
     const screenFrame = new THREE.Mesh(
-      extrudedPanel(2.35, 1.18, 0.1, 0.18),
+      extrudedPanel(1.95, 0.88, 0.1, 0.18),
       new THREE.MeshStandardMaterial({
-        color: 0x1a1f1e,
+        color: 0x171d1b,
         metalness: 0.88,
         roughness: 0.19
       })
     );
-    screenFrame.position.set(1.25, 0.13, 0.48);
+    screenFrame.position.set(0, -0.67, 0.34);
     root.add(screenFrame);
 
     const screen = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.15, 0.98),
+      new THREE.PlaneGeometry(1.76, 0.69),
       new THREE.MeshBasicMaterial({ map: screenTexture, toneMapped: false })
     );
-    screen.position.set(1.25, 0.13, 0.585);
+    screen.position.set(0, -0.67, 0.43);
     root.add(screen);
 
     const statusBar = new THREE.Mesh(
-      new THREE.BoxGeometry(1.72, 0.045, 0.035),
+      new THREE.BoxGeometry(1.34, 0.045, 0.035),
       new THREE.MeshBasicMaterial({ color: 0xa7ffe0 })
     );
-    statusBar.position.set(1.08, -0.65, 0.56);
+    statusBar.position.set(0, -1.16, 0.42);
     root.add(statusBar);
 
-    const knob = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.18, 0.18, 0.1, this.quality.tier === "LOW" ? 20 : 40),
-      new THREE.MeshStandardMaterial({
-        color: 0xd2d7d4,
-        metalness: 0.95,
-        roughness: 0.22
-      })
-    );
-    knob.rotation.x = Math.PI / 2;
-    knob.position.set(2.22, -0.58, 0.51);
-    root.add(knob);
-
-    const seamMaterial = new THREE.MeshBasicMaterial({
-      color: 0xa7ffe0,
-      transparent: true,
-      opacity: 0.26
+    const footMaterial = new THREE.MeshStandardMaterial({
+      color: 0x202725,
+      metalness: 0.9,
+      roughness: 0.2
     });
-    for (const x of [-2.42, 2.42]) {
-      const seam = new THREE.Mesh(new THREE.BoxGeometry(0.025, 1.48, 0.025), seamMaterial);
-      seam.position.set(x, 0, 0.43);
-      root.add(seam);
+    for (const x of [-1.28, 1.28]) {
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.23, 0.2, 20), footMaterial);
+      foot.position.set(x, -1.66, -0.05);
+      root.add(foot);
     }
 
-    const light = new THREE.PointLight(0xa7ffe0, 4.4, 6.5, 1.8);
-    light.position.set(-0.84, -0.02, 1.45);
+    const light = new THREE.PointLight(0xa7ffe0, 5.0, 7.5, 1.7);
+    light.position.set(0, 0.56, 1.6);
     root.add(light);
 
     const contactPulseMaterial = new THREE.MeshBasicMaterial({
@@ -428,25 +441,33 @@ export class ResonanceExperience {
       depthWrite: false
     });
     const contactPulse = new THREE.Mesh(
-      new THREE.ShapeGeometry(roundedRectShape(1.52, 1.42, 0.22)),
+      new THREE.RingGeometry(
+        0.94,
+        0.99,
+        this.quality.tier === "LOW" ? 48 : 96
+      ),
       contactPulseMaterial
     );
-    contactPulse.position.set(-0.84, 0.02, 0.655);
+    contactPulse.position.set(0, 0.56, 0.69);
     root.add(contactPulse);
 
     const haloMaterial = new THREE.MeshBasicMaterial({
       color: 0xa7ffe0,
       transparent: true,
-      opacity: 0.1,
+      opacity: 0.09,
       blending: THREE.AdditiveBlending,
       depthWrite: false
     });
     const halo = new THREE.Mesh(
-      new THREE.RingGeometry(2.85, 2.88, this.quality.tier === "LOW" ? 64 : 128),
+      new THREE.RingGeometry(
+        2.15,
+        2.2,
+        this.quality.tier === "LOW" ? 48 : 96
+      ),
       haloMaterial
     );
     halo.rotation.x = -Math.PI / 2;
-    halo.position.set(0, -1.18, 0);
+    halo.position.set(0, -1.72, 0);
     root.add(halo);
 
     return {
@@ -466,12 +487,12 @@ export class ResonanceExperience {
 
   private buildModules(): void {
     const homes = [
-      new THREE.Vector3(-3.1, 1.55, -0.05),
-      new THREE.Vector3(-1.05, 2.05, -0.18),
-      new THREE.Vector3(1.05, 2.05, -0.18),
-      new THREE.Vector3(3.1, 1.55, -0.05),
-      new THREE.Vector3(-2.55, 0.28, -0.32),
-      new THREE.Vector3(2.55, 0.28, -0.32)
+      new THREE.Vector3(-3.05, -1.12, 0.46),
+      new THREE.Vector3(-1.92, -1.7, 1.02),
+      new THREE.Vector3(-0.66, -1.92, 1.42),
+      new THREE.Vector3(0.66, -1.92, 1.42),
+      new THREE.Vector3(1.92, -1.7, 1.02),
+      new THREE.Vector3(3.05, -1.12, 0.46)
     ];
 
     tracks.forEach((track, index) => {
@@ -480,113 +501,108 @@ export class ResonanceExperience {
       const group = new THREE.Group();
       group.position.copy(homes[index] ?? new THREE.Vector3());
       group.rotation.set(
-        -0.045,
-        group.position.x < 0 ? 0.11 : -0.11,
-        group.position.x < 0 ? -0.028 : 0.028
+        -0.02,
+        group.position.x < 0 ? 0.12 : -0.12,
+        group.position.x * -0.025
       );
 
-      const shellMaterial = new THREE.MeshPhysicalMaterial({
+      const bodyMaterial = new THREE.MeshPhysicalMaterial({
         color: artist.identity.secondary,
         metalness: artist.identity.metalness,
         roughness: artist.identity.roughness,
-        clearcoat: track.artistId === "aether" ? 0.88 : 0.48,
-        clearcoatRoughness: 0.18,
-        transmission:
-          track.artistId === "aether" && (this.quality.tier === "HIGH" || this.quality.tier === "ULTRA")
-            ? 0.1
-            : 0,
-        thickness: 0.22,
-        transparent: false
+        clearcoat: track.artistId === "aether" ? 0.82 : 0.5,
+        clearcoatRoughness: 0.18
       });
 
-      const shell = new THREE.Mesh(
-        extrudedPanel(1.34, 1.34, 0.19, 0.18),
-        shellMaterial
+      const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.71,
+          0.71,
+          0.19,
+          6,
+          1,
+          false
+        ),
+        bodyMaterial
       );
-      shell.castShadow = this.quality.shadows;
-      shell.receiveShadow = this.quality.shadows;
-      shell.userData.trackId = track.id;
-      group.add(shell);
+      body.rotation.x = Math.PI / 2;
+      body.castShadow = this.quality.shadows;
+      body.receiveShadow = this.quality.shadows;
+      body.userData.trackId = track.id;
+      group.add(body);
 
-      const inset = new THREE.Mesh(
-        extrudedPanel(1.08, 1.08, 0.055, 0.14),
+      const bevel = new THREE.Mesh(
+        new THREE.TorusGeometry(
+          0.59,
+          0.035,
+          8,
+          6
+        ),
         new THREE.MeshStandardMaterial({
-          color: 0x080b0a,
-          metalness: 0.28,
-          roughness: 0.38
+          color: accent,
+          metalness: 0.76,
+          roughness: 0.22,
+          emissive: accent,
+          emissiveIntensity: 0.16
         })
       );
-      inset.position.z = 0.115;
-      inset.userData.trackId = track.id;
-      group.add(inset);
+      bevel.position.z = 0.115;
+      bevel.rotation.z = Math.PI / 6;
+      bevel.userData.trackId = track.id;
+      group.add(bevel);
 
       const labelTexture = createArtifactLabelTexture(track, artist.identity.accent);
       const label = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.98, 0.98),
+        new THREE.CircleGeometry(0.56, 6),
         new THREE.MeshBasicMaterial({
           map: labelTexture,
-          transparent: true,
           toneMapped: false
         })
       );
-      label.position.z = 0.185;
+      label.position.z = 0.145;
+      label.rotation.z = Math.PI / 6;
       label.userData.trackId = track.id;
       group.add(label);
 
-      const edge = new THREE.LineSegments(
-        new THREE.EdgesGeometry(shell.geometry, 24),
-        new THREE.LineBasicMaterial({
-          color: accent,
-          transparent: true,
-          opacity: track.artistId === "aether" ? 0.46 : 0.24
-        })
+      const latchMaterial = new THREE.MeshStandardMaterial({
+        color: track.artistId === "monolith" ? 0xe0d3c2 : accent,
+        metalness: 0.9,
+        roughness: 0.18
+      });
+      const latch = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, 0.075, 0.08),
+        latchMaterial
       );
-      edge.userData.trackId = track.id;
-      group.add(edge);
+      latch.position.set(0, -0.59, 0.15);
+      latch.userData.trackId = track.id;
+      group.add(latch);
 
-      if (track.artistId === "monolith") {
-        const barMaterial = new THREE.MeshStandardMaterial({
-          color: 0xd1c2ad,
-          metalness: 0.94,
-          roughness: 0.22
-        });
-        for (const y of [-0.48, 0.48]) {
-          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.055, 0.25), barMaterial);
-          rail.position.set(0, y, 0.02);
-          rail.userData.trackId = track.id;
-          group.add(rail);
+      if (track.artistId === "flora") {
+        for (const x of [-0.3, 0.3]) {
+          const vein = new THREE.Mesh(
+            new THREE.BoxGeometry(0.045, 0.65, 0.035),
+            new THREE.MeshBasicMaterial({ color: accent })
+          );
+          vein.position.set(x, 0, 0.16);
+          vein.rotation.z = x < 0 ? 0.25 : -0.25;
+          vein.userData.trackId = track.id;
+          group.add(vein);
         }
-      } else if (track.artistId === "flora") {
-        const spine = new THREE.Mesh(
-          new THREE.BoxGeometry(0.085, 0.86, 0.26),
-          new THREE.MeshStandardMaterial({
-            color: accent,
-            emissive: accent,
-            emissiveIntensity: 0.42,
-            metalness: 0.12,
-            roughness: 0.45
-          })
-        );
-        spine.position.set(-0.55, 0, 0.01);
-        spine.userData.trackId = track.id;
-        group.add(spine);
-      } else {
-        const lens = new THREE.Mesh(
-          new THREE.CircleGeometry(0.085, this.quality.tier === "LOW" ? 20 : 32),
-          new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.82 })
-        );
-        lens.position.set(0.5, -0.49, 0.155);
-        lens.userData.trackId = track.id;
-        group.add(lens);
+      } else if (track.artistId === "monolith") {
+        for (const y of [-0.34, 0.34]) {
+          const rib = new THREE.Mesh(
+            new THREE.BoxGeometry(0.9, 0.045, 0.05),
+            new THREE.MeshStandardMaterial({
+              color: 0xcabda9,
+              metalness: 0.95,
+              roughness: 0.2
+            })
+          );
+          rib.position.set(0, y, 0.16);
+          rib.userData.trackId = track.id;
+          group.add(rib);
+        }
       }
-
-      const indexPlate = new THREE.Mesh(
-        new THREE.BoxGeometry(0.36, 0.045, 0.035),
-        new THREE.MeshBasicMaterial({ color: accent })
-      );
-      indexPlate.position.set(-0.37, -0.55, 0.155);
-      indexPlate.userData.trackId = track.id;
-      group.add(indexPlate);
 
       this.world.add(group);
       group.traverse((node) => {
@@ -674,14 +690,14 @@ export class ResonanceExperience {
   private async insert(record: ModuleRecord): Promise<void> {
     const start = record.group.position.clone();
     const startQuaternion = record.group.quaternion.clone();
-    const alignQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.04, 0, 0));
-    const target = new THREE.Vector3(-0.84, -0.98, 0.66);
+    const alignQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0));
+    const target = new THREE.Vector3(0, 0.48, 0.7);
     const path = new THREE.CatmullRomCurve3([
       start,
       start.clone().add(new THREE.Vector3(start.x < 0 ? 0.45 : -0.45, 0.55, 0.95)),
       new THREE.Vector3(start.x * 0.34, 0.9, 2.85),
       new THREE.Vector3(-0.25, -0.15, 2.25),
-      new THREE.Vector3(-0.84, -0.64, 1.5),
+      new THREE.Vector3(0, 0.58, 1.58),
       target
     ]);
 
@@ -717,7 +733,7 @@ export class ResonanceExperience {
     const alignFrom = record.group.position.clone();
     await this.animate(185, (t) => {
       const u = easeOutQuint(t);
-      record.group.position.lerpVectors(alignFrom, new THREE.Vector3(-0.84, -0.78, 1.18), u);
+      record.group.position.lerpVectors(alignFrom, new THREE.Vector3(0, 0.58, 1.24), u);
       record.group.quaternion.copy(record.group.quaternion).slerp(alignQuaternion, u);
     });
 
@@ -760,7 +776,7 @@ export class ResonanceExperience {
     this.onPhase("EJECT");
     this.drawDeckScreen(record.track, "EJECTING");
     const start = record.group.position.clone();
-    const retreat = new THREE.Vector3(-0.2, -0.05, 2.55);
+    const retreat = new THREE.Vector3(0, 0.82, 2.75);
 
     await this.animate(this.quality.reducedMotion ? 45 : 310, (t) => {
       const u = easeOutQuint(t);
@@ -796,18 +812,18 @@ export class ResonanceExperience {
 
   private openGate(t: number): void {
     const u = easeOutQuint(THREE.MathUtils.clamp(t, 0, 1));
-    this.deck.gateLeft.position.x = THREE.MathUtils.lerp(-1.62, -1.84, u);
-    this.deck.gateRight.position.x = THREE.MathUtils.lerp(-0.06, 0.16, u);
-    this.deck.gateLeft.rotation.z = THREE.MathUtils.lerp(0, -0.18, u);
-    this.deck.gateRight.rotation.z = THREE.MathUtils.lerp(0, 0.18, u);
+    this.deck.gateLeft.position.x = THREE.MathUtils.lerp(-0.46, -0.88, u);
+    this.deck.gateRight.position.x = THREE.MathUtils.lerp(0.46, 0.88, u);
+    this.deck.gateLeft.rotation.z = THREE.MathUtils.lerp(-0.12, -0.34, u);
+    this.deck.gateRight.rotation.z = THREE.MathUtils.lerp(0.12, 0.34, u);
   }
 
   private closeGate(t: number): void {
     const u = easeInOutCubic(THREE.MathUtils.clamp(t, 0, 1));
-    this.deck.gateLeft.position.x = THREE.MathUtils.lerp(-1.84, -1.62, u);
-    this.deck.gateRight.position.x = THREE.MathUtils.lerp(0.16, -0.06, u);
-    this.deck.gateLeft.rotation.z = THREE.MathUtils.lerp(-0.18, 0, u);
-    this.deck.gateRight.rotation.z = THREE.MathUtils.lerp(0.18, 0, u);
+    this.deck.gateLeft.position.x = THREE.MathUtils.lerp(-0.88, -0.46, u);
+    this.deck.gateRight.position.x = THREE.MathUtils.lerp(0.88, 0.46, u);
+    this.deck.gateLeft.rotation.z = THREE.MathUtils.lerp(-0.34, -0.12, u);
+    this.deck.gateRight.rotation.z = THREE.MathUtils.lerp(0.34, 0.12, u);
   }
 
   private drawDeckScreen(track: Track | null, status: string): void {
