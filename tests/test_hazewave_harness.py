@@ -147,3 +147,25 @@ def test_new_modality_capabilities_remain_domain_specific() -> None:
                 requested_domain=WAVE,
             )
         )
+
+
+@pytest.mark.parametrize("capability", ["decision.route", "decision.gate", "decision.score"])
+@pytest.mark.parametrize("domain", [HAZE, WAVE, BRIDGE])
+def test_local_decision_capabilities_remain_bound_to_requested_domain(
+    capability: str,
+    domain: str,
+) -> None:
+    authorization = issue_authorization(
+        route_task(
+            HazewaveTask(
+                task_id=f"decision-{capability}-{domain}",
+                goal="Use a subordinate local decision provider",
+                required_capability=capability,
+                requested_domain=domain,
+            )
+        )
+    )
+
+    assert authorization.authority == "HAZEWAVE_HARNESS"
+    assert authorization.capability_id == capability
+    assert authorization.domain == domain
