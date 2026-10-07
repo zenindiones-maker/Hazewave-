@@ -5,6 +5,7 @@ import type { PlayerPhase } from "../state/playerMachine";
 import type { QualityProfile } from "../quality/quality";
 import { createRenderer, type RendererAdapter } from "../renderer/createRenderer";
 import { CinematicMotionDriver } from "../animation/CinematicMotionDriver";
+import { createArtifactLabelTexture } from "./ArtifactLabelTexture";
 
 type PhaseSink = (phase: PlayerPhase) => void;
 type TrackSink = (trackId: string) => void;
@@ -510,7 +511,7 @@ export class ResonanceExperience {
       inset.userData.trackId = track.id;
       group.add(inset);
 
-      const labelTexture = makeLabelTexture(track, artist.identity.accent);
+      const labelTexture = createArtifactLabelTexture(track, artist.identity.accent);
       const label = new THREE.Mesh(
         new THREE.PlaneGeometry(0.98, 0.98),
         new THREE.MeshBasicMaterial({
