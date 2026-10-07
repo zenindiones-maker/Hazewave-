@@ -912,6 +912,16 @@ test("living world exposes layered owner-art 2.5D depth without replacing the so
     await expect(host).toHaveAttribute("data-world-depth-model", "layered-owner-art-2.5d");
     await expect(host.locator("img")).toHaveAttribute("src", "/media/hazewave-world.jpg.webp");
     await expect(host.locator("img")).toBeVisible();
+
+    await expect.poll(
+      async () => Number(await host.getAttribute("data-world-decoded-image-mib")),
+      { timeout: 2_000 }
+    ).toBeGreaterThan(0);
+
+    await expect.poll(
+      async () => Number(await host.getAttribute("data-world-color-buffer-mib")),
+      { timeout: 2_000 }
+    ).toBeGreaterThan(0);
   }
 });
 
