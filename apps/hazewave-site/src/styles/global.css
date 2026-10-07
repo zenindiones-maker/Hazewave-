@@ -588,6 +588,30 @@ h1{
     0 18px 42px rgba(0,0,0,.42),
     0 0 28px rgba(216,255,122,.06)
 }
+.resonance-artifact[data-track-id="aether-02"] .artifact-artwork{
+  transform:rotate(24deg) scale(.88)
+}
+.resonance-artifact[data-track-id="aether-02"] .artifact-shell{
+  background:
+    radial-gradient(circle at 68% 30%,rgba(167,255,224,.17),transparent 24%),
+    linear-gradient(150deg,#426a63,#0d1a18 72%)
+}
+.resonance-artifact[data-track-id="monolith-02"] .artifact-artwork{
+  transform:rotate(19deg) scale(.9)
+}
+.resonance-artifact[data-track-id="monolith-02"] .artifact-shell{
+  background:
+    linear-gradient(116deg,rgba(255,255,255,.035) 0 7%,transparent 7% 17%,rgba(232,217,197,.04) 17% 19%,transparent 19%),
+    linear-gradient(145deg,#5b514a,#171513 74%)
+}
+.resonance-artifact[data-track-id="flora-02"] .artifact-artwork{
+  transform:scaleX(-1) rotate(-12deg) scale(.92)
+}
+.resonance-artifact[data-track-id="flora-02"] .artifact-shell{
+  background:
+    radial-gradient(circle at 68% 22%,rgba(216,255,122,.2),transparent 20%),
+    linear-gradient(155deg,#697f40,#12190d 72%)
+}
 .artifact-glass{
   position:absolute;inset:0;z-index:3;pointer-events:none;
   background:linear-gradient(115deg,rgba(255,255,255,.2),transparent 26%,transparent 68%,rgba(255,255,255,.07));
