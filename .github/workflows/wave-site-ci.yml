@@ -1,0 +1,58 @@
+name: WAVE Site CI
+
+on:
+  push:
+    branches:
+      - "work/wave-hazewave-site-v1"
+    paths:
+      - "apps/hazewave-site/**"
+      - "docs/wave/WAVE_SITE_DEPENDENCY_DECISIONS_V1.md"
+      - ".github/workflows/wave-site-ci.yml"
+  pull_request:
+    paths:
+      - "apps/hazewave-site/**"
+      - "docs/wave/WAVE_SITE_DEPENDENCY_DECISIONS_V1.md"
+      - ".github/workflows/wave-site-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-browser-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: apps/hazewave-site
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: apps/hazewave-site/package-lock.json
+
+      - name: Resolve deterministic lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Clean install
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Static build
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser tests
+        run: npm test -- --project=chromium-desktop --project=chromium-mobile
+
+      - name: Preserve generated lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: hazewave-site-package-lock
+          path: apps/hazewave-site/package-lock.json
+          if-no-files-found: error
