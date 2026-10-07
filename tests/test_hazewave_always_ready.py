@@ -64,4 +64,6 @@ def test_termux_entrypoint_installer_is_idempotent_and_scoped() -> None:
     assert "doctor_anchor_not_unique" in text
     assert "cp -p" in text
     assert "bash -n" in text
+    assert "ln -sfn" in text
+    assert "global_controller_path_occupied" in text
     assert ".bashrc" not in text
