@@ -1,8 +1,8 @@
 import { getArtist, getTrack } from "../data/catalog";
-import { SyntheticAudioEngine } from "./audio/SyntheticAudioEngine";
+import { HazewaveAudioEngine } from "./audio/SyntheticAudioEngine";
 import { bridgeFixtureManifest } from "./bridge/visualManifest";
 import { detectQuality } from "./quality/quality";
-import { ResonanceExperience } from "./scene/ResonanceExperience";
+import type { ResonanceExperience } from "./scene/ResonanceExperience";
 import { PlayerMachine, type PlayerPhase } from "./state/playerMachine";
 
 export function bootHazewaveSite(): void {
@@ -18,7 +18,7 @@ export function bootHazewaveSite(): void {
 
   const quality = detectQuality();
   const machine = new PlayerMachine();
-  const audio = new SyntheticAudioEngine();
+  const audio = new HazewaveAudioEngine();
   let experience: ResonanceExperience | null = null;
   let selectionToken = 0;
 
@@ -26,13 +26,28 @@ export function bootHazewaveSite(): void {
     try {
       if (machine.phase !== phase) machine.transition(phase);
     } catch {
-      // Scene can report an animation phase after a newer selection preempts it.
       return;
     }
     stateLabel.textContent = phase;
   };
 
-  const selectTrack = async (trackId: string) => {
+  let selectTrack: (trackId: string) => Promise<void>;
+
+  const rendererReady = import("./scene/ResonanceExperience")
+    .then(({ ResonanceExperience }) => {
+      experience = new ResonanceExperience(canvas, quality, showPhase, (trackId) => void selectTrack(trackId));
+      runtimeLabel.textContent = `WEBGL2 / ${quality.tier}`;
+      return experience;
+    })
+    .catch((error) => {
+      experience = null;
+      runtimeLabel.textContent = "DOM + AUDIO FALLBACK";
+      canvas.hidden = true;
+      console.warn("Hazewave renderer fallback:", error);
+      return null;
+    });
+
+  selectTrack = async (trackId: string) => {
     const token = ++selectionToken;
     try {
       machine.select(trackId);
@@ -43,10 +58,15 @@ export function bootHazewaveSite(): void {
 
       buttons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.trackId === trackId)));
       title.textContent = track.title;
-      artistLabel.textContent = `${artist.name} / ${manifest.bpm} BPM / SYNTHETIC DEMO`;
+      artistLabel.textContent = `${artist.name} / ${manifest.bpm} BPM / ${track.rights.class}`;
 
-      await audio.unlock();
-      if (experience) await experience.select(trackId);
+      // Prepare/unlock audio immediately inside the user-activation turn.
+      // Final media tracks can therefore reuse this engine without redesigning
+      // the visual interaction architecture.
+      await audio.prepare(track);
+
+      const renderer = await rendererReady;
+      if (renderer) await renderer.select(trackId);
       else await new Promise((resolve) => window.setTimeout(resolve, quality.reducedMotion ? 10 : 120));
       if (token !== selectionToken) return;
 
@@ -56,7 +76,7 @@ export function bootHazewaveSite(): void {
         machine.transition("PLAYING");
       }
       stateLabel.textContent = machine.phase;
-      experience?.setPlaying(true);
+      renderer?.setPlaying(true);
       toggle.disabled = false;
       toggle.textContent = "PAUSE";
     } catch (error) {
@@ -65,16 +85,6 @@ export function bootHazewaveSite(): void {
       runtimeLabel.textContent = error instanceof Error ? error.message : "UNKNOWN_ERROR";
     }
   };
-
-  try {
-    experience = new ResonanceExperience(canvas, quality, showPhase, (trackId) => void selectTrack(trackId));
-    runtimeLabel.textContent = `WEBGL2 / ${quality.tier}`;
-  } catch (error) {
-    experience = null;
-    runtimeLabel.textContent = "DOM + AUDIO FALLBACK";
-    canvas.hidden = true;
-    console.warn("Hazewave renderer fallback:", error);
-  }
 
   buttons.forEach((button) => {
     button.setAttribute("aria-pressed", "false");
