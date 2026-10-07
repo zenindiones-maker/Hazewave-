@@ -14,6 +14,9 @@ WORKTREE="${RUN_ROOT}/checkout"
 SECRET_FILE="${STATE_ROOT}/colibri-api-key"
 PORT=28080
 PYTHON_BIN=""
+HF_REPO="convaiinnovations/laya"
+HF_REVISION="7b928d828b7b0e022f929d9bd2e44165aa270148"
+MODEL_WEIGHT_SHA256="891102d372688fc2a094dac56a384bc537b87c63f21f9f3dac0be2b7cbc8d86c"
 
 die() { printf '%s\n' "REFLEX_SHADOW_FAIL_CLOSED=$*" >&2; exit 18; }
 
@@ -90,12 +93,118 @@ doctor() {
   "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE"
 }
 
+model_material_ready() {
+  [[ -s "$MODEL_ROOT/model.safetensors" ]] || return 1
+  [[ -s "$MODEL_ROOT/rl_agent_config.json" ]] || return 1
+  [[ -s "$MODEL_ROOT/encoder/config.json" ]] || return 1
+  [[ -s "$MODEL_ROOT/tokenizer/tokenizer.json" ]] || return 1
+  [[ -s "$MODEL_ROOT/tokenizer/tokenizer_config.json" ]] || return 1
+
+  printf '%s  %s\n' "$MODEL_WEIGHT_SHA256" "$MODEL_ROOT/model.safetensors" \
+    | sha256sum -c - >/dev/null 2>&1 || return 1
+
+  "$PYTHON_BIN" - "$MODEL_ROOT" <<'PY' >/dev/null
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+for relative in (
+    "rl_agent_config.json",
+    "encoder/config.json",
+    "tokenizer/tokenizer.json",
+    "tokenizer/tokenizer_config.json",
+):
+    with (root / relative).open("r", encoding="utf-8") as handle:
+        json.load(handle)
+PY
+}
+
+download_model_material() {
+  if model_material_ready; then
+    echo "REFLEX_MODEL_MATERIAL=VERIFIED_EXISTING"
+    return 0
+  fi
+
+  if [[ -e "$MODEL_ROOT" ]]; then
+    die "MODEL_ROOT_PRESENT_BUT_UNVERIFIED"
+  fi
+
+  command -v curl >/dev/null || die "CURL_MISSING"
+
+  mkdir -p "$(dirname "$MODEL_ROOT")"
+  local stage
+  stage="$(mktemp -d "${MODEL_ROOT}.stage.XXXXXX")"
+  trap 'rm -rf -- "$stage"' EXIT
+  mkdir -p "$stage/encoder" "$stage/tokenizer"
+
+  download_one() {
+    local remote_path="$1"
+    local local_path="$2"
+    local target="$stage/$local_path"
+    local partial="${target}.part"
+
+    mkdir -p "$(dirname "$target")"
+
+    curl \
+      --fail \
+      --location \
+      --silent \
+      --show-error \
+      --retry 4 \
+      --retry-delay 2 \
+      --connect-timeout 20 \
+      --max-time 7200 \
+      "https://huggingface.co/$HF_REPO/resolve/$HF_REVISION/$remote_path" \
+      --output "$partial" \
+      || die "MODEL_DOWNLOAD_FAILED:$remote_path"
+
+    [[ -s "$partial" ]] || die "MODEL_DOWNLOAD_EMPTY:$remote_path"
+    mv "$partial" "$target"
+  }
+
+  download_one "model.safetensors" "model.safetensors"
+  download_one "rl_agent_config.json" "rl_agent_config.json"
+  download_one "encoder/config.json" "encoder/config.json"
+  download_one "tokenizer/tokenizer.json" "tokenizer/tokenizer.json"
+  download_one "tokenizer/tokenizer_config.json" "tokenizer/tokenizer_config.json"
+
+  printf '%s  %s\n' "$MODEL_WEIGHT_SHA256" "$stage/model.safetensors" \
+    | sha256sum -c - || die "MODEL_WEIGHT_HASH_MISMATCH"
+
+  "$PYTHON_BIN" - "$stage" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+for relative in (
+    "rl_agent_config.json",
+    "encoder/config.json",
+    "tokenizer/tokenizer.json",
+    "tokenizer/tokenizer_config.json",
+):
+    path = root / relative
+    with path.open("r", encoding="utf-8") as handle:
+        json.load(handle)
+print("REFLEX_MODEL_JSON_VALIDATION=PASS")
+PY
+
+  [[ ! -e "$MODEL_ROOT" ]] || die "MODEL_ROOT_RACE_DETECTED"
+  mv "$stage" "$MODEL_ROOT"
+  trap - EXIT
+
+  model_material_ready || die "MODEL_MATERIAL_POST_INSTALL_VERIFY_FAILED"
+  echo "REFLEX_MODEL_MATERIAL=DOWNLOADED_PINNED_VERIFIED"
+  echo "REFLEX_MODEL_REVISION=$HF_REVISION"
+}
+
 prepare() {
   ensure_checkout
   plan_resources
   command -v gcc >/dev/null || die "C_COMPILER_MISSING"
   command -v make >/dev/null || die "MAKE_MISSING"
-  command -v hf >/dev/null || die "HF_CLI_MISSING_NO_AUTO_INSTALL"
+  command -v curl >/dev/null || die "CURL_MISSING"
   local expected_sha="bf2442915d6e3dd4cdfd2eb9c2a3d2aa44a25850"
   if [[ ! -e "$SOURCE_ROOT/.git" ]]; then
     [[ ! -e "$SOURCE_ROOT" ]] || die "SOURCE_PATH_OCCUPIED"
@@ -105,15 +214,9 @@ prepare() {
   [[ "$(git -C "$SOURCE_ROOT" rev-parse HEAD)" == "$expected_sha" ]] || die "COLIBRI_SOURCE_SHA_MISMATCH"
   [[ -z "$(git -C "$SOURCE_ROOT" status --porcelain)" ]] || die "COLIBRI_SOURCE_DIRTY"
   make -C "$SOURCE_ROOT/c" laya || die "Laya_BUILD_FAILED"
-  mkdir -p "$MODEL_ROOT"
-  hf download convaiinnovations/laya \
-    --revision 7b928d828b7b0e022f929d9bd2e44165aa270148 \
-    model.safetensors rl_agent_config.json "encoder/*" "tokenizer/*" \
-    --local-dir "$MODEL_ROOT" || die "MODEL_DOWNLOAD_FAILED"
-  [[ -f "$MODEL_ROOT/model.safetensors" ]] || die "MODEL_WEIGHT_MISSING"
-  printf '%s  %s\n' \
-    "891102d372688fc2a094dac56a384bc537b87c63f21f9f3dac0be2b7cbc8d86c" \
-    "$MODEL_ROOT/model.safetensors" | sha256sum -c - || die "MODEL_WEIGHT_HASH_MISMATCH"
+
+  download_model_material
+
   if [[ ! -f "$SECRET_FILE" ]]; then
     "$PYTHON_BIN" - "$SECRET_FILE" <<'PY'
 import os,secrets,sys
