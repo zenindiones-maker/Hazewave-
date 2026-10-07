@@ -691,9 +691,17 @@ export function bootHazewaveSite(): void {
       if (stage) {
         await stage.select(trackId);
       } else {
-        await new Promise((resolve) =>
-          window.setTimeout(resolve, quality.reducedMotion ? 10 : 120)
-        );
+        // Semantic fallback settles on actual paint boundaries. Do not guess
+        // that a wall-clock delay means the UI has reached a valid state.
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            if (quality.reducedMotion) {
+              resolve();
+              return;
+            }
+            requestAnimationFrame(() => resolve());
+          });
+        });
       }
 
       if (token !== selectionToken) return;
