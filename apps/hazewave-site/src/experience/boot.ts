@@ -348,6 +348,15 @@ export function bootHazewaveSite(): void {
         atmosphereShouldPlay = true;
         atmosphere?.setPlaying(true);
       });
+    } else if (audio.state === "ENDED" && audio.track) {
+      void audio.play(audio.track, 0).then(() => {
+        if (machine.phase === "ENDED") machine.transition("PLAYING");
+        stateLabel.textContent = machine.phase;
+        toggle.textContent = "PAUSE";
+        experience?.setPlaying(true);
+        atmosphereShouldPlay = true;
+        atmosphere?.setPlaying(true);
+      });
     }
   });
 
@@ -379,6 +388,22 @@ export function bootHazewaveSite(): void {
         requestAnimationFrame(signalLoop);
         return;
       }
+
+      if (position >= activeTrack.durationSeconds) {
+        audio.finish();
+        if (machine.phase === "PLAYING") machine.transition("ENDED");
+        stateLabel.textContent = machine.phase;
+        toggle.textContent = "REPLAY";
+        experience?.setPlaying(false);
+        atmosphereShouldPlay = false;
+        atmosphere?.setPlaying(false);
+        seek.value = String(activeTrack.durationSeconds);
+        timeCurrent.textContent = formatTime(activeTrack.durationSeconds);
+        if (deckBeaconSection) deckBeaconSection.textContent = "ENDED";
+        requestAnimationFrame(signalLoop);
+        return;
+      }
+
       const secondsPerBeat = 60 / Math.max(activeTrack.visual.bpm, 1);
       const beatPhase = (position % secondsPerBeat) / secondsPerBeat;
       const beatPulse = Math.max(0, 1 - beatPhase / 0.24);
