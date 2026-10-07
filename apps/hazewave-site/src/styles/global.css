@@ -1430,13 +1430,23 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
 .site-backdrop img{
   position:absolute;inset:0;width:100%;height:100%;
   object-fit:cover;object-position:center 50%;
-  filter:none;transform:scale(1.002)
+  transform:
+    translate3d(var(--story-world-x,0vw),var(--story-world-y,0vh),0)
+    rotate(var(--story-world-rotate,0deg))
+    scale(var(--story-world-scale,1));
+  filter:
+    brightness(var(--story-world-brightness,1))
+    saturate(var(--story-world-saturation,1))
+    contrast(var(--story-world-contrast,1));
+  transition:filter 140ms linear;will-change:transform,filter
 }
 .site-backdrop-scrim{
   position:absolute;inset:0;
   background:
     linear-gradient(180deg,rgba(0,0,0,.03),rgba(0,0,0,.12) 35%,rgba(0,0,0,.38) 72%,rgba(0,0,0,.52)),
-    radial-gradient(circle at 50% 42%,transparent 0 28%,rgba(0,0,0,.18) 72%,rgba(0,0,0,.44));
+    radial-gradient(circle at 50% 42%,transparent 0 28%,
+      rgba(0,0,0,calc(var(--story-world-vignette,.18) * .56)) 72%,
+      rgba(0,0,0,var(--story-world-vignette,.18)));
   pointer-events:none
 }
 
@@ -1821,4 +1831,85 @@ body{background:transparent}
 @media(prefers-reduced-motion:reduce){
   .loader-noise,.loader-reel{animation:none!important}
   .merch-model{transform:none!important}
+}
+
+
+/* Tactile archive player: screen + click wheel + independent tape port. */
+.deck-core{
+  background:transparent!important;border:0!important;box-shadow:none!important
+}
+.deck-wheel{
+  position:absolute;z-index:6;left:50%;top:50%;width:190px;height:190px;
+  transform:translate(-50%,-50%);border-radius:50%;touch-action:none;user-select:none;
+  background:
+    radial-gradient(circle at 50% 50%,#0d100f 0 27%,transparent 27.5%),
+    radial-gradient(circle at 42% 34%,rgba(255,255,255,.16),transparent 13%),
+    linear-gradient(145deg,#f3f2ed,#b9bcb8 52%,#e2e2dd);
+  border:1px solid rgba(255,255,255,.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.5),
+    inset 0 -12px 22px rgba(0,0,0,.18),
+    0 10px 24px rgba(0,0,0,.24);
+  outline:none
+}
+.deck-wheel:focus-visible{
+  box-shadow:
+    0 0 0 3px color-mix(in srgb,var(--world-accent),transparent 58%),
+    inset 0 1px 0 rgba(255,255,255,.5),
+    inset 0 -12px 22px rgba(0,0,0,.18),
+    0 10px 24px rgba(0,0,0,.24)
+}
+.wheel-key{
+  position:absolute;z-index:3;border:0;background:transparent;color:#161817;
+  font:800 9px/1 ui-monospace,monospace;letter-spacing:.04em;cursor:pointer;
+  opacity:.72;padding:8px
+}
+.wheel-key:hover,.wheel-key:focus-visible{outline:none;opacity:1;color:#000}
+.wheel-menu{top:9px;left:50%;transform:translateX(-50%)}
+.wheel-prev{left:10px;top:50%;transform:translateY(-50%);font-size:18px}
+.wheel-next{right:10px;top:50%;transform:translateY(-50%);font-size:18px}
+.wheel-play{bottom:8px;left:50%;transform:translateX(-50%);font-size:12px}
+.wheel-center{
+  position:absolute;z-index:2;left:50%;top:50%;width:74px;height:74px;
+  transform:translate(-50%,-50%);border-radius:50%;
+  display:grid;place-content:center;text-align:center;gap:2px;
+  background:#111514;border:1px solid rgba(255,255,255,.1);
+  box-shadow:inset 0 0 18px rgba(0,0,0,.55)
+}
+.wheel-center strong{
+  color:var(--world-accent);font:760 19px/1 ui-monospace,monospace;letter-spacing:-.05em
+}
+.wheel-center small{color:rgba(255,255,255,.42);font:700 5px/1 ui-monospace,monospace;letter-spacing:.18em}
+
+.deck-core .deck-slot{
+  top:232px!important;width:142px!important;height:34px!important;border-radius:9px!important;
+  background:#060908!important;border:1px solid rgba(255,255,255,.16)!important;
+  box-shadow:inset 0 4px 12px rgba(0,0,0,.72),0 8px 20px rgba(0,0,0,.18)!important
+}
+.deck-core .deck-gate{
+  top:224px!important;width:42px!important;height:3px!important;border-radius:999px!important
+}
+.deck-core .deck-gate-left{left:26px!important}
+.deck-core .deck-gate-right{right:26px!important}
+.deck-loaded-artifact{
+  width:92px!important;height:58px!important;border-radius:7px!important
+}
+.deck-loaded-artifact .cassette-reels{width:58%;height:42%}
+
+@media(max-width:980px){
+  .deck-wheel{width:154px;height:154px}
+  .wheel-center{width:60px;height:60px}
+  .wheel-center strong{font-size:16px}
+  .deck-core .deck-slot{top:190px!important;width:118px!important;height:30px!important}
+  .deck-core .deck-gate{top:183px!important;width:34px!important}
+  .deck-core .deck-gate-left{left:22px!important}
+  .deck-core .deck-gate-right{right:22px!important}
+  .deck-loaded-artifact{width:76px!important;height:48px!important}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .site-backdrop img{
+    transform:none!important;
+    transition:none!important
+  }
 }
