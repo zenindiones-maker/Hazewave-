@@ -121,25 +121,39 @@ test("cinematic object remains visible during mobile travel", async ({ page }, t
   await expect(clone).toHaveCount(1);
   await expect(clone).toBeVisible();
 
-  await page.waitForTimeout(280);
+  const sourceBox = await page.locator(".artifact-field > [data-track-id='aether-01']").boundingBox();
+  expect(sourceBox).not.toBeNull();
+
+  const sourceCenter = {
+    x: sourceBox!.x + sourceBox!.width / 2,
+    y: sourceBox!.y + sourceBox!.height / 2
+  };
+
+  await expect.poll(
+    async () => {
+      const movingBox = await clone.boundingBox();
+      if (!movingBox) return 0;
+      const cloneCenter = {
+        x: movingBox.x + movingBox.width / 2,
+        y: movingBox.y + movingBox.height / 2
+      };
+      return Math.hypot(cloneCenter.x - sourceCenter.x, cloneCenter.y - sourceCenter.y);
+    },
+    {
+      message: "selected cassette must visibly leave its shelf position during TRAVEL",
+      timeout: 1_200,
+      intervals: [60, 80, 100]
+    }
+  ).toBeGreaterThan(28);
 
   const box = await clone.boundingBox();
-  const sourceBox = await page.locator(".artifact-field > [data-track-id='aether-01']").boundingBox();
   expect(box).not.toBeNull();
-  expect(sourceBox).not.toBeNull();
   expect(box!.width).toBeGreaterThan(40);
   expect(box!.height).toBeGreaterThan(40);
   expect(box!.x + box!.width).toBeGreaterThan(0);
   expect(box!.x).toBeLessThan(await page.evaluate(() => window.innerWidth));
   expect(box!.y + box!.height).toBeGreaterThan(0);
   expect(box!.y).toBeLessThan(await page.evaluate(() => window.innerHeight));
-
-  const cloneCenter = { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
-  const sourceCenter = {
-    x: sourceBox!.x + sourceBox!.width / 2,
-    y: sourceBox!.y + sourceBox!.height / 2
-  };
-  expect(Math.hypot(cloneCenter.x - sourceCenter.x, cloneCenter.y - sourceCenter.y)).toBeGreaterThan(28);
 
   await page.screenshot({ path: testInfo.outputPath("travel-visible.png"), fullPage: false });
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
