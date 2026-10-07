@@ -37,3 +37,14 @@ test("reduced motion keeps selection and playback functional", async ({ page }) 
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 3_000 });
   await expect(page.locator("#player-title")).toHaveText("Moss Circuit");
 });
+
+
+test("opt-in diagnostics exposes real runtime proof fields", async ({ page }) => {
+  await page.goto("/?diagnostics=1");
+  const panel = page.locator("#hazewave-diagnostics");
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText("HAZEWAVE_WAVE_SITE_V1");
+  await expect(panel).toContainText("frameP95Ms");
+  await page.waitForTimeout(1200);
+  await expect(page.locator("html")).toHaveAttribute("data-quality-tier", /LOW|MEDIUM|HIGH|ULTRA/);
+});
