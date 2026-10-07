@@ -633,6 +633,27 @@ test("WebGL world context loss falls back and restores without blanking essentia
   await expect(host.locator("img")).toBeVisible();
 });
 
+test("owner artwork remains visibly authoritative beneath GPU enhancement", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("#site-loader")).toHaveCount(0, { timeout: 5_000 });
+
+  const host = page.locator(".site-backdrop");
+  const image = host.locator("img");
+  await expect(image).toBeVisible();
+
+  const opacity = Number(await image.evaluate((element) =>
+    getComputedStyle(element).opacity
+  ));
+  expect(opacity).toBeGreaterThanOrEqual(0.95);
+
+  const runtime = await host.getAttribute("data-world-runtime");
+  if (runtime === "webgl2") {
+    const canvas = host.locator(".living-world-canvas");
+    await expect(canvas).toBeVisible();
+    await expect(canvas).toHaveCSS("mix-blend-mode", "screen");
+  }
+});
+
 test("living world checkpoints produce the full narrative visual proof matrix", async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   const capture = async (name: string) => {
@@ -688,6 +709,7 @@ test("living world checkpoints produce the full narrative visual proof matrix", 
   };
 
   await page.goto("/");
+  await expect(page.locator("#site-loader")).toHaveCount(0, { timeout: 5_000 });
 
   const viewport = page.viewportSize();
   if (!viewport) throw new Error("VIEWPORT_UNAVAILABLE");
