@@ -1,0 +1,71 @@
+---
+import "../styles/global.css";
+import { artists } from "../data/catalog";
+---
+
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#070909" />
+    <meta name="description" content="Hazewave — experiência musical interativa criada por HAZE + WAVE." />
+    <title>Hazewave — Resonance Deck</title>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="masthead">
+        <a class="brand" href="/" aria-label="Hazewave início"><span>HAZE</span><i></i><span>WAVE</span></a>
+        <p>FIRST SIGNAL / WAVE SITE V1</p>
+      </header>
+
+      <section class="experience" aria-labelledby="experience-title">
+        <div class="scene-frame">
+          <canvas id="resonance-canvas" aria-hidden="true"></canvas>
+          <div class="scene-vignette"></div>
+          <div class="scene-copy">
+            <p class="eyebrow">RESONANCE DECK / PROTOTYPE</p>
+            <h1 id="experience-title">Música como objeto.<br />Som como espaço.</h1>
+            <p class="intro">Toque em um módulo. A WAVE transforma a seleção em uma sequência visual contínua; a HAZE fornecerá o sinal definitivo depois.</p>
+          </div>
+          <div class="runtime-badge" id="runtime-badge" role="status"><span class="pulse"></span><span id="runtime-label">INITIALIZING</span></div>
+        </div>
+
+        <aside class="catalog" aria-label="Catálogo demonstrativo">
+          {artists.map((artist) => (
+            <section class="artist-group" data-artist={artist.id}>
+              <div class="artist-heading"><p>{artist.releaseTitle}</p><h2>{artist.name}</h2></div>
+              <div class="track-row">
+                {artist.tracks.map((track, index) => (
+                  <button class="track" type="button" data-track-id={track.id} aria-label={`Tocar ${track.title}, ${artist.name}`} style={`--accent:${artist.identity.accent}; --index:${index};`}>
+                    <span class="track-index">0{index + 1}</span>
+                    <span class="track-title">{track.title}</span>
+                    <span class="track-action" aria-hidden="true">PLAY</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ))}
+        </aside>
+      </section>
+
+      <section class="player" aria-label="Player Hazewave">
+        <div>
+          <p class="player-kicker">NOW RESONATING</p>
+          <strong id="player-title">Escolha um módulo</strong>
+          <span id="player-artist">DEMO AUDIO / RIGHTS SAFE</span>
+        </div>
+        <div class="player-state">
+          <span id="state-label" aria-live="polite">IDLE</span>
+          <button id="toggle-play" type="button" disabled aria-label="Pausar ou continuar música">PAUSE</button>
+        </div>
+      </section>
+
+      <noscript><p class="fallback-note">JavaScript está desativado. O catálogo continua disponível, mas a experiência visual e o player interativo precisam de JavaScript.</p></noscript>
+    </main>
+
+    <script>
+      import { bootHazewaveSite } from "../experience/boot";
+      bootHazewaveSite();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "@hazewave/site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "astro": "7.3.0",
+    "three": "0.186.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/three": "0.186.0",
+    "typescript": "^5.9.0"
+  }
+}
