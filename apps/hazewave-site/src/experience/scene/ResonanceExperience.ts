@@ -146,6 +146,11 @@ export class ResonanceExperience {
   private currentBackground = new THREE.Color("#06100f");
   private targetAccent = new THREE.Color("#a7ffe0");
   private currentAccent = new THREE.Color("#a7ffe0");
+  private worldLight: THREE.HemisphereLight;
+  private targetFogDensity = 0.035;
+  private targetAmbientIntensity = 1.5;
+  private targetDeckGlow = 1;
+  private targetCameraDrift = 0.5;
   private onPhase: PhaseSink;
   private onRequestSelect: TrackSink;
   private resizeObserver: ResizeObserver;
@@ -176,8 +181,8 @@ export class ResonanceExperience {
     this.camera.position.set(0, 1.15, 11.6);
     this.camera.lookAt(0, -0.15, 0);
 
-    const hemi = new THREE.HemisphereLight(0xd9f6ef, 0x050505, 1.5);
-    this.scene.add(hemi);
+    this.worldLight = new THREE.HemisphereLight(0xd9f6ef, 0x050505, 1.5);
+    this.scene.add(this.worldLight);
 
     const key = new THREE.DirectionalLight(0xf8fff9, 4.8);
     key.position.set(-4.5, 7, 5.5);
@@ -226,6 +231,10 @@ export class ResonanceExperience {
       const artist = getArtist(next.track.artistId);
       this.targetBackground.set(artist.identity.background);
       this.targetAccent.set(artist.identity.accent);
+      this.targetFogDensity = artist.identity.world.fogDensity;
+      this.targetAmbientIntensity = artist.identity.world.ambientIntensity;
+      this.targetDeckGlow = artist.identity.world.deckGlow;
+      this.targetCameraDrift = artist.identity.world.cameraDrift;
       this.drawDeckScreen(next.track, "SELECTED");
 
       if (this.quality.reducedMotion) {
@@ -882,7 +891,14 @@ export class ResonanceExperience {
     this.scene.background = this.currentBackground;
     if (this.scene.fog instanceof THREE.FogExp2) {
       this.scene.fog.color.lerp(this.currentBackground, 0.05);
+      this.scene.fog.density = THREE.MathUtils.lerp(this.scene.fog.density, this.targetFogDensity, 0.035);
     }
+
+    this.worldLight.intensity = THREE.MathUtils.lerp(
+      this.worldLight.intensity,
+      this.targetAmbientIntensity,
+      0.04
+    );
 
     this.deck.ringMaterial.color.lerp(this.currentAccent, 0.06);
     this.deck.ringMaterial.emissive.lerp(this.currentAccent, 0.06);
@@ -893,7 +909,9 @@ export class ResonanceExperience {
     this.deck.light.color.lerp(this.currentAccent, 0.08);
     this.deck.light.intensity += (baseLight + audioLift - this.deck.light.intensity) * 0.1;
 
-    const ringTarget = this.playing ? 3.8 + this.signalEnergy * 4.2 : 2.2;
+    const ringTarget = this.playing
+      ? (3.2 + this.signalEnergy * 3.6) * this.targetDeckGlow
+      : 1.7 * this.targetDeckGlow;
     this.deck.ringMaterial.emissiveIntensity +=
       (ringTarget - this.deck.ringMaterial.emissiveIntensity) * 0.08;
 
@@ -920,7 +938,7 @@ export class ResonanceExperience {
       }
     }
 
-    this.deck.root.rotation.y = Math.sin(elapsed * 0.22) * 0.012;
+    this.deck.root.rotation.y = Math.sin(elapsed * 0.22) * 0.012 * this.targetCameraDrift;
     this.camera.lookAt(0, -0.18, 0);
     this.renderer.render(this.scene, this.camera);
   };
