@@ -1584,6 +1584,56 @@ html:active-view-transition-type(artist-flora)::view-transition-new(hazewave-art
 .world-artist-echo[data-world-artist-id="monolith"]{left:7vw;top:39vh}
 .world-artist-echo[data-world-artist-id="flora"]{right:10vw;bottom:18vh;text-align:right}
 
+.world-focus-controls{
+  position:fixed;z-index:84;inset:0;pointer-events:none
+}
+.world-focus-controls button{
+  --world-focus-accent:#b7ff4a;
+  position:absolute;
+  display:flex;align-items:center;gap:8px;
+  min-height:30px;padding:0 0 4px;
+  border:0;border-bottom:1px solid color-mix(in srgb,var(--world-focus-accent),transparent 72%);
+  background:transparent;
+  color:rgba(245,242,233,.54);
+  font:720 6px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.14em;
+  opacity:0;visibility:hidden;pointer-events:none;
+  cursor:pointer;
+  transform:translateY(8px);
+  transition:
+    opacity 180ms ease,
+    visibility 180ms ease,
+    transform 260ms cubic-bezier(.16,1,.3,1),
+    color 180ms ease,
+    border-color 180ms ease
+}
+.world-focus-controls button span{color:var(--world-focus-accent)}
+.world-focus-controls button strong{display:none}
+.world-focus-controls button i{font-style:normal}
+.world-focus-controls [data-world-focus-control="aether"]{right:8vw;top:calc(25vh + 72px)}
+.world-focus-controls [data-world-focus-control="monolith"]{left:7vw;top:calc(39vh + 72px)}
+.world-focus-controls [data-world-focus-control="flora"]{right:10vw;bottom:calc(18vh - 34px)}
+:root[data-story-chapter="artists"][data-scroll-artist="aether"] .world-focus-controls [data-world-focus-control="aether"],
+:root[data-story-chapter="dossiers"][data-scroll-artist="aether"] .world-focus-controls [data-world-focus-control="aether"],
+:root[data-story-chapter="artists"][data-scroll-artist="monolith"] .world-focus-controls [data-world-focus-control="monolith"],
+:root[data-story-chapter="dossiers"][data-scroll-artist="monolith"] .world-focus-controls [data-world-focus-control="monolith"],
+:root[data-story-chapter="artists"][data-scroll-artist="flora"] .world-focus-controls [data-world-focus-control="flora"],
+:root[data-story-chapter="dossiers"][data-scroll-artist="flora"] .world-focus-controls [data-world-focus-control="flora"]{
+  opacity:.8;visibility:visible;pointer-events:auto;transform:none
+}
+.world-focus-controls button:hover,
+.world-focus-controls button:focus-visible,
+.world-focus-controls button[aria-pressed="true"]{
+  outline:none;color:#fff;border-color:var(--world-focus-accent);
+  opacity:1
+}
+.world-focus-controls button:focus-visible{
+  box-shadow:0 2px 0 color-mix(in srgb,var(--world-focus-accent),transparent 20%)
+}
+@media(max-width:980px){
+  .world-focus-controls{display:none}
+}
+
 :root{
   --world-echo-opacity:.66;
   --world-echo-y:0px;
