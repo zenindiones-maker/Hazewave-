@@ -81,7 +81,9 @@ button{appearance:none}
   background-size:18px 18px;opacity:.025
 }
 .artist-worlds{
-  position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden
+  position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;
+  transform:translate(var(--world-parallax-x,0px),var(--world-parallax-y,0px)) scale(1.012);
+  transition:transform 180ms ease-out
 }
 .artist-world{
   position:absolute;inset:-8%;opacity:0;
@@ -180,7 +182,8 @@ h1{
 .deck-stage{
   position:absolute;z-index:6;left:50%;top:50%;
   width:min(620px,44vw);height:min(650px,72vh);
-  transform:translate(-50%,-45%);
+  transform:translate(calc(-50% + var(--parallax-x,0px)),calc(-45% + var(--parallax-y,0px)));
+  transition:transform 180ms ease-out;
   perspective:1200px;pointer-events:none
 }
 .resonance-deck{
@@ -625,7 +628,8 @@ h1{
   .world-meta span{font-size:6px}
   .world-meta strong{font-size:16px;opacity:.7}
   .deck-stage{
-    top:42%;width:100%;height:60vh;max-height:500px;transform:translate(-50%,-47%)
+    top:42%;width:100%;height:60vh;max-height:500px;
+    transform:translate(calc(-50% + var(--parallax-x,0px)),calc(-47% + var(--parallax-y,0px)))
   }
   .resonance-deck{width:250px;height:430px}
   .deck-outer-halo{top:69px;width:212px;height:212px}
@@ -679,7 +683,10 @@ h1{
 
 @media(max-width:420px){
   .scene-copy{top:18px}
-  .deck-stage{top:47%;transform:translate(-50%,-43%)}
+  .deck-stage{
+    top:47%;
+    transform:translate(calc(-50% + var(--parallax-x,0px)),calc(-43% + var(--parallax-y,0px)))
+  }
   .artifact-field{padding-left:14px;padding-right:14px}
   .runtime-badge{display:none}
 }
