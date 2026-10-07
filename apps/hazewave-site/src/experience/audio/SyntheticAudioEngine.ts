@@ -46,7 +46,6 @@ export class HazewaveAudioEngine {
     element.preload = "auto";
     element.src = track.audio.src;
     element.crossOrigin = "anonymous";
-    element.playsInline = true;
 
     const source = this.context!.createMediaElementSource(element);
     source.connect(this.master!);
