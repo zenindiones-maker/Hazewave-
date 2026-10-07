@@ -1024,3 +1024,56 @@ test("in-world artist signal opens focus without leaving the persistent world", 
   );
   await expect(page.locator(".site-backdrop-source")).toBeVisible();
 });
+
+
+test("living world enforces an absolute GPU pixel budget when WebGL2 is active", async ({ page }) => {
+  const viewport = page.viewportSize();
+  test.skip(!viewport || viewport.width <= 430, "LOW mobile tier uses the CSS living-world fallback");
+
+  await page.goto("/");
+  const host = page.locator(".site-backdrop");
+
+  await expect(host).toHaveAttribute("data-world-runtime", /webgl2|fallback/, {
+    timeout: 4_000
+  });
+
+  if ((await host.getAttribute("data-world-runtime")) !== "webgl2") {
+    test.skip(true, "WebGL2 unavailable in this browser runtime");
+  }
+
+  await expect.poll(
+    async () => Number(await host.getAttribute("data-world-pixel-count")),
+    { timeout: 2_500 }
+  ).toBeGreaterThan(0);
+
+  const pixelCount = Number(await host.getAttribute("data-world-pixel-count"));
+  const pixelBudget = Number(await host.getAttribute("data-world-pixel-budget"));
+
+  expect(pixelBudget).toBeGreaterThan(0);
+  expect(pixelCount).toBeLessThanOrEqual(pixelBudget);
+  await expect(host.locator(".site-backdrop-source")).toBeVisible();
+});
+
+test("artist focus deepens the same persistent owner-art world", async ({ page }) => {
+  const viewport = page.viewportSize();
+  test.skip(!viewport || viewport.width <= 980, "desktop in-world focus proof");
+
+  await page.goto("/");
+  await focusStoryFraction(page, "[data-artist-chapter='aether']", 0.34);
+
+  const host = page.locator(".site-backdrop");
+  const control = page.locator("[data-world-focus-control='aether']");
+
+  await expect(control).toBeVisible();
+  await control.click();
+
+  await expect(host).toHaveAttribute("data-world-artist-focus", "true", {
+    timeout: 2_500
+  });
+  await expect(host.locator(".site-backdrop-source")).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(host).toHaveAttribute("data-world-artist-focus", "false", {
+    timeout: 2_500
+  });
+});
