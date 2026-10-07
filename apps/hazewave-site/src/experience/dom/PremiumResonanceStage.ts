@@ -23,6 +23,7 @@ export class PremiumResonanceStage {
   private onPhase: PhaseSink;
   private quality: QualityProfile;
   private activeTrackId: string | null = null;
+  private loadedArtifact: HTMLElement | null = null;
   private busy = false;
   private playing = false;
   private energy = 0;
@@ -238,6 +239,16 @@ export class PremiumResonanceStage {
     this.screenArtist.textContent = artist;
     source.dataset.loaded = "true";
 
+    this.loadedArtifact?.remove();
+    const loadedSource = source.querySelector<HTMLElement>(".artifact-shell");
+    if (loadedSource) {
+      const loaded = loadedSource.cloneNode(true) as HTMLElement;
+      loaded.classList.add("deck-loaded-artifact");
+      loaded.setAttribute("aria-hidden", "true");
+      this.slot.append(loaded);
+      this.loadedArtifact = loaded;
+    }
+
     await this.timeline((tl) => {
       tl.fromTo(".deck-contact-flash", {
         opacity: 0,
@@ -336,6 +347,8 @@ export class PremiumResonanceStage {
     });
 
     clone.remove();
+    this.loadedArtifact?.remove();
+    this.loadedArtifact = null;
     source.dataset.loaded = "false";
     this.artifacts.forEach((artifact) => (artifact.dataset.focus = "idle"));
     this.screenTitle.textContent = "Awaiting signal";
