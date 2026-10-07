@@ -53,6 +53,7 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
           type="button"
           data-world-focus-control={chapter.id}
           aria-controls={`artist-focus-${chapter.id}`}
+          aria-label={`Entrar no mundo demonstrativo de ${chapter.displayName}`}
           aria-pressed="false"
           style={`--world-focus-accent:${chapter.world.accent};--world-focus-index:${index};`}
         >
