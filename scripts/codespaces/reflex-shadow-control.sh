@@ -906,9 +906,12 @@ reconcile() {
   model_material_ready || die "MODEL_MATERIAL_NOT_PREPARED"
   [[ -x "$SOURCE_ROOT/c/coli" && -x "$SOURCE_ROOT/c/laya" ]] || die "COLIBRI_RUNTIME_NOT_PREPARED"
 
-  local profile current_head meta_head meta_profile pid
-  profile="$("$PYTHON_BIN" -m hazewave.reflex_latency selected --state-root "$STATE_ROOT")" \
-    || die "REFLEX_SELECTED_PROFILE_INVALID"
+  local profile profile_reply current_head meta_head meta_profile pid
+  if ! profile_reply="$("$PYTHON_BIN" -m hazewave.reflex_latency resolved --state-root "$STATE_ROOT")"; then
+    echo "REFLEX_SELECTED_PROFILE_DETAIL=$profile_reply" >&2
+    die "REFLEX_SELECTED_PROFILE_INVALID"
+  fi
+  profile="$profile_reply"
   current_head="$(git -C "$WORKTREE" rev-parse HEAD)"
 
   if ! port_is_free; then
