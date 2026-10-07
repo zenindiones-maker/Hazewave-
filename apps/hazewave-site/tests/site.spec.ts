@@ -253,3 +253,22 @@ test("track end becomes replayable without desynchronizing the Deck", async ({ p
   await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 2_000 });
   await expect(page.locator("#toggle-play")).toHaveText("PAUSE");
 });
+
+
+test("seeking while paused does not restart playback", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("[data-track-id='aether-02']").click();
+  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
+
+  await page.locator("#toggle-play").click();
+  await expect(page.locator("#state-label")).toHaveText("PAUSED");
+
+  const seek = page.locator("#player-seek");
+  await seek.fill("8");
+  await seek.dispatchEvent("change");
+  await page.waitForTimeout(180);
+
+  await expect(page.locator("#state-label")).toHaveText("PAUSED");
+  await expect(page.locator("#toggle-play")).toHaveText("PLAY");
+  expect(Number(await seek.inputValue())).toBeGreaterThan(7.8);
+});
