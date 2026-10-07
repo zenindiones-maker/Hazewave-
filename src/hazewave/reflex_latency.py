@@ -382,8 +382,9 @@ def measure_question_scale(
     hardware = detect_colibri_hardware(DEFAULT_MODEL)
     auth = _authorization()
     samples: list[dict[str, Any]] = []
+    full_ensemble_runs: list[dict[str, Any]] = []
 
-    for count in (1, 2, 3, 6):
+    def one_probe(count: int, *, repeat_index: int | None = None) -> dict[str, Any]:
         started = datetime.now(timezone.utc)
         wall_started = monotonic()
         try:
@@ -400,12 +401,8 @@ def measure_question_scale(
                 hardware=hardware,
                 timeout_seconds=timeout_seconds,
             )
-            winners = {
-                key: str(answer.get("choice") or "")
-                for key, answer in result.answers.items()
-                if isinstance(answer, Mapping)
-            }
-            samples.append({
+            diagnostics = ensemble_probe_diagnostics(probes[count], result.answers)
+            row = {
                 "question_count": count,
                 "status": "PASS",
                 "wall_ms": result.latency_ms,
@@ -417,20 +414,55 @@ def measure_question_scale(
                 "input_tokens": result.usage.get("input_tokens"),
                 "request_sha256": result.request_sha256,
                 "response_sha256": result.response_sha256,
-                "winners": winners,
+                "diagnostics": diagnostics,
                 "observed_at": started.isoformat(),
-            })
+            }
+            if repeat_index is not None:
+                row["repeat_index"] = repeat_index
+            return row
         except Exception as exc:
-            elapsed_ms = (__import__("time").monotonic() - wall_started) * 1000.0
-            samples.append({
+            elapsed_ms = (monotonic() - wall_started) * 1000.0
+            row = {
                 "question_count": count,
                 "status": "FAIL",
                 "wall_ms": elapsed_ms,
                 "reason": type(exc).__name__ + ":" + str(exc),
                 "observed_at": started.isoformat(),
-            })
+            }
+            if repeat_index is not None:
+                row["repeat_index"] = repeat_index
+            return row
 
-    status = "PASS" if all(row["status"] == "PASS" for row in samples) else "EVIDENCE_ONLY"
+    for count in (1, 2, 3, 6):
+        row = one_probe(count, repeat_index=0 if count == 6 else None)
+        samples.append(row)
+        if count == 6:
+            full_ensemble_runs.append(row)
+
+    for repeat_index in (1, 2):
+        full_ensemble_runs.append(one_probe(6, repeat_index=repeat_index))
+
+    successful_repeats = [
+        row["diagnostics"]
+        for row in full_ensemble_runs
+        if row.get("status") == "PASS" and isinstance(row.get("diagnostics"), Mapping)
+    ]
+    repeatability = (
+        summarize_ensemble_repeatability(successful_repeats)
+        if len(successful_repeats) >= 2
+        else {
+            "repeat_count": len(successful_repeats),
+            "aggregate_winner_stable": False,
+            "reason": "INSUFFICIENT_SUCCESSFUL_REPEATS",
+        }
+    )
+
+    status = (
+        "PASS"
+        if all(row["status"] == "PASS" for row in samples)
+        and all(row["status"] == "PASS" for row in full_ensemble_runs)
+        else "EVIDENCE_ONLY"
+    )
     report = {
         "schema": "HazewaveReflexQuestionScaleProbe/v1",
         "status": status,
@@ -440,6 +472,8 @@ def measure_question_scale(
         "state_sha256": _digest(state),
         "question_sha256": _digest(question),
         "samples": samples,
+        "full_ensemble_runs": full_ensemble_runs,
+        "repeatability": repeatability,
         "provider_authority": "NONE",
         "production_calibrated": False,
         "grants_execution_authority": False,
