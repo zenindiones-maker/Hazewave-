@@ -1,6 +1,6 @@
 import type { Track } from "../../data/catalog";
 
-export type AudioStatus = "IDLE" | "PLAYING" | "PAUSED" | "ERROR";
+export type AudioStatus = "IDLE" | "PLAYING" | "PAUSED" | "ENDED" | "ERROR";
 
 export class HazewaveAudioEngine {
   private context: AudioContext | null = null;
@@ -123,10 +123,24 @@ export class HazewaveAudioEngine {
     this.pausedAt = 0;
   }
 
+  finish(): void {
+    if (!this.currentTrack) return;
+    const duration = this.currentTrack.durationSeconds;
+    this.stopSynthetic();
+    if (this.mediaElement) {
+      this.mediaElement.pause();
+      if (Number.isFinite(this.mediaElement.duration)) {
+        this.mediaElement.currentTime = Math.min(duration, this.mediaElement.duration);
+      }
+    }
+    this.pausedAt = duration;
+    this.status = "ENDED";
+  }
+
   positionSeconds(): number {
     if (!this.context) return 0;
     if (this.currentTrack?.audio.kind === "media" && this.mediaElement) return this.mediaElement.currentTime || 0;
-    if (this.status === "PAUSED") return this.pausedAt;
+    if (this.status === "PAUSED" || this.status === "ENDED") return this.pausedAt;
     if (this.status === "PLAYING") return Math.max(0, this.context.currentTime - this.startedAt);
     return 0;
   }
