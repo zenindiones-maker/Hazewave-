@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("renders semantic catalog and reaches PLAYING from one click", async ({ page }, testInfo) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /Música como objeto/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Escolha um artefato/ })).toBeVisible();
   await expect(page.locator("[data-track-id]")).toHaveCount(6);
 
   await page.getByRole("button", { name: /Tocar Pale Current/ }).click();
@@ -47,4 +47,12 @@ test("opt-in diagnostics exposes real runtime proof fields", async ({ page }) =>
   await expect(panel).toContainText("frameP95Ms");
   await page.waitForTimeout(1200);
   await expect(page.locator("html")).toHaveAttribute("data-quality-tier", /LOW|MEDIUM|HIGH|ULTRA/);
+});
+
+
+test("normal experience keeps diagnostics opt-in", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("#hazewave-diagnostics")).toHaveCount(0);
+  await expect(page.locator(".media-dock")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Tocar Pale Current/ })).toBeVisible();
 });
