@@ -59,6 +59,7 @@ export class PremiumResonanceStage {
     this.host.dataset.runtime = "DOM_CINEMATIC";
     this.host.dataset.quality = quality.tier;
     this.installPointerParallax();
+    this.installArtifactTilt();
     this.reveal();
     this.frame();
   }
@@ -222,6 +223,34 @@ export class PremiumResonanceStage {
     gsap.killTweensOf(".cinematic-artifact-clone");
     if (this.pointerMoveHandler) this.host.removeEventListener("pointermove", this.pointerMoveHandler);
     if (this.pointerLeaveHandler) this.host.removeEventListener("pointerleave", this.pointerLeaveHandler);
+  }
+
+  private installArtifactTilt(): void {
+    if (this.quality.reducedMotion || !window.matchMedia("(pointer:fine)").matches) return;
+
+    this.artifacts.forEach((artifact) => {
+      const shell = artifact.querySelector<HTMLElement>(".artifact-shell");
+      if (!shell) return;
+
+      artifact.addEventListener("pointermove", (event) => {
+        if (artifact.dataset.loaded === "true" || artifact.dataset.loaded === "pending") return;
+        const rect = artifact.getBoundingClientRect();
+        const nx = ((event.clientX - rect.left) / Math.max(rect.width, 1) - 0.5) * 2;
+        const ny = ((event.clientY - rect.top) / Math.max(rect.height, 1) - 0.5) * 2;
+
+        shell.style.setProperty("--cassette-tilt-x", `${(-ny * 7.5).toFixed(2)}deg`);
+        shell.style.setProperty("--cassette-tilt-y", `${(nx * 10).toFixed(2)}deg`);
+        shell.style.setProperty("--cassette-light-x", `${(((nx + 1) * 0.5) * 100).toFixed(1)}%`);
+        shell.style.setProperty("--cassette-light-y", `${(((ny + 1) * 0.5) * 100).toFixed(1)}%`);
+      });
+
+      artifact.addEventListener("pointerleave", () => {
+        shell.style.setProperty("--cassette-tilt-x", "0deg");
+        shell.style.setProperty("--cassette-tilt-y", "0deg");
+        shell.style.setProperty("--cassette-light-x", "38%");
+        shell.style.setProperty("--cassette-light-y", "24%");
+      });
+    });
   }
 
   private installPointerParallax(): void {
