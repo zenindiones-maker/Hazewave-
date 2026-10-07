@@ -1,4 +1,4 @@
-import { getArtist, getTrack } from "../data/catalog";
+import { getArtist, getTrack, type ArtistId } from "../data/catalog";
 import { HazewaveAudioEngine } from "./audio/SyntheticAudioEngine";
 import { bridgeFixtureManifest } from "./bridge/visualManifest";
 import { detectQuality } from "./quality/quality";
@@ -10,6 +10,13 @@ interface StageController {
   setSection(section: "intro" | "verse" | "break" | "chorus" | "outro"): void;
   setBeatPulse(value: number): void;
   setSignalEnergy(value: number): void;
+  dispose(): void;
+}
+
+interface AtmosphereController {
+  setArtist(artist: ArtistId): void;
+  setEnergy(value: number): void;
+  setPlaying(playing: boolean): void;
   dispose(): void;
 }
 
@@ -64,6 +71,7 @@ export function bootHazewaveSite(): void {
     sectionLabel.textContent = "INTRO";
   };
   let experience: StageController | null = null;
+  let atmosphere: AtmosphereController | null = null;
   let selectionToken = 0;
 
   const commitUiState = (update: () => void, transitionType?: string) => {
@@ -129,6 +137,25 @@ export function bootHazewaveSite(): void {
       return null;
     });
 
+  const gpuEligible =
+    !quality.reducedMotion &&
+    (quality.tier === "HIGH" || quality.tier === "ULTRA") &&
+    "gpu" in navigator;
+
+  const atmosphereReady: Promise<AtmosphereController | null> = gpuEligible
+    ? import("./gpu/HighTierAtmosphere")
+        .then(({ HighTierAtmosphere }) => {
+          atmosphere = new HighTierAtmosphere(stageHost, quality);
+          return atmosphere;
+        })
+        .catch((error) => {
+          atmosphere = null;
+          stageHost.dataset.gpuAtmosphere = "fallback";
+          console.warn("Hazewave WebGPU atmosphere fallback:", error);
+          return null;
+        })
+    : Promise.resolve(null);
+
   selectTrack = async (trackId: string) => {
     const token = ++selectionToken;
 
@@ -166,6 +193,7 @@ export function bootHazewaveSite(): void {
         if (worldTrack) worldTrack.textContent = track.title.toUpperCase();
       }, `artist-${artist.id}`);
 
+      void atmosphereReady.then((gpu) => gpu?.setArtist(artist.id));
       await audio.prepare(track);
 
       const stage = await stageReady;
@@ -187,6 +215,7 @@ export function bootHazewaveSite(): void {
 
       stateLabel.textContent = machine.phase;
       stage?.setPlaying(true);
+      atmosphere?.setPlaying(true);
       toggle.disabled = false;
       toggle.textContent = "PAUSE";
     } catch (error) {
@@ -236,12 +265,14 @@ export function bootHazewaveSite(): void {
       stateLabel.textContent = machine.phase;
       toggle.textContent = "PLAY";
       experience?.setPlaying(false);
+      atmosphere?.setPlaying(false);
     } else if (audio.state === "PAUSED") {
       void audio.resume().then(() => {
         if (machine.phase === "PAUSED") machine.transition("PLAYING");
         stateLabel.textContent = machine.phase;
         toggle.textContent = "PAUSE";
         experience?.setPlaying(true);
+        atmosphere?.setPlaying(true);
       });
     }
   });
@@ -249,7 +280,9 @@ export function bootHazewaveSite(): void {
   let lastSemanticSection: "intro" | "verse" | "break" | "chorus" | "outro" | null = null;
 
   const signalLoop = () => {
-    experience?.setSignalEnergy(audio.energy());
+    const energy = audio.energy();
+    experience?.setSignalEnergy(energy);
+    atmosphere?.setEnergy(energy);
 
     const activeTrack = audio.track;
     if (activeTrack) {
@@ -310,6 +343,7 @@ export function bootHazewaveSite(): void {
         fps: stageHost.dataset.fps ?? "warming",
         frameP95Ms: stageHost.dataset.frameP95Ms ?? "warming",
         performanceMode: stageHost.dataset.performance ?? "standard",
+        gpuAtmosphere: stageHost.dataset.gpuAtmosphere ?? "off",
         audioState: audio.state,
         appState: machine.phase,
         hardwareConcurrency: navigator.hardwareConcurrency,
@@ -330,6 +364,7 @@ export function bootHazewaveSite(): void {
     () => {
       if (diagnosticsTimer !== null) window.clearInterval(diagnosticsTimer);
       experience?.dispose();
+      atmosphere?.dispose();
     },
     { once: true }
   );
