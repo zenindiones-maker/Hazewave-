@@ -5,6 +5,7 @@ umask 077
 SHELLS_FILE="${HAZEWAVE_PROJECT_SHELLS_FILE:-$HOME/.config/project-shells.sh}"
 BACKUP_FILE="${SHELLS_FILE}.pre-hazewave-always-ready-v1"
 CONTROLLER="$HOME/.local/bin/hazewave-reflex"
+GLOBAL_CONTROLLER="$PREFIX/bin/hazewave-reflex"
 MARKER_BEGIN="# HAZEWAVE_ALWAYS_READY_V1_BEGIN"
 MARKER_END="# HAZEWAVE_ALWAYS_READY_V1_END"
 ANCHOR='  bash scripts/hazewave_termux_control.sh doctor'
@@ -21,6 +22,13 @@ ANCHOR='  bash scripts/hazewave_termux_control.sh doctor'
   echo "HAZEWAVE_ALWAYS_READY_TERMUX_INSTALL=FAIL:reflex_controller_missing" >&2
   exit 22
 }
+
+if [[ -e "$GLOBAL_CONTROLLER" && ! -L "$GLOBAL_CONTROLLER" ]]; then
+  echo "HAZEWAVE_ALWAYS_READY_TERMUX_INSTALL=FAIL:global_controller_path_occupied" >&2
+  exit 25
+fi
+ln -sfn "$CONTROLLER" "$GLOBAL_CONTROLLER"
+hash -r
 
 if grep -Fq "$MARKER_BEGIN" "$SHELLS_FILE"; then
   grep -Fq "$MARKER_END" "$SHELLS_FILE" || {
