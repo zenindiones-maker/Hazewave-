@@ -5,7 +5,10 @@ import { bridgeFixtureManifest } from "./bridge/visualManifest";
 import { detectQuality } from "./quality/quality";
 import { PlayerMachine, type PlayerPhase } from "./state/playerMachine";
 import { ScrollConductor, type StoryRuntimeState } from "./story/ScrollConductor";
-import { ArtistJourneyConductor } from "./story/ArtistJourneyConductor";
+import {
+  ArtistJourneyConductor,
+  type ArtistJourneyPhase
+} from "./story/ArtistJourneyConductor";
 
 interface StageController {
   select(trackId: string): Promise<void>;
@@ -28,7 +31,11 @@ interface AtmosphereController {
 
 interface LivingWorldController {
   setStoryState(state: StoryRuntimeState): void;
-  setArtistWorld(world: ArtistChapterWorld, progress: number): void;
+  setArtistWorld(
+    world: ArtistChapterWorld,
+    progress: number,
+    phase?: ArtistJourneyPhase
+  ): void;
   setAudioEnergy(value: number): void;
   dispose(): void;
 }
@@ -90,9 +97,11 @@ export function bootHazewaveSite(): void {
   let pendingArtistWorld: {
     world: ArtistChapterWorld;
     progress: number;
+    phase: ArtistJourneyPhase;
   } = {
     world: firstArtistChapter.world,
-    progress: 0
+    progress: 0,
+    phase: "EMERGE"
   };
 
   const conductor = new ScrollConductor(
@@ -103,15 +112,16 @@ export function bootHazewaveSite(): void {
     }
   );
 
-  const artistJourney = new ArtistJourneyConductor(({ artistId, progress }) => {
+  const artistJourney = new ArtistJourneyConductor(({ artistId, progress, phase }) => {
     const chapter = artistChapterById.get(artistId);
     if (!chapter) return;
 
     pendingArtistWorld = {
       world: chapter.world,
-      progress
+      progress,
+      phase
     };
-    livingWorld?.setArtistWorld(chapter.world, progress);
+    livingWorld?.setArtistWorld(chapter.world, progress, phase);
   });
 
   const livingWorldEligible =
@@ -129,7 +139,8 @@ export function bootHazewaveSite(): void {
         if (pendingStoryState) created.setStoryState(pendingStoryState);
         created.setArtistWorld(
           pendingArtistWorld.world,
-          pendingArtistWorld.progress
+          pendingArtistWorld.progress,
+          pendingArtistWorld.phase
         );
       })
       .catch((error) => {
@@ -995,6 +1006,8 @@ export function bootHazewaveSite(): void {
           ? Number(pendingStoryState.globalProgress.toFixed(4))
           : 0,
         storyBeat: pendingStoryState?.narrativeBeat ?? "WORLD_SLEEP",
+        artistPhase: document.documentElement.dataset.artistPhase ?? "EMERGE",
+        worldDepthModel: backdropHost?.dataset.worldDepthModel ?? "css-fallback",
         selectionToContactMs:
           lastSelectionToContactMs === null ? null : Number(lastSelectionToContactMs.toFixed(1)),
         contactToAudioMs:
