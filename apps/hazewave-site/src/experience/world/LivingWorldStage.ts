@@ -495,6 +495,7 @@ export class LivingWorldStage {
   private artistWorld: ArtistChapterWorld | null = null;
   private artistProgress = 0;
   private artistPhase: ArtistJourneyPhase = "EMERGE";
+  private artistFocus = 0;
   private artistAccent: [number, number, number] = [0.72, 1.0, 0.42];
   private renderScale = 1;
   private frameWindow: number[] = [];
@@ -590,6 +591,11 @@ export class LivingWorldStage {
     this.artistProgress = Math.max(0, Math.min(1, progress));
     this.artistPhase = phase;
     this.artistAccent = hexToRgb(world.accent);
+  }
+
+  setArtistFocus(active: boolean): void {
+    this.artistFocus = active ? 1 : 0;
+    this.host.dataset.worldArtistFocus = String(active);
   }
 
   setAudioEnergy(value: number): void {
@@ -834,7 +840,11 @@ export class LivingWorldStage {
         : 1;
     const artistInfluence =
       artistWorld && artistChapterActive
-        ? Math.min(1, (0.34 + this.artistProgress * 0.66) * transitionFade)
+        ? Math.min(
+            1,
+            ((0.34 + this.artistProgress * 0.66) * transitionFade) +
+              this.artistFocus * 0.16
+          )
         : 0;
 
     gl.useProgram(program);
