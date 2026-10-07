@@ -622,7 +622,7 @@ export class ResonanceExperience {
     this.world.add(floor);
 
     const platform = new THREE.Mesh(
-      new THREE.CylinderGeometry(3.65, 4.0, 0.32, 96),
+      new THREE.CylinderGeometry(3.65, 4.0, 0.32, this.quality.tier === "LOW" ? 40 : 96),
       new THREE.MeshPhysicalMaterial({
         color: 0x080b0a,
         metalness: 0.48,
@@ -635,7 +635,7 @@ export class ResonanceExperience {
     this.world.add(platform);
 
     const horizon = new THREE.Mesh(
-      new THREE.TorusGeometry(5.8, 0.012, 8, 160),
+      new THREE.TorusGeometry(5.8, 0.012, 6, this.quality.tier === "LOW" ? 72 : 160),
       new THREE.MeshBasicMaterial({
         color: 0x5a8f84,
         transparent: true,
@@ -648,7 +648,7 @@ export class ResonanceExperience {
     this.world.add(horizon);
 
     const points = new THREE.BufferGeometry();
-    const count = this.quality.tier === "LOW" ? 48 : 110;
+    const count = this.quality.tier === "LOW" ? 0 : this.quality.tier === "MEDIUM" ? 64 : 110;
     const positions = new Float32Array(count * 3);
     for (let i = 0; i < count; i += 1) {
       const angle = i * 2.399963;
