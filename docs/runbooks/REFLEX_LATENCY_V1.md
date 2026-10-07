@@ -55,8 +55,8 @@ For each profile it:
 
 1. starts one loopback-only Laya server;
 2. waits for a healthy authenticated local runtime;
-3. performs two warmups;
-4. records seven identical robust 3-rotation requests;
+3. performs three warmups;
+4. records twenty-one identical robust 3-rotation requests;
 5. captures wall/health/System One/engine/server/queue timings;
 6. requires robust eligibility and output stability;
 7. stops only the profile server it created;
@@ -125,3 +125,8 @@ Do not enable int8 Laya, fast-math, active spin by default, model-revision chang
 rotation reduction or state/head truncation to win the benchmark. Do not feed
 synthetic benchmark rows into calibration/training outcomes. If creative workloads
 need the workstation, stop the reflex server rather than competing for headroom.
+
+
+### Sample-size note
+
+The sweep uses 21 measured requests per profile. With the nearest-rank estimator used by the harness, p95 is rank 20 of 21 rather than simply the maximum as it would be with only seven observations. This remains a workstation tuning sample, not a population-level SLO proof; repeat the sweep if host contention or Codespaces placement changes materially.
