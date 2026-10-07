@@ -215,6 +215,19 @@ button{appearance:none}
 .premium-stage[data-artist="monolith"][data-section="outro"] .artist-world-monolith,
 .premium-stage[data-artist="flora"][data-section="outro"] .artist-world-flora{opacity:.44;transform:scale(1.025)}
 .premium-stage[data-section="outro"] .world-meta{opacity:.62}
+.premium-stage[data-performance="reduced"] .artist-world-aether .world-ring,
+.premium-stage[data-performance="reduced"] .artist-index-orbit{
+  animation-play-state:paused!important
+}
+.premium-stage[data-performance="reduced"] .world-glow{
+  filter:blur(20px)
+}
+.premium-stage[data-performance="reduced"]::after{
+  display:none
+}
+.premium-stage[data-performance="reduced"] .artist-world{
+  transition-duration:260ms
+}
 
 .scene-copy{
   position:absolute;z-index:20;top:clamp(28px,4vw,62px);left:clamp(24px,4.2vw,72px);
