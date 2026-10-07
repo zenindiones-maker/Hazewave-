@@ -54,6 +54,8 @@ export function bootHazewaveSite(): void {
   const wheel = document.querySelector<HTMLElement>("#player-wheel");
   const wheelControl = document.querySelector<HTMLElement>("#wheel-ring-control");
   const wheelVolume = document.querySelector<HTMLElement>("#wheel-volume");
+  const deckScreen = document.querySelector<HTMLElement>("#deck-screen");
+  const deckTracklist = document.querySelector<HTMLOListElement>("#deck-tracklist");
   const wheelActions = Array.from(
     document.querySelectorAll<HTMLButtonElement>("[data-wheel-action]")
   );
@@ -138,6 +140,59 @@ export function bootHazewaveSite(): void {
       sectionMap.append(marker);
     }
     sectionLabel.textContent = "INTRO";
+  };
+
+  type WheelMode = "volume" | "tracks";
+  let wheelMode: WheelMode = "volume";
+
+  const renderDeckTracklist = (artistId: ArtistId, activeTrackId: string) => {
+    if (!deckTracklist) return;
+
+    const artist = getArtist(artistId);
+    deckTracklist.replaceChildren();
+
+    artist.tracks.forEach((track, index) => {
+      const item = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.deckTrackId = track.id;
+      button.dataset.active = String(track.id === activeTrackId);
+      button.setAttribute("aria-current", track.id === activeTrackId ? "true" : "false");
+      button.innerHTML =
+        `<span>${String(index + 1).padStart(2, "0")} · ${track.title}</span><small>${track.visual.bpm} BPM</small>`;
+      button.addEventListener("click", () => void selectTrack(track.id));
+      item.append(button);
+      deckTracklist.append(item);
+    });
+  };
+
+  const setWheelMode = (mode: WheelMode) => {
+    wheelMode = mode;
+    if (wheel) wheel.dataset.mode = mode;
+    if (deckScreen) deckScreen.dataset.view = mode === "tracks" ? "list" : "now";
+    if (wheelControl) {
+      wheelControl.setAttribute(
+        "aria-label",
+        mode === "tracks" ? "Selecionar faixa da fita" : "Volume do player"
+      );
+    }
+
+    if (wheelVolume) {
+      if (mode === "volume") {
+        wheelVolume.textContent = String(Math.round(audio.volume * 100));
+      } else if (machine.activeTrackId) {
+        const track = getTrack(machine.activeTrackId);
+        const artist = getArtist(track.artistId);
+        const index = artist.tracks.findIndex((candidate) => candidate.id === track.id);
+        wheelVolume.textContent = `${Math.max(1, index + 1)}/${artist.tracks.length}`;
+      } else {
+        wheelVolume.textContent = "--";
+      }
+    }
+
+    wheel?.querySelector<HTMLElement>(".wheel-center small")?.replaceChildren(
+      document.createTextNode(mode === "tracks" ? "TRACK" : "VOL")
+    );
   };
   let experience: StageController | null = null;
   let atmosphere: AtmosphereController | null = null;
@@ -336,6 +391,8 @@ export function bootHazewaveSite(): void {
         if (deckBeaconTrack) deckBeaconTrack.textContent = track.title.toUpperCase();
         if (deckBeaconArtist) deckBeaconArtist.textContent = artist.name.replace(" / DEMO", "").toUpperCase();
         if (deckBeaconSection) deckBeaconSection.textContent = "INTRO";
+        renderDeckTracklist(artist.id, track.id);
+        if (wheelMode === "tracks") setWheelMode("tracks");
       }, `artist-${artist.id}`);
 
       if (mediaSession && "MediaMetadata" in window) {
@@ -408,7 +465,7 @@ export function bootHazewaveSite(): void {
   const syncWheelVolume = () => {
     if (!wheelControl || !wheelVolume) return;
     const percent = Math.round(audio.volume * 100);
-    wheelVolume.textContent = String(percent);
+    if (wheelMode === "volume") wheelVolume.textContent = String(percent);
     wheelControl.setAttribute("aria-valuenow", String(percent));
     wheelControl.setAttribute("aria-valuetext", `Volume ${percent}%`);
   };
@@ -420,18 +477,30 @@ export function bootHazewaveSite(): void {
 
   const selectRelative = (direction: -1 | 1) => {
     const activeId = machine.activeTrackId;
-    const activeIndex = tracks.findIndex((track) => track.id === activeId);
-    const base = activeIndex < 0 ? (direction > 0 ? -1 : 0) : activeIndex;
-    const nextIndex = (base + direction + tracks.length) % tracks.length;
-    const next = tracks[nextIndex]?.id;
+
+    if (!activeId) {
+      const first = tracks[0]?.id;
+      if (first) void selectTrack(first);
+      return;
+    }
+
+    const activeTrack = getTrack(activeId);
+    const artist = getArtist(activeTrack.artistId);
+    const activeIndex = artist.tracks.findIndex((track) => track.id === activeId);
+    const base = activeIndex < 0 ? 0 : activeIndex;
+    const nextIndex =
+      (base + direction + artist.tracks.length) % artist.tracks.length;
+    const next = artist.tracks[nextIndex]?.id;
     if (next) void selectTrack(next);
   };
 
   syncWheelVolume();
+  setWheelMode("volume");
 
   if (wheel && wheelControl) {
     let pointerId: number | null = null;
     let lastAngle = 0;
+    let trackRotationAccumulator = 0;
 
     const angleForPointer = (event: PointerEvent) => {
       const rect = wheelControl.getBoundingClientRect();
@@ -455,7 +524,18 @@ export function bootHazewaveSite(): void {
       if (delta > Math.PI) delta -= Math.PI * 2;
       if (delta < -Math.PI) delta += Math.PI * 2;
       lastAngle = angle;
-      setWheelVolume(audio.volume + delta / (Math.PI * 2) * 0.72);
+
+      if (wheelMode === "tracks") {
+        trackRotationAccumulator += delta;
+        const threshold = 0.34;
+        while (Math.abs(trackRotationAccumulator) >= threshold) {
+          const direction: -1 | 1 = trackRotationAccumulator > 0 ? 1 : -1;
+          selectRelative(direction);
+          trackRotationAccumulator -= threshold * direction;
+        }
+      } else {
+        setWheelVolume(audio.volume + delta / (Math.PI * 2) * 0.72);
+      }
     });
 
     const releaseWheel = (event: PointerEvent) => {
@@ -467,6 +547,17 @@ export function bootHazewaveSite(): void {
     wheelControl.addEventListener("pointercancel", releaseWheel);
 
     wheelControl.addEventListener("keydown", (event) => {
+      if (wheelMode === "tracks") {
+        if (event.key === "ArrowUp" || event.key === "ArrowRight") {
+          event.preventDefault();
+          selectRelative(1);
+        } else if (event.key === "ArrowDown" || event.key === "ArrowLeft") {
+          event.preventDefault();
+          selectRelative(-1);
+        }
+        return;
+      }
+
       if (event.key === "ArrowUp" || event.key === "ArrowRight") {
         event.preventDefault();
         setWheelVolume(audio.volume + 0.05);
@@ -486,7 +577,7 @@ export function bootHazewaveSite(): void {
   wheelActions.forEach((button) => {
     button.addEventListener("click", () => {
       const action = button.dataset.wheelAction;
-      if (action === "archive") conductor.scrollTo("#archive");
+      if (action === "archive") setWheelMode(wheelMode === "tracks" ? "volume" : "tracks");
       if (action === "previous") selectRelative(-1);
       if (action === "next") selectRelative(1);
       if (action === "toggle") {
