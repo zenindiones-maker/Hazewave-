@@ -31,6 +31,10 @@ SCHEMA_INSTANCE_PAIRS = (
         "schemas/colibri-local-provider-v1.schema.json",
         "config/colibri-local-provider-v1.json",
     ),
+    (
+        "schemas/reflex-governor-v1.schema.json",
+        "config/reflex-governor-v1.json",
+    ),
 )
 
 ALLOWED_DOCUMENT_TYPES = {
