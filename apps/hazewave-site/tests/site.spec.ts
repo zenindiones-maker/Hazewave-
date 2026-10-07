@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("renders semantic catalog and reaches PLAYING from one click", async ({ page }, testInfo) => {
   await page.goto("/");
-  await expect(page.locator("#experience-title")).toHaveText("Música em estado físico.");
+  await expect(page.locator("#experience-title")).toHaveText("Escolha a fita.");
   await expect(page.locator("[data-track-id]")).toHaveCount(6);
 
   await page.locator("[data-track-id='aether-01']").dispatchEvent("click");
@@ -167,7 +167,9 @@ test("mobile object selection keeps the stage viewport stable", async ({ page })
   test.skip(!viewport || viewport.width > 600, "mobile-only viewport stability proof");
 
   await page.goto("/");
-  await page.evaluate(() => window.scrollTo(0, 0));
+  const archive = page.locator("#archive");
+  await archive.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(120);
 
   const artifact = page.locator("[data-track-id='aether-01']");
   const shell = artifact.locator(".artifact-shell");
