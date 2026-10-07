@@ -557,7 +557,7 @@ PY
 }
 
 build_phase_profile_engine_variant() {
-  local variant="phase_profile_v1"
+  local variant="phase_profile_v2"
   local root="$HOME/.local/share/hazewave/providers/colibri/derived/$variant"
   local binary="$root/c/laya"
   local meta="$root/build.json"
@@ -735,6 +735,118 @@ once(
 "tail_profile",
 )
 
+
+# Fine-grained encoder subphases. This runs after the coarse instrumentation
+# above, so it only adds monotonic timers around existing operations.
+once(
+"""    double hz_transition_ms = 0.0, hz_head_attention_ms = 0.0, hz_head_mlp_ms = 0.0, hz_tail_ms = 0.0;
+    int d = M->d, I = M->inter;""",
+"""    double hz_transition_ms = 0.0, hz_head_attention_ms = 0.0, hz_head_mlp_ms = 0.0, hz_tail_ms = 0.0;
+    double hz_encoder_attn_norm_ms = 0.0, hz_encoder_qkv_gemm_ms = 0.0, hz_encoder_rope_ms = 0.0;
+    double hz_encoder_attention_core_ms = 0.0, hz_encoder_out_gemm_ms = 0.0, hz_encoder_mlp_norm_ms = 0.0;
+    double hz_encoder_wi_gemm_ms = 0.0, hz_encoder_geglu_ms = 0.0, hz_encoder_wo_gemm_ms = 0.0;
+    double hz_encoder_residual_ms = 0.0, hz_sub_started = 0.0;
+    int d = M->d, I = M->inter;""",
+"subphase_declarations",
+)
+
+once(
+"""        hz_phase_started = now_ms();
+        const float *in = x;
+        if (E->attn_norm_w) { layernorm(h, x, E->attn_norm_w, E->attn_norm_b, T, d, M->eps); in = h; }
+        gemm(big, in, T, &E->wqkv, E->bqkv);
+        apply_rope(big, T, row_pos, d, M->heads, M->hd, E->global ? M->rope_g : M->rope_l, M->max_pos);
+        attention(big, att, T, d, M->heads, M->hd, row_seq, seq_off, E->global ? -1 : M->window, NULL);
+        gemm(h, att, T, &E->wo, E->bo);
+        add_rows(x, h, (size_t)T * d);
+        hz_encoder_attention_ms += now_ms() - hz_phase_started;
+        hz_phase_started = now_ms();
+        layernorm(h, x, E->mlp_norm_w, E->mlp_norm_b, T, d, M->eps);
+        gemm(big, h, T, &E->wi, E->bi);
+        #pragma omp parallel for schedule(static)
+        for (int r = 0; r < T; r++) {
+            const float *u = big + (size_t)r * 2 * I;
+            float *g = mid + (size_t)r * I;
+            for (int j = 0; j < I; j++) g[j] = gelu(u[j], M->gelu_tanh) * u[I + j];
+        }
+        gemm(h, mid, T, &E->wo2, E->bo2);
+        add_rows(x, h, (size_t)T * d);
+        hz_encoder_mlp_ms += now_ms() - hz_phase_started;""",
+"""        hz_phase_started = now_ms();
+        hz_sub_started = now_ms();
+        const float *in = x;
+        if (E->attn_norm_w) { layernorm(h, x, E->attn_norm_w, E->attn_norm_b, T, d, M->eps); in = h; }
+        hz_encoder_attn_norm_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        gemm(big, in, T, &E->wqkv, E->bqkv);
+        hz_encoder_qkv_gemm_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        apply_rope(big, T, row_pos, d, M->heads, M->hd, E->global ? M->rope_g : M->rope_l, M->max_pos);
+        hz_encoder_rope_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        attention(big, att, T, d, M->heads, M->hd, row_seq, seq_off, E->global ? -1 : M->window, NULL);
+        hz_encoder_attention_core_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        gemm(h, att, T, &E->wo, E->bo);
+        hz_encoder_out_gemm_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        add_rows(x, h, (size_t)T * d);
+        hz_encoder_residual_ms += now_ms() - hz_sub_started;
+        hz_encoder_attention_ms += now_ms() - hz_phase_started;
+
+        hz_phase_started = now_ms();
+        hz_sub_started = now_ms();
+        layernorm(h, x, E->mlp_norm_w, E->mlp_norm_b, T, d, M->eps);
+        hz_encoder_mlp_norm_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        gemm(big, h, T, &E->wi, E->bi);
+        hz_encoder_wi_gemm_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        #pragma omp parallel for schedule(static)
+        for (int r = 0; r < T; r++) {
+            const float *u = big + (size_t)r * 2 * I;
+            float *g = mid + (size_t)r * I;
+            for (int j = 0; j < I; j++) g[j] = gelu(u[j], M->gelu_tanh) * u[I + j];
+        }
+        hz_encoder_geglu_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        gemm(h, mid, T, &E->wo2, E->bo2);
+        hz_encoder_wo_gemm_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        add_rows(x, h, (size_t)T * d);
+        hz_encoder_residual_ms += now_ms() - hz_sub_started;
+        hz_encoder_mlp_ms += now_ms() - hz_phase_started;""",
+"encoder_subphases",
+)
+
+once(
+"""            hz_transition_ms, hz_head_attention_ms, hz_head_mlp_ms, hz_tail_ms,
+            hz_other_ms, T, S);
+    free(mark_row);""",
+"""            hz_transition_ms, hz_head_attention_ms, hz_head_mlp_ms, hz_tail_ms,
+            hz_other_ms, T, S);
+    fprintf(stderr,
+            "REFLEX_LAYA_SUBPHASES encoder_attn_norm_ms=%.3f encoder_qkv_gemm_ms=%.3f "
+            "encoder_rope_ms=%.3f encoder_attention_core_ms=%.3f encoder_out_gemm_ms=%.3f "
+            "encoder_mlp_norm_ms=%.3f encoder_wi_gemm_ms=%.3f encoder_geglu_ms=%.3f "
+            "encoder_wo_gemm_ms=%.3f encoder_residual_ms=%.3f rows=%d sequences=%d\\n",
+            hz_encoder_attn_norm_ms, hz_encoder_qkv_gemm_ms, hz_encoder_rope_ms,
+            hz_encoder_attention_core_ms, hz_encoder_out_gemm_ms, hz_encoder_mlp_norm_ms,
+            hz_encoder_wi_gemm_ms, hz_encoder_geglu_ms, hz_encoder_wo_gemm_ms,
+            hz_encoder_residual_ms, T, S);
+    free(mark_row);""",
+"subphase_emit",
+)
+
 path.write_text(text, encoding="utf-8")
 PY
   then
@@ -890,6 +1002,20 @@ pattern = re.compile(
     r"other_ms=(?P<other_ms>[0-9.]+) "
     r"rows=(?P<rows>[0-9]+) sequences=(?P<sequences>[0-9]+)"
 )
+subpattern = re.compile(
+    r"REFLEX_LAYA_SUBPHASES "
+    r"encoder_attn_norm_ms=(?P<encoder_attn_norm_ms>[0-9.]+) "
+    r"encoder_qkv_gemm_ms=(?P<encoder_qkv_gemm_ms>[0-9.]+) "
+    r"encoder_rope_ms=(?P<encoder_rope_ms>[0-9.]+) "
+    r"encoder_attention_core_ms=(?P<encoder_attention_core_ms>[0-9.]+) "
+    r"encoder_out_gemm_ms=(?P<encoder_out_gemm_ms>[0-9.]+) "
+    r"encoder_mlp_norm_ms=(?P<encoder_mlp_norm_ms>[0-9.]+) "
+    r"encoder_wi_gemm_ms=(?P<encoder_wi_gemm_ms>[0-9.]+) "
+    r"encoder_geglu_ms=(?P<encoder_geglu_ms>[0-9.]+) "
+    r"encoder_wo_gemm_ms=(?P<encoder_wo_gemm_ms>[0-9.]+) "
+    r"encoder_residual_ms=(?P<encoder_residual_ms>[0-9.]+) "
+    r"rows=(?P<rows>[0-9]+) sequences=(?P<sequences>[0-9]+)"
+)
 log_text = (root / "instrumented.server.log").read_text(encoding="utf-8", errors="replace")
 phase_rows = []
 for match in pattern.finditer(log_text):
@@ -899,10 +1025,25 @@ for match in pattern.finditer(log_text):
     }
     phase_rows.append(row)
 
+subphase_rows = []
+for match in subpattern.finditer(log_text):
+    row = {
+        key: (int(value) if key in {"rows", "sequences"} else float(value))
+        for key, value in match.groupdict().items()
+    }
+    subphase_rows.append(row)
+
 needed = int(instrumented.get("measured_requests") or 0)
 if needed < 1 or len(phase_rows) < needed:
     reasons.append("PHASE_TELEMETRY_INCOMPLETE")
+if needed < 1 or len(subphase_rows) < needed:
+    reasons.append("SUBPHASE_TELEMETRY_INCOMPLETE")
 measured_rows = phase_rows[-needed:] if needed > 0 and len(phase_rows) >= needed else phase_rows
+measured_subphase_rows = (
+    subphase_rows[-needed:]
+    if needed > 0 and len(subphase_rows) >= needed
+    else subphase_rows
+)
 
 phase_keys = [
     "setup_ms",
@@ -934,6 +1075,35 @@ dominant_phase = (
     if phase_medians else None
 )
 
+subphase_keys = [
+    "encoder_attn_norm_ms",
+    "encoder_qkv_gemm_ms",
+    "encoder_rope_ms",
+    "encoder_attention_core_ms",
+    "encoder_out_gemm_ms",
+    "encoder_mlp_norm_ms",
+    "encoder_wi_gemm_ms",
+    "encoder_geglu_ms",
+    "encoder_wo_gemm_ms",
+    "encoder_residual_ms",
+]
+subphase_medians = {}
+subphase_shares = {}
+if measured_subphase_rows:
+    subphase_medians = {
+        key: statistics.median(row[key] for row in measured_subphase_rows)
+        for key in subphase_keys
+    }
+    if median_total and median_total > 0:
+        subphase_shares = {
+            key.replace("_ms", "_share"): value / median_total
+            for key, value in subphase_medians.items()
+        }
+dominant_subphase = (
+    max(subphase_medians, key=subphase_medians.get)
+    if subphase_medians else None
+)
+
 report = {
     "schema": "HazewaveReflexLayaPhaseProfile/v1",
     "status": "PASS" if not reasons else "EVIDENCE_REJECTED",
@@ -946,6 +1116,10 @@ report = {
     "phase_medians_ms": phase_medians,
     "phase_shares": phase_shares,
     "dominant_phase": dominant_phase,
+    "dominant_subphase": dominant_subphase,
+    "measured_subphase_rows": len(measured_subphase_rows),
+    "subphase_medians_ms": subphase_medians,
+    "subphase_shares": subphase_shares,
     "diagnostic_only": True,
     "activatable": False,
     "changes_model_or_precision": False,
