@@ -310,12 +310,24 @@ export class PremiumResonanceStage {
   }
 
   private reveal(): void {
-    if (this.quality.reducedMotion) return;
+    this.host.dataset.revealState = "entering";
+
+    if (this.quality.reducedMotion) {
+      this.host.dataset.revealState = "settled";
+      return;
+    }
 
     gsap.set(this.deck, { opacity: 0, y: 22, scale: 0.975 });
     gsap.set(this.artifacts, { opacity: 0, y: 20 });
 
-    const timeline = gsap.timeline();
+    const timeline = gsap.timeline({
+      onComplete: () => {
+        this.host.dataset.revealState = "settled";
+      },
+      onInterrupt: () => {
+        this.host.dataset.revealState = "settled";
+      }
+    });
     timeline.to(this.deck, {
       opacity: 1,
       y: 0,
