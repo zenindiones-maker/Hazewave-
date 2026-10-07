@@ -91,6 +91,15 @@ def test_reflex_policy_validates_against_schema() -> None:
     assert loaded["profiles"]["decision.route"]["production_calibrated"] is False
 
 
+def test_route_shadow_transport_window_is_bounded_but_wider_than_latency_gate() -> None:
+    policy = load_reflex_policy(ROOT / "config/reflex-governor-v1.json")
+    route = policy["profiles"]["decision.route"]
+
+    assert route["max_latency_ms"] == 3000
+    assert route["transport_timeout_ms"] == 30000
+    assert route["transport_timeout_ms"] > route["max_latency_ms"]
+
+
 def test_small_label_route_can_be_accepted_as_recommendation() -> None:
     verdict = govern_reflex_result(
         authorization=_authorization(),
