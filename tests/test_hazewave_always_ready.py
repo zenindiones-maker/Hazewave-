@@ -8,6 +8,7 @@ TERMUX = ROOT / "scripts" / "hazewave_reflex_termux_control.sh"
 REMOTE = ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh"
 POST_START = ROOT / "scripts" / "codespaces" / "start-always-ready.sh"
 DEVCONTAINER = ROOT / ".devcontainer" / "devcontainer.json"
+INSTALLER = ROOT / "scripts" / "install_hazewave_always_ready_termux.sh"
 
 
 def test_termux_ready_is_lazy_wake_not_keepalive() -> None:
@@ -52,3 +53,15 @@ def test_devcontainer_uses_always_ready_post_start() -> None:
         "memory": "8gb",
         "storage": "32gb",
     }
+
+
+def test_termux_entrypoint_installer_is_idempotent_and_scoped() -> None:
+    text = INSTALLER.read_text(encoding="utf-8")
+    assert "HAZEWAVE_ALWAYS_READY_V1_BEGIN" in text
+    assert "HAZEWAVE_ALWAYS_READY_V1_END" in text
+    assert "project-shells.sh" in text
+    assert "hazewave-reflex ready" in text
+    assert "doctor_anchor_not_unique" in text
+    assert "cp -p" in text
+    assert "bash -n" in text
+    assert ".bashrc" not in text
