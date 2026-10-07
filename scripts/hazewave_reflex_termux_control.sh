@@ -17,77 +17,49 @@ fail() {
     exit 20
 }
 
-shared_env_value() {
-    local key="$1"
-    [[ -f "$SHARED_ENV" ]] || return 0
-    command -v python >/dev/null 2>&1 || return 0
-    python -c '
-import json, sys
-try:
-    with open(sys.argv[1], encoding="utf-8") as handle:
-        value = json.load(handle).get(sys.argv[2], "")
-except (OSError, ValueError, TypeError):
-    value = ""
-print(value if isinstance(value, str) else "")
-' "$SHARED_ENV" "$key"
+attest_codespace_control_plane() {
+    local actual_name actual_repo actual_state
+
+    ensure_codespace
+
+    actual_name="$(gh codespace view -c "$CS" --json name --jq '.name')" \
+      || fail "CONTROL_PLANE_CODESPACE_NAME_UNAVAILABLE"
+    actual_repo="$(gh codespace view -c "$CS" --json repository --jq '.repository')" \
+      || fail "CONTROL_PLANE_CODESPACE_REPO_UNAVAILABLE"
+    actual_state="$(gh codespace view -c "$CS" --json state --jq '.state')" \
+      || fail "CONTROL_PLANE_CODESPACE_STATE_UNAVAILABLE"
+
+    [[ "$actual_name" == "$CS" ]] \
+      || fail "CONTROL_PLANE_CODESPACE_NAME_MISMATCH"
+    [[ "$actual_repo" == "$REPO_SLUG" ]] \
+      || fail "CONTROL_PLANE_CODESPACE_REPO_MISMATCH"
+    [[ "$actual_state" == "Available" ]] \
+      || fail "CONTROL_PLANE_CODESPACE_NOT_AVAILABLE:$actual_state"
+
+    echo "REFLEX_CONTROL_PLANE_IDENTITY=PASS" >&2
+    echo "REFLEX_CONTROL_PLANE_CODESPACE=$actual_name" >&2
+    echo "REFLEX_CONTROL_PLANE_REPOSITORY=$actual_repo" >&2
 }
 
-verify_remote_codespace_identity() {
-    local expected_codespace="$1"
-    local expected_repo="$2"
-    local env_name="${CODESPACE_NAME:-}"
-    local env_codespaces="${CODESPACES:-}"
-    local env_repo="${GITHUB_REPOSITORY:-}"
-    local shared_name=""
-    local shared_codespaces=""
-    local shared_repo=""
-    local actual_name=""
-    local actual_repo=""
+verify_remote_repository_identity() {
+    local expected_repo="$1"
+    local origin
 
-    if [[ -f "$SHARED_ENV" ]]; then
-        shared_name="$(shared_env_value CODESPACE_NAME)"
-        shared_codespaces="$(shared_env_value CODESPACES)"
-        shared_repo="$(shared_env_value GITHUB_REPOSITORY)"
-    fi
+    [[ -d "$MAIN_REPO/.git" ]] || fail "REMOTE_HAZEWAVE_REPO_MISSING"
 
-    if [[ "$env_name" == "$expected_codespace" ]]; then
-        actual_name="$env_name"
-        echo "REFLEX_REMOTE_IDENTITY_SOURCE=PROCESS_ENV"
-    elif [[ "$shared_name" == "$expected_codespace" ]]; then
-        actual_name="$shared_name"
-        echo "REFLEX_REMOTE_IDENTITY_SOURCE=GITHUB_SHARED_ENV"
-    else
-        echo "REFLEX_REMOTE_EXPECTED_CODESPACE=$expected_codespace" >&2
-        echo "REFLEX_REMOTE_PROCESS_CODESPACE_NAME=${env_name:-UNSET}" >&2
-        echo "REFLEX_REMOTE_SHARED_CODESPACE_NAME=${shared_name:-UNSET}" >&2
-        fail "REMOTE_CODESPACE_IDENTITY_MISMATCH"
-    fi
+    origin="$(git -C "$MAIN_REPO" remote get-url origin 2>/dev/null || true)"
+    case "$origin" in
+        "https://github.com/$expected_repo"|"https://github.com/$expected_repo.git"|"git@github.com:$expected_repo"|"git@github.com:$expected_repo.git")
+            ;;
+        *)
+            echo "REFLEX_REMOTE_ORIGIN=$origin" >&2
+            echo "REFLEX_REMOTE_EXPECTED_REPO=$expected_repo" >&2
+            fail "REMOTE_REPOSITORY_IDENTITY_MISMATCH"
+            ;;
+    esac
 
-    if [[ "$env_repo" == "$expected_repo" ]]; then
-        actual_repo="$env_repo"
-    elif [[ "$shared_repo" == "$expected_repo" ]]; then
-        actual_repo="$shared_repo"
-    else
-        echo "REFLEX_REMOTE_EXPECTED_REPO=$expected_repo" >&2
-        echo "REFLEX_REMOTE_PROCESS_REPO=${env_repo:-UNSET}" >&2
-        echo "REFLEX_REMOTE_SHARED_REPO=${shared_repo:-UNSET}" >&2
-        fail "REMOTE_REPOSITORY_IDENTITY_MISMATCH"
-    fi
-
-    if [[ -n "$env_codespaces" && "$env_codespaces" != "true" ]]; then
-        fail "REMOTE_CODESPACES_FLAG_INVALID"
-    fi
-    if [[ -n "$shared_codespaces" && "$shared_codespaces" != "true" ]]; then
-        fail "REMOTE_SHARED_CODESPACES_FLAG_INVALID"
-    fi
-
-    export CODESPACE_NAME="$actual_name"
-    export CODESPACES=true
-    export GITHUB_REPOSITORY="$actual_repo"
-
-    echo "REFLEX_REMOTE_CODESPACE_IDENTITY=PASS"
-    echo "REFLEX_REMOTE_CODESPACE=$actual_name"
-    echo "REFLEX_REMOTE_REPOSITORY=$actual_repo"
+    echo "REFLEX_REMOTE_REPOSITORY_IDENTITY=PASS"
+    echo "REFLEX_REMOTE_REPOSITORY=$expected_repo"
 }
 
 remote_main() {
@@ -95,15 +67,26 @@ remote_main() {
     local argument="${2:-}"
     local expected_codespace="${HAZEWAVE_REFLEX_EXPECTED_CODESPACE:-}"
     local expected_repo="${HAZEWAVE_REFLEX_EXPECTED_REPO:-}"
+    local control_plane_attested="${HAZEWAVE_REFLEX_CONTROL_PLANE_ATTESTED:-}"
 
     [[ "$(uname -s)" == "Linux" ]] || fail "REMOTE_LINUX_REQUIRED"
     [[ "$(uname -m)" == "x86_64" ]] || fail "REMOTE_X86_64_REQUIRED"
     [[ -n "$expected_codespace" ]] || fail "REMOTE_EXPECTED_CODESPACE_REQUIRED"
     [[ -n "$expected_repo" ]] || fail "REMOTE_EXPECTED_REPO_REQUIRED"
+    [[ "$control_plane_attested" == "1" ]] || fail "REMOTE_CONTROL_PLANE_ATTESTATION_REQUIRED"
 
-    verify_remote_codespace_identity "$expected_codespace" "$expected_repo"
+    verify_remote_repository_identity "$expected_repo"
 
-    [[ -d "$MAIN_REPO/.git" ]] || fail "REMOTE_HAZEWAVE_REPO_MISSING"
+    # gh codespace ssh -c selected the exact control-plane-attested Codespace.
+    # Export the verified identity for downstream runtime contracts whose process
+    # environment may not inherit GitHub's default Codespaces variables over SSH.
+    export CODESPACE_NAME="$expected_codespace"
+    export CODESPACES=true
+    export GITHUB_REPOSITORY="$expected_repo"
+
+    echo "REFLEX_REMOTE_IDENTITY_SOURCE=TERMUX_GITHUB_CONTROL_PLANE"
+    echo "REFLEX_REMOTE_CODESPACE_IDENTITY=PASS"
+    echo "REFLEX_REMOTE_CODESPACE=$expected_codespace"
 
     cd "$MAIN_REPO"
 
@@ -230,9 +213,10 @@ copy_controller() {
 run_remote() {
     local action="$1"
     ensure_codespace
+    attest_codespace_control_plane
     copy_controller
     gh codespace ssh -c "$CS" \
-      "HAZEWAVE_REFLEX_EXPECTED_CODESPACE='$CS' HAZEWAVE_REFLEX_EXPECTED_REPO='$REPO_SLUG' bash '$REMOTE_SELF' _remote '$action'" \
+      "HAZEWAVE_REFLEX_CONTROL_PLANE_ATTESTED=1 HAZEWAVE_REFLEX_EXPECTED_CODESPACE='$CS' HAZEWAVE_REFLEX_EXPECTED_REPO='$REPO_SLUG' bash '$REMOTE_SELF' _remote '$action'" \
       || fail "REMOTE_ACTION_FAILED:$action"
 }
 
@@ -324,6 +308,7 @@ case "$action" in
             exit 2
         }
         ensure_codespace
+        attest_codespace_control_plane
         copy_controller
         remote_event="/tmp/hazewave-reflex-event-${BASHPID}.json"
         gh codespace ssh -c "$CS" \
@@ -332,7 +317,7 @@ case "$action" in
           || fail "TERMUX_EVENT_COPY_FAILED"
         set +e
         gh codespace ssh -c "$CS" \
-          "HAZEWAVE_REFLEX_EXPECTED_CODESPACE='$CS' HAZEWAVE_REFLEX_EXPECTED_REPO='$REPO_SLUG' bash '$REMOTE_SELF' _remote observe '$remote_event'; rc=\$?; rm -f '$remote_event'; exit \$rc"
+          "HAZEWAVE_REFLEX_CONTROL_PLANE_ATTESTED=1 HAZEWAVE_REFLEX_EXPECTED_CODESPACE='$CS' HAZEWAVE_REFLEX_EXPECTED_REPO='$REPO_SLUG' bash '$REMOTE_SELF' _remote observe '$remote_event'; rc=\$?; rm -f '$remote_event'; exit \$rc"
         rc=$?
         set -e
         [[ $rc -eq 0 ]] || fail "REMOTE_ACTION_FAILED:observe:$rc"
