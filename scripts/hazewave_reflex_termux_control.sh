@@ -123,6 +123,7 @@ remote_main() {
     local control="$WORKTREE/scripts/codespaces/reflex-shadow-control.sh"
     [[ -f "$control" ]] || fail "REMOTE_REFLEX_CONTROL_MISSING"
 
+    echo "REFLEX_REMOTE_REF=$REF"
     echo "REFLEX_REMOTE_HEAD=$remote_sha"
     echo "REFLEX_REMOTE_ACTION=$action"
 
@@ -256,7 +257,7 @@ run_remote() {
     attest_codespace_control_plane
     copy_controller
     gh codespace ssh -c "$CS" \
-      "HAZEWAVE_REFLEX_CONTROL_PLANE_ATTESTED=1 HAZEWAVE_REFLEX_EXPECTED_CODESPACE='$CS' HAZEWAVE_REFLEX_EXPECTED_REPO='$REPO_SLUG' bash '$REMOTE_SELF' _remote '$action'" \
+      "HAZEWAVE_REFLEX_CONTROL_PLANE_ATTESTED=1 HAZEWAVE_REFLEX_EXPECTED_CODESPACE='$CS' HAZEWAVE_REFLEX_EXPECTED_REPO='$REPO_SLUG' HAZEWAVE_REFLEX_REF='$REF' bash '$REMOTE_SELF' _remote '$action'" \
       || fail "REMOTE_ACTION_FAILED:$action"
 }
 
@@ -352,7 +353,7 @@ case "$action" in
           || fail "TERMUX_EVENT_COPY_FAILED"
         set +e
         gh codespace ssh -c "$CS" \
-          "HAZEWAVE_REFLEX_CONTROL_PLANE_ATTESTED=1 HAZEWAVE_REFLEX_EXPECTED_CODESPACE='$CS' HAZEWAVE_REFLEX_EXPECTED_REPO='$REPO_SLUG' bash '$REMOTE_SELF' _remote observe '$remote_event'; rc=\$?; rm -f '$remote_event'; exit \$rc"
+          "HAZEWAVE_REFLEX_CONTROL_PLANE_ATTESTED=1 HAZEWAVE_REFLEX_EXPECTED_CODESPACE='$CS' HAZEWAVE_REFLEX_EXPECTED_REPO='$REPO_SLUG' HAZEWAVE_REFLEX_REF='$REF' bash '$REMOTE_SELF' _remote observe '$remote_event'; rc=\$?; rm -f '$remote_event'; exit \$rc"
         rc=$?
         set -e
         [[ $rc -eq 0 ]] || fail "REMOTE_ACTION_FAILED:observe:$rc"
