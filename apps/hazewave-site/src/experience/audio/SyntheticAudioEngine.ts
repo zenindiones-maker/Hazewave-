@@ -9,6 +9,8 @@ export class HazewaveAudioEngine {
   private uiMaster: GainNode | null = null;
   private uiCompressor: DynamicsCompressorNode | null = null;
   private nodes: AudioScheduledSourceNode[] = [];
+  private synthAuxNodes: AudioNode[] = [];
+  private synthBuffers = new Map<string, AudioBuffer>();
   private mediaElement: HTMLAudioElement | null = null;
   private mediaSource: MediaElementAudioSourceNode | null = null;
   private preparedTrackId: string | null = null;
@@ -25,7 +27,9 @@ export class HazewaveAudioEngine {
     if (!this.context) {
       this.context = new AudioContext({ latencyHint: "interactive" });
       this.master = this.context.createGain();
-      this.master.gain.value = 0.055;
+      // Keep the product bus near unity so final owner-authorized media is not
+      // accidentally attenuated. Synthetic fixtures are gain-staged locally.
+      this.master.gain.value = 0.82;
       this.analyser = this.context.createAnalyser();
       this.analyser.fftSize = 256;
       this.energyBuffer = new Uint8Array(this.analyser.frequencyBinCount);
@@ -241,37 +245,142 @@ export class HazewaveAudioEngine {
 
   private startSynthetic(track: Track, offsetSeconds: number): void {
     const ctx = this.context!;
-    const base = track.audio.synthHz ?? 110;
-    const beat = 60 / track.visual.bpm;
+    const source = ctx.createBufferSource();
+    const filter = ctx.createBiquadFilter();
+    const dryGain = ctx.createGain();
+    const wetGain = ctx.createGain();
+    const delay = ctx.createDelay(0.8);
+    const feedback = ctx.createGain();
 
-    const carrier = ctx.createOscillator();
-    carrier.type = "triangle";
-    carrier.frequency.value = base;
-    const upper = ctx.createOscillator();
-    upper.type = "sine";
-    upper.frequency.value = base * 1.5;
-    const carrierGain = ctx.createGain();
-    carrierGain.gain.value = 0.62;
-    const upperGain = ctx.createGain();
-    upperGain.gain.value = 0.22;
-    const pulse = ctx.createOscillator();
-    pulse.type = "sine";
-    pulse.frequency.value = 1 / beat;
-    const pulseGain = ctx.createGain();
-    pulseGain.gain.value = 0.12;
+    source.buffer = this.syntheticBuffer(track);
+    source.loop = true;
 
-    pulse.connect(pulseGain);
-    pulseGain.connect(carrierGain.gain);
-    carrier.connect(carrierGain).connect(this.master!);
-    upper.connect(upperGain).connect(this.master!);
+    const profile =
+      track.artistId === "aether"
+        ? { cutoff: 3400, q: 0.72, dry: 0.115, wet: 0.042, delay: 0.23, feedback: 0.24 }
+        : track.artistId === "monolith"
+          ? { cutoff: 1850, q: 0.9, dry: 0.13, wet: 0.022, delay: 0.16, feedback: 0.16 }
+          : { cutoff: 2950, q: 0.78, dry: 0.12, wet: 0.034, delay: 0.19, feedback: 0.2 };
+
+    filter.type = "lowpass";
+    filter.frequency.value = profile.cutoff;
+    filter.Q.value = profile.q;
 
     const now = ctx.currentTime;
-    carrier.start(now);
-    upper.start(now);
-    pulse.start(now);
-    this.nodes = [carrier, upper, pulse];
+    dryGain.gain.setValueAtTime(0.0001, now);
+    dryGain.gain.setTargetAtTime(profile.dry, now, 0.018);
+    wetGain.gain.value = profile.wet;
+    delay.delayTime.value = profile.delay;
+    feedback.gain.value = profile.feedback;
+
+    source.connect(filter);
+    filter.connect(dryGain).connect(this.master!);
+    filter.connect(delay);
+    delay.connect(wetGain).connect(this.master!);
+    delay.connect(feedback).connect(delay);
+
+    const loopDuration = source.buffer?.duration ?? 1;
+    const loopOffset = loopDuration > 0 ? offsetSeconds % loopDuration : 0;
+    source.start(now, loopOffset);
+
+    this.nodes = [source];
+    this.synthAuxNodes = [filter, dryGain, wetGain, delay, feedback];
     this.startedAt = now - offsetSeconds;
     this.status = "PLAYING";
+  }
+
+  private syntheticBuffer(track: Track): AudioBuffer {
+    const ctx = this.context!;
+    const key = `${track.id}@${ctx.sampleRate}`;
+    const cached = this.synthBuffers.get(key);
+    if (cached) return cached;
+
+    const sampleRate = ctx.sampleRate;
+    const secondsPerBeat = 60 / Math.max(1, track.visual.bpm);
+    const beats = 8;
+    const duration = secondsPerBeat * beats;
+    const frameCount = Math.max(1, Math.floor(duration * sampleRate));
+    const buffer = ctx.createBuffer(2, frameCount, sampleRate);
+    const left = buffer.getChannelData(0);
+    const right = buffer.getChannelData(1);
+    const base = track.audio.synthHz ?? 110;
+
+    let seed = 2166136261;
+    for (const char of track.id) {
+      seed ^= char.charCodeAt(0);
+      seed = Math.imul(seed, 16777619) >>> 0;
+    }
+    const noise = () => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      return (seed / 0xffffffff) * 2 - 1;
+    };
+
+    const bassRatios = track.artistId === "monolith"
+      ? [1, 1, 0.75, 1, 1.125, 1, 0.75, 1.25]
+      : track.artistId === "flora"
+        ? [1, 1.25, 1.5, 1.25, 1.125, 1.5, 1.25, 1.75]
+        : [1, 1.125, 1.5, 1.25, 1, 1.334, 1.5, 1.125];
+
+    for (let index = 0; index < frameCount; index += 1) {
+      const t = index / sampleRate;
+      const beatPosition = t / secondsPerBeat;
+      const beatIndex = Math.floor(beatPosition) % beats;
+      const beatPhase = beatPosition - Math.floor(beatPosition);
+      const halfBeatPosition = beatPosition * 2;
+      const halfBeatPhase = halfBeatPosition - Math.floor(halfBeatPosition);
+      const barPhase = t / duration;
+
+      const bassFrequency = base * 0.5 * (bassRatios[beatIndex] ?? 1);
+      const bassEnvelope = Math.exp(-beatPhase * (track.artistId === "monolith" ? 4.6 : 5.8));
+      const bass =
+        Math.sin(2 * Math.PI * bassFrequency * t) *
+        bassEnvelope *
+        (track.artistId === "monolith" ? 0.34 : 0.2);
+
+      const kickActive = beatIndex === 0 || beatIndex === 4 || (track.artistId === "flora" && beatIndex === 6);
+      const kickEnvelope = kickActive ? Math.exp(-beatPhase * 13) : 0;
+      const kickFrequency = 46 + 54 * Math.exp(-beatPhase * 7);
+      const kick = Math.sin(2 * Math.PI * kickFrequency * t) * kickEnvelope * 0.31;
+
+      const hatEnvelope = Math.exp(-halfBeatPhase * 24);
+      const hatGate =
+        track.artistId === "monolith"
+          ? (Math.floor(halfBeatPosition) % 2 === 1 ? 1 : 0.25)
+          : 0.65 + (Math.floor(halfBeatPosition) % 2) * 0.35;
+      const hat = noise() * hatEnvelope * hatGate * (track.artistId === "aether" ? 0.035 : 0.052);
+
+      const padRoot = Math.sin(2 * Math.PI * base * 0.5 * t);
+      const padFifth = Math.sin(2 * Math.PI * base * 0.75 * t + 0.42);
+      const padOctave = Math.sin(2 * Math.PI * base * t + 1.1);
+      const slowBreath = 0.72 + Math.sin(2 * Math.PI * barPhase) * 0.18;
+      const pad =
+        (padRoot * 0.52 + padFifth * 0.3 + padOctave * 0.18) *
+        slowBreath *
+        (track.artistId === "aether" ? 0.22 : track.artistId === "flora" ? 0.13 : 0.09);
+
+      const pluckEnvelope = Math.exp(-halfBeatPhase * 8.5);
+      const pluckRatio = track.artistId === "flora" ? 2.5 : 2;
+      const pluck =
+        Math.sin(2 * Math.PI * base * pluckRatio * t + beatIndex * 0.37) *
+        pluckEnvelope *
+        (track.artistId === "flora" ? 0.11 : track.artistId === "aether" ? 0.055 : 0.025);
+
+      const shimmer =
+        Math.sin(2 * Math.PI * base * 4 * t + Math.sin(t * 0.9) * 0.8) *
+        (0.5 + 0.5 * Math.sin(t * 0.73)) *
+        (track.artistId === "aether" ? 0.045 : 0.012);
+
+      const body = bass + kick + hat + pad + pluck + shimmer;
+      const stereoMotion = Math.sin(2 * Math.PI * barPhase + beatIndex * 0.17) * 0.055;
+      const leftSample = Math.tanh(body + shimmer * stereoMotion);
+      const rightSample = Math.tanh(body - shimmer * stereoMotion + pluck * 0.035);
+
+      left[index] = leftSample;
+      right[index] = rightSample;
+    }
+
+    this.synthBuffers.set(key, buffer);
+    return buffer;
   }
 
   private stopSynthetic(): void {
@@ -279,7 +388,11 @@ export class HazewaveAudioEngine {
       try { node.stop(); } catch {}
       try { node.disconnect(); } catch {}
     }
+    for (const node of this.synthAuxNodes) {
+      try { node.disconnect(); } catch {}
+    }
     this.nodes = [];
+    this.synthAuxNodes = [];
   }
 
   private disposeMedia(): void {
