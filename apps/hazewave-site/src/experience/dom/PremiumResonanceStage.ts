@@ -83,6 +83,7 @@ export class PremiumResonanceStage {
       });
 
       this.onPhase("SELECTED");
+      this.host.dataset.phase = "selected";
       this.deck.dataset.state = "selected";
 
       if (this.quality.reducedMotion) {
@@ -90,6 +91,7 @@ export class PremiumResonanceStage {
         this.screenTitle.textContent = track.title;
         this.screenArtist.textContent = artist.name.replace(" / DEMO", "");
         this.onPhase("CONTACT");
+        this.host.dataset.phase = "contact";
         this.deck.dataset.state = "contact";
         await sleep(24);
         return;
@@ -104,6 +106,7 @@ export class PremiumResonanceStage {
   setPlaying(playing: boolean): void {
     this.playing = playing;
     this.deck.dataset.state = playing ? "playing" : "paused";
+    this.host.dataset.phase = playing ? "playing" : "paused";
     this.host.dataset.playing = String(playing);
   }
 
@@ -244,6 +247,7 @@ export class PremiumResonanceStage {
     const direction = sourceCenter.x < slotCenter.x ? -1 : 1;
 
     this.onPhase("ANTICIPATION");
+    this.host.dataset.phase = "anticipation";
     this.deck.dataset.state = "anticipation";
 
     await this.timeline((tl) => {
@@ -273,6 +277,7 @@ export class PremiumResonanceStage {
     });
 
     this.onPhase("TRAVEL");
+    this.host.dataset.phase = "travel";
     this.deck.dataset.state = "travel";
 
     const lift = Math.min(128, Math.max(72, window.innerHeight * 0.12));
@@ -304,6 +309,7 @@ export class PremiumResonanceStage {
     });
 
     this.onPhase("ALIGN");
+    this.host.dataset.phase = "align";
     this.deck.dataset.state = "align";
 
     await this.tween(clone, {
@@ -319,6 +325,7 @@ export class PremiumResonanceStage {
     });
 
     this.onPhase("INSERT");
+    this.host.dataset.phase = "insert";
     this.deck.dataset.state = "insert";
 
     await this.timeline((tl) => {
@@ -349,6 +356,7 @@ export class PremiumResonanceStage {
     });
 
     this.onPhase("CONTACT");
+    this.host.dataset.phase = "contact";
     this.deck.dataset.state = "contact";
     this.screenTitle.textContent = title;
     this.screenArtist.textContent = artist;
@@ -391,6 +399,7 @@ export class PremiumResonanceStage {
     gsap.set(source, { clearProps: "scale,opacity" });
 
     this.onPhase("ACTIVATING");
+    this.host.dataset.phase = "activating";
     this.deck.dataset.state = "activating";
     await sleep(110);
   }
@@ -401,6 +410,7 @@ export class PremiumResonanceStage {
 
     this.playing = false;
     this.onPhase("EJECT");
+    this.host.dataset.phase = "eject";
     this.deck.dataset.state = "eject";
 
     const sourceRect = source.getBoundingClientRect();
@@ -439,6 +449,7 @@ export class PremiumResonanceStage {
     });
 
     this.onPhase("RETURN");
+    this.host.dataset.phase = "return";
     const returnLift = Math.min(96, Math.max(54, window.innerHeight * 0.08));
     await this.timeline((tl) => {
       tl.to(clone, {
@@ -469,6 +480,7 @@ export class PremiumResonanceStage {
     this.artifacts.forEach((artifact) => (artifact.dataset.focus = "idle"));
     this.screenTitle.textContent = "Awaiting signal";
     this.screenArtist.textContent = "Select a resonance object";
+    this.host.dataset.phase = "idle";
     this.deck.dataset.state = "idle";
 
     gsap.set(".deck-gate-left", { clearProps: "transform" });
