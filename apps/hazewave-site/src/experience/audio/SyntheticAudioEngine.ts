@@ -6,6 +6,7 @@ export class HazewaveAudioEngine {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
   private analyser: AnalyserNode | null = null;
+  private uiMaster: GainNode | null = null;
   private nodes: AudioScheduledSourceNode[] = [];
   private mediaElement: HTMLAudioElement | null = null;
   private mediaSource: MediaElementAudioSourceNode | null = null;
@@ -27,8 +28,11 @@ export class HazewaveAudioEngine {
       this.analyser = this.context.createAnalyser();
       this.analyser.fftSize = 256;
       this.energyBuffer = new Uint8Array(this.analyser.frequencyBinCount);
+      this.uiMaster = this.context.createGain();
+      this.uiMaster.gain.value = 0.16;
       this.master.connect(this.analyser);
       this.analyser.connect(this.context.destination);
+      this.uiMaster.connect(this.context.destination);
     }
     if (this.context.state === "suspended") await this.context.resume();
   }
@@ -121,6 +125,68 @@ export class HazewaveAudioEngine {
       return;
     }
     await this.play(this.currentTrack, clamped);
+  }
+
+  cue(kind: "SELECTED" | "CONTACT" | "EJECT"): void {
+    if (!this.context || !this.uiMaster) return;
+
+    const ctx = this.context;
+    const now = ctx.currentTime;
+
+    const tone = ctx.createOscillator();
+    const toneGain = ctx.createGain();
+    const click = ctx.createBufferSource();
+    const clickGain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+
+    const noise = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * 0.045)), ctx.sampleRate);
+    const channel = noise.getChannelData(0);
+    for (let i = 0; i < channel.length; i += 1) {
+      const envelope = Math.pow(1 - i / channel.length, 2.8);
+      channel[i] = (Math.random() * 2 - 1) * envelope;
+    }
+
+    click.buffer = noise;
+    filter.type = "bandpass";
+
+    if (kind === "SELECTED") {
+      tone.type = "sine";
+      tone.frequency.setValueAtTime(190, now);
+      tone.frequency.exponentialRampToValueAtTime(260, now + 0.12);
+      toneGain.gain.setValueAtTime(0.0001, now);
+      toneGain.gain.exponentialRampToValueAtTime(0.09, now + 0.018);
+      toneGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+      filter.frequency.value = 2200;
+      clickGain.gain.setValueAtTime(0.035, now);
+      clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+    } else if (kind === "CONTACT") {
+      tone.type = "triangle";
+      tone.frequency.setValueAtTime(92, now);
+      tone.frequency.exponentialRampToValueAtTime(62, now + 0.12);
+      toneGain.gain.setValueAtTime(0.0001, now);
+      toneGain.gain.exponentialRampToValueAtTime(0.16, now + 0.008);
+      toneGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+      filter.frequency.value = 3800;
+      clickGain.gain.setValueAtTime(0.085, now);
+      clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
+    } else {
+      tone.type = "sine";
+      tone.frequency.setValueAtTime(165, now);
+      tone.frequency.exponentialRampToValueAtTime(118, now + 0.09);
+      toneGain.gain.setValueAtTime(0.0001, now);
+      toneGain.gain.exponentialRampToValueAtTime(0.07, now + 0.01);
+      toneGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
+      filter.frequency.value = 1600;
+      clickGain.gain.setValueAtTime(0.045, now);
+      clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
+    }
+
+    tone.connect(toneGain).connect(this.uiMaster);
+    click.connect(filter).connect(clickGain).connect(this.uiMaster);
+
+    tone.start(now);
+    tone.stop(now + 0.22);
+    click.start(now);
   }
 
   energy(): number {
