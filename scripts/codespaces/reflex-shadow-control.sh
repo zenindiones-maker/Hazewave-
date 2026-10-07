@@ -988,7 +988,10 @@ reconcile() {
 }
 
 smoke() {
-  ensure_checkout
+  # A Codespace may have just resumed from Shutdown. Its filesystem persists,
+  # but the detached Colibri/Laya processes do not. Reconcile first so an
+  # explicit live smoke is self-contained and never races a missing endpoint.
+  reconcile
   "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime smoke \
     --repository-root "$WORKTREE" --secret-file "$SECRET_FILE"
 }
