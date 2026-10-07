@@ -18,9 +18,33 @@ permissions:
   contents: read
 
 jobs:
+  repository-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install repository dev dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Compile Python package
+        run: python -m compileall -q src
+
+      - name: Validate repository contracts
+        run: python scripts/validate_repository_contracts.py
+
+      - name: Run repository tests
+        run: pytest
+
   build-and-browser-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: apps/hazewave-site
@@ -39,8 +63,14 @@ jobs:
       - name: Clean install
         run: npm ci --ignore-scripts --no-audit --no-fund
 
+      - name: Typecheck
+        run: npx tsc --noEmit
+
       - name: Static build
         run: npm run build
+
+      - name: Bundle budget
+        run: node scripts/check-bundle-budget.mjs
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
@@ -49,8 +79,17 @@ jobs:
         run: npm test -- --project=chromium-desktop --project=chromium-mobile
 
       - name: Preserve generated lockfile
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: hazewave-site-package-lock
           path: apps/hazewave-site/package-lock.json
           if-no-files-found: error
+
+      - name: Preserve visual proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hazewave-site-visual-proof
+          path: apps/hazewave-site/test-results
+          if-no-files-found: warn
