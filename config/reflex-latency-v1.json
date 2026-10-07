@@ -20,7 +20,7 @@
     "minimum_p50_improvement_fraction": 0.05,
     "maximum_p95_regression_fraction": 0.03,
     "require_same_selected_label": true,
-    "require_all_robust_eligible": true,
+    "require_all_semantically_stable": true,
     "require_zero_failures": true,
     "minimum_profiles": 2,
     "maximum_aggregate_probability_delta": 0.000001
