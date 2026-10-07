@@ -37,6 +37,7 @@ interface LivingWorldController {
     phase?: ArtistJourneyPhase
   ): void;
   setAudioEnergy(value: number): void;
+  setSpectrum(values: readonly number[]): void;
   dispose(): void;
 }
 
