@@ -62,6 +62,7 @@ class ReflexVerdict:
     request_sha256: str
     response_sha256: str
     policy_sha256: str
+    threshold_eligible: bool
     authority: str = AUTHORITY
     provider_authority: str = "NONE"
     grants_execution_authority: bool = False
@@ -88,7 +89,9 @@ class ReflexOutcome:
     actual_label: str
     probabilities: tuple[tuple[str, float], ...]
     accepted_by_governor: bool
+    threshold_eligible: bool
     label_source: str
+    label_evidence_digest: str
     latency_ms: float
     policy_sha256: str
     outcome_id: str
@@ -104,10 +107,11 @@ class ReflexOutcome:
 @dataclass(frozen=True)
 class ReflexCalibrationReport:
     sample_count: int
-    accepted_count: int
-    coverage: float
+    actual_accept_count: int
+    threshold_eligible_count: int
+    shadow_coverage: float
     accuracy: float
-    selective_risk: float | None
+    selective_risk_if_activated: float | None
     ece: float
     multiclass_brier: float
     latency_p50_ms: float
@@ -335,6 +339,7 @@ def govern_reflex_result(
     if result.latency_ms > float(profile.get("max_latency_ms") or 0.0):
         reasons.append("LATENCY_BUDGET_EXCEEDED")
 
+    threshold_eligible = not reasons
     mode = str(profile.get("acceptance_mode") or "")
     reject_action = str(profile.get("reject_action") or "")
     production_calibrated = profile.get("production_calibrated") is True
@@ -370,6 +375,7 @@ def govern_reflex_result(
         request_sha256=result.request_sha256,
         response_sha256=result.response_sha256,
         policy_sha256=reflex_policy_digest(selected),
+        threshold_eligible=threshold_eligible,
     )
 
 
@@ -437,11 +443,13 @@ def build_reflex_outcome(
     decision_key: str,
     actual_label: str,
     label_source: str,
+    label_evidence_digest: str,
     observed_at: str,
 ) -> ReflexOutcome:
     key = str(decision_key or "").strip()
     actual = str(actual_label or "").strip()
     source = str(label_source or "").strip().upper()
+    evidence_digest = str(label_evidence_digest or "").strip().lower()
     timestamp = str(observed_at or "").strip()
     if not key:
         raise ValueError("REFLEX_DECISION_KEY_REQUIRED")
@@ -449,6 +457,8 @@ def build_reflex_outcome(
         raise ValueError("REFLEX_ACTUAL_LABEL_REQUIRED")
     if source not in _ALLOWED_LABEL_SOURCES:
         raise ValueError("REFLEX_LABEL_SOURCE_INVALID")
+    if len(evidence_digest) != 64 or any(ch not in "0123456789abcdef" for ch in evidence_digest):
+        raise ValueError("REFLEX_LABEL_EVIDENCE_DIGEST_INVALID")
     if not timestamp:
         raise ValueError("REFLEX_OBSERVED_AT_REQUIRED")
     if actual not in dict(verdict.metrics.probabilities):
@@ -466,7 +476,9 @@ def build_reflex_outcome(
         "actual_label": actual,
         "probabilities": dict(verdict.metrics.probabilities),
         "accepted_by_governor": verdict.disposition == "ACCEPT_RECOMMENDATION",
+        "threshold_eligible": verdict.threshold_eligible,
         "label_source": source,
+        "label_evidence_digest": evidence_digest,
         "latency_ms": verdict.latency_ms,
         "policy_sha256": verdict.policy_sha256,
         "raw_state_persisted": False,
@@ -483,7 +495,9 @@ def build_reflex_outcome(
         actual_label=actual,
         probabilities=verdict.metrics.probabilities,
         accepted_by_governor=verdict.disposition == "ACCEPT_RECOMMENDATION",
+        threshold_eligible=verdict.threshold_eligible,
         label_source=source,
+        label_evidence_digest=evidence_digest,
         latency_ms=verdict.latency_ms,
         policy_sha256=verdict.policy_sha256,
         outcome_id=_sha256_json(material),
@@ -542,7 +556,9 @@ def load_reflex_outcomes(path: str | Path) -> tuple[ReflexOutcome, ...]:
                     sorted((str(k), float(v)) for k, v in probabilities.items())
                 ),
                 accepted_by_governor=bool(payload["accepted_by_governor"]),
+                threshold_eligible=bool(payload["threshold_eligible"]),
                 label_source=str(payload["label_source"]),
+                label_evidence_digest=str(payload["label_evidence_digest"]),
                 latency_ms=float(payload["latency_ms"]),
                 policy_sha256=str(payload["policy_sha256"]),
                 outcome_id=str(payload["outcome_id"]),
@@ -578,16 +594,24 @@ def evaluate_reflex_outcomes(
     if ece_bins < 2 or ece_bins > 100:
         raise ValueError("REFLEX_ECE_BINS_INVALID")
 
+    cohorts = {
+        (row.decision_key, row.capability_id, row.model_id, row.policy_sha256)
+        for row in rows
+    }
+    if len(cohorts) != 1:
+        raise ValueError("REFLEX_CALIBRATION_COHORT_MIXED")
+
     correct = [row.predicted_label == row.actual_label for row in rows]
-    accepted = [row for row in rows if row.accepted_by_governor]
-    accepted_correct = [
-        row.predicted_label == row.actual_label for row in accepted
+    actually_accepted = [row for row in rows if row.accepted_by_governor]
+    eligible = [row for row in rows if row.threshold_eligible]
+    eligible_correct = [
+        row.predicted_label == row.actual_label for row in eligible
     ]
     accuracy = sum(correct) / len(rows)
-    coverage = len(accepted) / len(rows)
+    shadow_coverage = len(eligible) / len(rows)
     selective_risk = (
-        1.0 - (sum(accepted_correct) / len(accepted))
-        if accepted
+        1.0 - (sum(eligible_correct) / len(eligible))
+        if eligible
         else None
     )
 
@@ -626,10 +650,11 @@ def evaluate_reflex_outcomes(
 
     return ReflexCalibrationReport(
         sample_count=len(rows),
-        accepted_count=len(accepted),
-        coverage=coverage,
+        actual_accept_count=len(actually_accepted),
+        threshold_eligible_count=len(eligible),
+        shadow_coverage=shadow_coverage,
         accuracy=accuracy,
-        selective_risk=selective_risk,
+        selective_risk_if_activated=selective_risk,
         ece=ece,
         multiclass_brier=sum(brier_values) / len(brier_values),
         latency_p50_ms=_percentile(latencies, 0.50),
