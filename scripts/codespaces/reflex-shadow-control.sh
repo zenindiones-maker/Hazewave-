@@ -5,7 +5,7 @@ umask 077
 # Run from existing Hazewave Codespace; never switch the active branch.
 MAIN_REPO="/workspaces/Hazewave-"
 REF="work/hazewave-always-ready-v1"
-EXPECTED_CODESPACE="${HAZEWAVE_REFLEX_EXPECTED_CODESPACE:-redesigned-space-bassoon-gxp67g5g7r739w59}"
+EXPECTED_CODESPACE="${HAZEWAVE_REFLEX_EXPECTED_CODESPACE:-hazewave-zero-cost-4jxp45676rq6279xx}"
 RUN_ROOT="${HOME}/.local/share/hazewave/reflex-shadow-runtime"
 SOURCE_ROOT="${HOME}/.local/share/hazewave/providers/colibri/source"
 MODEL_ROOT="${HOME}/.local/share/hazewave/models/colibri/laya"
