@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("renders semantic catalog and reaches PLAYING from one click", async ({ page }, testInfo) => {
   await page.goto("/");
-  await expect(page.locator("#experience-title")).toHaveText("Toque. Conecte. Escute.");
+  await expect(page.locator("#experience-title")).toHaveText("Música em estado físico.");
   await expect(page.locator("[data-track-id]")).toHaveCount(6);
 
   await page.locator("[data-track-id='aether-01']").dispatchEvent("click");
