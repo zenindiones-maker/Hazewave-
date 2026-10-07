@@ -161,6 +161,21 @@ button{appearance:none}
 .premium-stage[data-playing="true"] .world-meta strong{
   color:color-mix(in srgb,var(--world-accent),transparent 72%)
 }
+.premium-stage[data-section="intro"] .world-glow{opacity:calc(var(--audio-glow,.68) * .76)}
+.premium-stage[data-section="verse"] .artist-world{filter:saturate(.92)}
+.premium-stage[data-section="break"] .world-glow{opacity:.34;transform:scale(.96)}
+.premium-stage[data-section="break"] .artist-world{opacity:.38}
+.premium-stage[data-section="break"] .deck-outer-halo{transform:translateX(-50%) scale(.93)}
+.premium-stage[data-section="chorus"] .world-glow{opacity:.95;transform:scale(1.045)}
+.premium-stage[data-section="chorus"] .artist-world{opacity:.9}
+.premium-stage[data-section="chorus"] .deck-outer-halo{
+  transform:translateX(-50%) scale(1.035);
+  box-shadow:
+    0 0 0 22px rgba(255,255,255,.02),
+    0 0 130px color-mix(in srgb,var(--world-accent),transparent 58%)
+}
+.premium-stage[data-section="outro"] .artist-world{opacity:.44;transform:scale(1.025)}
+.premium-stage[data-section="outro"] .world-meta{opacity:.62}
 
 .scene-copy{
   position:absolute;z-index:20;top:clamp(28px,4vw,62px);left:clamp(24px,4.2vw,72px);
