@@ -1,5 +1,25 @@
 # Reflex Robustness + Risk V3 Runbook
 
+## Termux is the owner cockpit
+
+Operational commands are issued from the A15/Termux through:
+
+    scripts/hazewave_reflex_termux_control.sh
+
+The controller uses GitHub CLI Codespaces SSH/copy to execute the heavy runtime in the existing Codespace. Do not run `scripts/codespaces/reflex-shadow-control.sh` directly on Android: it is a Linux x86_64 Codespace-side controller.
+
+Normal owner surface:
+
+    hazewave-reflex status
+    hazewave-reflex doctor
+    hazewave-reflex prepare
+    hazewave-reflex serve
+    hazewave-reflex smoke
+    hazewave-reflex report
+
+The single-file controller copies itself to the existing Codespace and enters an explicit `_remote` mode there. This avoids nested heredoc/bootstrap quoting and leaves the active Codespace repository branch untouched.
+
+
 This runbook upgrades the shadow brain; it does not promote it.
 
 ## 1. Repository checks
