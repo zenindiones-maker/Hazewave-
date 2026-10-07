@@ -413,16 +413,16 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
                 <button
                   type="button"
                   class="merch-contact"
-                  data-merch-message={item.message}
-                  data-merch-href={siteIdentity.merchContactHref}
+                  disabled
+                  aria-label={`${item.name}: contato de compra ainda não autorizado`}
                 >
-                  COMPRAR VIA DM
+                  CONTACT DESTINATION UNSET
                 </button>
               </div>
             </article>
           ))}
         </div>
-        <p class="merch-note">O botão copia a mensagem pronta e abre o Direct. O @ oficial da Hazewave entra por dado, sem reescrever o layout.</p>
+        <p class="merch-note">Conceito visual somente. Preço, disponibilidade e destino de compra permanecem bloqueados até autorização explícita do owner.</p>
       </section>
 
       <footer id="network" class="social-footer">
