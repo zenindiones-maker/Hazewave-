@@ -104,6 +104,10 @@ export class PremiumResonanceStage {
     this.host.dataset.playing = String(playing);
   }
 
+  setSection(section: "intro" | "verse" | "break" | "chorus" | "outro"): void {
+    this.host.dataset.section = section;
+  }
+
   setSignalEnergy(value: number): void {
     this.energy = Math.max(0, Math.min(1, value));
     this.host.style.setProperty("--audio-energy", this.energy.toFixed(3));
