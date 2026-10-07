@@ -219,7 +219,7 @@ def _proof_question() -> dict[str, Any]:
         "type": "choice",
         "instructions": (
             "Select the Hazewave domain that owns the task's primary responsibility. "
-            "Classify by responsibility and authority boundary, not by the final output medium. "
+            "Classify by responsibility and authority boundary; treat the final output medium as secondary evidence. "
             "Treat cross-domain translation or synchronization as its own routing responsibility."
         ),
         "criteria": {
@@ -231,8 +231,7 @@ def _proof_question() -> dict[str, Any]:
             "WAVE": (
                 "Primary responsibility is visual or interactive creation: images, video, "
                 "animation, storyboard, rendering, compositing, or website implementation. "
-                "Audio playback or reactive input is incidental and does not itself make this "
-                "cross-domain coordination."
+                "Audio playback or reactive input remains incidental within the visual work."
             ),
             "BRIDGE": (
                 "Primary responsibility is cross-domain translation, synchronization, or "
