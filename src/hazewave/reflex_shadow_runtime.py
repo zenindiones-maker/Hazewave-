@@ -217,11 +217,30 @@ def _authorization(task_id: str, domain: str):
 def _proof_question() -> dict[str, Any]:
     return {
         "type": "choice",
-        "instructions": "Select the best Hazewave domain for this structured operational state.",
+        "instructions": (
+            "Select the Hazewave domain that owns the task's primary responsibility. "
+            "Classify by responsibility and authority boundary, not by the final output medium. "
+            "Treat cross-domain translation or synchronization as its own routing responsibility."
+        ),
         "criteria": {
-            "HAZE": "audio engineering, mixing and mastering",
-            "WAVE": "animation, images, video, and interactive sites",
-            "BRIDGE": "explicit cross-domain media coordination",
+            "HAZE": (
+                "Primary responsibility is audio creation or audio engineering: voice, music, "
+                "beat, recording, editing, mixing, mastering, audio analysis, or REAPER "
+                "operations. Visual playback or reactive use of audio is incidental."
+            ),
+            "WAVE": (
+                "Primary responsibility is visual or interactive creation: images, video, "
+                "animation, storyboard, rendering, compositing, or website implementation. "
+                "Audio playback or reactive input is incidental and does not itself make this "
+                "cross-domain coordination."
+            ),
+            "BRIDGE": (
+                "Primary responsibility is cross-domain translation, synchronization, or "
+                "coordination of typed metadata or control signals between audio and visual "
+                "systems, such as timing, section markers, amplitude envelopes, motifs, "
+                "transition cues, or semantic mappings, while preserving each domain's "
+                "production authority."
+            ),
         },
     }
 
