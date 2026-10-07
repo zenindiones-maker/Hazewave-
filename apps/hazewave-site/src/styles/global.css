@@ -634,6 +634,9 @@ h1{
   display:flex;justify-content:space-between;align-items:center;
   color:rgba(255,255,255,.34);font:700 6px/1 ui-monospace,monospace;letter-spacing:.1em
 }
+.player[data-active="false"] .player-timeline{opacity:.18;pointer-events:none}
+.player[data-active="false"] #toggle-play{display:none}
+.player[data-active="false"] #state-label{opacity:.65}
 .player-state{display:flex;align-items:center;gap:12px;font:700 9px/1 ui-monospace,monospace;letter-spacing:.12em}
 #state-label{color:var(--active-accent)}
 #toggle-play{
@@ -879,6 +882,15 @@ h1{
   .player-copy{grid-area:copy}
   .player-state{grid-area:state;align-self:center}
   .player-timeline{grid-area:timeline;max-width:none;gap:2px}
+  .player[data-active="false"]{
+    min-height:54px;
+    grid-template-areas:"copy state";
+    grid-template-columns:minmax(0,1fr) auto;
+    padding:9px 12px
+  }
+  .player[data-active="false"] .player-timeline{display:none}
+  .player[data-active="false"] #player-title{font-size:13px}
+  .player[data-active="false"] #player-artist{font-size:6px}
   #player-seek{height:12px}
   .player-time{display:none}
   .player-kicker{display:none}
