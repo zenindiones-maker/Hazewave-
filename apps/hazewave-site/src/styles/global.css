@@ -1913,3 +1913,10 @@ body{background:transparent}
     transition:none!important
   }
 }
+
+.wheel-ring-control{
+  position:absolute;z-index:1;inset:0;border-radius:50%;touch-action:none;outline:none
+}
+.wheel-ring-control:focus-visible{
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--world-accent),transparent 58%);
+}
