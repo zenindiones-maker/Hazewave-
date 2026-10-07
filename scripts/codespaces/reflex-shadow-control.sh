@@ -658,7 +658,7 @@ for name in names[1:]:
     reasons = []
     if len(ss) != row["measured_requests"] or row.get("failed_requests") != 0:
         reasons.append("FAILURES_OR_INCOMPLETE")
-    if row.get("all_robust_eligible") is not True:
+    if row.get("all_semantically_stable") is not True:
         reasons.append("ROBUST_ELIGIBILITY_FAILED")
     if [x["request_sha256"] for x in ss] != base_req:
         reasons.append("REQUEST_SEQUENCE_DRIFT")
