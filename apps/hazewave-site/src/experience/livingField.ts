@@ -280,6 +280,7 @@ export function bootLivingField(): void {
   const worlds = Array.from(document.querySelectorAll<HTMLElement>("[data-artist-world]"));
   let currentArtist: RealArtistId | null = null;
   let revealTimer = 0;
+  let worldReadyTimer = 0;
 
   const setSignalPositions = () => {
     const mobile = innerWidth <= 700;
@@ -352,6 +353,9 @@ export function bootLivingField(): void {
       world.dataset.active = String(world.dataset.artistWorld === currentArtist);
     });
 
+    clearTimeout(worldReadyTimer);
+    field.dataset.worldReady = "false";
+
     if (currentArtist && materialized) {
       root.dataset.activeArtist = currentArtist;
       field.dataset.worldActive = "true";
@@ -359,12 +363,16 @@ export function bootLivingField(): void {
       transportArtist.textContent = materialized.name;
       status.textContent = `${materialized.name}. Mundo visual ativo.`;
       back.hidden = false;
+      worldReadyTimer = window.setTimeout(() => {
+        field.dataset.worldReady = "true";
+      }, reducedMotion ? 0 : 980);
     } else {
       delete root.dataset.activeArtist;
       field.dataset.worldActive = "false";
       transport.dataset.active = "false";
       transportArtist.textContent = "HAZEWAVE";
       back.hidden = true;
+      field.dataset.worldReady = "true";
     }
     if (historyMode !== "none") writeArtistUrl(currentArtist, historyMode);
   };
@@ -382,8 +390,10 @@ export function bootLivingField(): void {
     field.dataset.transitioning = "true";
     setTimeout(() => {
       applyArtist(artist.id, "push");
-      field.dataset.transitioning = "false";
-    }, reducedMotion ? 0 : 260);
+      worldReadyTimer = window.setTimeout(() => {
+        field.dataset.transitioning = "false";
+      }, reducedMotion ? 0 : 980);
+    }, reducedMotion ? 0 : 220);
   };
 
   signals.forEach((button) => {
