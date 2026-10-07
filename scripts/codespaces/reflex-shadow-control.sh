@@ -899,7 +899,7 @@ reconcile() {
   exec 9>"$SERVICE_LOCK_FILE"
   flock -w 30 9 || die "REFLEX_RECONCILE_LOCK_TIMEOUT"
 
-  "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE" >/dev/null \
+  "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE" \
     || die "RUNTIME_DOCTOR_BLOCKED"
   [[ -f "$SECRET_FILE" && ! -L "$SECRET_FILE" ]] || die "COLIBRI_SECRET_MISSING"
   [[ "$(stat -c %a "$SECRET_FILE")" == "600" ]] || die "COLIBRI_SECRET_PERMISSIONS_INVALID"
