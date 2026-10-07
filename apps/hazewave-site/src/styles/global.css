@@ -282,7 +282,29 @@ h1{
   position:absolute;left:50%;top:50%;width:310px;height:520px;
   transform:translate(-50%,-50%);
   transform-style:preserve-3d;
-  transition:filter 320ms ease
+  transition:filter 320ms ease;
+  anchor-name:--resonance-deck
+}
+.deck-beacon{
+  position:absolute;z-index:18;right:clamp(28px,6vw,110px);top:44%;
+  width:min(230px,20vw);display:grid;gap:6px;padding:14px 16px;
+  border-left:1px solid color-mix(in srgb,var(--world-accent),transparent 48%);
+  background:linear-gradient(90deg,color-mix(in srgb,var(--world-bg),transparent 16%),transparent);
+  opacity:.38;transform:translateY(-50%) translateX(8px);
+  pointer-events:none;
+  transition:opacity 260ms ease,transform 320ms cubic-bezier(.2,.8,.2,1),border-color 260ms ease
+}
+.deck-beacon[data-active="true"]{opacity:.86;transform:translateY(-50%) translateX(0)}
+.deck-beacon-index,#deck-beacon-artist,#deck-beacon-section{
+  font:750 7px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.16em
+}
+.deck-beacon-index{color:var(--world-accent)}
+#deck-beacon-track{font-size:clamp(16px,1.45vw,24px);line-height:.95;letter-spacing:-.035em;max-width:12ch}
+#deck-beacon-artist{color:rgba(255,255,255,.46)}
+#deck-beacon-section{
+  justify-self:start;margin-top:4px;padding:4px 7px;
+  border:1px solid color-mix(in srgb,var(--world-accent),transparent 68%);
+  color:color-mix(in srgb,var(--world-accent),#fff 10%)
 }
 .deck-shadow{
   position:absolute;left:50%;bottom:5px;width:270px;height:56px;transform:translateX(-50%);
