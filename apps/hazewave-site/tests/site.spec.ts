@@ -87,3 +87,20 @@ test("artist world and physical dock remain coherent", async ({ page }) => {
   await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
   await expect(page.locator(".artist-index-card")).toHaveCount(3);
 });
+
+
+test("seek transport is wired to audio state", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /Tocar Pale Current/ }).click();
+  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
+
+  const seek = page.locator("#player-seek");
+  await expect(seek).toBeEnabled();
+  await seek.fill("5");
+  await seek.dispatchEvent("change");
+  await page.waitForTimeout(180);
+
+  const value = Number(await seek.inputValue());
+  expect(value).toBeGreaterThan(4.8);
+  await expect(page.locator("#player-time-total")).toHaveText("0:24");
+});
