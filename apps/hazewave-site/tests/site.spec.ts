@@ -140,3 +140,12 @@ test("archive track re-enters the same physical playback flow", async ({ page })
   await expect(page.locator("#premium-stage")).toHaveAttribute("data-artist", "flora");
   await expect(page.locator("#deck-slot .deck-loaded-artifact")).toHaveCount(1);
 });
+
+
+test("semantic section map follows typed track structure", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("[data-track-id='aether-01']").click();
+  await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 6_000 });
+  await expect(page.locator("#player-sections .player-section-marker")).toHaveCount(3);
+  await expect(page.locator("#player-section-label")).toHaveText(/INTRO|CHORUS|OUTRO/);
+});
