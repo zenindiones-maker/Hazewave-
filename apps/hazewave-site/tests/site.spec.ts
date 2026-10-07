@@ -285,3 +285,25 @@ test("diagnostics report real selection and audio-start latency", async ({ page 
   await expect(panel).toContainText("selectionToPlayingMs");
   await expect(page.locator("#premium-stage")).toHaveAttribute("data-selection-to-playing-ms", /\d+(\.\d+)?/);
 });
+
+
+test("three artist worlds remain visually reviewable in PLAYING", async ({ page }, testInfo) => {
+  await page.goto("/");
+
+  const worlds = [
+    { trackId: "aether-01", artist: "aether" },
+    { trackId: "monolith-01", artist: "monolith" },
+    { trackId: "flora-01", artist: "flora" }
+  ] as const;
+
+  for (const world of worlds) {
+    await page.locator(`[data-track-id='${world.trackId}']`).click();
+    await expect(page.locator("#state-label")).toHaveText("PLAYING", { timeout: 7_000 });
+    await expect(page.locator("#premium-stage")).toHaveAttribute("data-artist", world.artist);
+    await page.waitForTimeout(220);
+    await page.screenshot({
+      path: testInfo.outputPath(`playing-world-${world.artist}.png`),
+      fullPage: false
+    });
+  }
+});
