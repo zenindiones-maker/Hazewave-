@@ -150,6 +150,9 @@ export class ResonanceExperience {
   private pointerDownLocked = false;
   private hoveredTrackId: string | null = null;
   private idleClock = new THREE.Clock();
+  private lastFrameAt = performance.now();
+  private frameSamples: number[] = [];
+  private frameMetricCounter = 0;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -820,6 +823,22 @@ export class ResonanceExperience {
     requestAnimationFrame(this.frame);
 
     const elapsed = this.idleClock.getElapsedTime();
+    const now = performance.now();
+    const delta = now - this.lastFrameAt;
+    this.lastFrameAt = now;
+    if (delta > 0 && delta < 500) {
+      this.frameSamples.push(delta);
+      if (this.frameSamples.length > 180) this.frameSamples.shift();
+      this.frameMetricCounter += 1;
+      if (this.frameMetricCounter % 30 === 0 && this.frameSamples.length >= 30) {
+        const sorted = [...this.frameSamples].sort((a, b) => a - b);
+        const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] ?? 0;
+        const average = this.frameSamples.reduce((sum, value) => sum + value, 0) / this.frameSamples.length;
+        this.canvas.dataset.fps = (1000 / average).toFixed(1);
+        this.canvas.dataset.frameP95Ms = p95.toFixed(1);
+      }
+    }
+
     this.currentBackground.lerp(this.targetBackground, 0.028);
     this.currentAccent.lerp(this.targetAccent, 0.04);
     this.scene.background = this.currentBackground;
