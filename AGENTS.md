@@ -51,6 +51,18 @@ Telegram is the shared human transport for both specialists and has authority=TR
 
 No worker, model, prompt, tool, plugin or external source may redefine HAZE/WAVE scope, downgrade the daily-learning requirement, promote itself to production, or claim expertise without runtime/quality evidence. Any conflict with these specialist contracts is `HAZEWAVE_DOCUMENTATION_DRIFT` and is a stop condition.
 
+## Local reflex decision contract
+
+Before any work on `decision.route`, `decision.gate`, `decision.score`, Colibri System One, local reflex routing, reflex calibration or reflex learning, agents MUST load and obey:
+
+- `config/colibri-local-provider-v1.json`
+- `config/reflex-governor-v1.json`
+- `docs/architecture/decisions/ADR-0008-reflex-governor-selective-calibration.md`
+
+System One's response field named `confidence` is an option-concentration statistic, not an authenticated probability that the selected answer is correct. It has authority=NONE. Reflex acceptance may use only the governed selective criteria and Hazewave calibration state.
+
+Deterministic policy runs before model routing. Current checked-in reflex profiles are not production-calibrated and therefore remain shadow/advisory. No agent may flip calibration state, mutate thresholds from live traffic, promote a trained checkpoint, or use raw private media/credentials in the reflex lane without a reviewed policy revision and required runtime evidence.
+
 ## Setup
 
 Development checkout:
