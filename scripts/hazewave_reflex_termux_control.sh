@@ -86,21 +86,22 @@ clear_ref_pin() {
     echo "REFLEX_REF_FALLBACK=$DEFAULT_REF"
 }
 
-case "$action" in
-    ref-pin)
-        candidate="${2:-}"
-        [[ -n "$candidate" ]] || {
-            echo "usage: hazewave-reflex ref-pin BRANCH" >&2
-            exit 2
-        }
-        pin_ref "$candidate"
-        exit 0
-        ;;
-    ref-clear)
-        clear_ref_pin
-        exit 0
-        ;;
-esac
+action="${1:-status}"
+
+if [[ "$action" == "ref-pin" ]]; then
+    candidate="${2:-}"
+    [[ -n "$candidate" ]] || {
+        echo "usage: hazewave-reflex ref-pin BRANCH" >&2
+        exit 2
+    }
+    pin_ref "$candidate"
+    exit 0
+fi
+
+if [[ "$action" == "ref-clear" ]]; then
+    clear_ref_pin
+    exit 0
+fi
 
 REF="$(resolve_ref)"
 
@@ -379,8 +380,6 @@ run_remote() {
       "HAZEWAVE_REFLEX_CONTROL_PLANE_ATTESTED=1 HAZEWAVE_REFLEX_EXPECTED_CODESPACE='$CS' HAZEWAVE_REFLEX_EXPECTED_REPO='$REPO_SLUG' HAZEWAVE_REFLEX_REF='$REF' bash '$REMOTE_SELF' _remote '$action'" \
       || fail "REMOTE_ACTION_FAILED:$action"
 }
-
-action="${1:-status}"
 
 case "$action" in
     ref-status)
