@@ -146,6 +146,8 @@ export function bootHazewaveSite(): void {
   let pendingAtmosphereProgress = 0;
   let atmosphereShouldPlay = false;
   let selectionToken = 0;
+  let selectionInFlight = false;
+  let queuedTrackId: string | null = null;
   let selectionStartedAt = 0;
   let contactReachedAt = 0;
   let lastSelectionToContactMs: number | null = null;
@@ -287,6 +289,13 @@ export function bootHazewaveSite(): void {
   }
 
   selectTrack = async (trackId: string) => {
+    if (selectionInFlight) {
+      queuedTrackId = trackId;
+      stageHost.dataset.queuedTrackId = trackId;
+      return;
+    }
+
+    selectionInFlight = true;
     const token = ++selectionToken;
     selectionStartedAt = performance.now();
     contactReachedAt = 0;
@@ -383,6 +392,16 @@ export function bootHazewaveSite(): void {
       machine.fail();
       stateLabel.textContent = "ERROR";
       runtimeLabel.textContent = error instanceof Error ? error.message : "UNKNOWN_ERROR";
+    } finally {
+      selectionInFlight = false;
+
+      const queued = queuedTrackId;
+      queuedTrackId = null;
+      delete stageHost.dataset.queuedTrackId;
+
+      if (queued && queued !== machine.activeTrackId) {
+        queueMicrotask(() => void selectTrack(queued));
+      }
     }
   };
 
