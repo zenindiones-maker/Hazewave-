@@ -10,6 +10,7 @@ interface StageController {
   setSection(section: "intro" | "verse" | "break" | "chorus" | "outro"): void;
   setBeatPulse(value: number): void;
   setSignalEnergy(value: number): void;
+  setSpectrum(values: readonly number[]): void;
   dispose(): void;
 }
 
@@ -317,11 +318,15 @@ export function bootHazewaveSite(): void {
   });
 
   let lastSemanticSection: "intro" | "verse" | "break" | "chorus" | "outro" | null = null;
+  let spectrumFrame = 0;
 
   const signalLoop = () => {
     const energy = audio.energy();
     experience?.setSignalEnergy(energy);
     atmosphere?.setEnergy(energy);
+    if ((spectrumFrame++ & 1) === 0) {
+      experience?.setSpectrum(audio.spectrumBands(8));
+    }
 
     const activeTrack = audio.track;
     if (activeTrack) {
