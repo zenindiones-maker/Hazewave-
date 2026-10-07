@@ -383,7 +383,7 @@ export class ResonanceExperience {
       new THREE.PlaneGeometry(2.15, 0.98),
       new THREE.MeshBasicMaterial({ map: screenTexture, toneMapped: false })
     );
-    screen.position.set(1.25, 0.13, 0.545);
+    screen.position.set(1.25, 0.13, 0.585);
     root.add(screen);
 
     const statusBar = new THREE.Mesh(
@@ -529,7 +529,7 @@ export class ResonanceExperience {
           toneMapped: false
         })
       );
-      label.position.z = 0.148;
+      label.position.z = 0.185;
       label.userData.trackId = track.id;
       group.add(label);
 
