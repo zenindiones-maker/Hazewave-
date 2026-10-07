@@ -198,6 +198,43 @@ button{appearance:none}
   -webkit-text-stroke-color:color-mix(in srgb,var(--world-accent),transparent 68%);
   opacity:.72
 }
+.premium-stage[data-phase="selected"] .world-signature,
+.premium-stage[data-phase="anticipation"] .world-signature,
+.premium-stage[data-phase="travel"] .world-signature,
+.premium-stage[data-phase="align"] .world-signature,
+.premium-stage[data-phase="insert"] .world-signature{
+  opacity:.42
+}
+.premium-stage[data-phase="anticipation"] .deck-stage,
+.premium-stage[data-phase="travel"] .deck-stage,
+.premium-stage[data-phase="align"] .deck-stage,
+.premium-stage[data-phase="insert"] .deck-stage{
+  filter:drop-shadow(0 0 34px color-mix(in srgb,var(--world-accent),transparent 82%))
+}
+.premium-stage[data-phase="travel"] .artifact-field,
+.premium-stage[data-phase="align"] .artifact-field,
+.premium-stage[data-phase="insert"] .artifact-field{
+  filter:saturate(.72) brightness(.72);
+  transition:filter 220ms ease
+}
+.premium-stage[data-phase="travel"] .resonance-artifact[data-focus="selected"],
+.premium-stage[data-phase="align"] .resonance-artifact[data-focus="selected"],
+.premium-stage[data-phase="insert"] .resonance-artifact[data-focus="selected"]{
+  filter:none
+}
+.premium-stage[data-phase="contact"] .world-glow{
+  opacity:.96;transform:scale(1.055)
+}
+.premium-stage[data-phase="contact"] .deck-outer-halo{
+  transform:translateX(-50%) scale(1.06)
+}
+.premium-stage[data-phase="activating"] .world-signature span{
+  opacity:.82
+}
+.premium-stage[data-phase="eject"] .world-meta,
+.premium-stage[data-phase="return"] .world-meta{
+  opacity:.48
+}
 
 .world-meta{
   position:absolute;z-index:5;right:clamp(24px,4.2vw,72px);top:50%;
