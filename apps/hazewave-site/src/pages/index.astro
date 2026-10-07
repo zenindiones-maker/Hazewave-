@@ -20,6 +20,16 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
       <span class="site-backdrop-scrim"></span>
     </div>
 
+    <nav class="story-rail" aria-label="Capítulos do arquivo Hazewave">
+      <span class="story-progress" aria-hidden="true"><i></i></span>
+      <a href="#threshold" data-story-link="threshold"><b>00</b><span>THRESHOLD</span></a>
+      <a href="#archive" data-story-link="archive"><b>01</b><span>ARCHIVE</span></a>
+      <a href="#artist-worlds" data-story-link="artists"><b>02</b><span>ARTIST WORLDS</span></a>
+      <a href="#dossiers" data-story-link="dossiers"><b>03</b><span>DOSSIERS</span></a>
+      <a href="#objects" data-story-link="merch"><b>04</b><span>OBJECTS</span></a>
+      <a href="#network" data-story-link="network"><b>05</b><span>NETWORK</span></a>
+    </nav>
+
     <div id="site-loader" class="site-loader" data-state="loading" aria-hidden="true">
       <span class="loader-noise"></span>
       <span class="loader-reel loader-reel-a"></span>
@@ -40,7 +50,7 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
         </div>
       </header>
 
-      <section class="archive-hero" aria-labelledby="archive-hero-title">
+      <section id="threshold" class="archive-hero" aria-labelledby="archive-hero-title">
         <div class="archive-hero-copy">
           <p class="eyebrow">SANTOS / 2021— / INDEPENDENT SOUND</p>
           <h1 id="archive-hero-title" class="sr-only">Hazewave</h1>
@@ -307,7 +317,7 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
         </div>
       </section>
 
-      <section class="artist-index" aria-labelledby="artist-index-title">
+      <section id="artist-worlds" class="artist-index" aria-labelledby="artist-index-title">
         <header class="artist-index-header">
           <p class="eyebrow">HAZEWAVE / ARTIST WORLDS</p>
           <h2 id="artist-index-title">Cada artista ocupa um mundo.</h2>
@@ -346,7 +356,7 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
         </div>
       </section>
 
-      <section class="dossier-zone" aria-labelledby="dossier-title">
+      <section id="dossiers" class="dossier-zone" aria-labelledby="dossier-title">
         <header class="section-heading">
           <p class="eyebrow">DOSSIER / ARTIST ARCHIVE</p>
           <h2 id="dossier-title">Som, imagem e contexto no mesmo lugar.</h2>
@@ -384,7 +394,7 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
         </div>
       </section>
 
-      <section class="merch-zone" aria-labelledby="merch-title">
+      <section id="objects" class="merch-zone" aria-labelledby="merch-title">
         <header class="section-heading merch-heading">
           <p class="eyebrow">BANCA / OBJECTS</p>
           <h2 id="merch-title">Merch como objeto, não como catálogo genérico.</h2>
@@ -415,7 +425,7 @@ const artistById = new Map(artists.map((artist) => [artist.id, artist]));
         <p class="merch-note">O botão copia a mensagem pronta e abre o Direct. O @ oficial da Hazewave entra por dado, sem reescrever o layout.</p>
       </section>
 
-      <footer class="social-footer">
+      <footer id="network" class="social-footer">
         <div class="social-footer-title">
           <span>HAZEWAVE / NETWORK</span>
           <strong>Santos ↗ mundo</strong>
