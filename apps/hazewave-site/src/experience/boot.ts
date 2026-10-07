@@ -81,6 +81,9 @@ export function bootHazewaveSite(): void {
   const merchButtons = Array.from(
     document.querySelectorAll<HTMLButtonElement>("[data-merch-message]")
   );
+  const worldFocusControls = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-world-focus-control]")
+  );
   const artistJourneyRoot = document.querySelector<HTMLElement>("#artist-worlds");
 
   if (!stageHost || !player || !runtimeLabel || !stateLabel || !title || !artistLabel || !toggle || !seek || !sectionMap || !sectionLabel || !timeCurrent || !timeTotal) return;
@@ -197,6 +200,13 @@ export function bootHazewaveSite(): void {
     document.querySelectorAll<HTMLButtonElement>("[data-artist-focus]").forEach((button) => {
       const active = button.dataset.artistFocus === artistId;
       button.setAttribute("aria-expanded", String(active));
+    });
+
+    worldFocusControls.forEach((button) => {
+      button.setAttribute(
+        "aria-pressed",
+        String(button.dataset.worldFocusControl === artistId)
+      );
     });
 
     document.querySelectorAll<HTMLElement>("[data-artist-focus-panel]").forEach((panel) => {
@@ -318,6 +328,25 @@ export function bootHazewaveSite(): void {
     event.preventDefault();
     setArtistFocus(null, true);
   };
+
+  const onWorldFocusControlClick = (event: Event) => {
+    const button = event.currentTarget;
+    if (!(button instanceof HTMLButtonElement)) return;
+
+    const artistId = button.dataset.worldFocusControl as ArtistId | undefined;
+    if (!artistId) return;
+
+    const next = focusedArtist === artistId ? null : artistId;
+    setArtistFocus(next);
+
+    if (next) {
+      conductor.scrollTo(`[data-artist-chapter="${next}"]`);
+    }
+  };
+
+  worldFocusControls.forEach((button) =>
+    button.addEventListener("click", onWorldFocusControlClick)
+  );
 
   artistJourneyRoot?.addEventListener("click", onArtistJourneyClick);
   document.addEventListener("keydown", onArtistJourneyKeydown);
@@ -1101,6 +1130,9 @@ export function bootHazewaveSite(): void {
     () => {
       if (diagnosticsTimer !== null) window.clearInterval(diagnosticsTimer);
       document.removeEventListener("visibilitychange", syncVisibility);
+      worldFocusControls.forEach((button) =>
+        button.removeEventListener("click", onWorldFocusControlClick)
+      );
       artistJourneyRoot?.removeEventListener("click", onArtistJourneyClick);
       document.removeEventListener("keydown", onArtistJourneyKeydown);
       document.querySelectorAll<HTMLVideoElement>("[data-video-mount] video").forEach((video) => {
