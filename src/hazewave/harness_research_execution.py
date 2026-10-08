@@ -88,6 +88,12 @@ def _checked_worktree(workspace: Path, expected_sha: str | None) -> tuple[Path, 
     return workspace, head
 
 
+def _tool_environment() -> dict[str, str]:
+    """Pass only essential, noncredential environment to spawned providers."""
+    env = _tool_environment()
+    return env
+
+
 def _command(binary: Path, arguments: list[str], *, timeout: int = 90) -> str:
     path = Path(binary).expanduser().resolve(strict=True)
     if not path.is_file() or not os.access(path, os.X_OK):
@@ -198,6 +204,7 @@ def execute_owned_fixture(
                 measurements = capture_owned_fixture(
                     workspace=workspace, iris_binary=iris_binary,
                     chrome_binary=chrome_binary, output=output,
+                    process_env=_tool_environment(),
                 )
             except Exception as exc:
                 raise ResearchExecutionError("IRIS_CAPTURE_NOT_VERIFIED") from exc
