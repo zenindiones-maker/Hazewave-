@@ -120,3 +120,36 @@ def test_installer_only_claims_installed_not_runtime_ready() -> None:
     assert 'HAZEWAVE_RE_RUNTIME_READY=PASS' not in script
     assert '"$REA_BIN" doctor --json' in script
     assert "RE_DOCTOR_NONZERO" in script
+
+
+def test_signed_grant_is_required_for_actual_harness_plan(signed_case: dict) -> None:
+    foundation = load_default_foundation(ROOT / "config" / "reverse-engineering-foundation-v1.json")
+    plan = foundation.plan(
+        domain="HAZE",
+        target_kind="audio_plugin",
+        purpose="AUTHORIZED_FEATURE_STUDY",
+        target_file=signed_case["target"],
+        grant_file=signed_case["grant"],
+        signature_file=signed_case["signature"],
+        trusted_signers_file=signed_case["signers"],
+    )
+    assert plan["authorized_target"] is True
+    assert plan["authorization_evidence"]["signature_verified"] is True
+    assert plan["tools"] == ["rea", "ghidra", "rizin", "frida", "ffmpeg", "mediainfo"]
+    assert plan["grants_execution_authority"] is False
+    assert plan["production_approved"] is False
+
+
+def test_untrusted_signing_key_is_rejected(signed_case: dict, tmp_path: Path) -> None:
+    another_key = tmp_path / "another"
+    subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(another_key)], check=True)
+    signed_case["signers"].write_text("hazewave-owner " + another_key.with_suffix(".pub").read_text().strip() + "\n")
+    with pytest.raises(ReverseEngineeringError, match="GRANT_SIGNATURE_INVALID"):
+        _verify(signed_case)
+
+
+def test_symlink_to_target_is_rejected(signed_case: dict, tmp_path: Path) -> None:
+    alias = tmp_path / "alias.so"
+    alias.symlink_to(signed_case["target"])
+    with pytest.raises(ReverseEngineeringError, match="TARGET_FILE_UNSAFE"):
+        _verify(signed_case, target_file=alias)
