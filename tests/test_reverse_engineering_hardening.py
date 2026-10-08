@@ -118,7 +118,7 @@ def test_installer_only_claims_installed_not_runtime_ready() -> None:
     script = (ROOT / "scripts/codespaces/install-reverse-engineering-foundation.sh").read_text()
     assert 'HAZEWAVE_RE_INSTALL=PASS' in script
     assert 'HAZEWAVE_RE_RUNTIME_READY=PASS' not in script
-    assert '"$REA_BIN" doctor --json' in script
+    assert '"$REA_BIN" doctor --provider ghidra --json' in script
     assert "RE_DOCTOR_NONZERO" in script
 
 
