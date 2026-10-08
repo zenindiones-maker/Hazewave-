@@ -3,6 +3,10 @@ set -euo pipefail
 
 PROJECT_ID="HAZEWAVE"
 AUTHORITY="HAZEWAVE_HARNESS"
+NODE_VERSION="24.11.0"
+NODE_ASSET="node-v24.11.0-linux-x64.tar.xz"
+NODE_SHA256="46da9a098973ab7ba4fca76945581ecb2eaf468de347173897044382f10e0a0a"
+NODE_URL="https://nodejs.org/dist/v24.11.0/$NODE_ASSET"
 REA_VERSION="4.1.0"
 GHIDRA_VERSION="12.1.4"
 GHIDRA_ASSET="ghidra_12.1.4_PUBLIC_20260921.zip"
@@ -21,6 +25,7 @@ CONFIG_ROOT="$HOME/.config/hazewave"
 ENV_FILE="$CONFIG_ROOT/reverse-engineering.env"
 RECEIPT="$ROOT/reverse-engineering-install-receipt.json"
 DOWNLOADS="$ROOT/downloads"
+NODE_ROOT="$ROOT/node-$NODE_VERSION"
 REA_PREFIX="$ROOT/rea-$REA_VERSION"
 GHIDRA_ROOT="$ROOT/ghidra-$GHIDRA_VERSION"
 FRIDA_VENV="$ROOT/frida-$FRIDA_VERSION"
@@ -34,12 +39,41 @@ fail() {
 [[ "$(uname -s)" == "Linux" ]] || fail "UNSUPPORTED_OS"
 [[ "$(uname -m)" == "x86_64" ]] || fail "UNSUPPORTED_ARCH"
 
-for cmd in curl sha256sum tar python3 npm node; do
+for cmd in curl sha256sum tar python3; do
   command -v "$cmd" >/dev/null 2>&1 || fail "MISSING_PREREQUISITE:$cmd"
 done
 
 mkdir -p "$ROOT" "$DOWNLOADS" "$BIN_ROOT" "$CONFIG_ROOT"
 chmod 700 "$ROOT" "$DOWNLOADS" "$CONFIG_ROOT"
+
+if [[ ! -x "$NODE_ROOT/bin/node" || ! -x "$NODE_ROOT/bin/npm" ]]; then
+  node_tar="$DOWNLOADS/$NODE_ASSET"
+  if [[ ! -f "$node_tar" ]]; then
+    curl --fail --location --retry 3 --output "$node_tar" "$NODE_URL"
+  fi
+  printf '%s  %s\n' "$NODE_SHA256" "$node_tar" | sha256sum -c - >/dev/null \
+    || fail "NODE_SHA256_MISMATCH"
+
+  stage="$(mktemp -d "$ROOT/.node-stage.XXXXXX")"
+  tar -xJf "$node_tar" -C "$stage" \
+    || { rm -rf "$stage"; fail "NODE_EXTRACT_FAILED"; }
+
+  extracted="$stage/node-v$NODE_VERSION-linux-x64"
+  [[ -x "$extracted/bin/node" && -x "$extracted/bin/npm" ]] \
+    || { rm -rf "$stage"; fail "NODE_LAYOUT_INVALID"; }
+
+  [[ ! -e "$NODE_ROOT" ]] \
+    || { rm -rf "$stage"; fail "NODE_ROOT_OCCUPIED_INVALID"; }
+
+  mv "$extracted" "$NODE_ROOT"
+  rm -rf "$stage"
+fi
+
+export PATH="$NODE_ROOT/bin:$PATH"
+
+for cmd in node npm; do
+  command -v "$cmd" >/dev/null 2>&1 || fail "PINNED_NODE_COMMAND_MISSING:$cmd"
+done
 
 python3 - "$(node --version)" <<'PY' || fail "NODE_VERSION_UNSUPPORTED"
 import re, sys
@@ -55,8 +89,12 @@ ok = (
 raise SystemExit(0 if ok else 1)
 PY
 
-echo "HAZEWAVE_RE_NODE=$(node --version)"
-echo "HAZEWAVE_RE_NPM=$(npm --version)"
+[[ "$(node --version)" == "v$NODE_VERSION" ]] || fail "NODE_PIN_MISMATCH:$(node --version)"
+node_version="$(node --version | tr -d '\r')"
+npm_version="$(npm --version | tr -d '\r')"
+
+echo "HAZEWAVE_RE_NODE=$node_version"
+echo "HAZEWAVE_RE_NPM=$npm_version"
 
 if [[ ! -x "$REA_PREFIX/node_modules/.bin/rea" ]]; then
   stage="$(mktemp -d "$ROOT/.rea-stage.XXXXXX")"
@@ -149,7 +187,7 @@ export HAZEWAVE_RE_ROOT="$ROOT"
 export REA_ANALYSIS_PROVIDER=ghidra
 export GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"
 export HAZEWAVE_RE_AUTHORITY="$AUTHORITY"
-export PATH="$BIN_ROOT:$FRIDA_VENV/bin:$RIZIN_ROOT/bin:\$PATH"
+export PATH="$NODE_ROOT/bin:$BIN_ROOT:$FRIDA_VENV/bin:$RIZIN_ROOT/bin:\$PATH"
 EOF
 chmod 600 "$ENV_FILE"
 
@@ -165,14 +203,15 @@ java_version="$(java -version 2>&1 | head -n 1 | tr -d '\r')"
 REA_ANALYSIS_PROVIDER=ghidra GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"   "$REA_BIN" providers --json >"$ROOT/rea-providers.json" || fail "REA_PROVIDERS_FAILED"
 REA_ANALYSIS_PROVIDER=ghidra GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"   "$REA_BIN" doctor --json >"$ROOT/rea-doctor.json" || true
 
-python3 - "$RECEIPT" "$rea_version" "$rizin_version" "$frida_version"   "$ffmpeg_version" "$mediainfo_version" "$java_version" "$GHIDRA_ROOT"   "$GHIDRA_SHA256" "$RIZIN_SHA256" <<'PY'
+python3 - "$RECEIPT" "$rea_version" "$rizin_version" "$frida_version"   "$ffmpeg_version" "$mediainfo_version" "$java_version" "$GHIDRA_ROOT"   "$GHIDRA_SHA256" "$RIZIN_SHA256" "$node_version" "$npm_version" <<'PY'
 import hashlib, json, os, sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 (
     receipt_path, rea_version, rizin_version, frida_version, ffmpeg_version,
-    mediainfo_version, java_version, ghidra_root, ghidra_sha, rizin_sha
+    mediainfo_version, java_version, ghidra_root, ghidra_sha, rizin_sha,
+    node_version, npm_version
 ) = sys.argv[1:]
 providers = Path(os.environ["HAZEWAVE_RE_ROOT"]) / "rea-providers.json"
 doctor = Path(os.environ["HAZEWAVE_RE_ROOT"]) / "rea-doctor.json"
@@ -181,6 +220,7 @@ payload = {
     "project_id": "HAZEWAVE",
     "authority": "HAZEWAVE_HARNESS",
     "installed_at": datetime.now(timezone.utc).isoformat(),
+    "node": {"version_output": node_version, "pin": "24.11.0", "npm_version_output": npm_version},
     "rea": {"version_output": rea_version, "pin": "4.1.0"},
     "ghidra": {
         "pin": "12.1.4",
@@ -207,6 +247,8 @@ chmod 600 "$RECEIPT"
 
 echo "HAZEWAVE_RE_PROJECT=$PROJECT_ID"
 echo "HAZEWAVE_RE_AUTHORITY=$AUTHORITY"
+echo "HAZEWAVE_RE_NODE=$node_version"
+echo "HAZEWAVE_RE_NPM=$npm_version"
 echo "HAZEWAVE_RE_REA=$rea_version"
 echo "HAZEWAVE_RE_GHIDRA=$GHIDRA_VERSION"
 echo "HAZEWAVE_RE_RIZIN=$rizin_version"
