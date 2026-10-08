@@ -17,7 +17,7 @@ FIXTURE = ROOT / "tests" / "fixtures" / "rea6-javascript-owned"
 def test_script_uses_exact_fixed_providers_and_never_autoselects_proprietary_tool() -> None:
     raw = SCRIPT.read_text()
     for token in ("--preflight", "--native", "--javascript", "--managed-negative",
-                  "reverse-engineering-doctor.sh", "analyze-javascript-application",
+                  "doctor --provider ghidra --json", "analyze-javascript-application",
                   "inspect-managed-artifact", "REA6_CONFORMANCE_CODESPACE_PROVEN=NO"):
         assert token in raw
     for banned in ("gh codespace create", "sudo ", "hopper", "rea-agents@latest",
@@ -68,8 +68,8 @@ def test_provider_matrix_rejects_fake_pass_or_missing_route() -> None:
 
 def test_native_ghidra_readiness_does_not_depend_on_auxiliary_frida_rizin() -> None:
     raw = SCRIPT.read_text()
-    assert "rea doctor --provider ghidra --json" in raw
-    assert "rea function" in raw
+    assert '"$REA_BIN" doctor --provider ghidra --json' in raw
+    assert '"$REA_BIN" function' in raw
     assert "-m hazewave.rea6_integration verify-evidence" in raw
     assert "reverse-engineering-doctor.sh --deep" not in raw
     assert "GHIDRA_INSTALL_DIR" in raw
