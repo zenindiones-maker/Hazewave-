@@ -4,6 +4,8 @@ import base64
 
 import hashlib
 from pathlib import Path
+import struct
+import zlib
 import subprocess
 
 import pytest
@@ -88,9 +90,18 @@ def test_iris_policy_requires_exact_explicit_preview_origin() -> None:
         )
 
 
+def _valid_png() -> bytes:
+    def chunk(name: bytes, payload: bytes) -> bytes:
+        crc = zlib.crc32(name + payload) & 0xFFFFFFFF
+        return struct.pack(">I", len(payload)) + name + payload + struct.pack(">I", crc)
+    header = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+    pixel = zlib.compress(bytes.fromhex("0022aaee"))
+    return bytes.fromhex("89504e470d0a1a0a") + chunk(b"IHDR", header) + chunk(b"IDAT", pixel) + chunk(b"IEND", b"")
+
+
 def test_iris_receipt_does_not_promote_mcp_or_human_approval(tmp_path: Path) -> None:
     png = tmp_path / "iris.png"
-    png.write_bytes(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlQk4cAAAAASUVORK5CYII="))
+    png.write_bytes(_valid_png())
     result = verify_iris_capture(
         {
             "status": "ok", "url": FIXTURE.as_uri(), "format": "png",
@@ -108,6 +119,6 @@ def test_iris_receipt_does_not_promote_mcp_or_human_approval(tmp_path: Path) -> 
 
 def test_iris_capture_rejects_mismatched_json_path_status(tmp_path: Path) -> None:
     png = tmp_path / "iris.png"
-    png.write_bytes(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlQk4cAAAAASUVORK5CYII="))
+    png.write_bytes(_valid_png())
     with pytest.raises(IrisCaptureError):
         verify_iris_capture({"status": "error"}, output=png, source_url=FIXTURE.as_uri())
