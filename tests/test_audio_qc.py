@@ -64,6 +64,17 @@ def test_parse_astats_summary_uses_overall_program_values() -> None:
     assert values["crest_factor_ratio"] == pytest.approx(6.01)
 
 
+
+
+def test_parse_astats_real_ffmpeg_overall_without_crest_factor() -> None:
+    """FFmpeg documents Crest_factor per-channel, not Overall."""
+    log = ASTATS_LOG.replace("[Parsed_astats_0 @ 0x2] Crest factor: 6.01", "")
+    metrics = parse_astats_summary(log)
+    assert metrics["sample_peak_dbfs"] == pytest.approx(-0.82)
+    assert metrics["rms_dbfs"] == pytest.approx(-16.40)
+    assert metrics["crest_factor_ratio"] == pytest.approx(10 ** ((-0.82 + 16.40) / 20.0))
+
+
 def test_audio_qc_runs_ffprobe_ebur128_and_astats_without_artistic_target(
     tmp_path: Path,
 ) -> None:
