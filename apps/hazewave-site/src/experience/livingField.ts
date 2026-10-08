@@ -4,6 +4,7 @@ import {
   type RealArtistId,
 } from "../data/realArtists";
 import { FieldRenderer, FIELD_WAVE_SPEED } from "./fieldRenderer";
+import { bootAuthorizedTransport } from "./audio/AuthorizedTransport";
 
 export function bootLivingField(): void {
   const field = document.querySelector<HTMLElement>("#living-field")!;
@@ -17,15 +18,7 @@ export function bootLivingField(): void {
   const search = document.querySelector<HTMLDialogElement>("#artist-search")!;
   const query = document.querySelector<HTMLInputElement>("#artist-query")!;
   const back = document.querySelector<HTMLButtonElement>("#world-back")!;
-  const transport = document.querySelector<HTMLElement>(
-    "#persistent-transport",
-  )!;
-  const transportArtist =
-    document.querySelector<HTMLElement>("#transport-artist")!;
-  const transportState =
-    document.querySelector<HTMLElement>("#transport-state")!;
-  const transportClose =
-    document.querySelector<HTMLButtonElement>("#transport-close")!;
+  const audioTransport = bootAuthorizedTransport();
   const signals = Array.from(
     document.querySelectorAll<HTMLButtonElement>("[data-artist-signal]"),
   );
@@ -36,8 +29,14 @@ export function bootLivingField(): void {
     search.querySelectorAll<HTMLButtonElement>("[data-search-artist]"),
   );
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
-  const renderer = new FieldRenderer(field, canvas, motion.matches);
-  field.dataset.motion = motion.matches ? "reduced" : "full";
+  const motionToggle =
+    document.querySelector<HTMLButtonElement>("#motion-toggle");
+  let manualReduced = false;
+  const reduced = () => motion.matches || manualReduced;
+  const renderer = new FieldRenderer(field, canvas, reduced());
+  field.dataset.motion = reduced() ? "reduced" : "full";
+  let discoveredIndex = 3;
+  let journeyIndex = 3;
   let current: RealArtistId | null = null;
   let journey = false;
   let journeyFrame = 0;
@@ -47,6 +46,7 @@ export function bootLivingField(): void {
   const journeyDistance =
     document.querySelector<HTMLElement>("#journey-distance")!;
   const journeyStage = document.querySelector<HTMLElement>("#journey-stage")!;
+  const journeyArtist = document.querySelector<HTMLElement>("#journey-artist");
   const stopJourney = () => {
     if (!journey) return;
     journey = false;
@@ -87,6 +87,7 @@ export function bootLivingField(): void {
       button.style.setProperty("--signal-y", `${y * 100}%`);
     });
   const reveal = (button: HTMLButtonElement) => {
+    discoveredIndex = signals.indexOf(button);
     signals.forEach((s) => (s.dataset.revealed = String(s === button)));
     const r = field.getBoundingClientRect(),
       b = button.getBoundingClientRect();
@@ -130,9 +131,11 @@ export function bootLivingField(): void {
       .sort((a, b) => a.d - b.d);
     clearTimeout(arrivalTimer);
     if (candidates[0])
+      renderer.prepare(signals.indexOf(candidates[0].button) + 1);
+    if (candidates[0])
       arrivalTimer = window.setTimeout(
         () => reveal(candidates[0].button),
-        motion.matches ? 0 : (candidates[0].d / FIELD_WAVE_SPEED) * 1000,
+        reduced() ? 0 : (candidates[0].d / FIELD_WAVE_SPEED) * 1000,
       );
   };
   const setUrl = (id: RealArtistId | null, mode: "push" | "replace") => {
@@ -169,7 +172,7 @@ export function bootLivingField(): void {
       world.setAttribute("aria-hidden", String(!active));
     });
     back.hidden = !id;
-    transportArtist.textContent = artist?.name ?? "HAZEWAVE";
+    audioTransport.selectArtist(id);
     document.title = artist
       ? `${artist.name} — Hazewave`
       : "Hazewave — Living Resonance Field";
@@ -201,7 +204,7 @@ export function bootLivingField(): void {
           )?.focus({ preventScroll: true });
         }
       },
-      instant || motion.matches,
+      instant || reduced(),
     );
     if (id && !instant) back.focus({ preventScroll: true });
     else if (!id && !instant)
@@ -214,6 +217,7 @@ export function bootLivingField(): void {
     const id = button.dataset.artistSignal as RealArtistId;
     if (!getRealArtist(id)) return;
     lastSelected = button;
+    discoveredIndex = signals.indexOf(button);
     const box = button.getBoundingClientRect(),
       rect = field.getBoundingClientRect();
     const origin: [number, number] = [
@@ -291,8 +295,9 @@ export function bootLivingField(): void {
   document.querySelector('[data-primary-action="explore"]')!.addEventListener(
     "click",
     () => {
-      if (motion.matches || field.dataset.fieldRuntime !== "webgl2") {
-        signals[3].focus({ preventScroll: true });
+      journeyIndex = discoveredIndex;
+      if (reduced() || field.dataset.fieldRuntime !== "webgl2") {
+        signals[journeyIndex].focus({ preventScroll: true });
         return;
       }
       setUrl(null, "push");
@@ -303,12 +308,15 @@ export function bootLivingField(): void {
       journeyDistance.hidden = false;
       field.dataset.journey = "true";
       field.style.setProperty("--journey-progress", "0");
-      const b = signals[3].getBoundingClientRect();
+      const artist = realArtists[journeyIndex];
+      if (journeyArtist) journeyArtist.textContent = artist.name;
+      const b = signals[journeyIndex].getBoundingClientRect();
       wave(b.x + b.width / 2, b.y + b.height / 2);
       clearTimeout(arrivalTimer);
-      reveal(signals[3]);
+      reveal(signals[journeyIndex]);
       clearTimeout(revealTimer);
-      journeyStage.textContent = "01 / ROLE PARA ATRAVESSAR";
+      journeyStage.textContent = "01 / DESCUBRA O SINAL";
+      field.dataset.journeyAct = "discover";
       document
         .querySelector<HTMLButtonElement>("#journey-exit")!
         .focus({ preventScroll: true });
@@ -323,28 +331,35 @@ export function bootLivingField(): void {
     const reached = p >= 0.999;
     if (reached !== journeyWorld) {
       journeyWorld = reached;
-      show(reached ? "aquaverno" : null, "replace", [0.5, 0.5], true);
+      show(
+        reached ? realArtists[journeyIndex].id : null,
+        "replace",
+        [0.5, 0.5],
+        true,
+      );
     }
     document.querySelector<HTMLElement>(".signal-field")!.inert = true;
     const [x, y] =
       innerWidth <= 700
-        ? realArtists[3].signal.mobile
-        : realArtists[3].signal.desktop;
+        ? realArtists[journeyIndex].signal.mobile
+        : realArtists[journeyIndex].signal.desktop;
     if (p <= 0) {
       renderer.transition(0, x, y, () => {}, true);
-      renderer.preview(4, x, y);
-      signals[3].dataset.revealed = "true";
+      renderer.preview(journeyIndex + 1, x, y);
+      signals[journeyIndex].dataset.revealed = "true";
     } else {
-      renderer.scrub(4, x, y, p);
+      renderer.scrub(journeyIndex + 1, x, y, p);
       signals.forEach((s) => (s.dataset.revealed = "false"));
     }
     field.style.setProperty("--journey-progress", String(progress));
     journeyStage.textContent =
       progress < 0.12
-        ? "01 / ROLE PARA ATRAVESSAR"
+        ? "01 / DESCUBRA O SINAL"
         : progress < 0.9
           ? "02 / ATRAVESSE A ONDA"
-          : "03 / AQUAVERNO";
+          : "03 / CHEGADA";
+    field.dataset.journeyAct =
+      progress < 0.12 ? "discover" : progress < 0.9 ? "traverse" : "arrival";
     field.dataset.signalDiscovered = "true";
   };
   window.addEventListener(
@@ -369,29 +384,14 @@ export function bootLivingField(): void {
   document
     .querySelector('[data-primary-action="search"]')!
     .addEventListener("click", openSearch, options);
-  document.querySelector('[data-primary-action="listen"]')!.addEventListener(
-    "click",
-    () => {
-      transport.dataset.expanded = "true";
-      transportClose.hidden = false;
-      transportState.textContent = "As faixas chegam em breve.";
-      status.textContent = "Ainda não há faixas publicadas para reprodução.";
-      transport.focus({ preventScroll: true });
-    },
-    options,
-  );
-  transportClose.addEventListener(
-    "click",
-    () => {
-      transport.dataset.expanded = "false";
-      transportClose.hidden = true;
-      transportState.textContent = "Músicas em preparação";
-      document
-        .querySelector<HTMLButtonElement>('[data-primary-action="listen"]')!
-        .focus();
-    },
-    options,
-  );
+  document
+    .querySelector('[data-primary-action="listen"]')!
+    .addEventListener("click", () => audioTransport.open(), options);
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-world-listen]")
+    .forEach((button) =>
+      button.addEventListener("click", () => audioTransport.open(), options),
+    );
   document
     .querySelector("[data-search-close]")!
     .addEventListener("click", () => search.close(), options);
@@ -519,28 +519,55 @@ export function bootLivingField(): void {
     source,
     ...worlds.map((w) => w.querySelector<HTMLImageElement>("img")!),
   ];
-  motion.addEventListener(
-    "change",
+  const applyMotion = () => {
+    if (journey && reduced()) {
+      stopJourney();
+      show(current, "none", [0.5, 0.5], true);
+      (current
+        ? back
+        : document.querySelector<HTMLButtonElement>(
+            '[data-primary-action="explore"]',
+          ))!.focus();
+    }
+    field.dataset.motion = reduced() ? "reduced" : "full";
+    if (motionToggle) {
+      motionToggle.setAttribute("aria-pressed", String(reduced()));
+      motionToggle.textContent = reduced()
+        ? "MOVIMENTO REDUZIDO"
+        : "PAUSAR MOVIMENTO";
+      motionToggle.setAttribute(
+        "aria-label",
+        motion.matches
+          ? "Movimento reduzido pela preferência do sistema"
+          : manualReduced
+            ? "Retomar movimento"
+            : "Pausar movimento",
+      );
+    }
+    void renderer
+      .setReduced(reduced(), images)
+      .catch(() => (field.dataset.fieldRuntime = "css-fallback"));
+  };
+  motion.addEventListener("change", applyMotion, options);
+  motionToggle?.addEventListener(
+    "click",
     () => {
-      if (journey && motion.matches) {
-        stopJourney();
-        show(current, "none", [0.5, 0.5], true);
-        (current
-          ? back
-          : document.querySelector<HTMLButtonElement>(
-              '[data-primary-action="explore"]',
-            ))!.focus();
-      }
-      field.dataset.motion = motion.matches ? "reduced" : "full";
-      void renderer
-        .setReduced(motion.matches, images)
-        .catch(() => (field.dataset.fieldRuntime = "css-fallback"));
+      manualReduced = !manualReduced;
+      applyMotion();
     },
     options,
   );
+  if (motionToggle) {
+    motionToggle.setAttribute("aria-pressed", String(reduced()));
+    motionToggle.textContent = reduced()
+      ? "MOVIMENTO REDUZIDO"
+      : "PAUSAR MOVIMENTO";
+  }
   const initial =
     getRealArtist(new URL(location.href).searchParams.get("artist"))?.id ??
     null;
+  if (initial)
+    discoveredIndex = realArtists.findIndex((artist) => artist.id === initial);
   show(initial, "replace", [0.5, 0.5], true);
   void renderer
     .initialize(images)
@@ -561,6 +588,7 @@ export function bootLivingField(): void {
       events.abort();
       cancelAnimationFrame(journeyFrame);
       renderer.dispose();
+      audioTransport.dispose();
       [revealTimer, waveTimer, arrivalTimer].forEach(clearTimeout);
     },
     { once: true },

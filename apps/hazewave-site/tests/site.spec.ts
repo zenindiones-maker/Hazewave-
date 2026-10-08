@@ -88,16 +88,14 @@ test("distant signal is revealed after the wave reaches its location", async ({
       attributes: true,
       attributeFilter: ["data-revealed"],
     });
-    document
-      .querySelector("#living-field")!
-      .dispatchEvent(
-        new PointerEvent("pointerdown", {
-          bubbles: true,
-          clientX: 15,
-          clientY: 1060,
-          pointerType: "touch",
-        }),
-      );
+    document.querySelector("#living-field")!.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        clientX: 15,
+        clientY: 1060,
+        pointerType: "touch",
+      }),
+    );
   });
   await page.waitForFunction(
     () =>
@@ -153,16 +151,18 @@ test("original artwork renders and all real artist signals are reachable", async
     page.getByRole("heading", { name: "HAZEWAVE", exact: true }),
   ).toBeVisible();
   await expect(page.locator("[data-artist-signal]")).toHaveCount(5);
-  for (const selector of ["#hazewave-world-source", ".world-fallback-art"])
-    expect(
+  expect(
+    await page
+      .locator("#hazewave-world-source")
+      .evaluate((image) => (image as HTMLImageElement).naturalWidth >= 1000),
+  ).toBe(true);
+  expect(
+    Number(
       await page
-        .locator(selector)
-        .evaluateAll((images) =>
-          images.every(
-            (image) => (image as HTMLImageElement).naturalWidth >= 1000,
-          ),
-        ),
-    ).toBe(true);
+        .locator("#living-field")
+        .getAttribute("data-field-texture-bytes"),
+    ),
+  ).toBeLessThan(3_000_000);
   for (const name of ["EXPLORE", "LISTEN", "SEARCH"])
     await expect(
       page.getByRole("button", { name: new RegExp(name) }),
@@ -180,10 +180,34 @@ test("original artwork renders and all real artist signals are reachable", async
 test("Wave refracts the actual GPU canvas and reveals an artist", async ({
   page,
 }, info) => {
+  // Freeze ambient time and hide artist previews: the pixel difference must come from the artwork wave itself.
+  await page.addInitScript(() => {
+    const names = new WeakMap<WebGLUniformLocation, string>();
+    const get = WebGL2RenderingContext.prototype.getUniformLocation;
+    const set = WebGL2RenderingContext.prototype.uniform1f;
+    WebGL2RenderingContext.prototype.getUniformLocation = function (
+      program,
+      name,
+    ) {
+      const location = get.call(this, program, name);
+      if (location) names.set(location, name);
+      return location;
+    };
+    WebGL2RenderingContext.prototype.uniform1f = function (location, value) {
+      const name = location && names.get(location);
+      set.call(
+        this,
+        location,
+        name === "uTime" || name === "uPreviewAmount" ? 0 : value,
+      );
+    };
+  });
   await page.goto("/");
   await ready(page);
-  const before = await page.locator("canvas").screenshot();
   const box = (await page.locator("#living-field").boundingBox())!;
+  await page.mouse.move(box.width * 0.54, box.height * 0.51);
+  await page.waitForTimeout(3200);
+  const before = await page.locator("canvas").screenshot();
   await page.mouse.click(box.width * 0.54, box.height * 0.51);
   await expect(page.locator("#living-field")).toHaveAttribute(
     "data-wave-active",
@@ -295,7 +319,7 @@ test("audio remains unavailable honestly, with conventional disabled controls", 
   await ready(page);
   await page.getByRole("button", { name: /LISTEN/ }).click();
   await expect(page.locator("#transport-state")).toHaveText(
-    "As faixas chegam em breve.",
+    "Nenhuma faixa autorizada disponível.",
   );
   await expect(
     page.getByRole("button", { name: "Tocar", exact: true }),

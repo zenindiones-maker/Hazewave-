@@ -22,8 +22,8 @@ import { realArtists } from "../data/realArtists";
       <canvas id="living-field-canvas" aria-hidden="true"></canvas>
       <div class="field-grain" aria-hidden="true"></div>
       <header class="field-header">
-        <div class="field-brand"><h1>HAZEWAVE<span class="brand-cross" aria-hidden="true">✳</span></h1><p>Núcleo Sonoro Independente</p></div>
-        <div class="field-location"><span class="location-dot"></span><span>Santos</span></div>
+        <div class="field-brand"><h1 class="sr-only">HAZEWAVE</h1><svg class="hazewave-lettering" viewBox="70 62 884 410" aria-hidden="true"><defs><filter id="owner-lettering-mask"><feColorMatrix in="SourceGraphic" type="luminanceToAlpha" result="luminance"/><feComponentTransfer in="luminance" result="lettering"><feFuncA type="linear" slope="4" intercept="-2.5"/></feComponentTransfer><feComposite in="SourceGraphic" in2="lettering" operator="in"/></filter></defs><image href="/media/hazewave-world.jpg" width="1024" height="1536" filter="url(#owner-lettering-mask)" /></svg><p>Núcleo Sonoro Independente <span>· Santos</span></p></div>
+        <button id="motion-toggle" class="motion-toggle" type="button" aria-pressed="false"><span aria-hidden="true">Ⅱ</span> <span>Pausar movimento</span></button>
         <button id="world-back" class="world-back" type="button" hidden>← <span>VOLTAR AO CAMPO</span></button>
       </header>
       <nav class="primary-paths" aria-label="Caminhos principais">
@@ -35,18 +35,19 @@ import { realArtists } from "../data/realArtists";
       <div class="signal-field" aria-label="Sinais de artistas">
         {realArtists.map((artist, index) => <button type="button" class="artist-signal" data-artist-signal={artist.id} data-materialized={String(artist.materializedWorld)} aria-label={`Entrar no sinal de ${artist.name}`} style={`--signal-color:${artist.color}`}>
           <span class="signal-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-          <span class="signal-label"><small>0{index + 1}</small><strong>{artist.name}</strong><b aria-hidden="true">ENTRAR ↗</b></span>
-          <span class="signal-preview" aria-hidden="true"><img src={artist.artwork!} alt="" /><span>ENTRAR NO MUNDO ↗</span></span>
+          <span class="signal-label"><small>0{index + 1}</small><strong>{artist.name}</strong><b aria-hidden="true">{artist.id === "aquaverno" && <span class="signal-discover">descobrir ↗</span>}<span class="signal-enter">ENTRAR ↗</span></b></span>
+          <span class="signal-preview" aria-hidden="true"><img src={artist.artwork!} alt="" loading="lazy" /><span>ENTRAR NO MUNDO ↗</span></span>
         </button>)}
       </div>
       <div class="field-invitation"><span class="touch-mark" aria-hidden="true">+</span><p>Atravesse a névoa.<br /><span>Toque para descobrir um artista.</span></p></div>
-      <div class="journey-controls" hidden><span id="journey-stage">01 / ENCONTRE O SINAL</span><span class="journey-track"><i></i></span><button type="button" id="journey-exit">SAIR DA TRAVESSIA ×</button></div>
+      <div class="journey-controls" hidden><div class="journey-copy"><strong id="journey-artist">Aquaverno</strong><span id="journey-stage">01 / ENCONTRE O SINAL</span></div><span class="journey-track"><i></i></span><button type="button" id="journey-exit">SAIR DA TRAVESSIA ×</button></div>
       <div class="field-index" aria-hidden="true"><span>05 SINAIS</span><span class="index-line"></span><span>UM CAMPO ABERTO</span></div>
+      <p id="world-art-error" role="status">A arte deste sinal está indisponível. Explore outro artista.</p>
       <div class="artist-world-shell">
         {realArtists.map((artist, index) => <section class="artist-world" data-artist-world={artist.id} data-world-system={artist.worldSystem} data-active="false" aria-label={`Mundo visual de ${artist.name}`} inert>
-          <img class="world-fallback-art" src={artist.artwork!} alt={artist.artworkAlt} decoding="async" />
-          <div class="world-caption"><span class="eyebrow">HAZEWAVE / 0{index + 1}</span><h2>{artist.name}</h2><span class="world-caption-rule"></span></div>
-          <button type="button" class="world-switch" data-world-switch>EXPLORAR OUTRO SINAL <span aria-hidden="true">↗</span></button>
+          <img class="world-fallback-art" src={artist.artwork!} alt={artist.artworkAlt} decoding="async" loading="lazy" />
+          <div class="world-caption"><span class="eyebrow">HAZEWAVE / 0{index + 1}</span><h2 class="sr-only">{artist.name}</h2>{artist.id === "aquaverno" && <svg class="aquaverno-lettering" viewBox="55 28 1426 305" aria-hidden="true"><image href="/media/artists/aquaverno.jpg" width="1536" height="1536" /></svg>}</div>
+          <div class="world-arrival-actions"><button type="button" class="world-listen" data-world-listen><span>OUVIR <b aria-hidden="true">↗</b></span><small>Faixas em preparação</small></button><button type="button" class="world-switch" data-world-switch>EXPLORAR OUTRO SINAL <span aria-hidden="true">↗</span></button></div>
         </section>)}
       </div>
       <section id="persistent-transport" class="persistent-transport" tabindex="-1" aria-label="Player Hazewave" data-expanded="false">
@@ -63,7 +64,7 @@ import { realArtists } from "../data/realArtists";
       <dialog id="artist-search" class="artist-search" aria-label="Buscar artista">
         <header class="search-head"><span class="eyebrow">ENCONTRE SEU PRÓXIMO UNIVERSO</span><button type="button" data-search-close aria-label="Fechar busca">×</button></header>
         <label class="search-input-label"><span class="sr-only">Nome do artista</span><input id="artist-query" type="search" placeholder="Qual sinal você procura?" autocomplete="off" /></label>
-        <div class="search-list">{realArtists.map((artist, index) => <button type="button" data-search-artist={artist.id}><span class="search-art"><img src={artist.artwork!} alt="" /></span><span>{artist.name}</span><small>0{index + 1}</small><b aria-hidden="true">↗</b></button>)}</div>
+        <div class="search-list">{realArtists.map((artist, index) => <button type="button" data-search-artist={artist.id}><span class="search-art"><img src={artist.artwork!} alt="" loading="lazy" /></span><span>{artist.name}</span><small>0{index + 1}</small><b aria-hidden="true">↗</b></button>)}</div>
         <p id="search-empty" hidden>Nenhum artista encontrado. Tente outro nome.</p>
       </dialog>
       <noscript>
@@ -72,7 +73,7 @@ import { realArtists } from "../data/realArtists";
           <figure><img src="/media/hazewave-world.jpg" alt="Universo Hazewave: farol entre ondas e um vórtice verde e roxo" /><figcaption>HAZEWAVE — Santos</figcaption></figure>
           {realArtists.map(artist=><figure><a href={artist.artwork!}><img src={artist.artwork!} alt={artist.artworkAlt} /></a><figcaption>{artist.name}</figcaption></figure>)}
         </section>
-        <style>.living-field::after{display:none}.living-field{height:auto;overflow:visible}.field-origin,#living-field-canvas,.field-header,.field-intro,.primary-paths,.signal-field,.artist-world-shell,.field-invitation,.field-index,.persistent-transport{display:none}.static-gallery{padding:28px;max-width:800px;margin:auto}.static-gallery figure{margin:35px 0}.static-gallery img{max-width:100%;max-height:80svh;object-fit:contain}.static-gallery p{line-height:1.6}</style>
+        <style>.living-field::after{display:none}.living-field{height:auto;overflow:visible}.field-origin,#living-field-canvas,.field-header,.field-intro,.primary-paths,.signal-field,.artist-world-shell,.field-invitation,.field-index,.persistent-transport,#world-art-error{display:none}.static-gallery{padding:28px;max-width:800px;margin:auto}.static-gallery figure{margin:35px 0}.static-gallery img{max-width:100%;max-height:80svh;object-fit:contain}.static-gallery p{line-height:1.6}</style>
       </noscript>
     </main>
     <div id="journey-distance" aria-hidden="true" hidden></div>
