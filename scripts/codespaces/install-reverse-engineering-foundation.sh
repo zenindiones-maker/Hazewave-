@@ -108,7 +108,7 @@ fi
 REA_BIN="$REA_PREFIX/node_modules/.bin/rea"
 [[ -x "$REA_BIN" ]] || fail "REA_BINARY_MISSING_AFTER_INSTALL"
 
-if ! command -v java >/dev/null 2>&1 || ! java -version 2>&1 | head -n 1 | grep -Eq '"21([."]|$)'; then
+if ! command -v java >/dev/null 2>&1 || ! java -version 2>&1 | sed -n '1p' | grep -Eq '"21([."]|$)'; then
   if command -v sudo >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
     sudo apt-get update -y
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-21-jdk-headless unzip mediainfo
@@ -116,7 +116,7 @@ if ! command -v java >/dev/null 2>&1 || ! java -version 2>&1 | head -n 1 | grep 
     fail "JDK21_REQUIRED"
   fi
 fi
-java -version 2>&1 | head -n 1 | grep -Eq '"21([."]|$)' || fail "JDK21_NOT_ACTIVE"
+java -version 2>&1 | sed -n '1p' | grep -Eq '"21([."]|$)' || fail "JDK21_NOT_ACTIVE"
 command -v unzip >/dev/null 2>&1 || fail "UNZIP_MISSING"
 
 if [[ ! -x "$GHIDRA_ROOT/support/analyzeHeadless" ]]; then
@@ -194,11 +194,11 @@ chmod 600 "$ENV_FILE"
 source "$ENV_FILE"
 
 rea_version="$("$REA_BIN" --version 2>/dev/null | tail -n 1 | tr -d '\r')"
-rizin_version="$("$RIZIN_BIN" -v 2>/dev/null | head -n 1 | tr -d '\r')"
-frida_version="$("$FRIDA_VENV/bin/frida" --version 2>/dev/null | head -n 1 | tr -d '\r')"
-ffmpeg_version="$(ffmpeg -version 2>/dev/null | head -n 1 | tr -d '\r')"
+rizin_version="$("$RIZIN_BIN" -v 2>/dev/null | sed -n '1p' | tr -d '\r')"
+frida_version="$("$FRIDA_VENV/bin/frida" --version 2>/dev/null | sed -n '1p' | tr -d '\r')"
+ffmpeg_version="$(ffmpeg -version 2>/dev/null | sed -n '1p' | tr -d '\r')"
 mediainfo_version="$(mediainfo --Version 2>/dev/null | tail -n 1 | tr -d '\r')"
-java_version="$(java -version 2>&1 | head -n 1 | tr -d '\r')"
+java_version="$(java -version 2>&1 | sed -n '1p' | tr -d '\r')"
 
 REA_ANALYSIS_PROVIDER=ghidra GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"   "$REA_BIN" providers --json >"$ROOT/rea-providers.json" || fail "REA_PROVIDERS_FAILED"
 REA_ANALYSIS_PROVIDER=ghidra GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"   "$REA_BIN" doctor --json >"$ROOT/rea-doctor.json" || true
