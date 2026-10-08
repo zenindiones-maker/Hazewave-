@@ -41,7 +41,7 @@ def test_record_hash_audit_detects_post_install_tampering_and_unsafe_paths(tmp_p
     file.write_bytes(b"print('known good')")
     row=_row("llamafactory/cli.py",file.read_bytes())
     assert check_record_hashes(root,[(file,row[1],row[2])]) == 1
-    file.write_bytes(b"print('compromised')")
+    file.write_bytes(b"print('known evil')")
     with pytest.raises(LlamaRuntimeError,match="RECORD_HASH_MISMATCH"):
         check_record_hashes(root,[(file,row[1],row[2])])
 
