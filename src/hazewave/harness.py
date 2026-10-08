@@ -263,8 +263,14 @@ def harness_status() -> dict[str, object]:
 
 def _main() -> int:
     parser = argparse.ArgumentParser(prog="python -m hazewave.harness")
-    parser.add_argument("command", choices=("doctor",))
+    parser.add_argument("command", choices=("doctor", "inventory"))
     args = parser.parse_args()
+    if args.command == "inventory":
+        # Explicitly read-only: declared/mapped connection ledger only.
+        # Never mistake this snapshot for installed host or live-agent status.
+        from hazewave.harness_connection_inventory import inventory_all_capabilities
+        print(json.dumps(inventory_all_capabilities(), sort_keys=True))
+        return 0
     if args.command == "doctor":
         status = harness_status()
         for key in (
