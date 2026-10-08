@@ -39,3 +39,12 @@ def test_entrypoint_rejects_invalid_sha_without_gh_network(tmp_path):
                        env=env, text=True, capture_output=True, timeout=10)
     assert p.returncode == 20
     assert "REVIEWED_SHA_INVALID" in p.stderr
+
+
+def test_remote_file_transfer_uses_descriptor_bound_nofollow_proof() -> None:
+    script = SCRIPT.read_text()
+    assert "os.O_NOFOLLOW" in script
+    assert "os.fstat(stream.fileno())" in script
+    assert "hashlib.sha256(secure(path)).hexdigest()" in script
+    assert "def secure(p):" in script
+    assert subprocess.run(["bash", "-n", str(SCRIPT)], capture_output=True).returncode == 0

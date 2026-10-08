@@ -92,13 +92,26 @@ expected_log = "0a5c4f3ba77a8e13ad3aa7dcad91f2853cfb6058d262e763381715749d07cfe4
 expected_record = "9dc6f17a60a4406dd2a233cb719a8e6145ca0a1533dd052173e7d408aa03b3b6"
 
 def secure(p):
-    if p.is_symlink():
-        fail("UNSAFE_SYMLINK")
-    s = p.stat()
-    if (not stat.S_ISREG(s.st_mode) or s.st_uid != os.geteuid()
-            or s.st_mode & 0o077 or s.st_size <= 0 or s.st_size > 2097152):
+    # Read through the descriptor checked below: no pathname switch between
+    # stat and read, and no local FIFO/device can be interpreted as a receipt.
+    if not hasattr(os, "O_NOFOLLOW"):
+        fail("SAFE_OPEN_UNSUPPORTED")
+    try:
+        fd = os.open(p, os.O_RDONLY | os.O_NOFOLLOW |
+                     getattr(os, "O_CLOEXEC", 0) |
+                     getattr(os, "O_NONBLOCK", 0))
+        with os.fdopen(fd, "rb") as stream:
+            s = os.fstat(stream.fileno())
+            if (not stat.S_ISREG(s.st_mode) or s.st_uid != os.geteuid()
+                    or s.st_mode & 0o077 or s.st_size <= 0
+                    or s.st_size > 2097152):
+                fail("UNSAFE_FILE")
+            content = stream.read(2097153)
+            if len(content) != s.st_size or len(content) > 2097152:
+                fail("UNSAFE_FILE")
+            return content
+    except OSError:
         fail("UNSAFE_FILE")
-    return p.read_bytes()
 
 log_data = secure(log)
 if hashlib.sha256(log_data).hexdigest() != expected_log:
@@ -110,7 +123,7 @@ for path in record_root.glob("av-metrics-*/av-receipt-*.json"):
     st = path.stat()
     if not stat.S_ISREG(st.st_mode) or st.st_size > 2097152 or st.st_mode & 0o077:
         continue
-    if hashlib.sha256(path.read_bytes()).hexdigest() == expected_record:
+    if hashlib.sha256(secure(path)).hexdigest() == expected_record:
         candidates.append(path)
 if len(candidates) != 1:
     fail("RECEIPT_NOT_UNIQUE")
