@@ -1,0 +1,42 @@
+{
+  "schema": "HazewaveSpecialistKnowledge/v1",
+  "version": "2026-10-08",
+  "authority": "HAZEWAVE_HARNESS",
+  "domain": "HAZE",
+  "capability": "audio.qc",
+  "benchmark_case": "OWNED_SYNTHETIC_ATTENUATION",
+  "source_trust": "REFERENCE_DATA_ONLY_NEVER_EXECUTION_AUTHORITY",
+  "sources": [
+    {
+      "id": "ffmpeg-volumedetect",
+      "url": "https://ffmpeg.org/ffmpeg-filters.html#volumedetect",
+      "source_type": "OFFICIAL_DOCUMENTATION",
+      "explanation": "FFmpeg volumedetect reports mean_volume and max_volume in dBFS; compare controlled before/after only, not professional mix quality.",
+      "verified_on": "2026-10-08"
+    },
+    {
+      "id": "ffmpeg-volume",
+      "url": "https://ffmpeg.org/ffmpeg-filters.html#volume",
+      "source_type": "OFFICIAL_DOCUMENTATION",
+      "explanation": "Changing gain alters signal level; 0.25 amplitude is approximately -12 dB. Review gain stage for unexpected attenuation.",
+      "verified_on": "2026-10-08"
+    }
+  ],
+  "routing": {
+    "specialist": "HAZE_AUDIO_QC",
+    "required_capability": "reason.general",
+    "classification": "PUBLIC",
+    "model_selection": "EXACT_ZERO_COST_RECEIPT",
+    "fallback_models": 0
+  },
+  "gates": {
+    "metric": "audio_attenuation_db",
+    "min_detected_db": 10,
+    "max_detected_db": 14,
+    "expected_finding": "ATTENUATION_DETECTED",
+    "expected_action": "REVIEW_GAIN_STAGE",
+    "required_human_review": true
+  },
+  "production_approved": false,
+  "independent_model_execution_proven": false
+}
