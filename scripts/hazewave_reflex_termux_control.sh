@@ -4,7 +4,10 @@ umask 077
 
 REPO_SLUG="${HAZEWAVE_REFLEX_REPO:-zenindiones-maker/Hazewave-}"
 DEFAULT_CS="hazewave-zero-cost-4jxp45676rq6279xx"
-REF="${HAZEWAVE_REFLEX_REF:-work/hazewave-always-ready-v1}"
+DEFAULT_REF="work/hazewave-always-ready-v1"
+REF_PIN_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/hazewave/reflex"
+REF_PIN_FILE="$REF_PIN_DIR/ref"
+REF=""
 MAIN_REPO="/workspaces/Hazewave-"
 RUN_ROOT="${HOME}/.local/share/hazewave/reflex-shadow-runtime"
 WORKTREE="${RUN_ROOT}/checkout"
@@ -17,17 +20,127 @@ fail() {
     exit 20
 }
 
+validate_ref() {
+    local candidate="$1"
+    [[ -n "$candidate" ]] || fail "REF_EMPTY"
+    [[ "${#candidate}" -le 200 ]] || fail "REF_TOO_LONG"
+    [[ "$candidate" =~ ^[A-Za-z0-9._/-]+$ ]] || fail "REF_CHARACTERS_INVALID"
+    [[ "$candidate" != *".."* ]] || fail "REF_DOTDOT_INVALID"
+    [[ "$candidate" != *"//"* ]] || fail "REF_DOUBLE_SLASH_INVALID"
+    [[ "$candidate" != *"@{"* ]] || fail "REF_REFLOG_SYNTAX_INVALID"
+    git check-ref-format --branch "$candidate" >/dev/null 2>&1       || fail "REF_GIT_FORMAT_INVALID:$candidate"
+}
+
+resolve_ref() {
+    local candidate mode extra
+
+    if [[ -n "${HAZEWAVE_REFLEX_REF:-}" ]]; then
+        candidate="$HAZEWAVE_REFLEX_REF"
+        validate_ref "$candidate"
+        echo "REFLEX_REF_SOURCE=ENVIRONMENT" >&2
+        printf '%s\n' "$candidate"
+        return 0
+    fi
+
+    if [[ -e "$REF_PIN_FILE" || -L "$REF_PIN_FILE" ]]; then
+        [[ -f "$REF_PIN_FILE" && ! -L "$REF_PIN_FILE" ]]           || fail "REF_PIN_FILE_INVALID_TYPE"
+        mode="$(stat -c %a "$REF_PIN_FILE" 2>/dev/null || true)"
+        [[ "$mode" == "600" ]] || fail "REF_PIN_FILE_PERMISSIONS_INVALID:$mode"
+        [[ "$(wc -c < "$REF_PIN_FILE")" -le 256 ]] || fail "REF_PIN_FILE_TOO_LARGE"
+        IFS= read -r candidate < "$REF_PIN_FILE" || fail "REF_PIN_FILE_UNREADABLE"
+        extra="$(tail -n +2 "$REF_PIN_FILE" 2>/dev/null || true)"
+        [[ -z "$extra" ]] || fail "REF_PIN_FILE_MULTILINE"
+        validate_ref "$candidate"
+        echo "REFLEX_REF_SOURCE=PINNED_CONFIG" >&2
+        printf '%s\n' "$candidate"
+        return 0
+    fi
+
+    validate_ref "$DEFAULT_REF"
+    echo "REFLEX_REF_SOURCE=DEFAULT" >&2
+    printf '%s\n' "$DEFAULT_REF"
+}
+
+pin_ref() {
+    local candidate="$1" tmp
+    validate_ref "$candidate"
+    mkdir -p "$REF_PIN_DIR"
+    chmod 700 "$REF_PIN_DIR"
+    [[ ! -L "$REF_PIN_FILE" ]] || fail "REF_PIN_FILE_SYMLINK_FORBIDDEN"
+    tmp="$(mktemp "$REF_PIN_DIR/.ref.XXXXXX")"
+    printf '%s\n' "$candidate" > "$tmp"
+    chmod 600 "$tmp"
+    mv -f "$tmp" "$REF_PIN_FILE"
+    chmod 600 "$REF_PIN_FILE"
+    echo "REFLEX_REF_PIN=PASS"
+    echo "REFLEX_REF_PINNED=$candidate"
+    echo "REFLEX_REF_PIN_FILE=$REF_PIN_FILE"
+}
+
+clear_ref_pin() {
+    if [[ -L "$REF_PIN_FILE" ]]; then
+        fail "REF_PIN_FILE_SYMLINK_FORBIDDEN"
+    fi
+    rm -f "$REF_PIN_FILE"
+    echo "REFLEX_REF_CLEAR=PASS"
+    echo "REFLEX_REF_FALLBACK=$DEFAULT_REF"
+}
+
+action="${1:-status}"
+
+if [[ "$action" == "ref-pin" ]]; then
+    candidate="${2:-}"
+    [[ -n "$candidate" ]] || {
+        echo "usage: hazewave-reflex ref-pin BRANCH" >&2
+        exit 2
+    }
+    pin_ref "$candidate"
+    exit 0
+fi
+
+if [[ "$action" == "ref-clear" ]]; then
+    clear_ref_pin
+    exit 0
+fi
+
+REF="$(resolve_ref)"
+
+codespace_metadata_row() {
+    local target="$1"
+
+    gh codespace list --limit 100 --json name,state,repository \
+      --jq ".[] | select(.name == \"$target\") | [.name,.repository,.state] | @tsv"
+}
+
+codespace_state_action() {
+    local state="$1"
+
+    case "$state" in
+        Available)
+            printf '%s\n' "READY"
+            ;;
+        Shutdown)
+            printf '%s\n' "START"
+            ;;
+        ShuttingDown|Stopping|Queued|Starting|Provisioning|Rebuilding)
+            printf '%s\n' "WAIT"
+            ;;
+        *)
+            printf '%s\n' "FAIL"
+            ;;
+    esac
+}
+
 attest_codespace_control_plane() {
-    local actual_name actual_repo actual_state
+    local actual_name actual_repo actual_state row
 
     ensure_codespace
 
-    actual_name="$(gh codespace view -c "$CS" --json name --jq '.name')" \
-      || fail "CONTROL_PLANE_CODESPACE_NAME_UNAVAILABLE"
-    actual_repo="$(gh codespace view -c "$CS" --json repository --jq '.repository')" \
-      || fail "CONTROL_PLANE_CODESPACE_REPO_UNAVAILABLE"
-    actual_state="$(gh codespace view -c "$CS" --json state --jq '.state')" \
-      || fail "CONTROL_PLANE_CODESPACE_STATE_UNAVAILABLE"
+    row="$(codespace_metadata_row "$CS")" \
+      || fail "CONTROL_PLANE_CODESPACE_METADATA_UNAVAILABLE"
+    [[ -n "$row" ]] || fail "CONTROL_PLANE_CODESPACE_NOT_LISTED"
+
+    IFS=$'\t' read -r actual_name actual_repo actual_state <<< "$row"
 
     [[ "$actual_name" == "$CS" ]] \
       || fail "CONTROL_PLANE_CODESPACE_NAME_MISMATCH"
@@ -123,6 +236,7 @@ remote_main() {
     local control="$WORKTREE/scripts/codespaces/reflex-shadow-control.sh"
     [[ -f "$control" ]] || fail "REMOTE_REFLEX_CONTROL_MISSING"
 
+    echo "REFLEX_REMOTE_REF=$REF"
     echo "REFLEX_REMOTE_HEAD=$remote_sha"
     echo "REFLEX_REMOTE_ACTION=$action"
 
@@ -130,7 +244,7 @@ remote_main() {
     export HAZEWAVE_REFLEX_CANDIDATE_REF="refs/remotes/origin/$REF"
 
     case "$action" in
-        doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report)
+        doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|report|latency-profiles|latency-selected|latency-retire-stale-selection|latency-tune|latency-report|latency-engine-tune|latency-engine-profile|latency-engine-report|latency-scale-probe)
             exec bash "$control" "$action"
             ;;
         observe)
@@ -156,17 +270,21 @@ command -v gh >/dev/null 2>&1 || fail "TERMUX_GH_MISSING"
 resolve_codespace() {
     local configured="${HAZEWAVE_REFLEX_CODESPACE:-}"
     local rows=()
-    local name
+    local name row
 
     if [[ -n "$configured" ]]; then
-        if gh codespace view -c "$configured" --json name >/dev/null 2>&1; then
+        row="$(codespace_metadata_row "$configured")" \
+          || fail "CODESPACE_LIST_FAILED"
+        if [[ -n "$row" ]]; then
             printf '%s\n' "$configured"
             return 0
         fi
         fail "CONFIGURED_CODESPACE_NOT_ACCESSIBLE:$configured"
     fi
 
-    if gh codespace view -c "$DEFAULT_CS" --json name >/dev/null 2>&1; then
+    row="$(codespace_metadata_row "$DEFAULT_CS")" \
+      || fail "CODESPACE_LIST_FAILED"
+    if [[ -n "$row" ]]; then
         printf '%s\n' "$DEFAULT_CS"
         return 0
     fi
@@ -206,14 +324,25 @@ ensure_codespace() {
 
 ensure_codespace_available() {
     ensure_codespace
-    local current_state
-    current_state="$(gh codespace view -c "$CS" --json state --jq '.state')" \
-      || fail "CODESPACE_VIEW_FAILED"
+    local current_state row action
+    local start_requested=0
 
-    case "$current_state" in
-        Available)
-            ;;
-        Shutdown)
+    for _ in $(seq 1 90); do
+        row="$(codespace_metadata_row "$CS")" \
+          || fail "CODESPACE_LIST_FAILED"
+        [[ -n "$row" ]] || fail "CODESPACE_NOT_LISTED"
+
+        IFS=$'\t' read -r _ _ current_state <<< "$row"
+        echo "REFLEX_CODESPACE_STATE=$current_state"
+
+        action="$(codespace_state_action "$current_state")"
+
+        if [[ "$action" == "READY" ]]; then
+            echo "REFLEX_CODESPACE_WAKE=PASS"
+            return 0
+        fi
+
+        if [[ "$action" == "START" && "$start_requested" == "0" ]]; then
             echo "REFLEX_CODESPACE_WAKE_REASON=$current_state"
             gh api \
               --method POST \
@@ -221,25 +350,17 @@ ensure_codespace_available() {
               -H "X-GitHub-Api-Version: 2026-03-10" \
               "/user/codespaces/$CS/start" >/dev/null \
               || fail "CODESPACE_START_FAILED"
-            ;;
-        Starting|Provisioning|Rebuilding)
+            start_requested=1
+        elif [[ "$action" == "WAIT" || "$action" == "START" ]]; then
             echo "REFLEX_CODESPACE_WAKE_REASON=WAIT_TRANSITION:$current_state"
-            ;;
-        *)
+        else
             fail "CODESPACE_STATE_NOT_STARTABLE:$current_state"
-            ;;
-    esac
+        fi
 
-    for _ in $(seq 1 60); do
-        current_state="$(gh codespace view -c "$CS" --json state --jq '.state')" \
-          || fail "CODESPACE_VIEW_FAILED"
-        echo "REFLEX_CODESPACE_STATE=$current_state"
-        [[ "$current_state" == "Available" ]] && break
         sleep 2
     done
 
-    [[ "$current_state" == "Available" ]] || fail "CODESPACE_START_TIMEOUT"
-    echo "REFLEX_CODESPACE_WAKE=PASS"
+    fail "CODESPACE_START_TIMEOUT"
 }
 
 copy_controller() {
@@ -256,13 +377,21 @@ run_remote() {
     attest_codespace_control_plane
     copy_controller
     gh codespace ssh -c "$CS" \
-      "HAZEWAVE_REFLEX_CONTROL_PLANE_ATTESTED=1 HAZEWAVE_REFLEX_EXPECTED_CODESPACE='$CS' HAZEWAVE_REFLEX_EXPECTED_REPO='$REPO_SLUG' bash '$REMOTE_SELF' _remote '$action'" \
+      "HAZEWAVE_REFLEX_CONTROL_PLANE_ATTESTED=1 HAZEWAVE_REFLEX_EXPECTED_CODESPACE='$CS' HAZEWAVE_REFLEX_EXPECTED_REPO='$REPO_SLUG' HAZEWAVE_REFLEX_REF='$REF' bash '$REMOTE_SELF' _remote '$action'" \
       || fail "REMOTE_ACTION_FAILED:$action"
 }
 
-action="${1:-status}"
-
 case "$action" in
+    ref-status)
+        echo "REFLEX_TARGET_REF=$REF"
+        echo "REFLEX_REF_PIN_FILE=$REF_PIN_FILE"
+        if [[ -f "$REF_PIN_FILE" && ! -L "$REF_PIN_FILE" ]]; then
+            echo "REFLEX_REF_PIN_PRESENT=TRUE"
+        else
+            echo "REFLEX_REF_PIN_PRESENT=FALSE"
+        fi
+        ;;
+
     install-check)
         echo "CONTROLLER=PASS"
         echo "PATH=${BASH_SOURCE[0]}"
@@ -274,10 +403,12 @@ case "$action" in
         gh auth status --hostname github.com || fail "TERMUX_GITHUB_AUTH_INVALID"
         ensure_codespace
         echo "REFLEX_CODESPACE_DISCOVERY=PASS"
-        gh codespace view \
-          -c "$CS" \
-          --json name,state,machineDisplayName,lastUsedAt,idleTimeoutMinutes,repository \
-          || fail "CODESPACE_VIEW_FAILED"
+        gh codespace list \
+          -R "$REPO_SLUG" \
+          --limit 100 \
+          --json name,state,repository,lastUsedAt,machineName \
+          --jq ".[] | select(.name == \"$CS\")" \
+          || fail "CODESPACE_LIST_FAILED"
         echo "REFLEX_CONTROL_PATH=${BASH_SOURCE[0]}"
         echo "REFLEX_TARGET_CODESPACE=$CS"
         echo "REFLEX_TARGET_REF=$REF"
@@ -308,8 +439,10 @@ case "$action" in
     stop)
         gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
         ensure_codespace
-        current_state="$(gh codespace view -c "$CS" --json state --jq '.state')" \
-          || fail "CODESPACE_VIEW_FAILED"
+        row="$(codespace_metadata_row "$CS")" \
+          || fail "CODESPACE_LIST_FAILED"
+        [[ -n "$row" ]] || fail "CODESPACE_NOT_LISTED"
+        current_state="$(printf '%s\n' "$row" | cut -f3)"
         if [[ "$current_state" == "Available" ]]; then
             gh codespace stop -c "$CS" || fail "CODESPACE_STOP_FAILED"
         fi
@@ -323,7 +456,25 @@ case "$action" in
         run_remote "$action"
         ;;
 
-    doctor|prepare|serve-stop|reconcile|runtime-status|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report)
+    latency-retire-stale-selection)
+        gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
+        ensure_codespace_available
+        run_remote "$action"
+        ;;
+
+    latency-engine-profile)
+        gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
+        ensure_codespace_available
+        run_remote "$action"
+        ;;
+
+    latency-engine-report)
+        gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
+        ensure_codespace_available
+        run_remote "$action"
+        ;;
+
+    doctor|prepare|serve-stop|reconcile|runtime-status|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-scale-probe)
         gh auth status --hostname github.com >/dev/null || fail "TERMUX_GITHUB_AUTH_INVALID"
         run_remote "$action"
         ;;
@@ -352,7 +503,7 @@ case "$action" in
           || fail "TERMUX_EVENT_COPY_FAILED"
         set +e
         gh codespace ssh -c "$CS" \
-          "HAZEWAVE_REFLEX_CONTROL_PLANE_ATTESTED=1 HAZEWAVE_REFLEX_EXPECTED_CODESPACE='$CS' HAZEWAVE_REFLEX_EXPECTED_REPO='$REPO_SLUG' bash '$REMOTE_SELF' _remote observe '$remote_event'; rc=\$?; rm -f '$remote_event'; exit \$rc"
+          "HAZEWAVE_REFLEX_CONTROL_PLANE_ATTESTED=1 HAZEWAVE_REFLEX_EXPECTED_CODESPACE='$CS' HAZEWAVE_REFLEX_EXPECTED_REPO='$REPO_SLUG' HAZEWAVE_REFLEX_REF='$REF' bash '$REMOTE_SELF' _remote observe '$remote_event'; rc=\$?; rm -f '$remote_event'; exit \$rc"
         rc=$?
         set -e
         [[ $rc -eq 0 ]] || fail "REMOTE_ACTION_FAILED:observe:$rc"
@@ -360,7 +511,7 @@ case "$action" in
 
     *)
         cat >&2 <<'USAGE'
-usage: hazewave-reflex {status|list|wake|ready|stop|doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report|install-check}
+usage: hazewave-reflex {ref-pin BRANCH|ref-clear|ref-status|status|list|wake|ready|stop|doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-retire-stale-selection|latency-tune|latency-report|latency-engine-tune|latency-engine-profile|latency-engine-report|latency-scale-probe|install-check}
 USAGE
         exit 2
         ;;

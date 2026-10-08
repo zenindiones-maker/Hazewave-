@@ -70,9 +70,13 @@ def test_robustness_policy_schema_is_valid() -> None:
     loaded = load_robustness_policy()
     assert loaded["activation_state"] == "SHADOW_ONLY"
     assert loaded["risk_control"]["activation_authority"] == "NONE"
+    ensemble = loaded["option_order_ensemble"]
+    assert ensemble["strategy"] == "COMPLETE_PERMUTATIONS_IN_ONE_SYSTEM_ONE_BATCH"
+    assert ensemble["max_labels"] == 3
+    assert ensemble["max_rotations"] == 6
 
 
-def test_order_ensemble_runs_rotations_in_one_model_request() -> None:
+def test_order_ensemble_runs_all_three_domain_permutations_in_one_model_request() -> None:
     calls = []
 
     def executor(**kwargs):
@@ -103,16 +107,23 @@ def test_order_ensemble_runs_rotations_in_one_model_request() -> None:
     )
 
     assert len(calls) == 1
-    assert len(calls[0]["questions"]) == 3
+    assert len(calls[0]["questions"]) == 6
     orders = [
         tuple(item["criteria"])
         for item in calls[0]["questions"].values()
     ]
     assert orders == [
         ("HAZE", "WAVE", "BRIDGE"),
+        ("HAZE", "BRIDGE", "WAVE"),
+        ("WAVE", "HAZE", "BRIDGE"),
         ("WAVE", "BRIDGE", "HAZE"),
         ("BRIDGE", "HAZE", "WAVE"),
+        ("BRIDGE", "WAVE", "HAZE"),
     ]
+    for position in range(3):
+        assert sorted(order[position] for order in orders) == [
+            "BRIDGE", "BRIDGE", "HAZE", "HAZE", "WAVE", "WAVE"
+        ]
     assert result.ensemble.winner_agreement == 1.0
     assert result.ensemble.aggregate_winner == "HAZE"
     assert result.robust_eligible is True
@@ -155,6 +166,83 @@ def test_order_sensitive_model_is_detected_and_not_robust_eligible() -> None:
     assert "OPTION_ORDER_WINNER_DISAGREEMENT" in result.robustness_reasons
     assert result.robust_eligible is False
     assert result.disposition == "SHADOW_RECOMMENDATION"
+
+
+
+
+
+def test_one_positional_outlier_is_tolerated_only_under_complete_balanced_ensemble() -> None:
+    def executor(**kwargs):
+        answers = {}
+        for index, qid in enumerate(kwargs["questions"]):
+            if index < 5:
+                answers[qid] = _answer({"HAZE": 0.90, "WAVE": 0.09, "BRIDGE": 0.01})
+            else:
+                answers[qid] = _answer({"HAZE": 0.49, "WAVE": 0.50, "BRIDGE": 0.01})
+        return ColibriDecisionResult(
+            model_id="laya",
+            answers=answers,
+            request_sha256="1" * 64,
+            response_sha256="2" * 64,
+            latency_ms=500.0,
+            usage={"cost": 0},
+        )
+
+    result = execute_robust_reflex_route(
+        authorization=_authorization(),
+        question_id="route",
+        state={"kind": "balanced_single_positional_outlier"},
+        question=_question(),
+        api_key="o" * 32,
+        deterministic_precheck_complete=True,
+        model_installed=True,
+        model_revision_verified=True,
+        executor=executor,
+    )
+
+    assert result.ensemble.rotations == 6
+    assert result.ensemble.winner_agreement == pytest.approx(5 / 6)
+    assert result.ensemble.normalized_jsd < 0.08
+    assert "OPTION_ORDER_WINNER_DISAGREEMENT" not in result.robustness_reasons
+    assert result.robust_eligible is True
+    assert result.disposition == "SHADOW_RECOMMENDATION"
+    assert result.grants_execution_authority is False
+
+
+def test_two_positional_outliers_remain_fail_closed() -> None:
+    def executor(**kwargs):
+        answers = {}
+        for index, qid in enumerate(kwargs["questions"]):
+            if index < 4:
+                answers[qid] = _answer({"HAZE": 0.94, "WAVE": 0.04, "BRIDGE": 0.02})
+            else:
+                answers[qid] = _answer({"HAZE": 0.49, "WAVE": 0.50, "BRIDGE": 0.01})
+        return ColibriDecisionResult(
+            model_id="laya",
+            answers=answers,
+            request_sha256="3" * 64,
+            response_sha256="4" * 64,
+            latency_ms=500.0,
+            usage={"cost": 0},
+        )
+
+    result = execute_robust_reflex_route(
+        authorization=_authorization(),
+        question_id="route",
+        state={"kind": "balanced_two_positional_outliers"},
+        question=_question(),
+        api_key="p" * 32,
+        deterministic_precheck_complete=True,
+        model_installed=True,
+        model_revision_verified=True,
+        executor=executor,
+    )
+
+    assert result.ensemble.rotations == 6
+    assert result.ensemble.winner_agreement == pytest.approx(4 / 6)
+    assert "OPTION_ORDER_WINNER_DISAGREEMENT" in result.robustness_reasons
+    assert result.robust_eligible is False
+    assert result.grants_execution_authority is False
 
 
 def test_aggregate_rejects_label_set_drift() -> None:
@@ -231,7 +319,7 @@ def test_robust_route_uses_observation_deadline_wider_than_latency_gate() -> Non
         executor=executor,
     )
 
-    assert calls[0]["timeout_seconds"] == 10.0
+    assert calls[0]["timeout_seconds"] == 30.0
     assert result.base_verdict.threshold_eligible is False
     assert "LATENCY_BUDGET_EXCEEDED" in result.base_verdict.reasons
     assert result.disposition == "SHADOW_RECOMMENDATION"

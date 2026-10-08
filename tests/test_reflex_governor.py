@@ -91,6 +91,15 @@ def test_reflex_policy_validates_against_schema() -> None:
     assert loaded["profiles"]["decision.route"]["production_calibrated"] is False
 
 
+def test_route_shadow_transport_window_is_bounded_but_wider_than_latency_gate() -> None:
+    policy = load_reflex_policy(ROOT / "config/reflex-governor-v1.json")
+    route = policy["profiles"]["decision.route"]
+
+    assert route["max_latency_ms"] == 3000
+    assert route["transport_timeout_ms"] == 30000
+    assert route["transport_timeout_ms"] > route["max_latency_ms"]
+
+
 def test_small_label_route_can_be_accepted_as_recommendation() -> None:
     verdict = govern_reflex_result(
         authorization=_authorization(),
@@ -538,7 +547,7 @@ def test_transport_timeout_is_separate_from_latency_eligibility_budget() -> None
         executor=fake_executor,
     )
 
-    assert captured["timeout_seconds"] == pytest.approx(10.0)
+    assert captured["timeout_seconds"] == pytest.approx(30.0)
     assert verdict.latency_ms == pytest.approx(3500.0)
     assert verdict.threshold_eligible is False
     assert "LATENCY_BUDGET_EXCEEDED" in verdict.reasons
@@ -565,5 +574,5 @@ def test_reflex_policy_rejects_transport_timeout_below_latency_budget(
 def test_transport_deadline_is_wider_than_latency_eligibility_budget() -> None:
     profile = load_reflex_policy()["profiles"]["decision.route"]
     assert float(profile["max_latency_ms"]) == 3000.0
-    assert reflex_transport_timeout_seconds(profile) == 10.0
+    assert reflex_transport_timeout_seconds(profile) == 30.0
     assert reflex_transport_timeout_seconds(profile) > float(profile["max_latency_ms"]) / 1000.0

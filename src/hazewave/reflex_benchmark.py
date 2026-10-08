@@ -9,7 +9,7 @@ from typing import Any, Callable, Iterable, Mapping
 from hazewave.reflex_robustness import (
     RiskCalibrationSample,
     aggregate_choice_answers,
-    cyclic_choice_questions,
+    complete_choice_permutations,
     load_robustness_policy,
 )
 
@@ -158,7 +158,7 @@ def evaluate_reflex_robustness_benchmark(
             "instructions": "Select the best Hazewave domain for this structured operational state.",
             "criteria": criteria,
         }
-        rotations = cyclic_choice_questions(
+        rotations = complete_choice_permutations(
             question_id="route",
             question=question,
             max_rotations=int(ensemble_policy["max_rotations"]),

@@ -4,7 +4,7 @@ umask 077
 
 # Run from existing Hazewave Codespace; never switch the active branch.
 MAIN_REPO="/workspaces/Hazewave-"
-REF="work/hazewave-always-ready-v1"
+REF="${HAZEWAVE_REFLEX_REF:-work/hazewave-always-ready-v1}"
 EXPECTED_CODESPACE="${HAZEWAVE_REFLEX_EXPECTED_CODESPACE:-hazewave-zero-cost-4jxp45676rq6279xx}"
 RUN_ROOT="${HOME}/.local/share/hazewave/reflex-shadow-runtime"
 SOURCE_ROOT="${HOME}/.local/share/hazewave/providers/colibri/source"
@@ -439,6 +439,12 @@ PY
   echo "REFLEX_LATENCY_RESTART_REQUIRED=TRUE"
 }
 
+latency_retire_stale_selection() {
+  ensure_checkout
+  "$PYTHON_BIN" -m hazewave.reflex_latency retire-stale-selection \
+    --state-root "$STATE_ROOT"
+}
+
 latency_report() {
   ensure_checkout
   local active latest
@@ -550,6 +556,1194 @@ PY
   printf '%s\n' "$binary"
 }
 
+build_pack_reuse_engine_variant() {
+  local variant="reuse_packed_w_v1"
+  local root="$HOME/.local/share/hazewave/providers/colibri/derived/$variant"
+  local binary="$root/c/laya"
+  local meta="$root/build.json"
+  local expected_sha="bf2442915d6e3dd4cdfd2eb9c2a3d2aa44a25850"
+
+  [[ "$(git -C "$SOURCE_ROOT" rev-parse HEAD)" == "$expected_sha" ]] || die "ENGINE_PACK_REUSE_UPSTREAM_SHA_MISMATCH"
+  [[ -z "$(git -C "$SOURCE_ROOT" status --porcelain)" ]] || die "ENGINE_PACK_REUSE_UPSTREAM_SOURCE_DIRTY"
+
+  if [[ -x "$binary" && -f "$meta" ]]; then
+    if ! "$PYTHON_BIN" - "$meta" "$binary" <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+meta = json.load(open(sys.argv[1], encoding="utf-8"))
+binary = Path(sys.argv[2])
+actual = hashlib.sha256(binary.read_bytes()).hexdigest()
+if meta.get("binary_sha256") != actual:
+    raise SystemExit("ENGINE_PACK_REUSE_DERIVED_BINARY_METADATA_MISMATCH")
+if meta.get("weight_panel_reuse_only") is not True:
+    raise SystemExit("ENGINE_PACK_REUSE_DERIVED_METADATA_INVALID")
+PY
+    then
+      die "ENGINE_PACK_REUSE_CACHED_METADATA_INVALID"
+    fi
+    printf '%s\n' "$binary"
+    return 0
+  fi
+
+  [[ ! -e "$root" ]] || die "ENGINE_PACK_REUSE_DERIVED_ROOT_OCCUPIED"
+  mkdir -p "$(dirname "$root")"
+  local stage
+  stage="$(mktemp -d "$root.stage.XXXXXX")"
+  git -C "$SOURCE_ROOT" archive HEAD c | tar -x -C "$stage" || die "ENGINE_PACK_REUSE_SOURCE_ARCHIVE_FAILED"
+
+  if ! "$PYTHON_BIN" - "$stage/c/qi_gemm.h" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+
+start = text.index("static void qi_gemm_ld(")
+end = text.index("\nstatic inline void qi_gemm(", start)
+block = text[start:end]
+
+old = """        #pragma omp for schedule(dynamic, 1) collapse(2)
+        for (int mb = 0; mb < mblocks; mb++)
+            for (int nb = 0; nb < nblocks; nb++) {
+                int m0 = mb * QI_MC, mc = M - m0 < QI_MC ? M - m0 : QI_MC;
+                int n0 = nb * QI_NR, nr = N - n0 < QI_NR ? N - n0 : QI_NR;
+                for (int k0 = 0; k0 < K; k0 += QI_KC) {
+                    int kc = K - k0 < QI_KC ? K - k0 : QI_KC;
+                    qi_pack_w(panel, W, n0, nr, k0, kc);
+                    for (int i = 0; i < mc; i += QI_MR) {
+                        int mr = mc - i < QI_MR ? mc - i : QI_MR;
+                        qi_kernel(Y + (int64_t)(m0 + i) * ldy + n0, ldy,
+                                  X + (int64_t)(m0 + i) * ldx + k0, ldx,
+                                  panel, kc, mr, nr, k0 > 0);
+                    }
+                }
+                if (bias)
+                    for (int i = 0; i < mc; i++)
+                        for (int j = 0; j < nr; j++) Y[(int64_t)(m0 + i) * ldy + n0 + j] += bias[n0 + j];
+            }"""
+
+new = """        #pragma omp for schedule(dynamic, 1)
+        for (int nb = 0; nb < nblocks; nb++) {
+            int n0 = nb * QI_NR, nr = N - n0 < QI_NR ? N - n0 : QI_NR;
+            for (int k0 = 0; k0 < K; k0 += QI_KC) {
+                int kc = K - k0 < QI_KC ? K - k0 : QI_KC;
+                qi_pack_w(panel, W, n0, nr, k0, kc);
+                for (int mb = 0; mb < mblocks; mb++) {
+                    int m0 = mb * QI_MC, mc = M - m0 < QI_MC ? M - m0 : QI_MC;
+                    for (int i = 0; i < mc; i += QI_MR) {
+                        int mr = mc - i < QI_MR ? mc - i : QI_MR;
+                        qi_kernel(Y + (int64_t)(m0 + i) * ldy + n0, ldy,
+                                  X + (int64_t)(m0 + i) * ldx + k0, ldx,
+                                  panel, kc, mr, nr, k0 > 0);
+                    }
+                }
+            }
+            if (bias)
+                for (int mb = 0; mb < mblocks; mb++) {
+                    int m0 = mb * QI_MC, mc = M - m0 < QI_MC ? M - m0 : QI_MC;
+                    for (int i = 0; i < mc; i++)
+                        for (int j = 0; j < nr; j++)
+                            Y[(int64_t)(m0 + i) * ldy + n0 + j] += bias[n0 + j];
+                }
+        }"""
+
+if block.count(old) != 1:
+    raise SystemExit(f"ENGINE_PACK_REUSE_PATCH_ANCHOR_INVALID:{block.count(old)}")
+patched = block.replace(old, new, 1)
+text = text[:start] + patched + text[end:]
+
+
+
+path.write_text(text, encoding="utf-8")
+PY
+  then
+    rm -rf "$stage"
+    die "ENGINE_PACK_REUSE_SOURCE_PATCH_FAILED"
+  fi
+
+  make -C "$stage/c" laya >/dev/null || { rm -rf "$stage"; die "ENGINE_PACK_REUSE_BUILD_FAILED"; }
+  [[ -x "$stage/c/laya" ]] || { rm -rf "$stage"; die "ENGINE_PACK_REUSE_BINARY_MISSING"; }
+
+  local patch_sha binary_sha
+  patch_sha="$(
+    {
+      git -C "$SOURCE_ROOT" show HEAD:c/qi_gemm.h
+      cat "$stage/c/qi_gemm.h"
+      printf '%s\n' "$variant"
+    } | sha256sum | awk '{print $1}'
+  )"
+  binary_sha="$(sha256sum "$stage/c/laya" | awk '{print $1}')"
+
+  mv "$stage" "$root"
+
+  "$PYTHON_BIN" - "$meta" "$variant" "$expected_sha" "$patch_sha" "$binary_sha" <<'PY'
+import json, os, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+row = {
+    "schema": "HazewaveReflexDerivedEngineBuild/v1",
+    "variant": sys.argv[2],
+    "upstream_commit": sys.argv[3],
+    "patch_sha256": sys.argv[4],
+    "binary_sha256": sys.argv[5],
+    "changes_model_or_precision": False,
+    "weight_panel_reuse_only": True,
+    "preserves_k_accumulation_order": True,
+    "requires_exact_output_gate": True,
+    "provider_authority": "NONE",
+}
+fd = os.open(p, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as out:
+    json.dump(row, out, sort_keys=True, separators=(",", ":"))
+    out.write("\n")
+PY
+  printf '%s\n' "$binary"
+}
+
+build_direct_y_store_engine_variant() {
+  local variant="direct_y_store_v1"
+  local root="$HOME/.local/share/hazewave/providers/colibri/derived/$variant"
+  local binary="$root/c/laya"
+  local meta="$root/build.json"
+  local expected_sha="bf2442915d6e3dd4cdfd2eb9c2a3d2aa44a25850"
+
+  [[ "$(git -C "$SOURCE_ROOT" rev-parse HEAD)" == "$expected_sha" ]] || die "ENGINE_DIRECT_STORE_UPSTREAM_SHA_MISMATCH"
+  [[ -z "$(git -C "$SOURCE_ROOT" status --porcelain)" ]] || die "ENGINE_DIRECT_STORE_UPSTREAM_SOURCE_DIRTY"
+
+  if [[ -x "$binary" && -f "$meta" ]]; then
+    if ! "$PYTHON_BIN" - "$meta" "$binary" <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+meta = json.load(open(sys.argv[1], encoding="utf-8"))
+binary = Path(sys.argv[2])
+actual = hashlib.sha256(binary.read_bytes()).hexdigest()
+if meta.get("binary_sha256") != actual:
+    raise SystemExit("ENGINE_DIRECT_STORE_DERIVED_BINARY_METADATA_MISMATCH")
+if meta.get("direct_y_store_only") is not True:
+    raise SystemExit("ENGINE_DIRECT_STORE_DERIVED_METADATA_INVALID")
+if meta.get("preserves_k_accumulation_order") is not True:
+    raise SystemExit("ENGINE_DIRECT_STORE_ACCUMULATION_ORDER_INVALID")
+PY
+    then
+      die "ENGINE_DIRECT_STORE_CACHED_METADATA_INVALID"
+    fi
+    printf '%s\n' "$binary"
+    return 0
+  fi
+
+  [[ ! -e "$root" ]] || die "ENGINE_DIRECT_STORE_DERIVED_ROOT_OCCUPIED"
+  mkdir -p "$(dirname "$root")"
+  local stage
+  stage="$(mktemp -d "$root.stage.XXXXXX")"
+  git -C "$SOURCE_ROOT" archive HEAD c | tar -x -C "$stage" || die "ENGINE_DIRECT_STORE_SOURCE_ARCHIVE_FAILED"
+
+  if ! "$PYTHON_BIN" - "$stage/c/qi_gemm.h" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+
+start = text.index("static void qi_kernel(")
+end = text.index("\n/* Y[M][N] =", start)
+block = text[start:end]
+
+old = """        float t[QI_MR][QI_NR];
+        _mm256_storeu_ps(t[0], c00); _mm256_storeu_ps(t[0]+8, c01);
+        _mm256_storeu_ps(t[1], c10); _mm256_storeu_ps(t[1]+8, c11);
+        _mm256_storeu_ps(t[2], c20); _mm256_storeu_ps(t[2]+8, c21);
+        _mm256_storeu_ps(t[3], c30); _mm256_storeu_ps(t[3]+8, c31);
+        _mm256_storeu_ps(t[4], c40); _mm256_storeu_ps(t[4]+8, c41);
+        _mm256_storeu_ps(t[5], c50); _mm256_storeu_ps(t[5]+8, c51);
+        for (int i = 0; i < QI_MR; i++)
+            for (int j = 0; j < nr; j++)
+                Y[(int64_t)i*ldy + j] = accumulate ? Y[(int64_t)i*ldy + j] + t[i][j] : t[i][j];
+        return;"""
+
+new = """        if (nr == QI_NR) {
+            float *y0 = Y, *y1 = Y + ldy, *y2 = Y + 2*ldy;
+            float *y3 = Y + 3*ldy, *y4 = Y + 4*ldy, *y5 = Y + 5*ldy;
+            if (accumulate) {
+                c00 = _mm256_add_ps(_mm256_loadu_ps(y0), c00);
+                c01 = _mm256_add_ps(_mm256_loadu_ps(y0 + 8), c01);
+                c10 = _mm256_add_ps(_mm256_loadu_ps(y1), c10);
+                c11 = _mm256_add_ps(_mm256_loadu_ps(y1 + 8), c11);
+                c20 = _mm256_add_ps(_mm256_loadu_ps(y2), c20);
+                c21 = _mm256_add_ps(_mm256_loadu_ps(y2 + 8), c21);
+                c30 = _mm256_add_ps(_mm256_loadu_ps(y3), c30);
+                c31 = _mm256_add_ps(_mm256_loadu_ps(y3 + 8), c31);
+                c40 = _mm256_add_ps(_mm256_loadu_ps(y4), c40);
+                c41 = _mm256_add_ps(_mm256_loadu_ps(y4 + 8), c41);
+                c50 = _mm256_add_ps(_mm256_loadu_ps(y5), c50);
+                c51 = _mm256_add_ps(_mm256_loadu_ps(y5 + 8), c51);
+            }
+            _mm256_storeu_ps(y0, c00); _mm256_storeu_ps(y0 + 8, c01);
+            _mm256_storeu_ps(y1, c10); _mm256_storeu_ps(y1 + 8, c11);
+            _mm256_storeu_ps(y2, c20); _mm256_storeu_ps(y2 + 8, c21);
+            _mm256_storeu_ps(y3, c30); _mm256_storeu_ps(y3 + 8, c31);
+            _mm256_storeu_ps(y4, c40); _mm256_storeu_ps(y4 + 8, c41);
+            _mm256_storeu_ps(y5, c50); _mm256_storeu_ps(y5 + 8, c51);
+            return;
+        }
+        float t[QI_MR][QI_NR];
+        _mm256_storeu_ps(t[0], c00); _mm256_storeu_ps(t[0]+8, c01);
+        _mm256_storeu_ps(t[1], c10); _mm256_storeu_ps(t[1]+8, c11);
+        _mm256_storeu_ps(t[2], c20); _mm256_storeu_ps(t[2]+8, c21);
+        _mm256_storeu_ps(t[3], c30); _mm256_storeu_ps(t[3]+8, c31);
+        _mm256_storeu_ps(t[4], c40); _mm256_storeu_ps(t[4]+8, c41);
+        _mm256_storeu_ps(t[5], c50); _mm256_storeu_ps(t[5]+8, c51);
+        for (int i = 0; i < QI_MR; i++)
+            for (int j = 0; j < nr; j++)
+                Y[(int64_t)i*ldy + j] = accumulate ? Y[(int64_t)i*ldy + j] + t[i][j] : t[i][j];
+        return;"""
+
+if block.count(old) != 1:
+    raise SystemExit(f"ENGINE_DIRECT_STORE_PATCH_ANCHOR_INVALID:{block.count(old)}")
+patched = block.replace(old, new, 1)
+text = text[:start] + patched + text[end:]
+path.write_text(text, encoding="utf-8")
+PY
+  then
+    rm -rf "$stage"
+    die "ENGINE_DIRECT_STORE_SOURCE_PATCH_FAILED"
+  fi
+
+  grep -Fq "if (nr == QI_NR)" "$stage/c/qi_gemm.h" \
+    || { rm -rf "$stage"; die "ENGINE_DIRECT_STORE_SOURCE_MARKER_MISSING"; }
+
+  make -C "$stage/c" laya >/dev/null || { rm -rf "$stage"; die "ENGINE_DIRECT_STORE_BUILD_FAILED"; }
+  [[ -x "$stage/c/laya" ]] || { rm -rf "$stage"; die "ENGINE_DIRECT_STORE_BINARY_MISSING"; }
+
+  local patch_sha binary_sha
+  patch_sha="$(
+    {
+      git -C "$SOURCE_ROOT" show HEAD:c/qi_gemm.h
+      cat "$stage/c/qi_gemm.h"
+      printf '%s\n' "$variant"
+    } | sha256sum | awk '{print $1}'
+  )"
+  binary_sha="$(sha256sum "$stage/c/laya" | awk '{print $1}')"
+
+  mv "$stage" "$root"
+
+  "$PYTHON_BIN" - "$meta" "$variant" "$expected_sha" "$patch_sha" "$binary_sha" <<'PY'
+import json, os, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+row = {
+    "schema": "HazewaveReflexDerivedEngineBuild/v1",
+    "variant": sys.argv[2],
+    "upstream_commit": sys.argv[3],
+    "patch_sha256": sys.argv[4],
+    "binary_sha256": sys.argv[5],
+    "changes_model_or_precision": False,
+    "direct_y_store_only": True,
+    "full_tile_only": True,
+    "preserves_k_accumulation_order": True,
+    "requires_exact_output_gate": True,
+    "provider_authority": "NONE",
+}
+fd = os.open(p, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as out:
+    json.dump(row, out, sort_keys=True, separators=(",", ":"))
+    out.write("\n")
+PY
+  printf '%s\n' "$binary"
+}
+
+build_mc_engine_variant() {
+  local mc="$1"
+  case "$mc" in
+    144|408|816) ;;
+    *) die "ENGINE_MC_VARIANT_UNSUPPORTED:$mc" ;;
+  esac
+  local variant="mc_${mc}_v2"
+  local root="$HOME/.local/share/hazewave/providers/colibri/derived/$variant"
+  local binary="$root/c/laya"
+  local meta="$root/build.json"
+  local expected_sha="bf2442915d6e3dd4cdfd2eb9c2a3d2aa44a25850"
+
+  [[ "$(git -C "$SOURCE_ROOT" rev-parse HEAD)" == "$expected_sha" ]] || die "ENGINE_MC_UPSTREAM_SHA_MISMATCH"
+  [[ -z "$(git -C "$SOURCE_ROOT" status --porcelain)" ]] || die "ENGINE_MC_UPSTREAM_SOURCE_DIRTY"
+
+  if [[ -x "$binary" && -f "$meta" ]]; then
+    if ! "$PYTHON_BIN" - "$meta" "$binary" "$mc" <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+meta = json.load(open(sys.argv[1], encoding="utf-8"))
+binary = Path(sys.argv[2])
+mc = int(sys.argv[3])
+actual = hashlib.sha256(binary.read_bytes()).hexdigest()
+if meta.get("binary_sha256") != actual:
+    raise SystemExit("ENGINE_MC_DERIVED_BINARY_METADATA_MISMATCH")
+if meta.get("cache_block_mc_only") is not True:
+    raise SystemExit("ENGINE_MC_DERIVED_METADATA_INVALID")
+if meta.get("qi_mc") != mc:
+    raise SystemExit("ENGINE_MC_DERIVED_MC_MISMATCH")
+if meta.get("preserves_k_accumulation_order") is not True:
+    raise SystemExit("ENGINE_MC_ACCUMULATION_ORDER_INVALID")
+PY
+    then
+      die "ENGINE_MC_CACHED_METADATA_INVALID:$variant"
+    fi
+    printf '%s\n' "$binary"
+    return 0
+  fi
+
+  [[ ! -e "$root" ]] || die "ENGINE_MC_DERIVED_ROOT_OCCUPIED:$variant"
+  mkdir -p "$(dirname "$root")"
+  local stage
+  stage="$(mktemp -d "$root.stage.XXXXXX")"
+  git -C "$SOURCE_ROOT" archive HEAD c | tar -x -C "$stage" || die "ENGINE_MC_SOURCE_ARCHIVE_FAILED:$variant"
+
+  if ! "$PYTHON_BIN" - "$stage/c/qi_gemm.h" "$mc" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+mc = int(sys.argv[2])
+text = path.read_text(encoding="utf-8")
+if text.count("#define QI_MC 192") != 1:
+    raise SystemExit(f"ENGINE_MC_PATCH_ANCHOR_INVALID:{text.count('#define QI_MC 192')}")
+text = text.replace("#define QI_MC 192", f"#define QI_MC {mc}", 1)
+path.write_text(text, encoding="utf-8")
+PY
+  then
+    rm -rf "$stage"
+    die "ENGINE_MC_SOURCE_PATCH_FAILED:$variant"
+  fi
+
+  grep -Fq "#define QI_MC $mc" "$stage/c/qi_gemm.h" \
+    || { rm -rf "$stage"; die "ENGINE_MC_SOURCE_MARKER_MISSING:$variant"; }
+
+  make -C "$stage/c" laya >/dev/null || { rm -rf "$stage"; die "ENGINE_MC_BUILD_FAILED:$variant"; }
+  [[ -x "$stage/c/laya" ]] || { rm -rf "$stage"; die "ENGINE_MC_BINARY_MISSING:$variant"; }
+
+  local patch_sha binary_sha
+  patch_sha="$(
+    {
+      git -C "$SOURCE_ROOT" show HEAD:c/qi_gemm.h
+      cat "$stage/c/qi_gemm.h"
+      printf '%s\n' "$variant"
+    } | sha256sum | awk '{print $1}'
+  )"
+  binary_sha="$(sha256sum "$stage/c/laya" | awk '{print $1}')"
+
+  mv "$stage" "$root"
+
+  "$PYTHON_BIN" - "$meta" "$variant" "$expected_sha" "$patch_sha" "$binary_sha" "$mc" <<'PY'
+import json, os, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+row = {
+    "schema": "HazewaveReflexDerivedEngineBuild/v1",
+    "variant": sys.argv[2],
+    "upstream_commit": sys.argv[3],
+    "patch_sha256": sys.argv[4],
+    "binary_sha256": sys.argv[5],
+    "qi_mc": int(sys.argv[6]),
+    "changes_model_or_precision": False,
+    "cache_block_mc_only": True,
+    "preserves_k_accumulation_order": True,
+    "requires_exact_output_gate": True,
+    "provider_authority": "NONE",
+}
+fd = os.open(p, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as out:
+    json.dump(row, out, sort_keys=True, separators=(",", ":"))
+    out.write("\n")
+PY
+  printf '%s\n' "$binary"
+}
+
+build_phase_profile_engine_variant() {
+  local variant="phase_profile_v4"
+  local root="$HOME/.local/share/hazewave/providers/colibri/derived/$variant"
+  local binary="$root/c/laya"
+  local meta="$root/build.json"
+  local expected_sha="bf2442915d6e3dd4cdfd2eb9c2a3d2aa44a25850"
+
+  [[ "$(git -C "$SOURCE_ROOT" rev-parse HEAD)" == "$expected_sha" ]] || die "ENGINE_PROFILE_UPSTREAM_SHA_MISMATCH"
+  [[ -z "$(git -C "$SOURCE_ROOT" status --porcelain)" ]] || die "ENGINE_PROFILE_UPSTREAM_SOURCE_DIRTY"
+
+  if [[ -x "$binary" && -f "$meta" ]]; then
+    if ! "$PYTHON_BIN" - "$meta" "$binary" <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+meta = json.load(open(sys.argv[1], encoding="utf-8"))
+binary = Path(sys.argv[2])
+actual = hashlib.sha256(binary.read_bytes()).hexdigest()
+if meta.get("binary_sha256") != actual:
+    raise SystemExit("ENGINE_PROFILE_DERIVED_BINARY_METADATA_MISMATCH")
+if meta.get("diagnostic_only") is not True or meta.get("activatable") is not False:
+    raise SystemExit("ENGINE_PROFILE_DERIVED_METADATA_INVALID")
+PY
+    then
+      die "ENGINE_PROFILE_CACHED_METADATA_INVALID"
+    fi
+    printf '%s\n' "$binary"
+    return 0
+  fi
+
+  [[ ! -e "$root" ]] || die "ENGINE_PROFILE_DERIVED_ROOT_OCCUPIED"
+  mkdir -p "$(dirname "$root")"
+  local stage
+  stage="$(mktemp -d "$root.stage.XXXXXX")"
+  git -C "$SOURCE_ROOT" archive HEAD c | tar -x -C "$stage" || die "ENGINE_PROFILE_SOURCE_ARCHIVE_FAILED"
+
+  if ! "$PYTHON_BIN" - "$stage/c/laya.c" "$stage/c/qi_gemm.h" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+qi_path = Path(sys.argv[2])
+text = path.read_text(encoding="utf-8")
+
+def once(old: str, new: str, label: str) -> None:
+    global text
+    if text.count(old) != 1:
+        raise SystemExit(f"ENGINE_PROFILE_PATCH_ANCHOR_INVALID:{label}:{text.count(old)}")
+    text = text.replace(old, new, 1)
+
+once(
+"""static void forward(Laya *M, Seq *seqs, int S, SeqOut *outs)
+{
+    int d = M->d, I = M->inter;""",
+"""static void forward(Laya *M, Seq *seqs, int S, SeqOut *outs)
+{
+    double hz_total_started = now_ms(), hz_phase_started = now_ms();
+    double hz_setup_ms = 0.0, hz_encoder_attention_ms = 0.0, hz_encoder_mlp_ms = 0.0;
+    double hz_transition_ms = 0.0, hz_head_attention_ms = 0.0, hz_head_mlp_ms = 0.0, hz_tail_ms = 0.0;
+    int d = M->d, I = M->inter;""",
+"forward_start",
+)
+
+once(
+"""    layernorm(x, h, M->emb_norm_w, M->emb_norm_b, T, d, M->eps);
+
+    for (int l = 0; l < M->layers; l++) {
+        EncLayer *E = &M->L[l];
+        const float *in = x;""",
+"""    layernorm(x, h, M->emb_norm_w, M->emb_norm_b, T, d, M->eps);
+    hz_setup_ms += now_ms() - hz_phase_started;
+
+    for (int l = 0; l < M->layers; l++) {
+        EncLayer *E = &M->L[l];
+        hz_phase_started = now_ms();
+        const float *in = x;""",
+"encoder_start",
+)
+
+once(
+"""        gemm(h, att, T, &E->wo, E->bo);
+        add_rows(x, h, (size_t)T * d);
+        layernorm(h, x, E->mlp_norm_w, E->mlp_norm_b, T, d, M->eps);""",
+"""        gemm(h, att, T, &E->wo, E->bo);
+        add_rows(x, h, (size_t)T * d);
+        hz_encoder_attention_ms += now_ms() - hz_phase_started;
+        hz_phase_started = now_ms();
+        layernorm(h, x, E->mlp_norm_w, E->mlp_norm_b, T, d, M->eps);""",
+"encoder_attention_end",
+)
+
+once(
+"""        gemm(h, mid, T, &E->wo2, E->bo2);
+        add_rows(x, h, (size_t)T * d);
+    }
+    layernorm(h, x, M->final_norm_w, M->final_norm_b, T, d, M->eps);""",
+"""        gemm(h, mid, T, &E->wo2, E->bo2);
+        add_rows(x, h, (size_t)T * d);
+        hz_encoder_mlp_ms += now_ms() - hz_phase_started;
+    }
+    hz_phase_started = now_ms();
+    layernorm(h, x, M->final_norm_w, M->final_norm_b, T, d, M->eps);""",
+"encoder_mlp_end",
+)
+
+once(
+"""    #pragma omp parallel for schedule(static)
+    for (int r = 0; r < T; r++) {
+        const float *te = M->type_emb + (size_t)seqs[row_seq[r]].qtype * d;
+        float *xr = x + (size_t)r * d;
+        for (int i = 0; i < d; i++) xr[i] += te[i];
+    }
+    int hh = M->head_heads, hhd = d / hh;""",
+"""    #pragma omp parallel for schedule(static)
+    for (int r = 0; r < T; r++) {
+        const float *te = M->type_emb + (size_t)seqs[row_seq[r]].qtype * d;
+        float *xr = x + (size_t)r * d;
+        for (int i = 0; i < d; i++) xr[i] += te[i];
+    }
+    hz_transition_ms += now_ms() - hz_phase_started;
+    int hh = M->head_heads, hhd = d / hh;""",
+"transition_end",
+)
+
+once(
+"""    for (int l = 0; l < M->head_layers; l++) {
+        HeadLayer *H = &M->H[l];
+        layernorm(h, x, H->n1w, H->n1b, T, d, 1e-5f);""",
+"""    for (int l = 0; l < M->head_layers; l++) {
+        HeadLayer *H = &M->H[l];
+        hz_phase_started = now_ms();
+        layernorm(h, x, H->n1w, H->n1b, T, d, 1e-5f);""",
+"head_start",
+)
+
+once(
+"""        gemm(h, att, T, &H->out_proj, H->out_proj_b);
+        add_rows(x, h, (size_t)T * d);
+        layernorm(h, x, H->n2w, H->n2b, T, d, 1e-5f);""",
+"""        gemm(h, att, T, &H->out_proj, H->out_proj_b);
+        add_rows(x, h, (size_t)T * d);
+        hz_head_attention_ms += now_ms() - hz_phase_started;
+        hz_phase_started = now_ms();
+        layernorm(h, x, H->n2w, H->n2b, T, d, 1e-5f);""",
+"head_attention_end",
+)
+
+once(
+"""        gemm(h, big, T, &H->lin2, H->lin2_b);
+        add_rows(x, h, (size_t)T * d);
+    }
+
+    int nm = 0;""",
+"""        gemm(h, big, T, &H->lin2, H->lin2_b);
+        add_rows(x, h, (size_t)T * d);
+        hz_head_mlp_ms += now_ms() - hz_phase_started;
+    }
+
+    int nm = 0;""",
+"head_mlp_end",
+)
+
+once(
+"""    forward_tail(M, seqs, S, x, seq_off, mark_row, outs);
+    free(mark_row);""",
+"""    hz_phase_started = now_ms();
+    forward_tail(M, seqs, S, x, seq_off, mark_row, outs);
+    hz_tail_ms += now_ms() - hz_phase_started;
+    double hz_total_ms = now_ms() - hz_total_started;
+    double hz_accounted_ms = hz_setup_ms + hz_encoder_attention_ms + hz_encoder_mlp_ms +
+                             hz_transition_ms + hz_head_attention_ms + hz_head_mlp_ms + hz_tail_ms;
+    double hz_other_ms = hz_total_ms - hz_accounted_ms;
+    if (hz_other_ms < 0.0) hz_other_ms = 0.0;
+    fprintf(stderr,
+            "REFLEX_LAYA_PHASES total_ms=%.3f setup_ms=%.3f encoder_attention_ms=%.3f "
+            "encoder_mlp_ms=%.3f transition_ms=%.3f head_attention_ms=%.3f "
+            "head_mlp_ms=%.3f tail_ms=%.3f other_ms=%.3f rows=%d sequences=%d\\n",
+            hz_total_ms, hz_setup_ms, hz_encoder_attention_ms, hz_encoder_mlp_ms,
+            hz_transition_ms, hz_head_attention_ms, hz_head_mlp_ms, hz_tail_ms,
+            hz_other_ms, T, S);
+    free(mark_row);""",
+"tail_profile",
+)
+
+
+# Fine-grained encoder subphases. This runs after the coarse instrumentation
+# above, so it only adds monotonic timers around existing operations.
+once(
+"""    double hz_transition_ms = 0.0, hz_head_attention_ms = 0.0, hz_head_mlp_ms = 0.0, hz_tail_ms = 0.0;
+    int d = M->d, I = M->inter;""",
+"""    double hz_transition_ms = 0.0, hz_head_attention_ms = 0.0, hz_head_mlp_ms = 0.0, hz_tail_ms = 0.0;
+    double hz_encoder_attn_norm_ms = 0.0, hz_encoder_qkv_gemm_ms = 0.0, hz_encoder_rope_ms = 0.0;
+    double hz_encoder_attention_core_ms = 0.0, hz_encoder_out_gemm_ms = 0.0, hz_encoder_mlp_norm_ms = 0.0;
+    double hz_encoder_wi_gemm_ms = 0.0, hz_encoder_geglu_ms = 0.0, hz_encoder_wo_gemm_ms = 0.0;
+    double hz_encoder_residual_ms = 0.0, hz_sub_started = 0.0;
+    int d = M->d, I = M->inter;""",
+"subphase_declarations",
+)
+
+once(
+"""        hz_phase_started = now_ms();
+        const float *in = x;
+        if (E->attn_norm_w) { layernorm(h, x, E->attn_norm_w, E->attn_norm_b, T, d, M->eps); in = h; }
+        gemm(big, in, T, &E->wqkv, E->bqkv);
+        apply_rope(big, T, row_pos, d, M->heads, M->hd, E->global ? M->rope_g : M->rope_l, M->max_pos);
+        attention(big, att, T, d, M->heads, M->hd, row_seq, seq_off, E->global ? -1 : M->window, NULL);
+        gemm(h, att, T, &E->wo, E->bo);
+        add_rows(x, h, (size_t)T * d);
+        hz_encoder_attention_ms += now_ms() - hz_phase_started;
+        hz_phase_started = now_ms();
+        layernorm(h, x, E->mlp_norm_w, E->mlp_norm_b, T, d, M->eps);
+        gemm(big, h, T, &E->wi, E->bi);
+        #pragma omp parallel for schedule(static)
+        for (int r = 0; r < T; r++) {
+            const float *u = big + (size_t)r * 2 * I;
+            float *g = mid + (size_t)r * I;
+            for (int j = 0; j < I; j++) g[j] = gelu(u[j], M->gelu_tanh) * u[I + j];
+        }
+        gemm(h, mid, T, &E->wo2, E->bo2);
+        add_rows(x, h, (size_t)T * d);
+        hz_encoder_mlp_ms += now_ms() - hz_phase_started;""",
+"""        hz_phase_started = now_ms();
+        hz_sub_started = now_ms();
+        const float *in = x;
+        if (E->attn_norm_w) { layernorm(h, x, E->attn_norm_w, E->attn_norm_b, T, d, M->eps); in = h; }
+        hz_encoder_attn_norm_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        gemm(big, in, T, &E->wqkv, E->bqkv);
+        hz_encoder_qkv_gemm_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        apply_rope(big, T, row_pos, d, M->heads, M->hd, E->global ? M->rope_g : M->rope_l, M->max_pos);
+        hz_encoder_rope_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        attention(big, att, T, d, M->heads, M->hd, row_seq, seq_off, E->global ? -1 : M->window, NULL);
+        hz_encoder_attention_core_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        gemm(h, att, T, &E->wo, E->bo);
+        hz_encoder_out_gemm_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        add_rows(x, h, (size_t)T * d);
+        hz_encoder_residual_ms += now_ms() - hz_sub_started;
+        hz_encoder_attention_ms += now_ms() - hz_phase_started;
+
+        hz_phase_started = now_ms();
+        hz_sub_started = now_ms();
+        layernorm(h, x, E->mlp_norm_w, E->mlp_norm_b, T, d, M->eps);
+        hz_encoder_mlp_norm_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        gemm(big, h, T, &E->wi, E->bi);
+        hz_encoder_wi_gemm_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        #pragma omp parallel for schedule(static)
+        for (int r = 0; r < T; r++) {
+            const float *u = big + (size_t)r * 2 * I;
+            float *g = mid + (size_t)r * I;
+            for (int j = 0; j < I; j++) g[j] = gelu(u[j], M->gelu_tanh) * u[I + j];
+        }
+        hz_encoder_geglu_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        gemm(h, mid, T, &E->wo2, E->bo2);
+        hz_encoder_wo_gemm_ms += now_ms() - hz_sub_started;
+
+        hz_sub_started = now_ms();
+        add_rows(x, h, (size_t)T * d);
+        hz_encoder_residual_ms += now_ms() - hz_sub_started;
+        hz_encoder_mlp_ms += now_ms() - hz_phase_started;""",
+"encoder_subphases",
+)
+
+once(
+"""            hz_transition_ms, hz_head_attention_ms, hz_head_mlp_ms, hz_tail_ms,
+            hz_other_ms, T, S);
+    free(mark_row);""",
+"""            hz_transition_ms, hz_head_attention_ms, hz_head_mlp_ms, hz_tail_ms,
+            hz_other_ms, T, S);
+    fprintf(stderr,
+            "REFLEX_LAYA_SUBPHASES encoder_attn_norm_ms=%.3f encoder_qkv_gemm_ms=%.3f "
+            "encoder_rope_ms=%.3f encoder_attention_core_ms=%.3f encoder_out_gemm_ms=%.3f "
+            "encoder_mlp_norm_ms=%.3f encoder_wi_gemm_ms=%.3f encoder_geglu_ms=%.3f "
+            "encoder_wo_gemm_ms=%.3f encoder_residual_ms=%.3f rows=%d sequences=%d\\n",
+            hz_encoder_attn_norm_ms, hz_encoder_qkv_gemm_ms, hz_encoder_rope_ms,
+            hz_encoder_attention_core_ms, hz_encoder_out_gemm_ms, hz_encoder_mlp_norm_ms,
+            hz_encoder_wi_gemm_ms, hz_encoder_geglu_ms, hz_encoder_wo_gemm_ms,
+            hz_encoder_residual_ms, T, S);
+    free(mark_row);""",
+"subphase_emit",
+)
+
+qi_text = qi_path.read_text(encoding="utf-8")
+helper_anchor = """enum { QI_F32 = 0, QI_BF16 = 1, QI_I8 = 2 };\n"""
+if qi_text.count(helper_anchor) != 1:
+    raise SystemExit(f"ENGINE_QI_PROFILE_HELPER_ANCHOR_INVALID:{qi_text.count(helper_anchor)}")
+qi_text = qi_text.replace(
+    helper_anchor,
+    helper_anchor + """
+static inline double qi_prof_now_ms(void){
+#ifdef _OPENMP
+    return omp_get_wtime() * 1000.0;
+#else
+    return 0.0;
+#endif
+}
+""",
+    1,
+)
+
+start = qi_text.index("static void qi_gemm_ld(")
+end = qi_text.index("\nstatic inline void qi_gemm(", start)
+qi_block = qi_text[start:end]
+
+old_qi = """static void qi_gemm_ld(float *Y, int ldy, const float *X, int ldx, int M, const QiMat *W, const float *bias){
+    const int N = W->N, K = W->K;
+    if (M <= 0 || N <= 0) return;
+    const int nblocks = (N + QI_NR - 1) / QI_NR;
+    const int mblocks = (M + QI_MC - 1) / QI_MC;
+    /* Parallel over (m-block, n-panel) tiles; each tile walks all of K, so the
+     * sum for one output is always accumulated in the same order: the result
+     * does not depend on the thread count. */
+    #pragma omp parallel
+    {
+        /* plain malloc: the kernel loads unaligned, and aligned_alloc is missing from
+         * the Windows CRT */
+        float *panel = (float *)malloc((size_t)QI_KC * QI_NR * sizeof(float));
+        if (!panel) { fprintf(stderr, "OOM qi_gemm panel\\n"); exit(1); }
+        #pragma omp for schedule(dynamic, 1) collapse(2)
+        for (int mb = 0; mb < mblocks; mb++)
+            for (int nb = 0; nb < nblocks; nb++) {
+                int m0 = mb * QI_MC, mc = M - m0 < QI_MC ? M - m0 : QI_MC;
+                int n0 = nb * QI_NR, nr = N - n0 < QI_NR ? N - n0 : QI_NR;
+                for (int k0 = 0; k0 < K; k0 += QI_KC) {
+                    int kc = K - k0 < QI_KC ? K - k0 : QI_KC;
+                    qi_pack_w(panel, W, n0, nr, k0, kc);
+                    for (int i = 0; i < mc; i += QI_MR) {
+                        int mr = mc - i < QI_MR ? mc - i : QI_MR;
+                        qi_kernel(Y + (int64_t)(m0 + i) * ldy + n0, ldy,
+                                  X + (int64_t)(m0 + i) * ldx + k0, ldx,
+                                  panel, kc, mr, nr, k0 > 0);
+                    }
+                }
+                if (bias)
+                    for (int i = 0; i < mc; i++)
+                        for (int j = 0; j < nr; j++) Y[(int64_t)(m0 + i) * ldy + n0 + j] += bias[n0 + j];
+            }
+        free(panel);
+    }
+}"""
+
+new_qi = """static void qi_gemm_ld(float *Y, int ldy, const float *X, int ldx, int M, const QiMat *W, const float *bias){
+    const int N = W->N, K = W->K;
+    if (M <= 0 || N <= 0) return;
+    const int nblocks = (N + QI_NR - 1) / QI_NR;
+    const int mblocks = (M + QI_MC - 1) / QI_MC;
+    double hz_total_started = qi_prof_now_ms();
+    double hz_pack_ms = 0.0, hz_kernel_ms = 0.0, hz_bias_ms = 0.0;
+    /* Parallel over (m-block, n-panel) tiles; each tile walks all of K, so the
+     * sum for one output is always accumulated in the same order: the result
+     * does not depend on the thread count. */
+    #pragma omp parallel reduction(+:hz_pack_ms,hz_kernel_ms,hz_bias_ms)
+    {
+        /* plain malloc: the kernel loads unaligned, and aligned_alloc is missing from
+         * the Windows CRT */
+        float *panel = (float *)malloc((size_t)QI_KC * QI_NR * sizeof(float));
+        if (!panel) { fprintf(stderr, "OOM qi_gemm panel\\n"); exit(1); }
+        #pragma omp for schedule(dynamic, 1) collapse(2)
+        for (int mb = 0; mb < mblocks; mb++)
+            for (int nb = 0; nb < nblocks; nb++) {
+                int m0 = mb * QI_MC, mc = M - m0 < QI_MC ? M - m0 : QI_MC;
+                int n0 = nb * QI_NR, nr = N - n0 < QI_NR ? N - n0 : QI_NR;
+                for (int k0 = 0; k0 < K; k0 += QI_KC) {
+                    int kc = K - k0 < QI_KC ? K - k0 : QI_KC;
+                    double hz_t = qi_prof_now_ms();
+                    qi_pack_w(panel, W, n0, nr, k0, kc);
+                    hz_pack_ms += qi_prof_now_ms() - hz_t;
+                    for (int i = 0; i < mc; i += QI_MR) {
+                        int mr = mc - i < QI_MR ? mc - i : QI_MR;
+                        hz_t = qi_prof_now_ms();
+                        qi_kernel(Y + (int64_t)(m0 + i) * ldy + n0, ldy,
+                                  X + (int64_t)(m0 + i) * ldx + k0, ldx,
+                                  panel, kc, mr, nr, k0 > 0);
+                        hz_kernel_ms += qi_prof_now_ms() - hz_t;
+                    }
+                }
+                if (bias) {
+                    double hz_t = qi_prof_now_ms();
+                    for (int i = 0; i < mc; i++)
+                        for (int j = 0; j < nr; j++)
+                            Y[(int64_t)(m0 + i) * ldy + n0 + j] += bias[n0 + j];
+                    hz_bias_ms += qi_prof_now_ms() - hz_t;
+                }
+            }
+        free(panel);
+    }
+    double hz_total_ms = qi_prof_now_ms() - hz_total_started;
+    fprintf(stderr,
+            "REFLEX_QI_GEMM M=%d N=%d K=%d fmt=%d pack_ms=%.3f kernel_ms=%.3f "
+            "bias_ms=%.3f total_ms=%.3f\\n",
+            M, N, K, W->fmt, hz_pack_ms, hz_kernel_ms, hz_bias_ms, hz_total_ms);
+}"""
+
+if qi_block.count(old_qi) != 1:
+    raise SystemExit(f"ENGINE_QI_PROFILE_PATCH_ANCHOR_INVALID:{qi_block.count(old_qi)}")
+qi_block = qi_block.replace(old_qi, new_qi, 1)
+qi_text = qi_text[:start] + qi_block + qi_text[end:]
+qi_path.write_text(qi_text, encoding="utf-8")
+
+path.write_text(text, encoding="utf-8")
+PY
+  then
+    rm -rf "$stage"
+    die "ENGINE_PROFILE_SOURCE_PATCH_FAILED"
+  fi
+
+  grep -Fq "REFLEX_QI_GEMM" "$stage/c/qi_gemm.h" \
+    || { rm -rf "$stage"; die "ENGINE_PROFILE_QI_SOURCE_MARKER_MISSING"; }
+
+  make -C "$stage/c" laya >/dev/null || { rm -rf "$stage"; die "ENGINE_PROFILE_BUILD_FAILED"; }
+  [[ -x "$stage/c/laya" ]] || { rm -rf "$stage"; die "ENGINE_PROFILE_BINARY_MISSING"; }
+  grep -aFq "REFLEX_QI_GEMM" "$stage/c/laya" \
+    || { rm -rf "$stage"; die "ENGINE_PROFILE_QI_BINARY_MARKER_MISSING"; }
+
+  local patch_sha binary_sha
+  patch_sha="$(
+    {
+      git -C "$SOURCE_ROOT" show HEAD:c/laya.c
+      git -C "$SOURCE_ROOT" show HEAD:c/qi_gemm.h
+      cat "$stage/c/laya.c"
+      cat "$stage/c/qi_gemm.h"
+      printf '%s\n' "$variant"
+    } | sha256sum | awk '{print $1}'
+  )"
+  binary_sha="$(sha256sum "$stage/c/laya" | awk '{print $1}')"
+
+  mv "$stage" "$root"
+
+  "$PYTHON_BIN" - "$meta" "$variant" "$expected_sha" "$patch_sha" "$binary_sha" <<'PY'
+import json, os, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+row = {
+    "schema": "HazewaveReflexDerivedEngineBuild/v1",
+    "variant": sys.argv[2],
+    "upstream_commit": sys.argv[3],
+    "patch_sha256": sys.argv[4],
+    "binary_sha256": sys.argv[5],
+    "changes_model_or_precision": False,
+    "instrumentation_only": True,
+    "diagnostic_only": True,
+    "activatable": False,
+    "provider_authority": "NONE",
+}
+fd = os.open(p, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as out:
+    json.dump(row, out, sort_keys=True, separators=(",", ":"))
+    out.write("\n")
+PY
+  printf '%s\n' "$binary"
+}
+
+latency_engine_profile() {
+  ensure_checkout
+  "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE" >/dev/null || die "RUNTIME_DOCTOR_BLOCKED"
+  [[ -f "$SECRET_FILE" && ! -L "$SECRET_FILE" ]] || die "COLIBRI_SECRET_MISSING"
+  [[ "$(stat -c %a "$SECRET_FILE")" == "600" ]] || die "COLIBRI_SECRET_PERMISSIONS_INVALID"
+  port_is_free || die "ENGINE_PROFILE_PORT_BUSY_STOP_SERVE_FIRST"
+
+  local profiler stamp run_dir
+  profiler="$(build_phase_profile_engine_variant)"
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  run_dir="$STATE_ROOT/latency/phase-profile-runs/$stamp"
+  mkdir -p "$run_dir"
+  chmod 700 "$STATE_ROOT/latency" "$STATE_ROOT/latency/phase-profile-runs" "$run_dir" 2>/dev/null || true
+  echo "REFLEX_ENGINE_PROFILE_RUN_DIR=$run_dir"
+  echo "REFLEX_ENGINE_PROFILE_MODE=STOCK_VS_INSTRUMENTED_EXACT_OUTPUT"
+
+  stop_profile_case() {
+    local owned_pid="$1"
+    "$SOURCE_ROOT/c/coli" stop --port "$PORT" >/dev/null 2>&1 || true
+    for _ in $(seq 1 20); do
+      kill -0 "$owned_pid" 2>/dev/null || break
+      sleep 0.25
+    done
+    kill -0 "$owned_pid" 2>/dev/null && kill -TERM "$owned_pid" 2>/dev/null || true
+    for _ in $(seq 1 20); do
+      kill -0 "$owned_pid" 2>/dev/null || break
+      sleep 0.25
+    done
+    kill -0 "$owned_pid" 2>/dev/null && kill -KILL "$owned_pid" 2>/dev/null || true
+    wait "$owned_pid" 2>/dev/null || true
+    port_is_free || die "ENGINE_PROFILE_SERVER_DID_NOT_RELEASE_PORT"
+  }
+
+  run_profile_case() {
+    local label="$1"
+    local engine="$2"
+    local pid rc
+    echo "=== REFLEX ENGINE PROFILE CASE: $label ==="
+    port_is_free || die "ENGINE_PROFILE_PORT_NOT_FREE:$label"
+
+    "$PYTHON_BIN" -m hazewave.reflex_latency server \
+      --source-root "$SOURCE_ROOT" --model-root "$MODEL_ROOT" \
+      --secret-file "$SECRET_FILE" --state-root "$STATE_ROOT" \
+      --port "$PORT" --profile baseline_2t --engine-bin "$engine" \
+      >"$run_dir/$label.server.log" 2>&1 &
+    pid=$!
+
+    if ! wait_health 180; then
+      tail -n 80 "$run_dir/$label.server.log" >&2 || true
+      stop_profile_case "$pid"
+      die "ENGINE_PROFILE_SERVER_START_FAILED:$label"
+    fi
+
+    local expected_engine expected_sha
+    expected_engine="$(readlink -f "$engine")"
+    expected_sha="$(sha256sum "$engine" | awk '{print $1}')"
+    grep -Fqx "REFLEX_LATENCY_ENGINE_BIN=$expected_engine" "$run_dir/$label.server.log" \
+      || { stop_profile_case "$pid"; die "ENGINE_PROFILE_ENGINE_PATH_MISMATCH:$label"; }
+    grep -Fqx "REFLEX_LATENCY_ENGINE_SHA256=$expected_sha" "$run_dir/$label.server.log" \
+      || { stop_profile_case "$pid"; die "ENGINE_PROFILE_ENGINE_SHA_MISMATCH:$label"; }
+
+    set +e
+    "$PYTHON_BIN" -m hazewave.reflex_latency measure \
+      --profile baseline_2t --secret-file "$SECRET_FILE" \
+      --warmup 1 --repeats 3 >"$run_dir/$label.json"
+    rc=$?
+    set -e
+    stop_profile_case "$pid"
+    [[ "$rc" -eq 0 ]] || die "ENGINE_PROFILE_MEASURE_FAILED:$label:$rc"
+  }
+
+  run_profile_case stock "$SOURCE_ROOT/c/laya"
+  run_profile_case instrumented "$profiler"
+
+  set +e
+  "$PYTHON_BIN" - "$run_dir" <<'PY'
+import hashlib
+import json
+import os
+import re
+import statistics
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+stock = json.load(open(root / "stock.json", encoding="utf-8"))
+instrumented = json.load(open(root / "instrumented.json", encoding="utf-8"))
+stock_samples = [row for row in stock["samples"] if row.get("status") == "PASS"]
+inst_samples = [row for row in instrumented["samples"] if row.get("status") == "PASS"]
+reasons = []
+
+if stock.get("failed_requests") != 0 or instrumented.get("failed_requests") != 0:
+    reasons.append("FAILURES_OR_INCOMPLETE")
+if stock.get("all_semantically_stable") is not True or instrumented.get("all_semantically_stable") is not True:
+    reasons.append("SEMANTIC_STABILITY_FAILED")
+if [row["request_sha256"] for row in stock_samples] != [row["request_sha256"] for row in inst_samples]:
+    reasons.append("REQUEST_SEQUENCE_DRIFT")
+exact_probs = (
+    [row["aggregate_probabilities"] for row in stock_samples]
+    == [row["aggregate_probabilities"] for row in inst_samples]
+)
+if not exact_probs:
+    reasons.append("AGGREGATE_PROBABILITY_DRIFT")
+
+pattern = re.compile(
+    r"REFLEX_LAYA_PHASES "
+    r"total_ms=(?P<total_ms>[0-9.]+) "
+    r"setup_ms=(?P<setup_ms>[0-9.]+) "
+    r"encoder_attention_ms=(?P<encoder_attention_ms>[0-9.]+) "
+    r"encoder_mlp_ms=(?P<encoder_mlp_ms>[0-9.]+) "
+    r"transition_ms=(?P<transition_ms>[0-9.]+) "
+    r"head_attention_ms=(?P<head_attention_ms>[0-9.]+) "
+    r"head_mlp_ms=(?P<head_mlp_ms>[0-9.]+) "
+    r"tail_ms=(?P<tail_ms>[0-9.]+) "
+    r"other_ms=(?P<other_ms>[0-9.]+) "
+    r"rows=(?P<rows>[0-9]+) sequences=(?P<sequences>[0-9]+)"
+)
+subpattern = re.compile(
+    r"REFLEX_LAYA_SUBPHASES "
+    r"encoder_attn_norm_ms=(?P<encoder_attn_norm_ms>[0-9.]+) "
+    r"encoder_qkv_gemm_ms=(?P<encoder_qkv_gemm_ms>[0-9.]+) "
+    r"encoder_rope_ms=(?P<encoder_rope_ms>[0-9.]+) "
+    r"encoder_attention_core_ms=(?P<encoder_attention_core_ms>[0-9.]+) "
+    r"encoder_out_gemm_ms=(?P<encoder_out_gemm_ms>[0-9.]+) "
+    r"encoder_mlp_norm_ms=(?P<encoder_mlp_norm_ms>[0-9.]+) "
+    r"encoder_wi_gemm_ms=(?P<encoder_wi_gemm_ms>[0-9.]+) "
+    r"encoder_geglu_ms=(?P<encoder_geglu_ms>[0-9.]+) "
+    r"encoder_wo_gemm_ms=(?P<encoder_wo_gemm_ms>[0-9.]+) "
+    r"encoder_residual_ms=(?P<encoder_residual_ms>[0-9.]+) "
+    r"rows=(?P<rows>[0-9]+) sequences=(?P<sequences>[0-9]+)"
+)
+qi_pattern = re.compile(
+    r"REFLEX_QI_GEMM "
+    r"M=(?P<M>[0-9]+) N=(?P<N>[0-9]+) K=(?P<K>[0-9]+) fmt=(?P<fmt>[0-9]+) "
+    r"pack_ms=(?P<pack_ms>[0-9.]+) kernel_ms=(?P<kernel_ms>[0-9.]+) "
+    r"bias_ms=(?P<bias_ms>[0-9.]+) total_ms=(?P<total_ms>[0-9.]+)"
+)
+log_text = (root / "instrumented.server.log").read_text(encoding="utf-8", errors="replace")
+phase_rows = []
+for match in pattern.finditer(log_text):
+    row = {
+        key: (int(value) if key in {"rows", "sequences"} else float(value))
+        for key, value in match.groupdict().items()
+    }
+    phase_rows.append(row)
+
+subphase_rows = []
+for match in subpattern.finditer(log_text):
+    row = {
+        key: (int(value) if key in {"rows", "sequences"} else float(value))
+        for key, value in match.groupdict().items()
+    }
+    subphase_rows.append(row)
+
+qi_rows = []
+for match in qi_pattern.finditer(log_text):
+    row = {
+        key: (int(value) if key in {"M", "N", "K", "fmt"} else float(value))
+        for key, value in match.groupdict().items()
+    }
+    qi_rows.append(row)
+
+needed = int(instrumented.get("measured_requests") or 0)
+if needed < 1 or len(phase_rows) < needed:
+    reasons.append("PHASE_TELEMETRY_INCOMPLETE")
+if needed < 1 or len(subphase_rows) < needed:
+    reasons.append("SUBPHASE_TELEMETRY_INCOMPLETE")
+if not qi_rows:
+    reasons.append("QI_GEMM_TELEMETRY_INCOMPLETE")
+measured_rows = phase_rows[-needed:] if needed > 0 and len(phase_rows) >= needed else phase_rows
+measured_subphase_rows = (
+    subphase_rows[-needed:]
+    if needed > 0 and len(subphase_rows) >= needed
+    else subphase_rows
+)
+
+phase_keys = [
+    "setup_ms",
+    "encoder_attention_ms",
+    "encoder_mlp_ms",
+    "transition_ms",
+    "head_attention_ms",
+    "head_mlp_ms",
+    "tail_ms",
+    "other_ms",
+]
+phase_medians = {}
+phase_shares = {}
+median_total = None
+if measured_rows:
+    median_total = statistics.median(row["total_ms"] for row in measured_rows)
+    phase_medians = {
+        key: statistics.median(row[key] for row in measured_rows)
+        for key in phase_keys
+    }
+    if median_total and median_total > 0:
+        phase_shares = {
+            key.replace("_ms", "_share"): value / median_total
+            for key, value in phase_medians.items()
+        }
+
+dominant_phase = (
+    max(phase_medians, key=phase_medians.get)
+    if phase_medians else None
+)
+
+subphase_keys = [
+    "encoder_attn_norm_ms",
+    "encoder_qkv_gemm_ms",
+    "encoder_rope_ms",
+    "encoder_attention_core_ms",
+    "encoder_out_gemm_ms",
+    "encoder_mlp_norm_ms",
+    "encoder_wi_gemm_ms",
+    "encoder_geglu_ms",
+    "encoder_wo_gemm_ms",
+    "encoder_residual_ms",
+]
+subphase_medians = {}
+subphase_shares = {}
+if measured_subphase_rows:
+    subphase_medians = {
+        key: statistics.median(row[key] for row in measured_subphase_rows)
+        for key in subphase_keys
+    }
+    if median_total and median_total > 0:
+        subphase_shares = {
+            key.replace("_ms", "_share"): value / median_total
+            for key, value in subphase_medians.items()
+        }
+dominant_subphase = (
+    max(subphase_medians, key=subphase_medians.get)
+    if subphase_medians else None
+)
+
+gemm_internal_totals = {
+    "pack_ms": sum(row["pack_ms"] for row in qi_rows),
+    "kernel_ms": sum(row["kernel_ms"] for row in qi_rows),
+    "bias_ms": sum(row["bias_ms"] for row in qi_rows),
+    "total_ms": sum(row["total_ms"] for row in qi_rows),
+}
+worker_accounted = (
+    gemm_internal_totals["pack_ms"]
+    + gemm_internal_totals["kernel_ms"]
+    + gemm_internal_totals["bias_ms"]
+)
+gemm_internal_shares = {
+    "pack_share": gemm_internal_totals["pack_ms"] / worker_accounted if worker_accounted else 0.0,
+    "kernel_share": gemm_internal_totals["kernel_ms"] / worker_accounted if worker_accounted else 0.0,
+    "bias_share": gemm_internal_totals["bias_ms"] / worker_accounted if worker_accounted else 0.0,
+}
+
+shape_map = {}
+for row in qi_rows:
+    key = (row["M"], row["N"], row["K"], row["fmt"])
+    item = shape_map.setdefault(
+        key,
+        {"calls": 0, "pack_ms": 0.0, "kernel_ms": 0.0, "bias_ms": 0.0, "total_ms": 0.0},
+    )
+    item["calls"] += 1
+    for field in ("pack_ms", "kernel_ms", "bias_ms", "total_ms"):
+        item[field] += row[field]
+
+gemm_shapes = []
+for (M, N, K, fmt), values in shape_map.items():
+    worker = values["pack_ms"] + values["kernel_ms"] + values["bias_ms"]
+    gemm_shapes.append({
+        "M": M,
+        "N": N,
+        "K": K,
+        "fmt": fmt,
+        **values,
+        "pack_share": values["pack_ms"] / worker if worker else 0.0,
+        "kernel_share": values["kernel_ms"] / worker if worker else 0.0,
+        "bias_share": values["bias_ms"] / worker if worker else 0.0,
+    })
+gemm_shapes.sort(key=lambda row: row["kernel_ms"] + row["pack_ms"], reverse=True)
+dominant_gemm_shape = gemm_shapes[0] if gemm_shapes else None
+
+report = {
+    "schema": "HazewaveReflexLayaPhaseProfile/v1",
+    "status": "PASS" if not reasons else "EVIDENCE_REJECTED",
+    "reasons": reasons,
+    "stock_p50_ms": stock["latency"]["wall"]["p50_ms"],
+    "instrumented_p50_ms": instrumented["latency"]["wall"]["p50_ms"],
+    "exact_aggregate_probability_match": exact_probs,
+    "measured_phase_rows": len(measured_rows),
+    "median_forward_ms": median_total,
+    "phase_medians_ms": phase_medians,
+    "phase_shares": phase_shares,
+    "dominant_phase": dominant_phase,
+    "dominant_subphase": dominant_subphase,
+    "measured_subphase_rows": len(measured_subphase_rows),
+    "subphase_medians_ms": subphase_medians,
+    "subphase_shares": subphase_shares,
+    "gemm_internal_totals_ms": gemm_internal_totals,
+    "gemm_internal_shares": gemm_internal_shares,
+    "gemm_shapes": gemm_shapes,
+    "dominant_gemm_shape": dominant_gemm_shape,
+    "diagnostic_only": True,
+    "activatable": False,
+    "changes_model_or_precision": False,
+    "provider_authority": "NONE",
+    "grants_execution_authority": False,
+    "production_calibrated": False,
+}
+raw = json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
+report["report_sha256"] = hashlib.sha256(raw).hexdigest()
+target = root / "phase-profile.json"
+fd = os.open(target, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as out:
+    json.dump(report, out, sort_keys=True, separators=(",", ":"))
+    out.write("\n")
+print(json.dumps(report, sort_keys=True))
+raise SystemExit(0 if not reasons else 4)
+PY
+  rc=$?
+  set -e
+  [[ "$rc" -eq 0 ]] || die "ENGINE_PROFILE_EVIDENCE_REJECTED:$rc"
+  echo "REFLEX_ENGINE_PROFILE=PASS"
+  echo "REFLEX_ENGINE_PROFILE_ACTIVATION=FORBIDDEN"
+}
+
 latency_engine_tune() {
   ensure_checkout
   "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE" >/dev/null || die "RUNTIME_DOCTOR_BLOCKED"
@@ -566,10 +1760,15 @@ latency_engine_tune() {
   echo "REFLEX_ENGINE_TUNE_MODE=STOCK_VS_SCHEDULER_DERIVATIVES"
   echo "REFLEX_ENGINE_TUNE_PATCH_POLICY=F32_GEMM_ONLY_FAIL_CLOSED"
 
-  local attn gemm all
+  local attn gemm all reuse direct_store mc144 mc408 mc816
   attn="$(build_scheduler_engine_variant static_attention_v2)"
   gemm="$(build_scheduler_engine_variant static_gemm_f32_v2)"
   all="$(build_scheduler_engine_variant static_all_f32_v2)"
+  reuse="$(build_pack_reuse_engine_variant)"
+  direct_store="$(build_direct_y_store_engine_variant)"
+  mc144="$(build_mc_engine_variant 144)"
+  mc408="$(build_mc_engine_variant 408)"
+  mc816="$(build_mc_engine_variant 816)"
 
   stop_engine_case() {
     local owned_pid="$1"
@@ -595,10 +1794,10 @@ latency_engine_tune() {
     echo "=== REFLEX ENGINE CASE: $label ==="
     port_is_free || die "ENGINE_TUNE_PORT_NOT_FREE:$label"
 
-    COLI_ENGINE="$engine" "$PYTHON_BIN" -m hazewave.reflex_latency server \
+    "$PYTHON_BIN" -m hazewave.reflex_latency server \
       --source-root "$SOURCE_ROOT" --model-root "$MODEL_ROOT" \
       --secret-file "$SECRET_FILE" --state-root "$STATE_ROOT" \
-      --port "$PORT" --profile baseline_2t \
+      --port "$PORT" --profile baseline_2t --engine-bin "$engine" \
       >"$run_dir/$label.server.log" 2>&1 &
     pid=$!
 
@@ -607,6 +1806,14 @@ latency_engine_tune() {
       stop_engine_case "$pid"
       die "ENGINE_TUNE_SERVER_START_FAILED:$label"
     fi
+
+    local expected_engine expected_sha
+    expected_engine="$(readlink -f "$engine")"
+    expected_sha="$(sha256sum "$engine" | awk '{print $1}')"
+    grep -Fqx "REFLEX_LATENCY_ENGINE_BIN=$expected_engine" "$run_dir/$label.server.log" \
+      || { stop_engine_case "$pid"; die "ENGINE_TUNE_ENGINE_PATH_MISMATCH:$label"; }
+    grep -Fqx "REFLEX_LATENCY_ENGINE_SHA256=$expected_sha" "$run_dir/$label.server.log" \
+      || { stop_engine_case "$pid"; die "ENGINE_TUNE_ENGINE_SHA_MISMATCH:$label"; }
 
     set +e
     "$PYTHON_BIN" -m hazewave.reflex_latency measure \
@@ -636,12 +1843,17 @@ PY
   run_case static_attention_v2 "$attn"
   run_case static_gemm_f32_v2 "$gemm"
   run_case static_all_f32_v2 "$all"
+  run_case reuse_packed_w_v1 "$reuse"
+  run_case direct_y_store_v1 "$direct_store"
+  run_case mc_144_v2 "$mc144"
+  run_case mc_408_v2 "$mc408"
+  run_case mc_816_v2 "$mc816"
 
   "$PYTHON_BIN" - "$run_dir" <<'PY'
 import hashlib, json, os, sys
 from pathlib import Path
 root = Path(sys.argv[1])
-names = ["stock", "static_attention_v2", "static_gemm_f32_v2", "static_all_f32_v2"]
+names = ["stock", "static_attention_v2", "static_gemm_f32_v2", "static_all_f32_v2", "reuse_packed_w_v1", "direct_y_store_v1", "mc_144_v2", "mc_408_v2", "mc_816_v2"]
 rows = {n: json.load(open(root / f"{n}.json", encoding="utf-8")) for n in names}
 base = rows["stock"]
 bs = [x for x in base["samples"] if x.get("status") == "PASS"]
@@ -658,7 +1870,7 @@ for name in names[1:]:
     reasons = []
     if len(ss) != row["measured_requests"] or row.get("failed_requests") != 0:
         reasons.append("FAILURES_OR_INCOMPLETE")
-    if row.get("all_robust_eligible") is not True:
+    if row.get("all_semantically_stable") is not True:
         reasons.append("ROBUST_ELIGIBILITY_FAILED")
     if [x["request_sha256"] for x in ss] != base_req:
         reasons.append("REQUEST_SEQUENCE_DRIFT")
@@ -708,6 +1920,15 @@ print(json.dumps(report, sort_keys=True))
 PY
   echo "REFLEX_ENGINE_TUNE=PASS"
   echo "REFLEX_ENGINE_TUNE_ACTIVATION=NOT_AUTOMATIC"
+}
+
+latency_scale_probe() {
+  reconcile
+  [[ -f "$SECRET_FILE" && ! -L "$SECRET_FILE" ]] || die "COLIBRI_SECRET_MISSING"
+  [[ "$(stat -c %a "$SECRET_FILE")" == "600" ]] || die "COLIBRI_SECRET_PERMISSIONS_INVALID"
+  "$PYTHON_BIN" -m hazewave.reflex_latency scale-probe \
+    --secret-file "$SECRET_FILE" \
+    --timeout 90
 }
 
 latency_engine_report() {
@@ -1022,10 +2243,13 @@ case "${1:-}" in
   report) report ;;
   latency-profiles) latency_profiles ;;
   latency-selected) latency_selected ;;
+  latency-retire-stale-selection) latency_retire_stale_selection ;;
   serve-stop) serve_stop ;;
   latency-tune) latency_tune ;;
   latency-report) latency_report ;;
   latency-engine-tune) latency_engine_tune ;;
+  latency-engine-profile) latency_engine_profile ;;
   latency-engine-report) latency_engine_report ;;
-  *) echo "usage: $0 {doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report}" >&2; exit 2 ;;
+  latency-scale-probe) latency_scale_probe ;;
+  *) echo "usage: $0 {doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report|latency-scale-probe}" >&2; exit 2 ;;
 esac

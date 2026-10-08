@@ -19,7 +19,7 @@
     "publication_self_approval": false
   },
   "request_limits": {
-    "max_questions_per_request": 4,
+    "max_questions_per_request": 6,
     "max_choice_labels": 8,
     "max_state_bytes": 32768,
     "max_question_bytes": 16384,
@@ -36,7 +36,7 @@
       "reject_action": "ESCALATE_9ROUTER_REASON_DEEP",
       "production_calibrated": false,
       "calibration_basis": "HAZEWAVE_LABELED_OUTCOMES_REQUIRED",
-      "transport_timeout_ms": 10000
+      "transport_timeout_ms": 30000
     },
     "decision.gate": {
       "question_type": "choice",

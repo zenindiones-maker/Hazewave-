@@ -11,6 +11,7 @@ from pathlib import Path
 import platform
 import statistics
 import sys
+from time import monotonic
 from typing import Any, Iterable, Mapping
 
 from hazewave.colibri import (
@@ -19,7 +20,7 @@ from hazewave.colibri import (
     execute_colibri_system_one,
 )
 from hazewave.harness import HAZE, HazewaveTask, issue_authorization, route_task
-from hazewave.reflex_robustness import execute_robust_reflex_route
+from hazewave.reflex_robustness import aggregate_choice_answers, complete_choice_permutations, execute_robust_reflex_route
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -236,13 +237,285 @@ def _authorization():
 def _proof_question() -> dict[str, Any]:
     return {
         "type": "choice",
-        "instructions": "Select the best Hazewave domain for this structured operational state.",
+        "instructions": (
+            "Choose the domain owning the task's primary responsibility. "
+            "Treat final output medium as secondary evidence."
+        ),
         "criteria": {
-            "HAZE": "audio engineering, mixing and mastering",
-            "WAVE": "animation, images, video, and interactive sites",
-            "BRIDGE": "explicit cross-domain media coordination",
+            "HAZE": (
+                "Primary responsibility: audio creation, engineering, analysis, mixing, "
+                "mastering, voice, music, beat, or REAPER work."
+            ),
+            "WAVE": (
+                "Primary responsibility: visual or interactive creation, including images, "
+                "video, animation, rendering, compositing, or websites."
+            ),
+            "BRIDGE": (
+                "Primary responsibility: cross-domain translation or synchronization of "
+                "typed metadata or control signals between audio and visual systems while "
+                "preserving each domain's authority."
+            ),
         },
     }
+
+def ensemble_probe_diagnostics(
+    questions: Mapping[str, Mapping[str, Any]],
+    answers: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    if list(questions) != list(answers):
+        raise ReflexLatencyError("REFLEX_ENSEMBLE_PROBE_ANSWER_ORDER_MISMATCH")
+
+    ordered_answers: list[Mapping[str, Any]] = []
+    permutation_answers: list[dict[str, Any]] = []
+    for question_id, question in questions.items():
+        criteria = question.get("criteria")
+        answer = answers.get(question_id)
+        if not isinstance(criteria, Mapping) or not isinstance(answer, Mapping):
+            raise ReflexLatencyError("REFLEX_ENSEMBLE_PROBE_ROW_INVALID")
+        probabilities = answer.get("probabilities")
+        winner = str(answer.get("choice") or "")
+        if not isinstance(probabilities, Mapping) or not winner:
+            raise ReflexLatencyError("REFLEX_ENSEMBLE_PROBE_ANSWER_INVALID")
+        permutation_answers.append({
+            "question_id": question_id,
+            "order": [str(label) for label in criteria],
+            "winner": winner,
+            "probabilities": {
+                str(label): float(value)
+                for label, value in probabilities.items()
+            },
+        })
+        ordered_answers.append(answer)
+
+    if len(ordered_answers) == 1:
+        answer = ordered_answers[0]
+        probabilities = answer.get("probabilities")
+        winner = str(answer.get("choice") or "")
+        if not isinstance(probabilities, Mapping) or not winner:
+            raise ReflexLatencyError("REFLEX_SINGLE_PROBE_ANSWER_INVALID")
+        parsed = {
+            str(label): float(value)
+            for label, value in probabilities.items()
+        }
+        if winner not in parsed or any(
+            not math.isfinite(value) or value < 0.0
+            for value in parsed.values()
+        ):
+            raise ReflexLatencyError("REFLEX_SINGLE_PROBE_PROBABILITY_INVALID")
+        total = sum(parsed.values())
+        if total <= 0.0:
+            raise ReflexLatencyError("REFLEX_SINGLE_PROBE_PROBABILITY_MASS_INVALID")
+        normalized = {
+            label: value / total
+            for label, value in parsed.items()
+        }
+        if max(normalized, key=normalized.get) != winner:
+            raise ReflexLatencyError("REFLEX_SINGLE_PROBE_WINNER_NOT_ARGMAX")
+        return {
+            "mode": "SINGLE_DECISION",
+            "aggregate_winner": winner,
+            "aggregate_probabilities": normalized,
+            "aggregate_peak_probability": normalized[winner],
+            "winner_agreement": None,
+            "normalized_jsd": None,
+            "permutation_answers": permutation_answers,
+        }
+
+    ensemble = aggregate_choice_answers(ordered_answers)
+    return {
+        "mode": "ORDER_ENSEMBLE",
+        "aggregate_winner": ensemble.aggregate_winner,
+        "aggregate_probabilities": dict(ensemble.aggregate_probabilities),
+        "aggregate_peak_probability": ensemble.aggregate_peak_probability,
+        "winner_agreement": ensemble.winner_agreement,
+        "normalized_jsd": ensemble.normalized_jsd,
+        "permutation_answers": permutation_answers,
+    }
+
+
+def summarize_ensemble_repeatability(rows: list[Mapping[str, Any]]) -> dict[str, Any]:
+    if len(rows) < 2:
+        raise ReflexLatencyError("REFLEX_REPEATABILITY_REQUIRES_MULTIPLE_RUNS")
+
+    winners = [str(row.get("aggregate_winner") or "") for row in rows]
+    if any(not winner for winner in winners):
+        raise ReflexLatencyError("REFLEX_REPEATABILITY_WINNER_MISSING")
+
+    probability_rows: list[dict[str, float]] = []
+    labels: set[str] | None = None
+    for row in rows:
+        probs = row.get("aggregate_probabilities")
+        if not isinstance(probs, Mapping):
+            raise ReflexLatencyError("REFLEX_REPEATABILITY_PROBABILITIES_MISSING")
+        parsed = {str(label): float(value) for label, value in probs.items()}
+        current_labels = set(parsed)
+        if labels is None:
+            labels = current_labels
+        elif current_labels != labels:
+            raise ReflexLatencyError("REFLEX_REPEATABILITY_LABEL_SET_DRIFT")
+        probability_rows.append(parsed)
+
+    counts = {winner: winners.count(winner) for winner in sorted(set(winners))}
+    modal_winner = max(counts, key=counts.get)
+    agreement = counts[modal_winner] / len(winners)
+    max_delta = max(
+        max(row[label] for row in probability_rows)
+        - min(row[label] for row in probability_rows)
+        for label in sorted(labels or ())
+    )
+    mean = {
+        label: sum(row[label] for row in probability_rows) / len(probability_rows)
+        for label in sorted(labels or ())
+    }
+    return {
+        "repeat_count": len(rows),
+        "aggregate_winners": winners,
+        "modal_aggregate_winner": modal_winner,
+        "aggregate_winner_agreement": agreement,
+        "aggregate_winner_stable": agreement == 1.0,
+        "mean_aggregate_probabilities": mean,
+        "max_aggregate_probability_delta": max_delta,
+    }
+
+
+def question_scale_probe_questions(
+    question: Mapping[str, Any],
+) -> dict[int, dict[str, dict[str, Any]]]:
+    full = complete_choice_permutations(
+        question_id="route",
+        question=question,
+        max_rotations=6,
+    )
+    rows = list(full.items())
+    return {
+        count: dict(rows[:count])
+        for count in (1, 2, 3, 6)
+    }
+
+
+def measure_question_scale(
+    *,
+    secret: str,
+    timeout_seconds: float = 90.0,
+) -> dict[str, Any]:
+    if timeout_seconds <= 0.0 or timeout_seconds > 120.0:
+        raise ReflexLatencyError("REFLEX_SCALE_PROBE_TIMEOUT_INVALID")
+
+    question = _proof_question()
+    probes = question_scale_probe_questions(question)
+    state = {
+        "deliverable": "typed audiovisual synchronization",
+        "work": (
+            "translate approved music section markers amplitude envelopes and timing metadata "
+            "from HAZE into WAVE WebGL scene transitions without transferring authority "
+            "between domains"
+        ),
+        "audio_component": "analysis metadata",
+        "visual_component": "scroll scene behavior",
+        "cross_domain_coordination": "required",
+    }
+    hardware = detect_colibri_hardware(DEFAULT_MODEL)
+    auth = _authorization()
+    samples: list[dict[str, Any]] = []
+    full_ensemble_runs: list[dict[str, Any]] = []
+
+    def one_probe(count: int, *, repeat_index: int | None = None) -> dict[str, Any]:
+        started = datetime.now(timezone.utc)
+        wall_started = monotonic()
+        try:
+            result = execute_colibri_system_one(
+                authorization=auth,
+                model_id="laya",
+                state=state,
+                questions=probes[count],
+                api_key=secret,
+                data_classification="INTERNAL_NON_SECRET",
+                state_language="en",
+                model_installed=True,
+                model_revision_verified=True,
+                hardware=hardware,
+                timeout_seconds=timeout_seconds,
+            )
+            diagnostics = ensemble_probe_diagnostics(probes[count], result.answers)
+            row = {
+                "question_count": count,
+                "status": "PASS",
+                "wall_ms": result.latency_ms,
+                "health_ms": result.health_ms,
+                "system_one_ms": result.system_one_ms,
+                "engine_ms": result.engine_ms,
+                "server_elapsed_ms": result.server_elapsed_ms,
+                "queue_wait_ms": result.queue_wait_ms,
+                "input_tokens": result.usage.get("input_tokens"),
+                "request_sha256": result.request_sha256,
+                "response_sha256": result.response_sha256,
+                "diagnostics": diagnostics,
+                "observed_at": started.isoformat(),
+            }
+            if repeat_index is not None:
+                row["repeat_index"] = repeat_index
+            return row
+        except Exception as exc:
+            elapsed_ms = (monotonic() - wall_started) * 1000.0
+            row = {
+                "question_count": count,
+                "status": "FAIL",
+                "wall_ms": elapsed_ms,
+                "reason": type(exc).__name__ + ":" + str(exc),
+                "observed_at": started.isoformat(),
+            }
+            if repeat_index is not None:
+                row["repeat_index"] = repeat_index
+            return row
+
+    for count in (1, 2, 3, 6):
+        row = one_probe(count, repeat_index=0 if count == 6 else None)
+        samples.append(row)
+        if count == 6:
+            full_ensemble_runs.append(row)
+
+    for repeat_index in (1, 2):
+        full_ensemble_runs.append(one_probe(6, repeat_index=repeat_index))
+
+    successful_repeats = [
+        row["diagnostics"]
+        for row in full_ensemble_runs
+        if row.get("status") == "PASS" and isinstance(row.get("diagnostics"), Mapping)
+    ]
+    repeatability = (
+        summarize_ensemble_repeatability(successful_repeats)
+        if len(successful_repeats) >= 2
+        else {
+            "repeat_count": len(successful_repeats),
+            "aggregate_winner_stable": False,
+            "reason": "INSUFFICIENT_SUCCESSFUL_REPEATS",
+        }
+    )
+
+    status = (
+        "PASS"
+        if all(row["status"] == "PASS" for row in samples)
+        and all(row["status"] == "PASS" for row in full_ensemble_runs)
+        else "EVIDENCE_ONLY"
+    )
+    report = {
+        "schema": "HazewaveReflexQuestionScaleProbe/v1",
+        "status": status,
+        "profile": runtime_profile(),
+        "question_counts": [1, 2, 3, 6],
+        "timeout_seconds": timeout_seconds,
+        "state_sha256": _digest(state),
+        "question_sha256": _digest(question),
+        "samples": samples,
+        "full_ensemble_runs": full_ensemble_runs,
+        "repeatability": repeatability,
+        "provider_authority": "NONE",
+        "production_calibrated": False,
+        "grants_execution_authority": False,
+        "persists_calibration_outcomes": False,
+    }
+    report["report_sha256"] = _digest(report)
+    return report
 
 
 def _read_secret(path: Path) -> str:
@@ -303,6 +576,7 @@ def measure_profile(
                 "status": "PASS",
                 "selected_label": robust.base_verdict.metrics.selected_label,
                 "robust_eligible": robust.robust_eligible,
+                "semantic_stable": not robust.robustness_reasons,
                 "winner_agreement": robust.ensemble.winner_agreement,
                 "normalized_jsd": robust.ensemble.normalized_jsd,
                 "aggregate_probabilities": dict(robust.ensemble.aggregate_probabilities),
@@ -329,6 +603,7 @@ def measure_profile(
     failures = [row for row in samples if row.get("status") != "PASS"]
     labels = sorted({str(row["selected_label"]) for row in passed})
     robust_all = bool(passed) and all(bool(row.get("robust_eligible")) for row in passed)
+    semantic_all = bool(passed) and all(bool(row.get("semantic_stable")) for row in passed)
     probability_signature = _probability_signature(passed) if passed else {}
     runtime_fingerprint = _runtime_fingerprint()
 
@@ -344,6 +619,7 @@ def measure_profile(
         "failed_requests": len(failures),
         "selected_labels": labels,
         "all_robust_eligible": robust_all,
+        "all_semantically_stable": semantic_all,
         "aggregate_probability_signature": probability_signature,
         "runtime_fingerprint": runtime_fingerprint,
         "latency": {
@@ -401,7 +677,7 @@ def select_profile(
         raise ReflexLatencyError("REFLEX_LATENCY_BASELINE_POLICY_DRIFT")
     if baseline.get("failed_requests") != 0:
         raise ReflexLatencyError("REFLEX_LATENCY_BASELINE_FAILURES")
-    if baseline.get("all_robust_eligible") is not True:
+    if baseline.get("all_semantically_stable") is not True:
         raise ReflexLatencyError("REFLEX_LATENCY_BASELINE_NOT_ROBUST")
 
     baseline_runtime = baseline.get("runtime_fingerprint")
@@ -445,7 +721,7 @@ def select_profile(
             reasons.append("POLICY_DRIFT")
         if report.get("failed_requests") != 0:
             reasons.append("MEASURED_FAILURES")
-        if report.get("all_robust_eligible") is not True:
+        if report.get("all_semantically_stable") is not True:
             reasons.append("ROBUST_ELIGIBILITY_FAILED")
         if report.get("selected_labels") != [baseline_label]:
             reasons.append("SELECTED_LABEL_DRIFT")
@@ -521,6 +797,76 @@ def select_profile(
     return {**selection, "selection_path": str(selection_path), "active_profile_path": str(active_path)}
 
 
+
+def retire_stale_selection(
+    *,
+    state_root: Path = DEFAULT_STATE,
+    policy: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    selected = dict(policy) if policy is not None else load_latency_policy()
+    current_policy_sha = policy_digest(selected)
+    default = str(selected["runtime"]["persistent_profile_default"])
+    active_path = state_root / "latency" / "selected-profile.json"
+    if not active_path.exists():
+        return {
+            "schema": "HazewaveReflexLatencySelectionRetirement/v1",
+            "status": "NO_ACTIVE_SELECTION",
+            "current_policy_sha256": current_policy_sha,
+            "default_profile": default,
+            "archive_path": None,
+            "provider_authority": "NONE",
+            "grants_execution_authority": False,
+            "production_calibrated": False,
+        }
+
+    try:
+        row = json.loads(active_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_UNREADABLE") from exc
+    if row.get("schema") != "HazewaveReflexLatencySelection/v1":
+        raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_SCHEMA_INVALID")
+
+    retired_policy_sha = row.get("policy_sha256")
+    if (
+        not isinstance(retired_policy_sha, str)
+        or len(retired_policy_sha) != 64
+        or any(ch not in "0123456789abcdef" for ch in retired_policy_sha)
+    ):
+        raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_POLICY_SHA_INVALID")
+    if retired_policy_sha == current_policy_sha:
+        raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_NOT_STALE")
+
+    retired_profile = row.get("profile")
+    if not isinstance(retired_profile, str) or not retired_profile:
+        raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_PROFILE_INVALID")
+
+    selection_sha = row.get("selection_sha256")
+    if not isinstance(selection_sha, str) or len(selection_sha) != 64:
+        selection_sha = _digest(row)
+
+    archive_root = state_root / "latency" / "retired-selections"
+    archive_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(archive_root, 0o700)
+    archive_path = archive_root / (
+        f"{retired_policy_sha[:12]}-{selection_sha[:12]}.json"
+    )
+    if archive_path.exists():
+        raise ReflexLatencyError("REFLEX_LATENCY_SELECTION_ARCHIVE_EXISTS")
+
+    os.replace(active_path, archive_path)
+    return {
+        "schema": "HazewaveReflexLatencySelectionRetirement/v1",
+        "status": "STALE_SELECTION_RETIRED",
+        "retired_profile": retired_profile,
+        "retired_policy_sha256": retired_policy_sha,
+        "current_policy_sha256": current_policy_sha,
+        "default_profile": default,
+        "archive_path": str(archive_path),
+        "provider_authority": "NONE",
+        "grants_execution_authority": False,
+        "production_calibrated": False,
+    }
+
 def selected_profile(
     *,
     state_root: Path = DEFAULT_STATE,
@@ -594,26 +940,36 @@ def exec_server(
     port: int,
     profile: str | None,
     state_root: Path,
+    engine_bin: Path | None = None,
 ) -> None:
     policy = load_latency_policy()
     chosen = profile or runtime_profile(state_root=state_root, policy=policy)
     profile_env = profile_environment(chosen, policy=policy)
     secret = _read_secret(secret_file)
     launcher = source_root / "c" / "coli"
-    engine = source_root / "c" / "laya"
+    engine = (engine_bin if engine_bin is not None else source_root / "c" / "laya").resolve()
     if not launcher.is_file() or not engine.is_file():
         raise ReflexLatencyError("REFLEX_LATENCY_ENGINE_MISSING")
+    if engine.is_symlink():
+        raise ReflexLatencyError("REFLEX_LATENCY_ENGINE_SYMLINK_FORBIDDEN")
+    if not os.access(engine, os.X_OK):
+        raise ReflexLatencyError("REFLEX_LATENCY_ENGINE_NOT_EXECUTABLE")
+    engine_sha256 = sha256(engine.read_bytes()).hexdigest()
 
     env = os.environ.copy()
+    env.pop("COLI_ENGINE", None)
     for key in policy["safety"]["allowed_environment_keys"]:
         env.pop(key, None)
     env.update(profile_env)
     env["COLI_MODEL"] = str(model_root)
     env["COLI_API_KEY"] = secret
     env["COLI_MODEL_ID"] = "laya"
+    env["COLI_ENGINE"] = str(engine)
     env["HAZEWAVE_REFLEX_LATENCY_PROFILE"] = chosen
 
     print(f"REFLEX_LATENCY_PROFILE={chosen}", file=sys.stderr, flush=True)
+    print(f"REFLEX_LATENCY_ENGINE_BIN={engine}", file=sys.stderr, flush=True)
+    print(f"REFLEX_LATENCY_ENGINE_SHA256={engine_sha256}", file=sys.stderr, flush=True)
     for key in sorted(profile_env):
         print(f"REFLEX_LATENCY_ENV_{key}={profile_env[key]}", file=sys.stderr, flush=True)
 
@@ -637,6 +993,10 @@ def _main(argv: list[str] | None = None) -> int:
     p_profiles = sub.add_parser("profiles")
     p_profiles.add_argument("--json", action="store_true")
 
+    p_scale = sub.add_parser("scale-probe")
+    p_scale.add_argument("--secret-file", type=Path, required=True)
+    p_scale.add_argument("--timeout", type=float, default=90.0)
+
     p_measure = sub.add_parser("measure")
     p_measure.add_argument("--profile", required=True)
     p_measure.add_argument("--secret-file", type=Path, required=True)
@@ -650,6 +1010,9 @@ def _main(argv: list[str] | None = None) -> int:
     p_selected = sub.add_parser("selected")
     p_selected.add_argument("--state-root", type=Path, default=DEFAULT_STATE)
 
+    p_retire = sub.add_parser("retire-stale-selection")
+    p_retire.add_argument("--state-root", type=Path, default=DEFAULT_STATE)
+
     p_resolved = sub.add_parser("resolved")
     p_resolved.add_argument("--state-root", type=Path, default=DEFAULT_STATE)
 
@@ -660,6 +1023,7 @@ def _main(argv: list[str] | None = None) -> int:
     p_server.add_argument("--state-root", type=Path, default=DEFAULT_STATE)
     p_server.add_argument("--port", type=int, default=28080)
     p_server.add_argument("--profile")
+    p_server.add_argument("--engine-bin", type=Path)
 
     args = parser.parse_args(argv)
     policy = load_latency_policy()
@@ -673,6 +1037,14 @@ def _main(argv: list[str] | None = None) -> int:
             for name in names:
                 print(name)
         return 0
+    if args.command == "scale-probe":
+        secret = _read_secret(args.secret_file)
+        report = measure_question_scale(
+            secret=secret,
+            timeout_seconds=float(args.timeout),
+        )
+        print(json.dumps(report, sort_keys=True))
+        return 0 if report["status"] == "PASS" else 4
     if args.command == "measure":
         secret = _read_secret(args.secret_file)
         report = measure_profile(
@@ -686,6 +1058,10 @@ def _main(argv: list[str] | None = None) -> int:
         return 0 if report["status"] == "PASS" else 4
     if args.command == "select":
         reply = select_profile(run_dir=args.run_dir, state_root=args.state_root)
+        print(json.dumps(reply, sort_keys=True))
+        return 0
+    if args.command == "retire-stale-selection":
+        reply = retire_stale_selection(state_root=args.state_root, policy=policy)
         print(json.dumps(reply, sort_keys=True))
         return 0
     if args.command == "selected":
@@ -702,6 +1078,7 @@ def _main(argv: list[str] | None = None) -> int:
             port=args.port,
             profile=args.profile,
             state_root=args.state_root,
+            engine_bin=args.engine_bin,
         )
         return 0
     raise AssertionError("unreachable")
