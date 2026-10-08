@@ -248,7 +248,7 @@ def test_codespace_installer_provisions_isolated_hazewave_cli_runtime() -> None:
 
     assert 'SCRIPT_DIR=' in script
     assert 'REPO_ROOT=' in script
-    assert 'CLI_VENV="$ROOT/hazewave-cli-venv"' in script
+    assert 'CLI_VENV="$ROOT/hazewave-rea6-cli-venv"' in script
     assert '"$CLI_VENV/bin/python" -m pip install' in script
     assert '-e "$REPO_ROOT"' in script
     assert 'export HAZEWAVE_RE_PYTHON="$CLI_VENV/bin/python"' in script
