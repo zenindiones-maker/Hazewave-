@@ -1,0 +1,86 @@
+name: LLaMA-Factory isolated release and Harness research qualification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/llamafactory-harness-release.yml"
+      - "src/hazewave/llamafactory_install.py"
+      - "src/hazewave/harness_connection_inventory.py"
+      - "config/llamafactory-training-policy-v1.json"
+      - "tests/test_llamafactory_isolated_install.py"
+      - "scripts/codespaces/install-llamafactory-foss.sh"
+
+permissions:
+  contents: read
+
+jobs:
+  install-and-verify-published-distribution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify pinned policy and fail-closed Harness inventory
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python -m pip install -e . pytest==8.4.2
+          python -m pytest -q tests/test_llamafactory_isolated_install.py
+          python -m hazewave.harness inventory > "$RUNNER_TEMP/llama-harness-inventory.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          x=json.loads((Path(os.environ['RUNNER_TEMP'])/"llama-harness-inventory.json").read_text())
+          y=x["learning_candidates"]["llamafactory"]
+          assert y["training_status"]=="NOT_PROVEN"
+          assert y["installation_status"]=="NOT_VERIFIED_ON_CODESPACE"
+          assert y["harness_selected_provider"] is False
+          assert x["summary"]["provider_mapped"]==10
+          print("LLAMA_HARNESS_LEARNING_CANDIDATE=PASS_UNPROMOTED")
+          PY
+      - name: Obtain EXACT official PyPI wheel (no dependencies)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/llama-wheel"
+          python -m pip download --disable-pip-version-check --no-cache-dir \
+            --no-deps --only-binary=:all: --dest "$RUNNER_TEMP/llama-wheel" \
+            llamafactory==0.9.5
+          wheel="$RUNNER_TEMP/llama-wheel/llamafactory-0.9.5-py3-none-any.whl"
+          test -f "$wheel"
+          printf '%s  %s\n' \
+            10776e9b259798bf65f6c5343f6298f0302e92e9cd47472abe29eef69e286c6a \
+            "$wheel" | sha256sum -c -
+          PYTHONPATH=src python -m hazewave.llamafactory_install verify-wheel \
+            --wheel "$wheel"
+          echo "LLAMA_FACTORY_PYPI_PINNED_WHEEL_SHA256=PASS"
+      - name: Install LLaMA-Factory 0.9.5 in disposable isolated venv
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/llama-isolated"
+          "$RUNNER_TEMP/llama-isolated/bin/python" -m pip install \
+            --disable-pip-version-check --no-index --no-deps \
+            "$RUNNER_TEMP/llama-wheel/llamafactory-0.9.5-py3-none-any.whl"
+          python -m hazewave.llamafactory_install doctor \
+            --python "$RUNNER_TEMP/llama-isolated/bin/python" \
+            > "$RUNNER_TEMP/llama-metadata-proof.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=json.loads((Path(os.environ['RUNNER_TEMP'])/"llama-metadata-proof.json").read_text())
+          assert p["package_installed"] is True
+          assert p["version"]=="0.9.5"
+          assert p["full_dependency_stack_verified"] is False
+          assert p["cli_runnable"] is False
+          assert p["training_runnable"] is False
+          assert p["harness_agent_connected"] is False
+          assert p["production_approved"] is False
+          print("LLAMA_FACTORY_RELEASE_INSTALLED_IN_CI=PASS_METADATA_ONLY")
+          print("LLAMA_FACTORY_TRAINING_RUNTIME=NOT_PROVEN")
+          print("LLAMA_FACTORY_EXISTING_CODESPACE=NOT_TESTED")
+          PY
