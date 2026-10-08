@@ -1,0 +1,32 @@
+{
+  "schema": "HazewaveHazeReferenceKnowledge/v1",
+  "version": "2026-10-08",
+  "authority": "NONE",
+  "trust": "UNTRUSTED_REFERENCE_DATA_ONLY",
+  "production_approved": false,
+  "publisher": "HAZEWAVE_HARNESS_RESEARCH",
+  "domain": "HAZE_AUDIO_TECHNICAL_QC",
+  "references": [
+    {
+      "source_id": "ffmpeg-volumedetect",
+      "publisher": "FFmpeg",
+      "version": "filter-volumedetect",
+      "url": "https://ffmpeg.org/ffmpeg-filters.html#volumedetect",
+      "summary": "volumedetect measures mean signal level in dBFS. The numerical difference between a reference and a processed signal can reveal level loss; unexpected large differences warrant technical investigation."
+    },
+    {
+      "source_id": "ffmpeg-silencedetect",
+      "publisher": "FFmpeg",
+      "version": "filter-silencedetect",
+      "url": "https://ffmpeg.org/ffmpeg-filters.html#silencedetect",
+      "summary": "silencedetect reports continuous below-threshold signal intervals. A sustained silent segment in an output but not its reference can indicate a missing signal path, mute or dropout; human context remains necessary."
+    },
+    {
+      "source_id": "hazewave-pcm16-control",
+      "publisher": "Hazewave Owned Synthetic Test",
+      "version": "pcm16-saturation-v1",
+      "url": "https://github.com/zenindiones-maker/Hazewave-/blob/work/haze-actions-multicase-reliability-v1/src/hazewave/actions_slm_multicase.py",
+      "summary": "PCM16 saturation counts samples reaching integer full scale. A high saturated-sample ratio in processed audio compared with a clean reference indicates flat-topped quantization clipping, but it does not establish artistic mastering quality."
+    }
+  ]
+}
