@@ -4,6 +4,7 @@ import argparse
 from dataclasses import asdict, dataclass
 from hashlib import sha256
 import json
+import math
 from pathlib import Path
 import re
 import subprocess
@@ -139,27 +140,20 @@ def parse_astats_summary(text: str) -> dict[str, float]:
         raise AudioQCError("AUDIO_QC_ASTATS_MALFORMED")
 
     overall = text[text.rfind("Overall") :]
+    peak = _last_metric(overall, r"Peak\s+level\s+dB", code="AUDIO_QC_ASTATS_MALFORMED")
+    rms = _last_metric(overall, r"RMS\s+level\s+dB", code="AUDIO_QC_ASTATS_MALFORMED")
+    # FFmpeg astats does not guarantee Crest factor in its Overall section.
+    # When absent, compute the linear sample peak / RMS ratio from measured dBFS.
+    # https://ffmpeg.org/ffmpeg-filters.html#astats
+    crest_match = re.findall(rf"Crest\s+factor:\s*{_NUMBER}", overall, re.IGNORECASE)
+    crest = float(crest_match[-1]) if crest_match else 10.0 ** ((peak - rms) / 20.0)
+    if not math.isfinite(crest) or crest <= 0:
+        raise AudioQCError("AUDIO_QC_ASTATS_MALFORMED")
     return {
-        "dc_offset": _last_metric(
-            overall,
-            r"DC\s+offset",
-            code="AUDIO_QC_ASTATS_MALFORMED",
-        ),
-        "sample_peak_dbfs": _last_metric(
-            overall,
-            r"Peak\s+level\s+dB",
-            code="AUDIO_QC_ASTATS_MALFORMED",
-        ),
-        "rms_dbfs": _last_metric(
-            overall,
-            r"RMS\s+level\s+dB",
-            code="AUDIO_QC_ASTATS_MALFORMED",
-        ),
-        "crest_factor_ratio": _last_metric(
-            overall,
-            r"Crest\s+factor",
-            code="AUDIO_QC_ASTATS_MALFORMED",
-        ),
+        "dc_offset": _last_metric(overall, r"DC\s+offset", code="AUDIO_QC_ASTATS_MALFORMED"),
+        "sample_peak_dbfs": peak,
+        "rms_dbfs": rms,
+        "crest_factor_ratio": crest,
     }
 
 
