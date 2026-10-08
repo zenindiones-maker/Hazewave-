@@ -1,0 +1,23 @@
+{
+  "schema": "HazewaveActionsCompactModel/v1",
+  "execution_plane": "GITHUB_ACTIONS_STANDARD_PUBLIC_ONLY",
+  "authority": "HAZEWAVE_HARNESS",
+  "model_id": "Qwen/Qwen3-0.6B-GGUF",
+  "revision": "1208e45d782fe18602c5eaf10e5758d5b0f24c03",
+  "model_file": "Qwen3-0.6B-Q4_K_M.gguf",
+  "sha256": "b0638f08417a2d3c8652760462eb5407c6e30173cf9608ad0820757a281eea0e",
+  "model_source": "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF",
+  "license": "apache-2.0",
+  "total_parameters_estimated": 600000000,
+  "size_expected_bytes": 397000000,
+  "quantization": "Q4_K_M",
+  "served_alias": "hazewave-qwen3-0.6b",
+  "llama_cpp_repo": "https://github.com/ggml-org/llama.cpp",
+  "llama_cpp_tag": "v0.6.0",
+  "llama_cpp_commit": "d81235049384534c167caea52b85a694f6103d14",
+  "reference_only": true,
+  "professional_approved": false,
+  "production_approved": false,
+  "codespace_unmodified": true,
+  "a15_inference_forbidden": true
+}
