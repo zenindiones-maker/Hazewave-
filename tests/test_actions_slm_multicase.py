@@ -279,3 +279,26 @@ def test_dedicated_single_call_workflow_never_runs_full_cohort():
     assert "Qwen3-0.6B-Q4_K_M.gguf" in w
     assert "A15_INFERENCE=FORBIDDEN" in w
     assert "haze-structure-proof.json" in w
+
+
+def test_model_request_explains_each_required_key_without_leaking_correct_case():
+    from hazewave.actions_slm_multicase import _payload
+    request=_payload("metric=attenuation_db\nmeasured_value=12", "hazewave-qwen3-0.6b",1000)
+    instruction=request["messages"][0]["content"]
+    for key in ("finding","action","evidence_keys","requires_human_review"):
+        assert key in instruction
+    for term in ("ATTENUATION_DETECTED","SILENCE_DETECTED","CLIPPING_DETECTED",
+                 "NO_ISSUE_DETECTED","REVIEW_GAIN_STAGE","RESTORE_SIGNAL_PATH",
+                 "REDUCE_GAIN_OR_LIMIT","NO_ACTION"):
+        assert term in instruction
+    assert "gain_loss_12db" not in instruction
+    assert "clipping_pcm16" not in instruction
+    assert "silence_1s" not in instruction
+    assert "correct finding" not in instruction.lower()
+    assert request["response_format"]["type"] == "json_schema"
+    assert "tools" not in request
+    assert request["max_tokens"] <= 240
+    assert evaluate_choice("gain_loss_12db", {
+      "finding":"NO_ISSUE_DETECTED","action":"NO_ACTION",
+      "evidence_keys":["attenuation_db"],"requires_human_review":True
+    })["grade"] == "FAIL"
