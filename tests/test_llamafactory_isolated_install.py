@@ -31,7 +31,7 @@ def test_original_project_and_exact_hash_are_not_mirrors_or_latest():
 def test_installer_is_guarded_existing_codespace_only():
     s=INSTALLER.read_text()
     assert 'hazewave-zero-cost-4jxp45676rq6279xx' in s
-    assert '--preflight|--install|--doctor|--training-preflight' in s
+    assert '--preflight|--install|--doctor|--runtime-doctor|--training-preflight' in s
     assert 'HAZEWAVE_LLAMA_EXPECTED_SHA' in s
     assert 'git -C "$ROOT" status --porcelain' in s
     assert "VERSION_INSTALLED_METADATA_ONLY" in s
