@@ -190,7 +190,10 @@ def capture_owned_fixture(
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise IrisCaptureError("IRIS_CAPTURE_PROCESS_ERROR") from exc
     if process.returncode != 0:
-        raise IrisCaptureError("IRIS_CAPTURE_NONZERO")
+        # Only the immutable first-party fixture is admitted here; expose a
+        # bounded diagnostic for reproducible Chrome startup failures.
+        safe_error = " ".join(process.stderr.split())[-1000:]
+        raise IrisCaptureError("IRIS_CAPTURE_NONZERO:" + safe_error)
     try:
         lines = [json.loads(line) for line in process.stdout.splitlines() if line.strip()]
     except json.JSONDecodeError as exc:
