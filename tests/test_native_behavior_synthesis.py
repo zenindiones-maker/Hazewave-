@@ -80,7 +80,7 @@ def test_wrong_oracle_behavior_outside_grammar_is_rejected():
 def test_tampered_oracle_table_is_rejected_and_no_false_PASS():
     samples={x:(3*x-11 if x < -7 else (x*x+5 if x<=9 else 7*x-2))
              for x in range(-1000,1001)}
-    samples[9]+=1
+    samples[0]+=1
     with pytest.raises(SynthesisError, match="GRAMMAR_CANNOT_EXPLAIN_ORACLE"):
         infer_linear_quadratic_linear(samples)
 
