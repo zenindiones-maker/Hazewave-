@@ -45,6 +45,7 @@ ENV_ROOT="$HOME/.local/share/hazewave/llamafactory/0.9.5"
 ENV_PY="$ENV_ROOT/venv/bin/python"
 WHEEL="llamafactory-0.9.5-py3-none-any.whl"
 SHA256="10776e9b259798bf65f6c5343f6298f0302e92e9cd47472abe29eef69e286c6a"
+WHEEL_CACHE="$ENV_ROOT/release/$WHEEL"
 
 if [[ "$mode" == "--preflight" ]]; then
   printf 'HAZEWAVE_LLAMA_PYTHON=%s\n' "$PY"
@@ -59,8 +60,12 @@ fi
 if [[ "$mode" == "--install" ]]; then
   command -v sha256sum >/dev/null 2>&1 || fail "SHA256SUM_MISSING"
   [[ ! -L "$ENV_ROOT" && ! -L "$ENV_ROOT/venv" ]] || fail "INSTALL_DIR_SYMLINK"
-  if [[ -f "$ENV_PY" ]]; then
+  if [[ -f "$ENV_PY" && -f "$WHEEL_CACHE" ]]; then
     "$PY" -m hazewave.llamafactory_install doctor --python "$ENV_PY" || fail "EXISTING_PINNED_INSTALL_INVALID"
+    printf '%s  %s\n' "$SHA256" "$WHEEL_CACHE" | sha256sum -c - >/dev/null || fail "EXISTING_CACHED_WHEEL_SHA256_MISMATCH"
+    "$PY" -m hazewave.llamafactory_runtime_probe doctor \
+      --python "$ENV_PY" --wheel "$WHEEL_CACHE" \
+      --receipt-root "$HOME/.local/state/hazewave/llamafactory/runtime-receipts" || fail "EXISTING_PACKAGE_RUNTIME_INTEGRITY_FAILED"
     echo "HAZEWAVE_LLAMA_INSTALL=PASS:EXISTING_VERIFIED_PACKAGE"
     echo "LLAMA_FACTORY_TRAINING=NOT_PROVEN"
     exit 0
@@ -78,11 +83,26 @@ if [[ "$mode" == "--install" ]]; then
     || fail "WHEEL_UPSTREAM_MISMATCH"
   mkdir -p "$ENV_ROOT"
   chmod 0700 "$ENV_ROOT"
-  "$PY" -m venv "$ENV_ROOT/venv" || fail "VENV_CREATION_FAILED"
-  "$ENV_PY" -m pip install --disable-pip-version-check --no-index --no-deps \
-    "$stage/$WHEEL" || fail "PINNED_DISTRIBUTION_INSTALL_FAILED"
+  if [[ ! -f "$ENV_PY" ]]; then
+    "$PY" -m venv "$ENV_ROOT/venv" || fail "VENV_CREATION_FAILED"
+    "$ENV_PY" -m pip install --disable-pip-version-check --no-index --no-deps \
+      "$stage/$WHEEL" || fail "PINNED_DISTRIBUTION_INSTALL_FAILED"
+  fi
   "$PY" -m hazewave.llamafactory_install doctor --python "$ENV_PY" \
     || fail "PINNED_DISTRIBUTION_DOCTOR_FAILED"
+  mkdir -p "$ENV_ROOT/release"
+  chmod 0700 "$ENV_ROOT/release"
+  if [[ -e "$WHEEL_CACHE" || -L "$WHEEL_CACHE" ]]; then
+    [[ -f "$WHEEL_CACHE" && ! -L "$WHEEL_CACHE" ]] || fail "WHEEL_CACHE_PATH_UNSAFE"
+    printf '%s  %s\n' "$SHA256" "$WHEEL_CACHE" | sha256sum -c - >/dev/null || fail "WHEEL_CACHE_SHA256_MISMATCH"
+  else
+    install -m 0400 "$stage/$WHEEL" "$WHEEL_CACHE" || fail "WHEEL_CACHE_WRITE_FAILED"
+  fi
+  chmod 0400 "$WHEEL_CACHE"
+  "$PY" -m hazewave.llamafactory_runtime_probe doctor \
+    --python "$ENV_PY" --wheel "$WHEEL_CACHE" \
+    --receipt-root "$HOME/.local/state/hazewave/llamafactory/runtime-receipts" \
+    || fail "PACKAGE_PAYLOAD_NOT_EQUAL_OFFICIAL_WHEEL"
   echo "HAZEWAVE_LLAMA_INSTALL=VERSION_INSTALLED_METADATA_ONLY"
   echo "LLAMA_FACTORY_TRAINING=NOT_PROVEN"
   echo "LLAMA_FACTORY_CLI_RUNTIME=NOT_PROVEN"
@@ -96,8 +116,9 @@ if [[ "$mode" == "--runtime-doctor" ]]; then
   # Real Python import + installed PEP376 RECORD file hash verification.
   # Missing Torch/Transformers is diagnosed as CLI NOT READY; never install
   # heavyweight dependencies or attempt model training here.
+  [[ -f "$WHEEL_CACHE" && ! -L "$WHEEL_CACHE" ]] || fail "OFFICIAL_WHEEL_CACHE_NOT_FOUND_RUN_INSTALL_FIRST"
   "$PY" -m hazewave.llamafactory_runtime_probe doctor \
-    --python "$ENV_PY" \
+    --python "$ENV_PY" --wheel "$WHEEL_CACHE" \
     --receipt-root "$HOME/.local/state/hazewave/llamafactory/runtime-receipts" \
     || fail "RUNTIME_INTEGRITY_DIAGNOSTIC_FAILED"
   echo "LLAMA_FACTORY_TRAINING=NOT_PROVEN"
