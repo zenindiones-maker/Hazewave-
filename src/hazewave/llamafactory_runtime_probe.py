@@ -191,10 +191,13 @@ def _run(args: list[str], timeout: int) -> subprocess.CompletedProcess[str]:
 
 def diagnose_runtime(python: Path) -> dict[str, Any]:
     path = Path(python).expanduser()
-    if path.is_symlink():
-        raise LlamaRuntimeError("SYMLINKED_PYTHON_NOT_ADMITTED")
-    if not path.is_file():
+    # Linux venv/bin/python is commonly a symlink to the base interpreter.
+    # Isolation is attested by executing it and checking sys.prefix != base_prefix;
+    # symlink presence alone is not evidence of a compromised venv.
+    if not path.is_file() or path.parent.name != "bin":
         raise LlamaRuntimeError("PYTHON_UNAVAILABLE")
+    if not (path.parent.parent / "pyvenv.cfg").is_file():
+        raise LlamaRuntimeError("VENV_CONFIGURATION_NOT_FOUND")
     # Never inherit connected GitHub tokens, private Telegram keys or model tokens.
     result = _run([str(path), "-I", "-c", _PROBE_CODE], 25)
     if result.returncode or len(result.stdout)>10000:
