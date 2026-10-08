@@ -1,0 +1,74 @@
+name: HAZE WAVE audiovisual FOSS runtime fixtures
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/av-research-foss-fixtures.yml"
+      - "src/hazewave/av_research_lab.py"
+      - "scripts/codespaces/install-av-research-open-tools.sh"
+      - "tests/test_av_research_lab.py"
+      - "tests/test_av_research_install.py"
+
+permissions:
+  contents: read
+
+jobs:
+  audiovisual-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact FOSS core in ephemeral runner
+        run: |
+          set -euo pipefail
+          python -m pip install --no-input --disable-pip-version-check --no-cache-dir --only-binary=:all: \
+            pillow==12.3.0 scenedetect-headless==0.7.1 opentimelineio==0.18.1
+          python -m pip check
+      - name: Exercise actual decoder, editable timeline and scene imports
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib.metadata as md
+          import json
+          from pathlib import Path
+          import tempfile
+          from PIL import Image
+          import scenedetect
+          import opentimelineio as otio
+          from hazewave.av_research_lab import analyze_image_metrics, analyze_editorial_script
+
+          assert md.version("pillow") == "12.3.0"
+          assert md.version("scenedetect-headless") == "0.7.1"
+          assert md.version("opentimelineio") == "0.18.1"
+          with tempfile.TemporaryDirectory() as root:
+              image = Path(root) / "test-image.png"
+              Image.new("RGB", (32, 24), (100, 125, 150)).save(image)
+              measurements = analyze_image_metrics(image)
+              assert measurements["width"] == 32
+              assert measurements["height"] == 24
+              script = Path(root) / "test-timeline.json"
+              script.write_text(json.dumps({
+                "schema": "HazewaveEditorialReference/v1",
+                "segments": [
+                  {"id":"scene001","start_seconds":0,"duration_seconds":10,"narration":"Primeira imagem animada"},
+                  {"id":"scene002","start_seconds":10,"duration_seconds":10,"narration":"Segunda imagem animada"}
+                ]
+              }))
+              timeline = analyze_editorial_script(script)
+              assert timeline["segment_count"] == 2
+              assert timeline["duration_seconds"] == 20
+              assert otio.schema.Timeline is not None
+              assert scenedetect.ContentDetector is not None
+              print("AV_RESEARCH_IMAGE_DECODE=PASS")
+              print("AV_RESEARCH_EDITORIAL_STRUCTURAL=PASS")
+              print("AV_RESEARCH_PYSCENEDETECT_IMPORT=PASS")
+              print("AV_RESEARCH_OTIO_IMPORT=PASS")
+              print("AV_RESEARCH_CLI_AGENTS=NOT_CONNECTED")
+              print("AV_RESEARCH_CODESPACE=NOT_TESTED")
+              print("AV_RESEARCH_ARTISTIC_APPROVAL=NOT_GRANTED")
+          PY
