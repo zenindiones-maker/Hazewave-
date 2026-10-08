@@ -62,13 +62,15 @@ def test_record_audit_blocks_symlink_and_out_of_environment(tmp_path):
 def test_metadata_and_import_but_missing_deps_is_not_cli_or_training_ready():
     report=validate_probe({
         "distribution":"llamafactory","version":"0.9.5",
-        "imported_version":"0.9.5", "hash_files_verified":81,\n        "release_files_verified":75, "release_wheel_sha256":"10776e9b259798bf65f6c5343f6298f0302e92e9cd47472abe29eef69e286c6a",
+        "imported_version":"0.9.5", "hash_files_verified":81,
+        "release_files_verified":75, "release_wheel_sha256":"10776e9b259798bf65f6c5343f6298f0302e92e9cd47472abe29eef69e286c6a",
         "environment_isolated":True, "dependency_check_ok":False,
         "missing_dependencies_count":17,"cli_status":"NOT_ATTEMPTED_MISSING_DEPS",
         "python_version":"3.12.1",
     })
     assert report["package_imported"] is True
-    assert report["installed_files_hash_verified"] is True\n    assert report["source_release_payload_verified"] is True
+    assert report["installed_files_hash_verified"] is True
+    assert report["source_release_payload_verified"] is True
     assert report["dependencies_satisfied"] is False
     assert report["cli_runnable"] is False
     assert report["model_training_ready"] is False
