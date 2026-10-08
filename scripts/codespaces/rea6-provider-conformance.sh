@@ -44,10 +44,32 @@ fi
 mkdir -p "$OUT"
 chmod 0700 "$OUT"
 if [[ "$mode" == "--native" ]]; then
-  # The native provider is Ghidra. Rizin and Frida are separate auxiliary tools,
-  # and their command presence does not constitute a Ghidra provider PASS.
-  bash "$SCRIPTS/reverse-engineering-doctor.sh" --deep || deny "GHIDRA_DEEP_PROOF_FAILED"
-  echo "REA6_NATIVE_GHIDRA_FIXTURE=PASS"
+  # Scoped Ghidra readiness must not fail merely because an auxiliary Rizin or
+  # Frida executable is unavailable. Those belong to separate capabilities.
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  [[ "${REA_ANALYSIS_PROVIDER:-}" == "$GHIDRA_SCOPE" ]] || deny "IMPLICIT_NATIVE_PROVIDER_FORBIDDEN"
+  [[ -n "${GHIDRA_INSTALL_DIR:-}" && -x "$GHIDRA_INSTALL_DIR/support/analyzeHeadless" ]] || deny "GHIDRA_HEADLESS_ABSENT"
+  "$REA_BIN" doctor --provider ghidra --json > "$OUT/ghidra-doctor.json" || deny "GHIDRA_SCOPED_DOCTOR_FAILED"
+  chmod 0600 "$OUT/ghidra-doctor.json"
+  command -v cc >/dev/null || deny "OWNED_FIXTURE_COMPILER_MISSING"
+  stage="$(mktemp -d "$OUT/native-owned.XXXXXXXX")"
+  chmod 0700 "$stage"
+  cat > "$stage/fixture.c" <<'C'
+/* Source-owned Ghidra x86_64 ELF oracle. No filesystem or network access. */
+__attribute__((noinline)) int hazewave_constant(void) { return 73; }
+int main(void) { return hazewave_constant() == 73 ? 0 : 1; }
+C
+  chmod 0600 "$stage/fixture.c"
+  cc -O0 -g -fno-omit-frame-pointer -o "$stage/fixture" "$stage/fixture.c" || deny "FIXTURE_COMPILE_FAILED"
+  "$REA_BIN" function "$stage/fixture" main --provider ghidra --json > "$stage/main.json" || deny "GHIDRA_FUNCTION_QUERY_FAILED"
+  chmod 0600 "$stage/main.json"
+  "$HAZEWAVE_RE_PYTHON" -m hazewave.rea6_integration verify-evidence \
+    --target "$stage/fixture" --evidence "$stage/main.json" > "$stage/evidence-check.json" || deny "GHIDRA_NATIVE_EVIDENCE_INVALID"
+  chmod 0600 "$stage/evidence-check.json"
+  echo "REA6_GHIDRA_SOURCE_OWNED_BINARY_SHA256=$(sha256sum "$stage/fixture" | cut -d' ' -f1)"
+  echo "REA6_GHIDRA_PROVIDER_SCOPED_FIXTURE=PASS"
+  echo "REA6_NATIVE_AUXILIARY=NOT_REQUIRED"
 elif [[ "$mode" == "--javascript" ]]; then
   file="$OUT/js-graph.json"
   "$REA_BIN" analyze-javascript-application "$ROOT/tests/fixtures/rea6-javascript-owned" --json >"$file" || deny "JS_STATIC_CLI_FAILED"
