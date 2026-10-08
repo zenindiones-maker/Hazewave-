@@ -210,3 +210,28 @@ def test_hazewave_cli_exposes_authorized_reverse_engineering_plan(
     assert payload["domain"] == "HAZE"
     assert payload["authorized_target"] is True
     assert payload["grants_execution_authority"] is False
+
+
+def test_daily_intelligence_tracks_reverse_engineering_upstreams() -> None:
+    registry = json.loads(
+        (ROOT / "config" / "daily-intelligence-sources-v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    sources = {row["source_id"]: row for row in registry["sources"]}
+
+    expected = {
+        "rea-upstream": {"HAZE", "WAVE"},
+        "ghidra-upstream": {"HAZE", "WAVE"},
+        "rizin-upstream": {"HAZE", "WAVE"},
+        "frida-upstream": {"HAZE", "WAVE"},
+        "mediainfo-upstream": {"HAZE", "WAVE"},
+        "renderdoc-upstream": {"WAVE"},
+        "spirv-tools-upstream": {"WAVE"},
+        "spirv-cross-upstream": {"WAVE"},
+    }
+    for source_id, domains in expected.items():
+        assert source_id in sources
+        assert set(sources[source_id]["domains"]) == domains
+        assert sources[source_id]["tier"] == "A_AUTHORITATIVE"
+        assert sources[source_id]["data_classification"] == "PUBLIC"
