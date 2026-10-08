@@ -21,7 +21,7 @@ fail() {
 }
 [[ "$#" -eq 1 ]] || fail "EXPLICIT_MODE_REQUIRED"
 case "$1" in
-  --preflight|--install|--doctor|--smoke) mode="$1" ;;
+  --preflight|--install|--doctor|--smoke|--mcp-smoke) mode="$1" ;;
   *) fail "UNRECOGNIZED_MODE" ;;
 esac
 [[ "${CODESPACE_NAME:-}" == "hazewave-zero-cost-4jxp45676rq6279xx" ]] || fail "WRONG_CODESPACE"
@@ -110,6 +110,17 @@ if [[ "$mode" == "--doctor" ]]; then
   echo "IRIS_CODESPACE_DOCTOR=PASS:CLI_AND_BROWSER_PRESENT"
   echo "IRIS_CODESPACE_CAPTURE=NOT_TESTED"
   echo "IRIS_MCP_CONNECTED=NOT_PROVEN"
+  exit 0
+fi
+
+if [[ "$mode" == "--mcp-smoke" ]]; then
+  PYTHONPATH="$REPOSITORY/src" python3 -m hazewave.iris_mcp_fixture_probe \
+    --workspace "$REPOSITORY" \
+    --iris "$IRIS_BIN" \
+    --chrome "$chrome" || fail "OWNED_MCP_FIXTURE_FAILED"
+  echo "IRIS_MCP_PROCESS_FIXTURE=PASS"
+  echo "IRIS_OWNER_AGENT_CONNECTED=NOT_PROVEN"
+  echo "IRIS_HARNESS_LIVE_EXECUTION=NOT_PROVEN"
   exit 0
 fi
 
