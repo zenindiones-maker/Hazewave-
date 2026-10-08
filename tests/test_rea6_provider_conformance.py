@@ -18,7 +18,7 @@ def test_script_uses_exact_fixed_providers_and_never_autoselects_proprietary_too
     raw = SCRIPT.read_text()
     for token in ("--preflight", "--native", "--javascript", "--managed-negative",
                   "reverse-engineering-doctor.sh", "analyze-javascript-application",
-                  "inspect-managed-artifact", "REA_CONFORMANCE_CODESPACE_PROVEN=NO"):
+                  "inspect-managed-artifact", "REA6_CONFORMANCE_CODESPACE_PROVEN=NO"):
         assert token in raw
     for banned in ("gh codespace create", "sudo ", "hopper", "rea-agents@latest",
                    "hazewave-reflex serve-stop", "git reset --hard", "REA_ANALYSIS_PROVIDER=auto"):
@@ -61,7 +61,7 @@ def test_matrix_never_conflates_cli_with_runtime_on_codespace() -> None:
 
 def test_provider_matrix_rejects_fake_pass_or_missing_route() -> None:
     with pytest.raises(ReaProviderError, match="UNKNOWN_PROVIDER_ROUTE"):
-        summarize_provider_matrix({"ghidra": {"status": "PASS"}})
+        summarize_provider_matrix({"not-a-real-provider": {"status": "PASS"}})
     with pytest.raises(ReaProviderError, match="PROVIDER_STATUS_INVALID"):
         summarize_provider_matrix({"ghidra": {"status": "READY"}})
 
