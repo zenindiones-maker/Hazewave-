@@ -964,6 +964,7 @@ def exec_server(
     env["COLI_MODEL"] = str(model_root)
     env["COLI_API_KEY"] = secret
     env["COLI_MODEL_ID"] = "laya"
+    env["COLI_ENGINE"] = str(engine)
     env["HAZEWAVE_REFLEX_LATENCY_PROFILE"] = chosen
 
     print(f"REFLEX_LATENCY_PROFILE={chosen}", file=sys.stderr, flush=True)
@@ -979,8 +980,6 @@ def exec_server(
         "127.0.0.1",
         "--port",
         str(port),
-        "--engine",
-        str(engine),
         "--model-id",
         "laya",
     ]
