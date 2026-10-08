@@ -207,3 +207,36 @@ def test_ollama_transport_uses_local_host_only_and_denies_redirects():
         "http://169.254.169.254/latest/meta-data"
     )
     assert blocked is None
+
+
+def test_inventory_cli_preserves_remote_gateway_audit_if_ollama_is_offline(monkeypatch, capsys):
+    from hazewave import slm_local_model_qualification as mod
+    from hazewave import ninerouter
+    def offline():
+        raise ModelQualificationError("OLLAMA_LOCAL_UNAVAILABLE")
+    monkeypatch.setattr(mod, "inventory_local_ollama", offline)
+    monkeypatch.setattr(ninerouter, "load_9router_admission_receipt", lambda: None)
+    assert mod.main(["--inventory"]) == 0
+    report=json.loads(capsys.readouterr().out)
+    assert report["runtime_available"] is False
+    assert report["local_runtime_blocker"] == "OLLAMA_LOCAL_UNAVAILABLE"
+    assert report["models"] == []
+    assert report["remote_9router"]["receipt_present"] is False
+    assert report["professional_approved"] is False
+
+
+def test_gateway_alias_discovery_cannot_qualify_large_reference_as_small():
+    from hazewave.slm_local_model_qualification import inspect_ninerouter_models
+    receipt={
+       "schema":"Hazewave9RouterFreeAdmissionReceipt/v2",
+       "execution_admitted_models":["oc/mimo-v2.6-flash-free"],
+       "catalog_discovered_models":["oc/mimo-v2.6-flash-free"]
+    }
+    result=inspect_ninerouter_models(receipt=receipt)
+    assert result["receipt_present"] is True
+    assert len(result["models"]) == 1
+    item=result["models"][0]
+    assert item["model_id"] == "oc/mimo-v2.6-flash-free"
+    assert item["upstream_checkpoint_verified"] is False
+    assert item["slm_qualified"] is False
+    assert item["professional"] is False

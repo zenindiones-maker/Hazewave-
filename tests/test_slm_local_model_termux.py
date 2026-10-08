@@ -62,3 +62,10 @@ def test_existing_codespace_evidence_transfer_is_attested_and_only_synthetic():
     assert "REMOTE_SYNTHETIC_EVIDENCE_UNAVAILABLE" in data
     assert "LOCAL_MODEL_CANDIDATE" in data
     assert "REAL_MODEL_RESPONSE=PASS" in data
+
+
+def test_inventory_includes_remote_9router_provenance_without_exposing_secrets():
+    data=CTRL.read_text()
+    assert "remote_9router" in data
+    assert "ROUTER_MODEL_ID" in data
+    assert "ROUTER_ALIAS_IDENTITY_VERIFIED=FALSE" in data
