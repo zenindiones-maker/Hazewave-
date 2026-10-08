@@ -18,8 +18,8 @@ import time
 from typing import Any, Callable
 
 from hazewave.harness import HazewaveTask, issue_authorization, route_task
-from hazewave.host_av_evidence import verify_host_av_evidence
-from hazewave.ninerouter import execute_9router_text
+from hazewave.host_av_evidence import HostAvEvidenceError, verify_host_av_evidence
+from hazewave.ninerouter import NineRouterExecutionError, execute_9router_text
 
 _POLICY = Path(__file__).resolve().parents[2] / "config" / "slm-audio-specialist-v1.json"
 _MODEL = re.compile(r"^oc/(?:[a-z0-9][a-z0-9.-]{1,90}-free|big-pickle)$")
@@ -120,7 +120,9 @@ def _evaluate_call(
             or getattr(result, "authorization_id", None) != auth.authorization_id
             or getattr(result, "task_id", None) != auth.task_id
             or getattr(result, "gateway", None) != "9router"
-            or getattr(result, "provider", None) != "opencode"):
+            or getattr(result, "provider", None) != "opencode"
+            or bool(getattr(result, "tool_calls", ()))):
+
         raise SLMAudioSpecialistError("GOVERNED_MODEL_RESPONSE_INVALID")
     content = getattr(result, "content", "")
     if not isinstance(content, str) or len(content) > 4096:
@@ -230,13 +232,19 @@ def main(argv: list[str] | None = None) -> int:
             model_id=args.model,
             compare_baseline=args.compare_baseline
         )
-    except Exception as exc:
-        # Avoid leaking sensitive provider responses or filesystem paths to stdout.
-        error = str(exc) if isinstance(exc, SLMAudioSpecialistError) else type(exc).__name__
-        print("HAZE_SLM=BLOCKED:" + error, file=sys.stderr)
+    except (SLMAudioSpecialistError, NineRouterExecutionError, HostAvEvidenceError) as exc:
+        # Router/validator error codes are safe only when an uppercase
+        # diagnostic token. Never echo provider bodies, paths, or credentials.
+        code = str(exc)
+        if not re.fullmatch(r"[A-Z0-9_:.-]{3,128}", code):
+            code = "GOVERNED_EXECUTION_FAILED"
+        print("HAZE_SLM=BLOCKED:" + code, file=sys.stderr)
+        return 20
+    except Exception:
+        print("HAZE_SLM=BLOCKED:UNCLASSIFIED_ERROR", file=sys.stderr)
         return 20
     print(json.dumps(result, sort_keys=True, allow_nan=False))
-    return 0
+    return 0 if result["specialist"]["grade"] == "PASS" else 21
 
 
 if __name__ == "__main__":

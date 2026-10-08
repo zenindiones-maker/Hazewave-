@@ -130,3 +130,38 @@ def test_independent_grade_rejects_unfounded_or_missing_evidence():
     assert evaluate_audio_decision(GOOD, attenuation=12.0)["grade"] == "PASS"
     assert evaluate_audio_decision({**GOOD, "evidence_keys": []}, attenuation=12.0)["grade"] == "FAIL"
     assert evaluate_audio_decision({**GOOD, "finding": "NO_ISSUE_DETECTED"}, attenuation=12.0)["grade"] == "FAIL"
+
+
+def test_cli_preserves_safe_router_failure_code_not_raw_secret(capsys, monkeypatch):
+    from hazewave import slm_audio_specialist as module
+    from hazewave.ninerouter import NineRouterExecutionError
+    def blocked(**kw):
+        raise NineRouterExecutionError("NINEROUTER_ADMISSION_RECEIPT_EXPIRED")
+    monkeypatch.setattr(module, "execute_audio_specialist", blocked)
+    rc = module.main([
+        "--log", "/missing", "--receipt", "/missing",
+        "--reviewed-sha", SHA, "--log-sha256", "a"*64,
+        "--receipt-sha256", "b"*64, "--model", MODEL
+    ])
+    assert rc == 20
+    assert "NINEROUTER_ADMISSION_RECEIPT_EXPIRED" in capsys.readouterr().err
+    def secret(**kw):
+        raise NineRouterExecutionError("password=confidential")
+    monkeypatch.setattr(module, "execute_audio_specialist", secret)
+    assert module.main([
+        "--log", "/missing", "--receipt", "/missing",
+        "--reviewed-sha", SHA, "--log-sha256", "a"*64,
+        "--receipt-sha256", "b"*64, "--model", MODEL
+    ]) == 20
+    error = capsys.readouterr().err
+    assert "confidential" not in error
+    assert "GOVERNED_EXECUTION_FAILED" in error
+
+
+def test_model_attempt_to_invoke_external_tool_is_rejected(tmp_path: Path):
+    def executor(**kw):
+        res = _response(kw["authorization"], GOOD)
+        res.tool_calls = [{"function": {"name": "delete_files"}}]
+        return res
+    with pytest.raises(SLMAudioSpecialistError, match="GOVERNED_MODEL_RESPONSE_INVALID"):
+        execute_audio_specialist(**_args(tmp_path, executor))
