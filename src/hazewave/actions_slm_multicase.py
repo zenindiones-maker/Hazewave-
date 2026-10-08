@@ -115,6 +115,30 @@ def choice_schema() -> dict[str, Any]:
     }
 
 
+def classify_json_response_shape(content: Any) -> str:
+    """Untrusted model text maps to a fixed diagnostic enum, never stored raw."""
+    if not isinstance(content,str) or not 0<len(content)<=4096:
+        return "INVALID_CONTENT"
+    try:
+        result=json.loads(content)
+    except ValueError:
+        return "INVALID_JSON"
+    if type(result) is not dict:
+        return "NONOBJECT_JSON"
+    required=set(choice_schema()["required"])
+    if required-set(result):
+        return "MISSING_KEYS"
+    if set(result)-required:
+        return "EXTRA_KEYS"
+    if (not isinstance(result.get("finding"),str)
+         or not isinstance(result.get("action"),str)
+         or type(result.get("evidence_keys")) is not list
+         or any(type(v) is not str for v in result["evidence_keys"])
+         or type(result.get("requires_human_review")) is not bool):
+        return "TYPE_MISMATCH"
+    return "SCHEMA_KEYS_AND_TYPES_VALID"
+
+
 def evaluate_choice(case: str, decision: Any) -> dict[str, str]:
     if case not in _ALLOWED:
         raise MultiCaseError("UNKNOWN_CASE")
@@ -338,6 +362,8 @@ def perform_multicase(cases: Mapping[str, Mapping[str, Any]], *,
             response=caller(prompt,model,payload)
             elapsed=round((time.monotonic()-started)*1000,2)
             parsed=verify_llama_response(response,model)
+            raw_content=response["choices"][0]["message"]["content"]
+            model_json_shape=classify_json_response_shape(raw_content)
             verdict=evaluate_choice(case,parsed["decision"])
             rows.append({
                 "case_id":case,"trial_id":f"trial-{case}-{nonce}",
@@ -347,6 +373,8 @@ def perform_multicase(cases: Mapping[str, Mapping[str, Any]], *,
                 "prompt_tokens":parsed["prompt_tokens"],
                 "completion_tokens":parsed["completion_tokens"],
                 "model_response_sha256":parsed["content_sha256"],
+                "model_json_shape":model_json_shape,
+                "model_response_char_count":len(raw_content),
                 "prompt_sha256":hashlib.sha256(prompt.encode()).hexdigest(),
                 "observed_finding_enum":(
                     parsed["decision"].get("finding")
