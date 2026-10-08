@@ -399,7 +399,24 @@ The system MUST distinguish:
 
 No lower state may be presented as a higher one.
 
-## 13. Current implementation boundary
+## 13. Reverse engineering as a specialist capability
+
+HAZE and WAVE maintain reverse engineering as an evidence-based research capability under the dedicated [HAZE + WAVE Reverse Engineering Lab v1](./HAZE_WAVE_REVERSE_ENGINEERING_LAB_V1.md).
+
+HAZE uses it for authorized study of audio applications, DSP behavior, plug-ins, codecs, media pipelines, REAPER integrations and other sonic mechanisms. WAVE uses it for authorized study of visual applications, websites/Electron experiences, rendering pipelines, shaders, video/image systems and modern graphics behavior.
+
+Reverse engineering does not change the domain boundary:
+
+- HAZE owns conclusions and implementations about audio;
+- WAVE owns conclusions and implementations about visual systems;
+- BRIDGE may translate typed audiovisual evidence and owns no reverse-engineering authority;
+- HAZEWAVE_HARNESS remains the sole execution authority.
+
+Every investigation must distinguish static inference, measured behavior, runtime observation and independently reproduced behavior. Decompiler output is never represented as recovered original source. Installation of a tool is never represented as mastery or production approval.
+
+The machine-readable policy is `config/reverse-engineering-foundation-v1.json`. It requires target authorization, zero-cost/open-source core tooling, evidence preservation, pinned runtime identities and fail-closed rejection of forbidden investigation purposes.
+
+## 14. Current implementation boundary
 
 Already present in the repository in some form:
 
@@ -428,7 +445,7 @@ Still requiring real end-to-end completion/proof:
 
 Until these proofs exist, the Harness must say exactly what is implemented and what remains target architecture.
 
-## 14. Authoritative references used for this charter
+## 15. Authoritative references used for this charter
 
 Primary references, refreshed during creation on 2026-10-06:
 
