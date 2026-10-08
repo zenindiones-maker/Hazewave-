@@ -27,6 +27,44 @@ jobs:
           python -m pip install --no-input --disable-pip-version-check --no-cache-dir --only-binary=:all: \
             pillow==12.3.0 scenedetect-headless==0.7.1 opentimelineio==0.18.1
           python -m pip check
+      - name: Generate owned audio and video fixtures via FFmpeg
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/avfixture"
+          ffmpeg -hide_banner -nostdin -v error -y -f lavfi -i "sine=frequency=440:duration=3" \
+            -ac 2 -ar 48000 "$RUNNER_TEMP/avfixture/test-audio.wav"
+          ffmpeg -hide_banner -nostdin -v error -y -f lavfi -i "color=c=red:size=160x90:rate=24:duration=2" \
+            -f lavfi -i "color=c=blue:size=160x90:rate=24:duration=2" \
+            -filter_complex "[0:v][1:v]concat=n=2:v=1:a=0,format=yuv420p" \
+            -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv \
+            -c:v libx264 "$RUNNER_TEMP/avfixture/test-video.mp4"
+      - name: Real audio delivery QC and video frame/time/color/scene QA
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          from hazewave.audio_qc import analyze_audio_qc
+          from hazewave.video_qc import analyze_video_qc
+          from hazewave.scene_detection import detect_scenes
+          root = Path(os.environ["RUNNER_TEMP"]) / "avfixture"
+          audio = analyze_audio_qc(root / "test-audio.wav")
+          assert audio.source_sha256 and audio.sample_rate == 48000
+          assert audio.duration_seconds >= 2.9
+          print("HAZE_AUDIO_EBUR128_RUNTIME=PASS")
+          visual = analyze_video_qc(root / "test-video.mp4")
+          assert visual.width == 160 and visual.height == 90
+          assert visual.duration_seconds >= 3.9
+          assert visual.frame_rate_numerator / visual.frame_rate_denominator == 24
+          print("WAVE_VIDEO_FFPROBE_RUNTIME=PASS")
+          cuts = detect_scenes(root / "test-video.mp4")
+          assert cuts.scene_count >= 1
+          assert cuts.source_sha256 == visual.output_sha256
+          print("WAVE_SCENE_CUT_RUNTIME=PASS")
+          print("AV_RESEARCH_CODESPACE=NOT_TESTED")
+          PY
       - name: Exercise actual decoder, editable timeline and scene imports
         env:
           PYTHONPATH: src
