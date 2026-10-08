@@ -115,7 +115,7 @@
     },
     {
       "tool": "Blender",
-      "license": "GPL-3.0-or-later",
+      "license": "GPL-2.0-or-later",
       "tier": "OPTIONAL_RENDER_WORKSTATION",
       "use": "animation rigging render comparative fixture",
       "auto_install": false,
