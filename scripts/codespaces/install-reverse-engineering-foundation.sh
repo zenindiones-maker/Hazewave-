@@ -10,7 +10,7 @@ NODE_VERSION="24.11.0"
 NODE_ASSET="node-v24.11.0-linux-x64.tar.xz"
 NODE_SHA256="46da9a098973ab7ba4fca76945581ecb2eaf468de347173897044382f10e0a0a"
 NODE_URL="https://nodejs.org/dist/v24.11.0/$NODE_ASSET"
-REA_VERSION="4.1.0"
+REA_VERSION="6.0.0"
 GHIDRA_VERSION="12.1.4"
 GHIDRA_ASSET="ghidra_12.1.4_PUBLIC_20260921.zip"
 GHIDRA_SHA256="ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db"
@@ -123,7 +123,7 @@ echo "HAZEWAVE_RE_NPM=$npm_version"
 
 if [[ ! -x "$REA_PREFIX/node_modules/.bin/rea" ]]; then
   stage="$(mktemp -d "$ROOT/.rea-stage.XXXXXX")"
-  npm_config_ignore_scripts=true npm install --prefix "$stage" --no-audit --no-fund "rea-agents@4.1.0"
+  npm_config_ignore_scripts=true npm install --prefix "$stage" --no-audit --no-fund "rea-agents@6.0.0"
   [[ -x "$stage/node_modules/.bin/rea" ]] || { rm -rf "$stage"; fail "REA_BINARY_MISSING"; }
   observed="$("$stage/node_modules/.bin/rea" --version 2>/dev/null | tr -d '\r' | tail -n 1)"
   [[ "$observed" == *"$REA_VERSION"* ]] || { rm -rf "$stage"; fail "REA_VERSION_MISMATCH:$observed"; }
@@ -272,7 +272,7 @@ payload = {
     "authority": "HAZEWAVE_HARNESS",
     "installed_at": datetime.now(timezone.utc).isoformat(),
     "node": {"version_output": node_version, "pin": "24.11.0", "npm_version_output": npm_version},
-    "rea": {"version_output": rea_version, "pin": "4.1.0"},
+    "rea": {"version_output": rea_version, "pin": "6.0.0"},
     "ghidra": {
         "pin": "12.1.4",
         "install_dir": ghidra_root,
