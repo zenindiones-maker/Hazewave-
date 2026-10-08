@@ -91,3 +91,26 @@ def test_private_receipt_can_only_be_written_outside_git(tmp_path: Path) -> None
     assert file.is_file()
     assert file.stat().st_mode & 0o077 == 0
     assert json.loads(file.read_text())["production_approved"] is False
+
+
+def test_executed_rea_iris_subprocesses_strip_connected_secrets(monkeypatch):
+    from hazewave.harness_research_execution import _tool_environment
+    monkeypatch.setenv("GITHUB_TOKEN", "PRIVATE_TOKEN_MUST_NOT_TRAVEL")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "SECRET")
+    monkeypatch.setenv("OPENAI_API_KEY", "SECRET")
+    monkeypatch.setenv("PATH", "/usr/bin")
+    env = _tool_environment()
+    assert env["PATH"] == "/usr/bin"
+    assert "GITHUB_TOKEN" not in env
+    assert "TELEGRAM_BOT_TOKEN" not in env
+    assert "OPENAI_API_KEY" not in env
+
+
+def test_iris_fixture_subprocess_supports_explicit_restricted_environment():
+    import inspect
+    from hazewave.iris_capture import capture_owned_fixture
+    parameters = inspect.signature(capture_owned_fixture).parameters
+    assert "process_env" in parameters
+    import hazewave.harness_research_execution as module
+    src = inspect.getsource(module)
+    assert "process_env=_tool_environment()" in src
