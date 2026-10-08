@@ -215,3 +215,16 @@ def test_reflex_qi_profiler_patch_is_scoped_to_phase_profile_builder_and_binary_
     assert 'grep -Fq "REFLEX_QI_GEMM" "$stage/c/qi_gemm.h"' in phase_block
     assert 'grep -aFq "REFLEX_QI_GEMM" "$stage/c/laya"' in phase_block
     assert 'strings "$stage/c/laya" | grep -Fq "REFLEX_QI_GEMM"' not in phase_block
+
+
+def test_reflex_engine_tune_includes_exact_output_direct_y_store_variant() -> None:
+    remote = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
+
+    assert 'direct_y_store_v1' in remote
+    assert 'build_direct_y_store_engine_variant' in remote
+    assert 'if (nr == QI_NR)' in remote
+    assert '_mm256_add_ps(_mm256_loadu_ps' in remote
+    assert '"preserves_k_accumulation_order": True' in remote
+    assert '"direct_y_store_only": True' in remote
+    assert 'run_case direct_y_store_v1 "$direct_store"' in remote
+    assert '"direct_y_store_v1"' in remote
