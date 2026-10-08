@@ -845,6 +845,108 @@ PY
   printf '%s\n' "$binary"
 }
 
+build_mc_engine_variant() {
+  local mc="$1"
+  case "$mc" in
+    144|408|816) ;;
+    *) die "ENGINE_MC_VARIANT_UNSUPPORTED:$mc" ;;
+  esac
+  local variant="mc_\${mc}_v1"
+  local root="$HOME/.local/share/hazewave/providers/colibri/derived/$variant"
+  local binary="$root/c/laya"
+  local meta="$root/build.json"
+  local expected_sha="bf2442915d6e3dd4cdfd2eb9c2a3d2aa44a25850"
+
+  [[ "$(git -C "$SOURCE_ROOT" rev-parse HEAD)" == "$expected_sha" ]] || die "ENGINE_MC_UPSTREAM_SHA_MISMATCH"
+  [[ -z "$(git -C "$SOURCE_ROOT" status --porcelain)" ]] || die "ENGINE_MC_UPSTREAM_SOURCE_DIRTY"
+
+  if [[ -x "$binary" && -f "$meta" ]]; then
+    "$PYTHON_BIN" - "$meta" "$binary" "$mc" <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+meta = json.load(open(sys.argv[1], encoding="utf-8"))
+binary = Path(sys.argv[2])
+mc = int(sys.argv[3])
+actual = hashlib.sha256(binary.read_bytes()).hexdigest()
+if meta.get("binary_sha256") != actual:
+    raise SystemExit("ENGINE_MC_DERIVED_BINARY_METADATA_MISMATCH")
+if meta.get("cache_block_mc_only") is not True:
+    raise SystemExit("ENGINE_MC_DERIVED_METADATA_INVALID")
+if meta.get("qi_mc") != mc:
+    raise SystemExit("ENGINE_MC_DERIVED_MC_MISMATCH")
+if meta.get("preserves_k_accumulation_order") is not True:
+    raise SystemExit("ENGINE_MC_ACCUMULATION_ORDER_INVALID")
+PY
+    printf '%s\n' "$binary"
+    return 0
+  fi
+
+  [[ ! -e "$root" ]] || die "ENGINE_MC_DERIVED_ROOT_OCCUPIED:$variant"
+  mkdir -p "$(dirname "$root")"
+  local stage
+  stage="$(mktemp -d "$root.stage.XXXXXX")"
+  git -C "$SOURCE_ROOT" archive HEAD c | tar -x -C "$stage" || die "ENGINE_MC_SOURCE_ARCHIVE_FAILED:$variant"
+
+  if ! "$PYTHON_BIN" - "$stage/c/qi_gemm.h" "$mc" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+mc = int(sys.argv[2])
+text = path.read_text(encoding="utf-8")
+if text.count("#define QI_MC 192") != 1:
+    raise SystemExit(f"ENGINE_MC_PATCH_ANCHOR_INVALID:{text.count('#define QI_MC 192')}")
+text = text.replace("#define QI_MC 192", f"#define QI_MC {mc}", 1)
+path.write_text(text, encoding="utf-8")
+PY
+  then
+    rm -rf "$stage"
+    die "ENGINE_MC_SOURCE_PATCH_FAILED:$variant"
+  fi
+
+  grep -Fq "#define QI_MC $mc" "$stage/c/qi_gemm.h" \
+    || { rm -rf "$stage"; die "ENGINE_MC_SOURCE_MARKER_MISSING:$variant"; }
+
+  make -C "$stage/c" laya >/dev/null || { rm -rf "$stage"; die "ENGINE_MC_BUILD_FAILED:$variant"; }
+  [[ -x "$stage/c/laya" ]] || { rm -rf "$stage"; die "ENGINE_MC_BINARY_MISSING:$variant"; }
+
+  local patch_sha binary_sha
+  patch_sha="$(
+    {
+      git -C "$SOURCE_ROOT" show HEAD:c/qi_gemm.h
+      cat "$stage/c/qi_gemm.h"
+      printf '%s\n' "$variant"
+    } | sha256sum | awk '{print $1}'
+  )"
+  binary_sha="$(sha256sum "$stage/c/laya" | awk '{print $1}')"
+
+  mv "$stage" "$root"
+
+  "$PYTHON_BIN" - "$meta" "$variant" "$expected_sha" "$patch_sha" "$binary_sha" "$mc" <<'PY'
+import json, os, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+row = {
+    "schema": "HazewaveReflexDerivedEngineBuild/v1",
+    "variant": sys.argv[2],
+    "upstream_commit": sys.argv[3],
+    "patch_sha256": sys.argv[4],
+    "binary_sha256": sys.argv[5],
+    "qi_mc": int(sys.argv[6]),
+    "changes_model_or_precision": False,
+    "cache_block_mc_only": True,
+    "preserves_k_accumulation_order": True,
+    "requires_exact_output_gate": True,
+    "provider_authority": "NONE",
+}
+fd = os.open(p, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as out:
+    json.dump(row, out, sort_keys=True, separators=(",", ":"))
+    out.write("\n")
+PY
+  printf '%s\n' "$binary"
+}
+
 build_phase_profile_engine_variant() {
   local variant="phase_profile_v4"
   local root="$HOME/.local/share/hazewave/providers/colibri/derived/$variant"
@@ -1646,12 +1748,15 @@ latency_engine_tune() {
   echo "REFLEX_ENGINE_TUNE_MODE=STOCK_VS_SCHEDULER_DERIVATIVES"
   echo "REFLEX_ENGINE_TUNE_PATCH_POLICY=F32_GEMM_ONLY_FAIL_CLOSED"
 
-  local attn gemm all reuse direct_store
+  local attn gemm all reuse direct_store mc144 mc408 mc816
   attn="$(build_scheduler_engine_variant static_attention_v2)"
   gemm="$(build_scheduler_engine_variant static_gemm_f32_v2)"
   all="$(build_scheduler_engine_variant static_all_f32_v2)"
   reuse="$(build_pack_reuse_engine_variant)"
   direct_store="$(build_direct_y_store_engine_variant)"
+  mc144="$(build_mc_engine_variant 144)"
+  mc408="$(build_mc_engine_variant 408)"
+  mc816="$(build_mc_engine_variant 816)"
 
   stop_engine_case() {
     local owned_pid="$1"
@@ -1728,12 +1833,15 @@ PY
   run_case static_all_f32_v2 "$all"
   run_case reuse_packed_w_v1 "$reuse"
   run_case direct_y_store_v1 "$direct_store"
+  run_case mc_144_v1 "$mc144"
+  run_case mc_408_v1 "$mc408"
+  run_case mc_816_v1 "$mc816"
 
   "$PYTHON_BIN" - "$run_dir" <<'PY'
 import hashlib, json, os, sys
 from pathlib import Path
 root = Path(sys.argv[1])
-names = ["stock", "static_attention_v2", "static_gemm_f32_v2", "static_all_f32_v2", "reuse_packed_w_v1", "direct_y_store_v1"]
+names = ["stock", "static_attention_v2", "static_gemm_f32_v2", "static_all_f32_v2", "reuse_packed_w_v1", "direct_y_store_v1", "mc_144_v1", "mc_408_v1", "mc_816_v1"]
 rows = {n: json.load(open(root / f"{n}.json", encoding="utf-8")) for n in names}
 base = rows["stock"]
 bs = [x for x in base["samples"] if x.get("status") == "PASS"]
