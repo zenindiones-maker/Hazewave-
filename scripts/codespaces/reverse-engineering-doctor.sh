@@ -28,6 +28,15 @@ done
 [[ -x "$GHIDRA_INSTALL_DIR/support/analyzeHeadless" ]] || fail "GHIDRA_HEADLESS_MISSING"
 
 rea --version | grep -F "6.0.0" >/dev/null || fail "REA_VERSION_MISMATCH"
+"$HAZEWAVE_RE_PYTHON" - "$ROOT/rea-6.0.0/node_modules/rea-agents/package.json" <<'PY' || fail "REA_INSTALLED_PACKAGE_IDENTITY_MISMATCH"
+import json
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+data = json.loads(p.read_text(encoding="utf-8"))
+if data.get("name") != "rea-agents" or data.get("version") != "6.0.0" or data.get("license") != "MIT":
+    raise SystemExit(2)
+PY
 frida --version | grep -F "17.23.0" >/dev/null || fail "FRIDA_VERSION_MISMATCH"
 rizin -v | grep -F "0.9.1" >/dev/null || fail "RIZIN_VERSION_MISMATCH"
 java -version 2>&1 | sed -n '1p' | grep -Eq '"21([."]|$)' || fail "JAVA_VERSION_MISMATCH"
@@ -74,7 +83,7 @@ int main(void) { return evidence_constant() == 42 ? 0 : 1; }
 C
   chmod 600 "$source_file"
   cc -O0 -g -fno-omit-frame-pointer -o "$target" "$source_file" || fail "RE_DEEP_FIXTURE_COMPILE_FAILED"
-  chmod 600 "$target"
+  chmod 700 "$target"
   target_sha="$(sha256sum "$target" | awk '{print $1}')"
 
   # Ghidra provider explicitly selected: no Hopper/proprietary fallback.
