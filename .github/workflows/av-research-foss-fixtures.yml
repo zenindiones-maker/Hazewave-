@@ -27,6 +27,13 @@ jobs:
           python -m pip install --no-input --disable-pip-version-check --no-cache-dir --only-binary=:all: \
             pillow==12.3.0 scenedetect-headless==0.7.1 opentimelineio==0.18.1
           python -m pip check
+      - name: Install distro FFmpeg only on disposable CI worker
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg
+          ffmpeg -version | head -n 1
+          ffprobe -version | head -n 1
       - name: Generate owned audio and video fixtures via FFmpeg
         run: |
           set -euo pipefail
