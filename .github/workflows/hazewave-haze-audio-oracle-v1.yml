@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   qualify_audio_oracles:
-    if: ${{ github.event.repository.private == false }}
+    if: ${{ github.event.repository.private == false && !contains(github.event.head_commit.message, '[skip-oracle]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
