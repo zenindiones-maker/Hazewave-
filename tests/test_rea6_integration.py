@@ -116,3 +116,32 @@ def test_existing_harness_registry_has_no_cross_domain_research_escalation() -> 
         assert grant.authority == "HAZEWAVE_HARNESS"
     with pytest.raises(PermissionError, match="DOMAIN_CAPABILITY_MISMATCH"):
         route_task(HazewaveTask(task_id="bad", goal="invalid cross domain", required_capability="research.audio.inspect", requested_domain="WAVE"))
+
+
+def test_deep_probe_uses_real_compiled_source_owned_fixture_and_sha_bound_evidence() -> None:
+    doctor = (ROOT / "scripts/codespaces/reverse-engineering-doctor.sh").read_text()
+    assert "REA6_SOURCE_OWNED_FIXTURE" in doctor
+    assert "cc -O0 -g" in doctor
+    assert "rea function" in doctor
+    assert "main --provider ghidra --json" in doctor
+    assert "-m hazewave.rea6_integration verify-evidence" in doctor
+    assert "RE_DEEP_EVIDENCE_SCHEMA_UNVERIFIED" not in doctor
+
+
+def test_actual_evidence_cli_requires_hash_match_and_fails_closed(tmp_path: Path) -> None:
+    from hazewave.rea6_integration import main
+
+    target = tmp_path / "fixture"
+    target.write_bytes(b"not-real-elf-only-binding-proof")
+    evidence = _evidence()
+    evidence["subject"]["digest"]["sha256"] = "c" * 64
+    evidence_file = tmp_path / "evidence.json"
+    evidence_file.write_text(json.dumps(evidence))
+    assert main(["verify-evidence", "--target", str(target), "--evidence", str(evidence_file)]) != 0
+
+
+def test_signed_plan_receipt_contains_typed_harness_capability() -> None:
+    foundation = (ROOT / "src/hazewave/reverse_engineering.py").read_text()
+    assert '"harness_research_plan": harness_authorization' in foundation
+    assert "authorization_id" in foundation
+    assert "execution_authorized" in foundation
