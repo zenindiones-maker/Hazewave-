@@ -1,0 +1,318 @@
+{
+  "schema": "HazewaveReverseEngineeringFoundation/v1",
+  "policy_id": "hazewave-reverse-engineering-foundation-v1",
+  "status": "DEVELOPMENT_NORMATIVE",
+  "authority": "HAZEWAVE_HARNESS",
+  "grants_execution_authority": false,
+  "owner_intent": "AUTHORIZED_REFERENCE_RESEARCH_FOR_HAZE_AND_WAVE",
+  "principles": [
+    "EVIDENCE_BEFORE_CLAIMS",
+    "AUTHORIZED_TARGETS_ONLY",
+    "BEHAVIORAL_RECREATION_NOT_SOURCE_CLONING",
+    "ZERO_COST_CORE",
+    "PINNED_REPRODUCIBLE_TOOLING",
+    "NO_TOOL_BECOMES_PROJECT_AUTHORITY",
+    "STATIC_INFERENCE_IS_NOT_RUNTIME_OBSERVATION"
+  ],
+  "allowed_purposes": [
+    "AUTHORIZED_FEATURE_STUDY",
+    "COMPATIBILITY_RESEARCH",
+    "INTEROPERABILITY",
+    "PERFORMANCE_STUDY",
+    "FORMAT_ANALYSIS",
+    "QUALITY_BENCHMARK"
+  ],
+  "forbidden_purposes": [
+    "UNAUTHORIZED_ACCESS",
+    "CREDENTIAL_EXTRACTION",
+    "DRM_BYPASS",
+    "STEALTH_EVASION",
+    "MALWARE_DEVELOPMENT",
+    "EXFILTRATION"
+  ],
+  "evidence": {
+    "allowed_claims": [
+      "STATIC_INFERENCE",
+      "MEASURED_BEHAVIOR",
+      "RUNTIME_OBSERVATION",
+      "REPRODUCED_BEHAVIOR"
+    ],
+    "source_recovery_claim": "FORBIDDEN",
+    "require_target_digest": true,
+    "require_tool_identity": true,
+    "require_timestamp": true,
+    "require_limitations": true
+  },
+  "routes": {
+    "HAZE": {
+      "audio_plugin": [
+        "rea",
+        "ghidra",
+        "rizin",
+        "frida",
+        "ffmpeg",
+        "mediainfo"
+      ],
+      "audio_codec": [
+        "rea",
+        "ghidra",
+        "rizin",
+        "ffmpeg",
+        "mediainfo"
+      ],
+      "audio_application": [
+        "rea",
+        "ghidra",
+        "rizin",
+        "frida",
+        "ffmpeg",
+        "mediainfo"
+      ]
+    },
+    "WAVE": {
+      "visual_shader": [
+        "rea",
+        "renderdoc",
+        "spirv-tools",
+        "spirv-cross"
+      ],
+      "visual_application": [
+        "rea",
+        "ghidra",
+        "rizin",
+        "frida",
+        "renderdoc"
+      ],
+      "web_visual": [
+        "rea"
+      ]
+    },
+    "BRIDGE": {
+      "av_pipeline": [
+        "rea",
+        "ffmpeg",
+        "mediainfo"
+      ]
+    }
+  },
+  "domain_authority": {
+    "HAZE": "HAZEWAVE_HARNESS",
+    "WAVE": "HAZEWAVE_HARNESS",
+    "BRIDGE": "NONE"
+  },
+  "tools": [
+    {
+      "tool_id": "rea",
+      "name": "REA: Reverse Engineer Anything",
+      "version": "4.1.0",
+      "source_repository": "morluto/rea",
+      "source_type": "NPM_PUBLISHED_RELEASE",
+      "package": "rea-agents@4.1.0",
+      "license_id": "MIT",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "roles": [
+        "AGENT_RE_ORCHESTRATOR",
+        "EVIDENCE_LEDGER",
+        "NATIVE_ANALYSIS_FRONTEND",
+        "JAVASCRIPT_ELECTRON_ANALYSIS",
+        "WEBSITE_OBSERVATION"
+      ],
+      "domains": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "installation_class": "CORE",
+      "grants_execution_authority": false
+    },
+    {
+      "tool_id": "ghidra",
+      "name": "Ghidra",
+      "version": "12.1.4",
+      "source_repository": "NationalSecurityAgency/ghidra",
+      "source_type": "OFFICIAL_GITHUB_RELEASE",
+      "release_asset": "ghidra_12.1.4_PUBLIC_20260921.zip",
+      "sha256": "ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db",
+      "license_id": "Apache-2.0",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "roles": [
+        "DECOMPILATION",
+        "DISASSEMBLY",
+        "XREFS",
+        "CFG",
+        "FUNCTION_DOSSIERS"
+      ],
+      "domains": [
+        "HAZE",
+        "WAVE"
+      ],
+      "installation_class": "CORE_PROVIDER",
+      "grants_execution_authority": false
+    },
+    {
+      "tool_id": "rizin",
+      "name": "Rizin",
+      "version": "0.9.1",
+      "source_repository": "rizinorg/rizin",
+      "source_type": "OFFICIAL_GITHUB_RELEASE",
+      "release_asset": "rizin-v0.9.1-static-x86_64.tar.xz",
+      "sha256": "9102249a9f0b6319c5334a2e5cf8d9cc3f2035e1d3def027c41f6a90f647e8cf",
+      "license_id": "LGPL-3.0",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "roles": [
+        "CLI_BINARY_TRIAGE",
+        "STRINGS",
+        "SECTIONS",
+        "DISASSEMBLY",
+        "SCRIPTABLE_STATIC_ANALYSIS"
+      ],
+      "domains": [
+        "HAZE",
+        "WAVE"
+      ],
+      "installation_class": "CORE",
+      "grants_execution_authority": false
+    },
+    {
+      "tool_id": "frida",
+      "name": "Frida",
+      "version": "17.23.0",
+      "companion_version": "frida-tools==14.11.0",
+      "source_repository": "frida/frida",
+      "source_type": "PYPI_AND_UPSTREAM_RELEASE",
+      "license_id": "wxWindows-Library-3.1",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "roles": [
+        "AUTHORIZED_RUNTIME_INSTRUMENTATION",
+        "CALL_OBSERVATION",
+        "PROCESS_INTROSPECTION"
+      ],
+      "domains": [
+        "HAZE",
+        "WAVE"
+      ],
+      "installation_class": "CORE_CONDITIONAL_RUNTIME",
+      "grants_execution_authority": false
+    },
+    {
+      "tool_id": "ffmpeg",
+      "name": "FFmpeg/ffprobe",
+      "version": "9.0.2",
+      "source_repository": "FFmpeg/FFmpeg",
+      "source_type": "OFFICIAL_RELEASE",
+      "license_id": "LGPL/GPL-BUILD-DEPENDENT",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "roles": [
+        "AUDIO_VIDEO_CONTAINER_ANALYSIS",
+        "CODEC_PROBING",
+        "FILTERGRAPH_MEASUREMENT",
+        "BITSTREAM_METADATA"
+      ],
+      "domains": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "installation_class": "USE_EXISTING_QUALIFIED_RUNTIME",
+      "grants_execution_authority": false
+    },
+    {
+      "tool_id": "mediainfo",
+      "name": "MediaInfo",
+      "version": "26.10",
+      "source_repository": "MediaArea/MediaInfo",
+      "source_type": "OFFICIAL_GITHUB_RELEASE",
+      "license_id": "BSD-2-Clause",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "roles": [
+        "CONTAINER_METADATA_CROSSCHECK",
+        "CODEC_METADATA_CROSSCHECK"
+      ],
+      "domains": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "installation_class": "CORE",
+      "grants_execution_authority": false
+    },
+    {
+      "tool_id": "renderdoc",
+      "name": "RenderDoc",
+      "version": "1.46",
+      "source_repository": "baldurk/renderdoc",
+      "source_type": "OFFICIAL_GITHUB_RELEASE",
+      "license_id": "MIT",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "roles": [
+        "GPU_FRAME_CAPTURE",
+        "GRAPHICS_PIPELINE_INSPECTION",
+        "RESOURCE_AND_SHADER_DEBUG"
+      ],
+      "domains": [
+        "WAVE"
+      ],
+      "installation_class": "WORKSTATION_GPU_OPTIONAL",
+      "grants_execution_authority": false
+    },
+    {
+      "tool_id": "spirv-tools",
+      "name": "SPIRV-Tools",
+      "version": "2026.4",
+      "source_repository": "KhronosGroup/SPIRV-Tools",
+      "source_type": "OFFICIAL_GITHUB_RELEASE",
+      "license_id": "Apache-2.0",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "roles": [
+        "SPIRV_DISASSEMBLY",
+        "VALIDATION",
+        "OPTIMIZATION_INSPECTION"
+      ],
+      "domains": [
+        "WAVE"
+      ],
+      "installation_class": "WAVE_OPTIONAL",
+      "grants_execution_authority": false
+    },
+    {
+      "tool_id": "spirv-cross",
+      "name": "SPIRV-Cross",
+      "version": "aa217aeb6c9f0ace7a0ab233b28807edf45eb165",
+      "source_repository": "KhronosGroup/SPIRV-Cross",
+      "source_type": "PINNED_UPSTREAM_COMMIT",
+      "license_id": "Apache-2.0",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "roles": [
+        "SHADER_REFLECTION",
+        "SPIRV_TO_GLSL",
+        "SPIRV_TO_HLSL",
+        "SPIRV_TO_MSL"
+      ],
+      "domains": [
+        "WAVE"
+      ],
+      "installation_class": "WAVE_OPTIONAL",
+      "grants_execution_authority": false
+    }
+  ],
+  "daily_intelligence_watch": [
+    "morluto/rea",
+    "NationalSecurityAgency/ghidra",
+    "frida/frida",
+    "rizinorg/rizin",
+    "FFmpeg/FFmpeg",
+    "MediaArea/MediaInfo",
+    "baldurk/renderdoc",
+    "KhronosGroup/SPIRV-Tools",
+    "KhronosGroup/SPIRV-Cross"
+  ],
+  "adoption_gate": [
+    "SOURCE_IDENTITY",
+    "LICENSE_REVIEW",
+    "SECURITY_REVIEW",
+    "INSTALL_PROOF",
+    "RUNTIME_PROOF",
+    "DOMAIN_BENCHMARK",
+    "HUMAN_APPROVAL"
+  ]
+}

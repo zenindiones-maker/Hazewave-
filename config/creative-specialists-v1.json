@@ -26,7 +26,8 @@
         "mastering",
         "audio_qc",
         "critical_listening",
-        "reaper_mastery"
+        "reaper_mastery",
+        "audio_reverse_engineering"
       ]
     },
     "WAVE": {
@@ -49,7 +50,8 @@
         "websites",
         "ui_ux",
         "web_accessibility",
-        "web_performance"
+        "web_performance",
+        "visual_reverse_engineering"
       ]
     },
     "BRIDGE": {
@@ -147,5 +149,17 @@
     "MOCKED_PASS_AS_RUNTIME_PROOF",
     "DAILY_INTELLIGENCE_GRANTS_EXECUTION_AUTHORITY",
     "TELEGRAM_GRANTS_EXECUTION_AUTHORITY"
-  ]
+  ],
+  "reverse_engineering": {
+    "required": true,
+    "policy_ref": "config/reverse-engineering-foundation-v1.json",
+    "purpose": "AUTHORIZED_REFERENCE_RESEARCH_FOR_HAZE_AND_WAVE",
+    "tool_authority": "NONE",
+    "authorized_targets_only": true,
+    "evidence_first": true,
+    "original_source_recovery_claim": "FORBIDDEN",
+    "runtime_mutation_authority": false,
+    "auto_install_external_tools": false,
+    "production_recreation_requires_human_approval": true
+  }
 }

@@ -321,7 +321,8 @@
         "BRIDGE",
         "harness",
         "telegram",
-        "daily-intelligence"
+        "daily-intelligence",
+        "reverse-engineering"
       ],
       "description": "Machine-readable specialist boundaries, daily intelligence contract, Telegram human loop and truth/promotion policy."
     },
@@ -338,9 +339,73 @@
         "BRIDGE",
         "harness",
         "telegram",
-        "daily-intelligence"
+        "daily-intelligence",
+        "reverse-engineering"
       ],
       "description": "Normative charter defining HAZE as complete audio engineering and WAVE as complete visual production, with daily evidence-based learning."
+    },
+    {
+      "id": "reverse-engineering-foundation-v1",
+      "path": "config/reverse-engineering-foundation-v1.json",
+      "type": "PROJECT_POLICY",
+      "authority": "NORMATIVE",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE",
+        "harness",
+        "reverse-engineering"
+      ],
+      "description": "Machine-readable authorization, evidence, routing, tool-pin and adoption policy for the Hazewave Reverse Engineering Lab."
+    },
+    {
+      "id": "haze-wave-reverse-engineering-lab-v1",
+      "path": "docs/architecture/HAZE_WAVE_REVERSE_ENGINEERING_LAB_V1.md",
+      "type": "ARCHITECTURE_POLICY",
+      "authority": "NORMATIVE",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE",
+        "harness",
+        "reverse-engineering"
+      ],
+      "description": "Normative specialist playbooks and evidence model for authorized audio, visual, graphics, application and media reverse-engineering research."
+    },
+    {
+      "id": "adr-0007-reverse-engineering-lab",
+      "path": "docs/architecture/decisions/ADR-0007-reverse-engineering-lab.md",
+      "type": "ARCHITECTURE_DECISION",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE",
+        "harness",
+        "reverse-engineering",
+        "security"
+      ],
+      "description": "Records REA/Ghidra-centered governed reverse-engineering architecture and the evidence-first authorization boundary."
+    },
+    {
+      "id": "reverse-engineering-lab-runbook-v1",
+      "path": "docs/runbooks/REVERSE_ENGINEERING_LAB_V1.md",
+      "type": "RUNBOOK",
+      "authority": "OPERATIONAL",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "codespaces",
+        "runtime",
+        "reverse-engineering"
+      ],
+      "description": "Operational procedure for isolated installation, doctor checks, deep Ghidra proof and governed investigation planning."
     }
   ]
 }

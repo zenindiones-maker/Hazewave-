@@ -37,6 +37,10 @@ from hazewave.provider_policy import (
     write_account_attestation,
 )
 from hazewave.separation import DEFAULT_MODEL, SeparationError, separate_track
+from hazewave.reverse_engineering import (
+    ReverseEngineeringError,
+    load_default_foundation,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -256,6 +260,54 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maximum admitted Free models attempted by auto selection.",
     )
 
+    reverse_engineering = subcommands.add_parser(
+        "reverse-engineering",
+        help="Plan governed reverse-engineering research for HAZE, WAVE, or BRIDGE.",
+    )
+    re_commands = reverse_engineering.add_subparsers(
+        dest="reverse_engineering_command",
+        required=True,
+    )
+    re_plan = re_commands.add_parser(
+        "plan",
+        help="Create an evidence-first investigation plan for an authorized target.",
+    )
+    re_plan.add_argument("--domain", choices=("HAZE", "WAVE", "BRIDGE"), required=True)
+    re_plan.add_argument(
+        "--target-kind",
+        choices=(
+            "audio_plugin",
+            "audio_codec",
+            "audio_application",
+            "visual_shader",
+            "visual_application",
+            "web_visual",
+            "av_pipeline",
+        ),
+        required=True,
+    )
+    re_plan.add_argument(
+        "--purpose",
+        choices=(
+            "AUTHORIZED_FEATURE_STUDY",
+            "COMPATIBILITY_RESEARCH",
+            "INTEROPERABILITY",
+            "PERFORMANCE_STUDY",
+            "FORMAT_ANALYSIS",
+            "QUALITY_BENCHMARK",
+        ),
+        required=True,
+    )
+    re_plan.add_argument(
+        "--authorized",
+        action="store_true",
+        help="Confirm that the target is owned, open-source, or otherwise authorized for analysis.",
+    )
+    re_commands.add_parser(
+        "registry",
+        help="Show the pinned reverse-engineering capability registry.",
+    )
+
     ace = subcommands.add_parser(
         "acestep",
         help="Manage and use the local ACE-Step 1.5 music engine.",
@@ -361,6 +413,32 @@ def main() -> int:
     args = build_parser().parse_args()
 
     try:
+        if args.command == "reverse-engineering":
+            policy_path = (
+                Path(__file__).resolve().parents[2]
+                / "config"
+                / "reverse-engineering-foundation-v1.json"
+            )
+            foundation = load_default_foundation(policy_path)
+            if args.reverse_engineering_command == "registry":
+                print(
+                    json.dumps(
+                        foundation.snapshot(),
+                        sort_keys=True,
+                        ensure_ascii=False,
+                    )
+                )
+                return 0
+            if args.reverse_engineering_command == "plan":
+                plan = foundation.plan(
+                    domain=args.domain,
+                    target_kind=args.target_kind,
+                    authorized=args.authorized,
+                    purpose=args.purpose,
+                )
+                print(json.dumps(plan, sort_keys=True, ensure_ascii=False))
+                return 0
+
         if args.command == "separate":
             result = separate_track(
                 args.input,
@@ -679,6 +757,7 @@ def main() -> int:
         AceStepError,
         FreeLLMAPIError,
         NineRouterExecutionError,
+        ReverseEngineeringError,
         PermissionError,
         ValueError,
     ) as exc:
