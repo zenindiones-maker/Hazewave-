@@ -1,0 +1,62 @@
+name: REA6 JavaScript and managed route fixtures
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/rea6-provider-fixtures.yml"
+      - "src/hazewave/rea6_provider_conformance.py"
+      - "scripts/codespaces/rea6-provider-conformance.sh"
+      - "tests/test_rea6_provider_conformance.py"
+      - "tests/fixtures/rea6-javascript-owned/**"
+
+permissions:
+  contents: read
+
+jobs:
+  static-routes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exactly published REA 6.0.0 into ephemeral sandbox
+        run: |
+          set -euo pipefail
+          npm_config_ignore_scripts=true npm install --prefix "$RUNNER_TEMP/rea6" --no-audit --no-fund --ignore-scripts rea-agents@6.0.0
+          node -e 'const x=require(process.argv[1]);if(x.name!=="rea-agents"||x.version!=="6.0.0") process.exit(20)' "$RUNNER_TEMP/rea6/node_modules/rea-agents/package.json"
+          "$RUNNER_TEMP/rea6/node_modules/.bin/rea" --version
+          echo "REA6_PINNED_VERSION=PASS"
+      - name: Static JavaScript analysis of source-owned application
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          REA="$RUNNER_TEMP/rea6/node_modules/.bin/rea"
+          "$REA" analyze-javascript-application "$GITHUB_WORKSPACE/tests/fixtures/rea6-javascript-owned" --json > "$RUNNER_TEMP/rea6-js.json"
+          python -m hazewave.rea6_provider_conformance validate-js-fixture \
+            --fixture "$GITHUB_WORKSPACE/tests/fixtures/rea6-javascript-owned" \
+            --evidence "$RUNNER_TEMP/rea6-js.json"
+          echo "REA6_STATIC_JS_ROUTE=CI_PROVEN"
+      - name: Managed negative control does not constitute .NET support proof
+        run: |
+          set -euo pipefail
+          REA="$RUNNER_TEMP/rea6/node_modules/.bin/rea"
+          printf 'HAZEWAVE_OWNED_INVALID_DOTNET\n' > "$RUNNER_TEMP/not-managed.dll"
+          if "$REA" inspect-managed-artifact "$RUNNER_TEMP/not-managed.dll" --json >"$RUNNER_TEMP/managed-invalid.json" 2>"$RUNNER_TEMP/managed-invalid.stderr"; then
+            echo "REA6_MANAGED_INVALID_TARGET_ACCEPTED=FAIL" >&2
+            exit 20
+          fi
+          echo "REA6_MANAGED_INVALID_TARGET_REJECTED=PASS"
+          echo "REA6_MANAGED_POSITIVE_FIXTURE=NOT_TESTED"
+      - name: Preserve readiness truth
+        run: |
+          echo "REA6_GHIDRA_CODESPACE=NOT_TESTED"
+          echo "REA6_NATIVE_RIZIN_PROVIDER=NOT_ASSUMED"
+          echo "REA6_FRIDA_RUNTIME=NOT_TESTED"
+          echo "REA6_AGENT_MCP=NOT_CONNECTED"
+          echo "HAZEWAVE_PRODUCTION=NOT_APPROVED"
