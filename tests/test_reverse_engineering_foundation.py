@@ -23,7 +23,7 @@ def test_reverse_engineering_registry_is_zero_cost_evidence_first_and_domain_sco
 
     assert snapshot["authority"] == "HAZEWAVE_HARNESS"
     assert snapshot["grants_execution_authority"] is False
-    assert tools["rea"]["version"] == "4.1.0"
+    assert tools["rea"]["version"] == "6.0.0"
     assert tools["rea"]["source_repository"] == "morluto/rea"
     assert tools["rea"]["license_id"] == "MIT"
     assert tools["ghidra"]["version"] == "12.1.4"
@@ -134,7 +134,7 @@ def test_codespace_installer_pins_rea_ghidra_frida_and_rizin_without_hopper() ->
         ROOT / "scripts" / "codespaces" / "install-reverse-engineering-foundation.sh"
     ).read_text(encoding="utf-8")
 
-    assert "rea-agents@4.1.0" in script
+    assert "rea-agents@6.0.0" in script
     assert "ghidra_12.1.4_PUBLIC_20260921.zip" in script
     assert "ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db" in script
     assert "frida==17.23.0" in script
@@ -162,7 +162,7 @@ def test_codespace_installer_bootstraps_pinned_user_local_node_for_rea() -> None
     assert 'export PATH="$NODE_ROOT/bin:$PATH"' in script
     assert 'for cmd in curl sha256sum tar python3; do' in script
     assert 'for cmd in curl sha256sum tar python3 npm node; do' not in script
-    assert 'npm install --prefix "$stage" --no-audit --no-fund "rea-agents@4.1.0"' in script
+    assert 'npm install --prefix "$stage" --no-audit --no-fund "rea-agents@6.0.0"' in script
     assert '"node": {"version_output": node_version, "pin": "24.11.0"' in script
 
 def test_specialist_charter_machine_policy_adopts_reverse_engineering_domains() -> None:
