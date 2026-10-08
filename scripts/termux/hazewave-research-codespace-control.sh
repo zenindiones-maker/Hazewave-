@@ -9,7 +9,12 @@ case "$mode" in --status|--inventory|--audit|--start-existing) ;; *) die "MODE_U
 
 CS="hazewave-zero-cost-4jxp45676rq6279xx"
 REPO="zenindiones-maker/Hazewave-"
-BRANCH="work/native-auto-synthesis-av-qa-v1"
+BRANCH="${HAZEWAVE_RESEARCH_REF:-work/native-auto-synthesis-av-qa-v1}"
+# Only these already-reviewed repository branches may be selected.
+case "$BRANCH" in
+  work/native-auto-synthesis-av-qa-v1|work/research-codespace-identity-authenticated-v1) ;;
+  *) die "UNREVIEWED_RESEARCH_REF" ;;
+esac
 command -v gh >/dev/null 2>&1 || die "GH_CLI_UNAVAILABLE"
 gh auth status -h github.com >/dev/null 2>&1 || die "GITHUB_NOT_AUTHENTICATED"
 state="$(gh api "user/codespaces/$CS" --jq '.state')" || die "CODESPACE_STATE_QUERY_FAILED"
@@ -51,16 +56,21 @@ api_repo="$(gh api "user/codespaces/$CS" --jq '.repository.full_name')" || die "
 [[ "$api_name" == "$CS" && "$api_repo" == "$REPO" ]] || die "CODESPACE_CONTROL_PLANE_IDENTITY_MISMATCH"
 echo "CODESPACE_CONTROL_PLANE_IDENTITY=PASS"
 command -v ssh >/dev/null 2>&1 || die "SSH_CLIENT_MISSING"
+echo "REVIEWED_REF=$BRANCH"
 echo "REVIEWED_SHA=$EXPECTED"
 echo "CODESPACE_NO_NEW_MACHINE=TRUE"
 # No op to start machine here. SSH existing instance and run a bounded
 # audited bash script over STDIN, not an interpolated user script.
-gh codespace ssh -c "$CS" -- "env HAZEWAVE_RESEARCH_EXPECTED_SHA=$EXPECTED HAZEWAVE_RESEARCH_MODE=$mode bash -se" <<'REMOTE'
+gh codespace ssh -c "$CS" -- "env HAZEWAVE_RESEARCH_REF=$BRANCH HAZEWAVE_RESEARCH_EXPECTED_SHA=$EXPECTED HAZEWAVE_RESEARCH_MODE=$mode bash -se" <<'REMOTE'
 set -euo pipefail
 umask 077
 CS="hazewave-zero-cost-4jxp45676rq6279xx"
 REPO="zenindiones-maker/Hazewave-"
-BRANCH="work/native-auto-synthesis-av-qa-v1"
+BRANCH="${HAZEWAVE_RESEARCH_REF:-work/native-auto-synthesis-av-qa-v1}"
+case "$BRANCH" in
+  work/native-auto-synthesis-av-qa-v1|work/research-codespace-identity-authenticated-v1) ;;
+  *) echo "REMOTE_RESEARCH_REF=BLOCKED"; exit 20 ;;
+esac
 BASE="/workspaces/Hazewave-"
 SHA="${HAZEWAVE_RESEARCH_EXPECTED_SHA:-}"
 # Noninteractive SSH sessions can omit CODESPACE_NAME. The GitHub CLI -c

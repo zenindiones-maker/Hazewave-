@@ -24,6 +24,8 @@ def _fake_gh(tmp_path: Path) -> dict[str, str]:
         "            *'.repository.full_name'*) printf '%s\\n' \"${FAKE_CODESPACE_REPO:-zenindiones-maker/Hazewave-}\" ;;\n"
         "            *) printf '%s\\n' \"${FAKE_CODESPACE_STATE:-Shutdown}\" ;;\n"
         "          esac ;;\n"
+        "      *'git/ref/heads/work/research-codespace-identity-authenticated-v1'*)\n"
+        "          printf '%s\\n' 'f94b9aadd8ead34ed7c0157b645d8295e7fd07dd' ;;\n"
         "      *'git/ref/heads/work/native-auto-synthesis-av-qa-v1'*)\n"
         "          printf '%s\\n' 'f94b9aadd8ead34ed7c0157b645d8295e7fd07dd' ;;\n"
         "      *) exit 44 ;;\n"
@@ -170,3 +172,31 @@ def test_downstream_guards_require_codespaces_context() -> None:
         assert '[[ -z "${CODESPACE_NAME:-}" ||' in script
         assert subprocess.run(["bash", "-n", str(ROOT / rel)],
                               capture_output=True).returncode == 0
+
+def test_exact_reviewed_followup_ref_is_allowed_without_new_machine(tmp_path: Path) -> None:
+    env = _fake_gh(tmp_path)
+    env["FAKE_CODESPACE_STATE"] = "Available"
+    env["HAZEWAVE_RESEARCH_REF"] = "work/research-codespace-identity-authenticated-v1"
+    env["HAZEWAVE_RESEARCH_EXPECTED_SHA"] = "f94b9aadd8ead34ed7c0157b645d8295e7fd07dd"
+    marker = tmp_path / "ssh.marker"
+    env["FAKE_MARKER_FILE"] = str(marker)
+    proc = subprocess.run(["bash", str(SCRIPT), "--inventory"], env=env,
+                          capture_output=True, text=True, timeout=15)
+    assert proc.returncode == 0, proc.stderr
+    assert "REVIEWED_REF=work/research-codespace-identity-authenticated-v1" in proc.stdout
+    assert marker.exists()
+
+
+def test_unreviewed_ref_is_rejected_before_ssh(tmp_path: Path) -> None:
+    env = _fake_gh(tmp_path)
+    env["FAKE_CODESPACE_STATE"] = "Available"
+    env["HAZEWAVE_RESEARCH_REF"] = "untrusted/branch"
+    env["HAZEWAVE_RESEARCH_EXPECTED_SHA"] = "f94b9aadd8ead34ed7c0157b645d8295e7fd07dd"
+    marker = tmp_path / "ssh.marker"
+    env["FAKE_MARKER_FILE"] = str(marker)
+    proc = subprocess.run(["bash", str(SCRIPT), "--inventory"], env=env,
+                          capture_output=True, text=True, timeout=15)
+    assert proc.returncode == 20
+    assert "UNREVIEWED_RESEARCH_REF" in proc.stderr
+    assert not marker.exists()
+
