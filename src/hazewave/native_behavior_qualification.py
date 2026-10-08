@@ -133,7 +133,7 @@ def _ghidra_observation(rea: Path, oracle_bin: Path) -> dict[str, Any]:
     try:
         audit = inspect_ghidra_evidence(json.loads(result.stdout), expected_sha256=_sha(oracle_bin))
     except (Rea6ContractError, ValueError) as exc:
-        raise NativeBehaviorError("GHIDRA_EVIDENCE_NOT_BOUND") from exc
+        raise NativeBehaviorError("GHIDRA_EVIDENCE_NOT_BOUND:" + str(exc)[:150]) from exc
     return {"evidence_id": audit["evidence_id"], "target_sha256": audit["target_sha256"],
             "provider_id": "ghidra", "operation": audit["operation"],
             "observation": "DIRECT_PROVIDER_EVIDENCE", "runtime_attested": False}
