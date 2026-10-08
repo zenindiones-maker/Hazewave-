@@ -1,0 +1,84 @@
+name: Iris WAVE visual camera CLI proof
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/iris-visual-camera-proof.yml"
+      - "scripts/codespaces/install-iris-open-tool.sh"
+      - "src/hazewave/iris_capture.py"
+      - "tests/test_iris_visual_observability.py"
+      - "tests/fixtures/iris-proof.html"
+
+permissions:
+  contents: read
+
+jobs:
+  official-iris-binary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Identify real browser on ephemeral runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v google-chrome || command -v chromium || command -v chromium-browser
+          if command -v chromium >/dev/null 2>&1; then
+            echo "IRIS_CHROME=$(command -v chromium)" >> "$GITHUB_ENV"
+          elif command -v google-chrome >/dev/null 2>&1; then
+            echo "IRIS_CHROME=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium-browser >/dev/null 2>&1; then
+            echo "IRIS_CHROME=$(command -v chromium-browser)" >> "$GITHUB_ENV"
+          else
+            exit 22
+          fi
+      - name: Install SHA256-verified official Iris 0.4.1 binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://github.com/brijr/iris/releases/download/v0.4.1/iris-x86_64-unknown-linux-musl.tar.gz"
+          hash="aa6073ba255c0bcf09364a5503cbd4794791b832e5934a52b169a455d66101c7"
+          mkdir -p "$RUNNER_TEMP/iris-release"
+          curl -fsSL --retry 2 --max-time 90 -o "$RUNNER_TEMP/iris-release/iris.tar.gz" "$url"
+          printf '%s  %s\n' "$hash" "$RUNNER_TEMP/iris-release/iris.tar.gz" | sha256sum -c -
+          entries="$(tar -tzf "$RUNNER_TEMP/iris-release/iris.tar.gz")"
+          [[ "$entries" == "iris" || "$entries" == "./iris" ]]
+          tar -xzf "$RUNNER_TEMP/iris-release/iris.tar.gz" -C "$RUNNER_TEMP/iris-release" --no-same-owner --no-same-permissions
+          chmod 700 "$RUNNER_TEMP/iris-release/iris"
+          "$RUNNER_TEMP/iris-release/iris" --version | tee "$RUNNER_TEMP/iris-version.txt"
+          grep -F "0.4.1" "$RUNNER_TEMP/iris-version.txt"
+          echo "IRIS_EXACT_RELEASE_SHA256=PASS"
+          echo "IRIS_RUNNER_BINARY=$RUNNER_TEMP/iris-release/iris" >> "$GITHUB_ENV"
+      - name: Capture real first-party HTML with Chromium, verify PNG and receipt
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/iris-state"
+          python -m hazewave.iris_capture \
+            --workspace "$GITHUB_WORKSPACE" \
+            --iris "$IRIS_RUNNER_BINARY" \
+            --chrome "$IRIS_CHROME" \
+            --state-root "$RUNNER_TEMP/iris-state"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import os
+          root = Path(os.environ["RUNNER_TEMP"]) / "iris-state" / "iris" / "receipts"
+          items = list(root.glob("iris-*.json"))
+          assert len(items) == 1, items
+          receipt = json.loads(items[0].read_text())
+          assert receipt["status"] == "CAPTURE_FILE_VERIFIED"
+          assert receipt["png_bytes"] > 100
+          assert receipt["pixel_width"] > 1 and receipt["pixel_height"] > 1
+          assert receipt["mcp_connected"] is False
+          assert receipt["codespace_runtime_proven"] is False
+          assert receipt["production_approved"] is False
+          assert items[0].stat().st_mode & 0o077 == 0
+          print("IRIS_CLI_SYNTHETIC_CAPTURE=PASS")
+          print("IRIS_HARNESS_LIVE_MCP=NOT_TESTED")
+          print("IRIS_CODESPACE_INSTALLED=NOT_TESTED")
+          PY
