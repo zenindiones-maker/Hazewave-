@@ -24,6 +24,8 @@ def _fake_gh(tmp_path: Path) -> dict[str, str]:
         "            *'.repository.full_name'*) printf '%s\\n' \"${FAKE_CODESPACE_REPO:-zenindiones-maker/Hazewave-}\" ;;\n"
         "            *) printf '%s\\n' \"${FAKE_CODESPACE_STATE:-Shutdown}\" ;;\n"
         "          esac ;;\n"
+        "      *'git/ref/heads/work/av-fixture-existing-codespace-v1'*)\n"
+        "          printf '%s\\n' 'f94b9aadd8ead34ed7c0157b645d8295e7fd07dd' ;;\n"
         "      *'git/ref/heads/work/provider-python-distribution-qualification-v1'*)\n"
         "          printf '%s\\n' 'f94b9aadd8ead34ed7c0157b645d8295e7fd07dd' ;;\n"
         "      *'git/ref/heads/work/research-codespace-identity-authenticated-v1'*)\n"
@@ -263,3 +265,17 @@ def test_av_fixture_checks_real_ffmpeg_report_and_no_auto_promotion() -> None:
     assert 'HAZEWAVE_AV_PRODUCTION_APPROVED=FALSE' in data
     assert 'HAZEWAVE_AV_METRICS=PASS:OWNED_SYNTHETIC_ONLY' in data
     assert subprocess.run(["bash", "-n", str(SCRIPT)], capture_output=True).returncode == 0
+
+
+def test_av_fixture_own_branch_is_admitted_only_with_exact_sha(tmp_path: Path) -> None:
+    env = _fake_gh(tmp_path)
+    env["FAKE_CODESPACE_STATE"] = "Available"
+    env["HAZEWAVE_RESEARCH_REF"] = "work/av-fixture-existing-codespace-v1"
+    env["HAZEWAVE_RESEARCH_EXPECTED_SHA"] = "f94b9aadd8ead34ed7c0157b645d8295e7fd07dd"
+    marker = tmp_path / "ssh.marker"
+    env["FAKE_MARKER_FILE"] = str(marker)
+    result = subprocess.run(["bash", str(SCRIPT), "--av-fixture"], env=env,
+                            capture_output=True, text=True, timeout=15)
+    assert result.returncode == 0, result.stderr
+    assert marker.exists()
+    assert "REVIEWED_REF=work/av-fixture-existing-codespace-v1" in result.stdout

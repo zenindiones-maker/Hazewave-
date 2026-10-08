@@ -12,7 +12,7 @@ REPO="zenindiones-maker/Hazewave-"
 BRANCH="${HAZEWAVE_RESEARCH_REF:-work/native-auto-synthesis-av-qa-v1}"
 # Only these already-reviewed repository branches may be selected.
 case "$BRANCH" in
-  work/native-auto-synthesis-av-qa-v1|work/research-codespace-identity-authenticated-v1|work/provider-python-distribution-qualification-v1) ;;
+  work/native-auto-synthesis-av-qa-v1|work/research-codespace-identity-authenticated-v1|work/provider-python-distribution-qualification-v1|work/av-fixture-existing-codespace-v1) ;;
   *) die "UNREVIEWED_RESEARCH_REF" ;;
 esac
 command -v gh >/dev/null 2>&1 || die "GH_CLI_UNAVAILABLE"
@@ -68,7 +68,7 @@ CS="hazewave-zero-cost-4jxp45676rq6279xx"
 REPO="zenindiones-maker/Hazewave-"
 BRANCH="${HAZEWAVE_RESEARCH_REF:-work/native-auto-synthesis-av-qa-v1}"
 case "$BRANCH" in
-  work/native-auto-synthesis-av-qa-v1|work/research-codespace-identity-authenticated-v1|work/provider-python-distribution-qualification-v1) ;;
+  work/native-auto-synthesis-av-qa-v1|work/research-codespace-identity-authenticated-v1|work/provider-python-distribution-qualification-v1|work/av-fixture-existing-codespace-v1) ;;
   *) echo "REMOTE_RESEARCH_REF=BLOCKED"; exit 20 ;;
 esac
 BASE="/workspaces/Hazewave-"
