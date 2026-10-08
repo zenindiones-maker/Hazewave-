@@ -21,7 +21,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Admit only pre-existing free FFmpeg and C compiler
+      - name: Install and audit open-source FFmpeg only on disposable runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg
+          command -v ffmpeg
+          ffmpeg -hide_banner -version | head -n 2
+          echo "HAZEWAVE_RUNNER_FFMPEG_OPEN_SOURCE_PACKAGE=PASS"
+      - name: Admit FFmpeg measurement filters and native compiler
         shell: bash
         run: |
           set -euo pipefail
