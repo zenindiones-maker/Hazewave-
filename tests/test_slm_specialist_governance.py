@@ -132,11 +132,11 @@ def test_fake_professional_claim_or_invalid_grade_is_rejected():
     forged = report("trial0001")
     forged["production_approved"] = True
     with pytest.raises(SpecialistGovernanceError, match="UNAUTHORIZED_PROMOTION_CLAIM"):
-        evaluate_reliability([forged])
+        evaluate_reliability([forged, report("trial0002"), report("trial0003")])
     corrupt = report("trial0001")
     corrupt["specialist"]["grade"] = "SUPERIOR"
     with pytest.raises(SpecialistGovernanceError, match="INVALID_GRADE"):
-        evaluate_reliability([corrupt])
+        evaluate_reliability([corrupt, report("trial0002"), report("trial0003")])
 
 
 def test_empty_or_short_benchmark_remains_unqualified():
@@ -144,3 +144,38 @@ def test_empty_or_short_benchmark_remains_unqualified():
         evaluate_reliability([])
     with pytest.raises(SpecialistGovernanceError, match="TRIAL_COUNT_INSUFFICIENT"):
         evaluate_reliability([report("trial0001")])
+
+
+def test_pass_at_k_and_pass_power_k_group_repeats_by_distinct_cases():
+    # Each of three independent cases is evaluated with three isolated trials.
+    # A: all 3 pass, B: only one pass, C: none pass.
+    batch = []
+    cases = [
+        ("case-alpha", "a"*64, ["PASS","PASS","PASS"]),
+        ("case-bravo", "c"*64, ["FAIL","FAIL","PASS"]),
+        ("case-charlie", "d"*64, ["FAIL","FAIL","FAIL"]),
+    ]
+    for i, (case, digest, grades) in enumerate(cases):
+        for j, grade in enumerate(grades):
+            batch.append(report(f"trial{i:02d}repeat{j:02d}", case_id=case,
+                                receipt_sha=digest, grade=grade))
+    result = evaluate_reliability(batch)
+    assert result["attempt_count"] == 9
+    assert result["repeat_count_per_case"] == 3
+    assert result["pass_at_k"] == pytest.approx(2/3)
+    assert result["pass_power_k"] == pytest.approx(1/3)
+    assert result["pass_at_1"] == pytest.approx(4/9)
+    assert result["professional"] is False
+    assert result["route_promotion_allowed"] is False
+
+
+def test_incomplete_repetitions_cannot_claim_pass_power_k():
+    data = [
+        report("trial0001", case_id="case-alpha", receipt_sha="a"*64),
+        report("trial0002", case_id="case-bravo", receipt_sha="b"*64),
+        report("trial0003", case_id="case-charlie", receipt_sha="c"*64),
+    ]
+    result = evaluate_reliability(data)
+    assert result["pass_at_k"] is None
+    assert result["pass_power_k"] is None
+    assert result["repeat_count_per_case"] is None
