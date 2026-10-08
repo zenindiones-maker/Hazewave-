@@ -205,20 +205,20 @@ export PATH="$NODE_ROOT/bin:$BIN_ROOT:$FRIDA_VENV/bin:$RIZIN_ROOT/bin:\$PATH"
 EOF
 chmod 600 "$ENV_FILE"
 
-cat >"$BIN_ROOT/hazewave-re-cli" <<EOF
+cat >"$BIN_ROOT/hazewave-re-cli" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-source "$ENV_FILE"
-[[ -x "\$HAZEWAVE_RE_PYTHON" ]] || {
+source "$HOME/.config/hazewave/reverse-engineering.env"
+[[ -x "$HAZEWAVE_RE_PYTHON" ]] || {
   echo "HAZEWAVE_RE_CLI=FAIL:PYTHON_RUNTIME_MISSING" >&2
   exit 20
 }
-[[ -d "\$HAZEWAVE_RE_REPO_ROOT/src/hazewave" ]] || {
+[[ -d "$HAZEWAVE_RE_REPO_ROOT/src/hazewave" ]] || {
   echo "HAZEWAVE_RE_CLI=FAIL:REPOSITORY_SOURCE_MISSING" >&2
   exit 20
 }
-exec env PYTHONPATH="\$HAZEWAVE_RE_REPO_ROOT/src\${PYTHONPATH:+:\$PYTHONPATH}" \
-  "\$HAZEWAVE_RE_PYTHON" -m hazewave.cli reverse-engineering "\$@"
+exec env PYTHONPATH="$HAZEWAVE_RE_REPO_ROOT/src${PYTHONPATH:+:$PYTHONPATH}" \
+  "$HAZEWAVE_RE_PYTHON" -m hazewave.cli reverse-engineering "$@"
 EOF
 chmod 755 "$BIN_ROOT/hazewave-re-cli"
 
