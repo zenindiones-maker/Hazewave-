@@ -246,6 +246,25 @@ Codespace, make paid installations or globally register raw Iris MCP.
 Actual agent client MCP discovery/calls and owner-signed host receipts
 remain separate from GitHub CI.
 
+## Reverse-engineering: REA/Ghidra + binary I/O + Z3 triangulation
+
+For first-party native research, read `docs/runbooks/NATIVE_FORMAL_TRIANGULATION_V1.md`.
+A credible result requires independent **static function observation**, observed
+**compiled binary I/O**, **compiled candidate comparison**, and explicit formal
+specification scope. Ghidra Evidence must bind to the exact analyzed ELF SHA;
+the Z3 check uses a separately **hand-authored** fixture specification and
+cannot prove general binary equivalence or recovered original source.
+A clean `--triangulate` proof is an observation, **NOT production authorization,
+not automatic code recovery and not REA running inside owner agents**.
+
+Before any on-host study check real capabilities using
+`python -m hazewave.harness inventory`; execute only
+`scripts/codespaces/research-closed-loop-qualification.sh` on the single
+existing `hazewave-zero-cost-4jxp45676rq6279xx` with the exact worktree
+SHA. Missing Ghidra, REA6, Z3 or RAM must return BLOCKED. Never bulk-enable
+providers, attach native debuggers to non-owner targets, relax browser
+isolation, merge a PR or restart the Colibri as part of proving a tool.
+
 ## Setup
 
 Development checkout:
