@@ -114,6 +114,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python -m pip install -e .
           python -m pip install --only-binary=:all: z3-solver==5.1.0.0 pytest==8.4.2
           python -m pytest -q tests/test_native_formal_contract.py tests/test_native_triangulated_execution.py
           python -m hazewave.native_behavior_synthesis \
