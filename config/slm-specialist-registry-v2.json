@@ -12,7 +12,7 @@
       "domain": "HAZE",
       "workflow": "audio.qc",
       "model_id": "oc/mimo-v2.6-flash-free",
-      "model_classification": "UNVERIFIED_PARAMETER_COUNT",
+      "model_classification": "UNVERIFIED_ROUTER_ALIAS_LARGE_FAMILY_RISK",
       "qualification": "AVAILABLE",
       "professional": false,
       "production_approved": false,
@@ -36,7 +36,18 @@
       "allowed_data_classifications": [
         "PUBLIC"
       ],
-      "evidence_state": "CODE_INTEGRATED_LIVE_SLM_NOT_PROVEN"
+      "evidence_state": "MODEL_SIZE_AND_ALIAS_UNVERIFIED_QUALITY_REFERENCE_ONLY",
+      "reference_role": "EXPERIMENTAL_UNVERIFIED_SIZE_NOT_SLM",
+      "upstream_family": {
+        "official_model_url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Flash-RL",
+        "reported_total_parameters": 309000000000,
+        "reported_active_parameters": 15000000000,
+        "reported_architecture": "SPARSE_MOE",
+        "exact_router_alias_mapping_verified": false,
+        "license_at_upstream_card": "mit",
+        "provenance": "UPSTREAM_MODEL_CARD_NOT_REVIEWED_ROUTER_ALIAS_ATTESTATION",
+        "local_deployment_allowed": false
+      }
     },
     {
       "id": "WAVE_VISUAL_QC",

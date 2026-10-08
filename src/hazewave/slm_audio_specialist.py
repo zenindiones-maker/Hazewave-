@@ -208,6 +208,9 @@ def execute_audio_specialist(
         "specialist_policy_sha256": knowledge_digest,
         "knowledge_sources": [s["url"] for s in data["sources"]],
         "model_id": model_id,
+        "model_size_verified": False,
+        "model_is_slm_proven": False,
+        "model_reference_only": True,
         "baseline": baseline_result,
         "specialist": specialist,
         "benchmark_execution": (

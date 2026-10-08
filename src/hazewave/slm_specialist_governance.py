@@ -60,7 +60,10 @@ def load_specialist_registry(path: Path = DEFAULT_REGISTRY) -> dict[str, Any]:
         if item["id"] == "HAZE_AUDIO_QC":
             if (item.get("domain") != "HAZE" or item.get("workflow") != "audio.qc"
                     or item.get("model_id") != "oc/mimo-v2.6-flash-free"
-                    or item.get("model_classification") != "UNVERIFIED_PARAMETER_COUNT"):
+                    or item.get("model_classification") != "UNVERIFIED_ROUTER_ALIAS_LARGE_FAMILY_RISK"
+                    or item.get("reference_role") != "EXPERIMENTAL_UNVERIFIED_SIZE_NOT_SLM"
+                    or not isinstance(item.get("upstream_family"), dict)
+                    or item["upstream_family"].get("exact_router_alias_mapping_verified") is not False):
                 raise SpecialistGovernanceError("REGISTRY_HAZE_BINDING_INVALID")
         elif item.get("model_id") is not None:
             raise SpecialistGovernanceError("REGISTRY_UNVERIFIED_MODEL_BINDING")
@@ -72,6 +75,7 @@ def select_specialist(
     authorization: HazewaveAuthorization,
     *, domain: str, requested_workflow: str, risk: str,
     data_classification: str, registry_path: Path = DEFAULT_REGISTRY,
+    require_small_model: bool = True,
 ) -> dict[str, Any]:
     """Propose a candidate only. This function has no tool permissions."""
     registry = load_specialist_registry(registry_path)
@@ -93,6 +97,19 @@ def select_specialist(
              if entry["domain"] == domain and entry["workflow"] == requested_workflow),
             None
         )
+    if selected is not None and selected["id"] == "HAZE_AUDIO_QC" and require_small_model:
+        return {
+            "schema": "HazewaveSpecialistRoutingProposal/v2",
+            "harness_authority": AUTHORITY,
+            "task_id": authorization.task_id,
+            "decision": "ABSTAIN",
+            "reason": "SLM_SIZE_AND_ROUTER_ALIAS_NOT_VERIFIED",
+            "specialist_id": None,
+            "model_id": None,
+            "execution_authorized": False,
+            "production_approved": False,
+            "policy_sha256": registry["policy_sha256"],
+        }
     if selected is not None and selected["id"] == "HAZE_AUDIO_QC":
         return {
             "schema": "HazewaveSpecialistRoutingProposal/v2",
@@ -103,6 +120,7 @@ def select_specialist(
             "specialist_id": selected["id"],
             "model_id": selected["model_id"],
             "execution_authorized": False,
+            "reference_only": True,
             "production_approved": False,
             "policy_sha256": registry["policy_sha256"],
         }
