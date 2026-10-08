@@ -136,9 +136,9 @@ def main(argv: list[str] | None = None) -> int:
             native_receipt=a.native_receipt, av_receipt=a.av_receipt, output_root=a.output_root
         )
     except (LearningBridgeError, OSError) as exc:
-        print("HAZEWAVE_LLAMAFABRIC_DATASET=BLOCKED:" + str(exc), file=sys.stderr)
+        print("HAZEWAVE_LLAMAFACTORY_DATASET=BLOCKED:" + str(exc), file=sys.stderr)
         return 20
-    print("HAZEWAVE_LLAMAFABRIC_DATASET=PASS_SYNTHETIC_FORMAT")
+    print("HAZEWAVE_LLAMAFACTORY_DATASET=PASS_SYNTHETIC_FORMAT")
     print(json.dumps(result, sort_keys=True))
     return 0
 
