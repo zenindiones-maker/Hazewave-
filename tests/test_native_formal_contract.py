@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import pytest
 
+pytest.importorskip("z3", reason="Z3 only installed in formal qualification job")
+
 from hazewave.native_behavior_synthesis import infer_linear_quadratic_linear
 from hazewave.native_formal_contract import (
     FormalContractError,
