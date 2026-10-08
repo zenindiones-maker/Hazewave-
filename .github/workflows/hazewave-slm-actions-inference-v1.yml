@@ -45,7 +45,10 @@ jobs:
           free -h
           df -h "$RUNNER_TEMP"
           find "$RUNNER_TEMP" -maxdepth 1 -type f -name '*.gguf' -printf '%f\n' || true
-          PYTHONPATH=src python -m hazewave.actions_slm_runner --inventory
+          python -m venv "$RUNNER_TEMP/hazewave-python"
+          "$RUNNER_TEMP/hazewave-python/bin/python" -m pip install             --quiet --no-cache-dir "httpx==0.28.1"
+          echo "$RUNNER_TEMP/hazewave-python/bin" >> "$GITHUB_PATH"
+          PYTHONPATH=src "$RUNNER_TEMP/hazewave-python/bin/python"             -m hazewave.actions_slm_runner --inventory
 
       - name: Install only FFmpeg in ephemeral Actions runner
         shell: bash
