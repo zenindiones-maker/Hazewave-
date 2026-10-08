@@ -78,6 +78,36 @@ Never claim `REA6_RUNTIME_PROVEN`, `REA6_MCP_CONNECTED` or
 `HAZEWAVE_RE_INTEGRATION_COMPLETE` without separate host and agent-session
 evidence. Preserve failed studies and resource/gate decisions.
 
+## HAZE/WAVE audiovisual research lab (candidate)
+
+REA 6.0.0 is exclusively the software investigation layer; it is not an
+acoustic, image-fidelity or story evaluation engine. For any authorized
+audio/video/image/animation/editorial research, agents must load all applicable
+sources from the current checkout:
+
+- `config/av-research-capabilities-v1.json`
+- `skills/hazewave-haze-audio-forensics/SKILL.md` (HAZE / sound, voice, DSP)
+- `skills/hazewave-wave-visual-forensics/SKILL.md` (WAVE / image, film, animation, script)
+- `docs/runbooks/AV_RESEARCH_LAB_V1.md`
+
+The scoped `python -m hazewave.av_research_lab` researcher requires a
+time-limited owner/Harness signed target grant. It routes analysis to the
+existing qualified analyzer (FFmpeg EBU R128/audio QC; optional Essentia music;
+video QC; PySceneDetect; bounded Pillow image metrics; structured script pacing).
+Every receipt is `OBSERVATION_ONLY`, `production_approved=false`,
+`human_review_required=true`; no media or narration is copied to Git.
+Creative reproduction and artistic quality require a separate original
+implementation, independent A/B evidence and owner approval.
+
+Tool installation in the existing Codespace is opt-in via
+`scripts/codespaces/install-av-research-open-tools.sh`. Merely checking in the
+installer or achieving a green CI does not install optional dependencies into
+the Codespace. Core FOSS tools and AGPL-licensed music analyzers have distinct
+resource/licensing boundaries. Do not install all optional heavyweight tools
+(Blender, RenderDoc, WhisperX or GPU model stacks) onto the 2vCPU Codespace by
+default; qualify on an appropriate already-authorized workstation first.
+Do not confuse tool presence, schema validity and a successful real-media study.
+
 ## Setup
 
 Development checkout:
