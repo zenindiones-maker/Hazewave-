@@ -232,3 +232,50 @@ def test_multicase_trial_receipt_has_structural_enum_not_raw_model_text(tmp_path
     assert "model_response_char_count" in src
     assert 'content":parsed' not in src
     assert '"raw_model_response"' not in src
+
+
+def test_one_call_structural_diagnosis_does_not_fake_real_inference():
+    from hazewave.actions_slm_multicase import diagnose_single_case
+    metrics={case: {"negative_control_pass":True,"source_sha256":"a"*64,
+        "processed_sha256":"b"*64,"attenuation_db":12,
+        "silence_duration_s":1,"clipped_sample_fraction":.67} for case in CASE_IDS}
+    calls=[]
+    def mocked_model(prompt,model,payload):
+        calls.append(payload)
+        return {"model":model,"choices":[{"finish_reason":"stop",
+            "message":{"role":"assistant","content":json.dumps({
+                "finding":"SILENCE_DETECTED","action":"NO_ACTION",
+                "evidence_keys":["attenuation_db"]})}}],
+            "usage":{"prompt_tokens":50,"completion_tokens":25,"total_tokens":75}}
+    report=diagnose_single_case(metrics,case_id="gain_loss_12db",
+            model="hazewave-qwen3-0.6b",model_caller=mocked_model)
+    assert len(calls)==1
+    assert report["case_id"]=="gain_loss_12db"
+    assert report["verifier_result"]=="FAIL"
+    assert report["model_json_shape"]=="MISSING_KEYS"
+    assert report["observed_finding_enum"]=="SILENCE_DETECTED"
+    assert report["real_model_response_observed"] is False
+    assert report["transport_provenance"]=="INJECTED_TEST_DOUBLE"
+    assert report["professional_audio"] is False
+    assert report["production_approved"] is False
+    assert "model_response_content" not in report
+
+
+def test_single_case_diagnostic_is_fixed_scope_not_a_professional_benchmark():
+    from hazewave.actions_slm_multicase import diagnose_single_case
+    with pytest.raises(MultiCaseError,match="UNKNOWN_CASE"):
+        diagnose_single_case({},case_id="arbitrary-owner-media",
+            model="hazewave-qwen3-0.6b",model_caller=lambda *_:None)
+
+
+def test_dedicated_single_call_workflow_never_runs_full_cohort():
+    path=ROOT/".github/workflows/hazewave-haze-structural-diagnostic-v1.yml"
+    w=path.read_text()
+    assert "work/haze-actions-multicase-reliability-v1" in w
+    assert "github.event.repository.private == false" in w
+    assert "[skip-slm-live]" in w
+    assert "--diagnose-case gain_loss_12db" in w
+    assert "--repetitions 1" in w
+    assert "Qwen3-0.6B-Q4_K_M.gguf" in w
+    assert "A15_INFERENCE=FORBIDDEN" in w
+    assert "haze-structure-proof.json" in w
