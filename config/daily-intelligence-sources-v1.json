@@ -209,6 +209,102 @@
       "tier": "A_AUTHORITATIVE",
       "source_kind": "OFFICIAL_API_DOCUMENTATION",
       "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "rea-upstream",
+      "url": "https://github.com/morluto/rea/releases",
+      "domains": [
+        "HAZE",
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "UPSTREAM_RELEASE",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "ghidra-upstream",
+      "url": "https://github.com/NationalSecurityAgency/ghidra/releases",
+      "domains": [
+        "HAZE",
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "UPSTREAM_RELEASE",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "rizin-upstream",
+      "url": "https://github.com/rizinorg/rizin/releases",
+      "domains": [
+        "HAZE",
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "UPSTREAM_RELEASE",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "frida-upstream",
+      "url": "https://github.com/frida/frida/releases",
+      "domains": [
+        "HAZE",
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "UPSTREAM_RELEASE",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "mediainfo-upstream",
+      "url": "https://github.com/MediaArea/MediaInfo/releases",
+      "domains": [
+        "HAZE",
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "UPSTREAM_RELEASE",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "renderdoc-upstream",
+      "url": "https://github.com/baldurk/renderdoc/releases",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "UPSTREAM_RELEASE",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "spirv-tools-upstream",
+      "url": "https://github.com/KhronosGroup/SPIRV-Tools/releases",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "UPSTREAM_RELEASE",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "spirv-cross-upstream",
+      "url": "https://github.com/KhronosGroup/SPIRV-Cross/commits/main",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "UPSTREAM_SOURCE",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "ffmpeg-release",
+      "url": "https://ffmpeg.org/download.html",
+      "domains": [
+        "HAZE",
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_RELEASE_NOTES",
+      "data_classification": "PUBLIC"
     }
   ]
 }
