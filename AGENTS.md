@@ -130,6 +130,32 @@ establish that Iris is installed in the owner's Codespace or visible to
 agents. Keep `IRIS_MCP_CONNECTED=NOT_PROVEN`, no merges/production
 promotion without owner review, and do not touch stock Reflex/BR-no-GTA.
 
+## Capability Evidence Plane — no false readiness
+
+The **Harness capability catalog is not an operational readiness certificate**.
+For HAZE/WAVE/REA6/Iris research, all agents must read
+`config/capability-evidence-plane-v1.json` and
+`docs/runbooks/HARNESS_CAPABILITY_EVIDENCE_PLANE_V1.md`.
+Start with `python -m hazewave.capability_plane inventory --host-id ... --repo-sha ...`.
+This read-only inspection measures declared/present/unmapped/unproven providers and
+never calls an external tool, installs packages, starts loops or creates a task authorization.
+
+`MEASURED_READY` is permitted only on the **same actual host**, tool binary
+SHA256, exact repository SHA, recent signed owner/Harness runtime attestation,
+preserved raw fixture log SHA256, observed adapter tool list AND call, and
+reproducible benchmark (>=3 observations; no unknown/paid fallback). A CI
+fixture proof must NEVER be relabeled as an existing Codespace runtime proof.
+An advisory provider selection cannot authorize reading a protected target,
+running REA/Ghidra, browsing URLs, using human voice media, editing stocks,
+merging a PR or publishing a media file. Exact-target signed grants, domain
+authorization and human review remain separate prerequisites.
+
+Keep signed proofs and raw logs local and private (mode 0600); do not commit
+owner signing material. Unknown/dangerous capabilities remain BLOCKED and
+unmapped Harness capabilities count against portfolio coverage. Quality/cost/risk
+scores must come from owner-reviewed measurements, never fabricated weights.
+Production promotion always requires its own signed review.
+
 ## Setup
 
 Development checkout:
