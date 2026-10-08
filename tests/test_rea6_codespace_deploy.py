@@ -11,7 +11,7 @@ def test_rea6_codespace_deployer_is_explicit_and_identity_pinned() -> None:
     assert "hazewave-zero-cost-4jxp45676rq6279xx" in script
     assert REF in script
     assert "HAZEWAVE_RE_EXPECTED_SHA" in script
-    assert "git ls-remote" in script
+    assert 'ls-remote --exit-code origin "$EXPECTED_REMOTE_REF"' in script
     assert "zenindiones-maker/Hazewave-" in script
     assert 'CODESPACE_NAME' in script
     assert '"$(git rev-parse HEAD)"' in script
