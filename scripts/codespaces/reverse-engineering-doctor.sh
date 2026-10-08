@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="${HAZEWAVE_RE_ROOT:-$HOME/.local/share/hazewave/reverse-engineering}"
-ENV_FILE="$HOME/.config/hazewave/reverse-engineering.env"
+ENV_FILE="$HOME/.config/hazewave/reverse-engineering-rea6.env"
 DEEP=0
 [[ "${1:-}" == "--deep" ]] && DEEP=1
 
@@ -19,7 +19,7 @@ source "$ENV_FILE"
 [[ -n "${HAZEWAVE_RE_PYTHON:-}" && -x "$HAZEWAVE_RE_PYTHON" ]]   || fail "HAZEWAVE_RE_PYTHON_MISSING"
 [[ -n "${HAZEWAVE_RE_REPO_ROOT:-}" && -d "$HAZEWAVE_RE_REPO_ROOT/src/hazewave" ]]   || fail "HAZEWAVE_RE_REPO_ROOT_INVALID"
 
-for cmd in rea rizin frida ffmpeg ffprobe mediainfo java python3 hazewave-re-cli; do
+for cmd in rea rizin frida ffmpeg ffprobe mediainfo java python3 hazewave-re6-cli; do
   command -v "$cmd" >/dev/null 2>&1 || fail "COMMAND_MISSING:$cmd"
 done
 
@@ -42,16 +42,16 @@ rizin -v | grep -F "0.9.1" >/dev/null || fail "RIZIN_VERSION_MISMATCH"
 java -version 2>&1 | sed -n '1p' | grep -Eq '"21([."]|$)' || fail "JAVA_VERSION_MISMATCH"
 "$HAZEWAVE_RE_PYTHON" -c "import httpx" || fail "HAZEWAVE_CLI_HTTPX_IMPORT_FAILED"
 
-mkdir -p "$ROOT/doctor"
-chmod 700 "$ROOT/doctor"
-hazewave-re-cli registry >"$ROOT/doctor/hazewave-registry.json"   || fail "HAZEWAVE_CLI_REGISTRY_FAILED"
-rea providers --json >"$ROOT/doctor/providers.json" || fail "REA_PROVIDERS_FAILED"
+mkdir -p "$ROOT/doctor/rea6"
+chmod 700 "$ROOT/doctor/rea6"
+hazewave-re6-cli registry >"$ROOT/doctor/rea6/hazewave-registry.json"   || fail "HAZEWAVE_CLI_REGISTRY_FAILED"
+rea providers --json >"$ROOT/doctor/rea6/providers.json" || fail "REA_PROVIDERS_FAILED"
 set +e
-rea doctor --provider ghidra --json >"$ROOT/doctor/doctor.json"
+rea doctor --provider ghidra --json >"$ROOT/doctor/rea6/doctor.json"
 doctor_rc=$?
 set -e
 
-python3 - "$ROOT/doctor/providers.json" <<'PY' || fail "GHIDRA_PROVIDER_NOT_DISCOVERED"
+python3 - "$ROOT/doctor/rea6/providers.json" <<'PY' || fail "GHIDRA_PROVIDER_NOT_DISCOVERED"
 import json, sys
 data = json.load(open(sys.argv[1], encoding="utf-8"))
 raw = json.dumps(data).casefold()
@@ -71,7 +71,7 @@ if [[ "$DEEP" -eq 1 ]]; then
 
   # Compile a harmless first-party target rather than assume the system
   # /bin/true has a searchable `main` function or stable symbols.
-  local_run="$(mktemp -d "$ROOT/doctor/rea6-fixture.XXXXXXXX")"
+  local_run="$(mktemp -d "$ROOT/doctor/rea6/rea6-fixture.XXXXXXXX")"
   chmod 700 "$local_run"
   source_file="$local_run/fixture.c"
   target="$local_run/fixture"
@@ -100,7 +100,7 @@ C
   echo "HAZEWAVE_RE_DEEP_PROBE=PASS"
 fi
 
-chmod 600   "$ROOT/doctor/hazewave-registry.json"   "$ROOT/doctor/providers.json"   "$ROOT/doctor/doctor.json"
+chmod 600   "$ROOT/doctor/rea6/hazewave-registry.json"   "$ROOT/doctor/rea6/providers.json"   "$ROOT/doctor/rea6/doctor.json"
 echo "HAZEWAVE_RE_DOCTOR_GLOBAL_RC=$doctor_rc"
 echo "HAZEWAVE_RE_PROVIDER=ghidra"
 echo "HAZEWAVE_RE_DOCTOR=PASS"
