@@ -1,0 +1,105 @@
+name: REA6 real Ghidra native provider and bounded behavior
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/rea6-real-ghidra-native.yml"
+      - "src/hazewave/native_behavior_qualification.py"
+      - "src/hazewave/rea6_integration.py"
+      - "tests/fixtures/native-owned-reconstruction/**"
+
+permissions:
+  contents: read
+
+jobs:
+  real-ghidra-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Verify host bounds before any Ghidra install
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = x86_64
+          test "$(uname -s)" = Linux
+          command -v javac
+          command -v cc
+          command -v curl
+          command -v sha256sum
+          command -v unzip
+          free -h
+          df -h "$RUNNER_TEMP"
+          echo "GHIDRA_COST_CLASS=EPHEMERAL_GITHUB_RUNNER_ONLY"
+          echo "GHIDRA_EXISTING_CODESPACE=NOT_MODIFIED"
+      - name: Download exact upstream Apache-licensed Ghidra 12.1.4 with SHA256
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ghidra"
+          url="https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.1.4_build/ghidra_12.1.4_PUBLIC_20260921.zip"
+          hash="ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db"
+          curl -fL --retry 2 --max-time 180 "$url" -o "$RUNNER_TEMP/ghidra/release.zip"
+          printf '%s  %s\n' "$hash" "$RUNNER_TEMP/ghidra/release.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/ghidra/release.zip" -d "$RUNNER_TEMP/ghidra"
+          root="$RUNNER_TEMP/ghidra/ghidra_12.1.4_PUBLIC"
+          test -x "$root/support/analyzeHeadless"
+          printf 'GHIDRA_INSTALL_DIR=%s\n' "$root" >> "$GITHUB_ENV"
+          echo "REA_GHIDRA_RELEASE_SHA256=PASS"
+      - name: Install exact published REA 6.0.0 without postinstall scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm_config_ignore_scripts=true npm install --prefix "$RUNNER_TEMP/rea6" --no-audit --no-fund --ignore-scripts rea-agents@6.0.0
+          REA="$(readlink -f "$RUNNER_TEMP/rea6/node_modules/.bin/rea")"
+          test -f "$REA" && test -x "$REA"
+          "$REA" --version | grep -F '6.0.0'
+          echo "REA_GHIDRA_BIN=$REA" >> "$GITHUB_ENV"
+          echo "REA_EXACT_6_0_0=PASS"
+      - name: Native Ghidra provider — query actual compiled ELF and verify direct Evidence
+        env:
+          PYTHONPATH: src
+          REA_ANALYSIS_PROVIDER: ghidra
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$REA_GHIDRA_BIN" doctor --provider ghidra --json > "$RUNNER_TEMP/ghidra-doctor.json"
+          python -m hazewave.native_behavior_qualification \
+            --state-root "$RUNNER_TEMP/native-ghidra-private-receipts" \
+            --seed 42 --count 300 --rea "$REA_GHIDRA_BIN" \
+            > "$RUNNER_TEMP/native-ghidra-result.jsonl"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"native-ghidra-private-receipts"
+          files=list(root.glob("*.json"))
+          assert len(files)==1
+          proof=json.loads(files[0].read_text())
+          assert proof["semantic_status"]=="BOUNDED_BEHAVIOR_MATCH"
+          assert proof["sample_count"]==300
+          evidence=proof["ghidra_direct_observation"]
+          assert evidence and evidence["provider_id"]=="ghidra"
+          assert evidence["target_sha256"]==proof["oracle_elf_sha256"]
+          assert evidence["evidence_id"].startswith("ev_")
+          assert proof["ghidra_provider_attested"] is False
+          assert proof["universal_equivalence_proven"] is False
+          assert proof["reconstruction_automatically_generated"] is False
+          assert proof["codespace_runtime_proven"] is False
+          assert proof["production_approved"] is False
+          assert files[0].stat().st_mode & 0o077 == 0
+          print("REA6_GHIDRA_NATIVE_DIRECT_EVIDENCE=PASS")
+          print("REA6_GHIDRA_BINARY_SHA_BINDING=PASS")
+          print("NATIVE_ORACLE_SAMPLED_BEHAVIOR=PASS_300")
+          print("AUTOMATED_SOURCE_RECONSTRUCTION=NOT_PROVEN")
+          print("GHIDRA_EXISTING_CODESPACE=NOT_TESTED")
+          PY
