@@ -102,6 +102,22 @@ def inventory_all_capabilities(manifest: Path = _DEFAULT) -> dict[str, Any]:
             "agent_connected_on_existing_codespace": 0,
         },
         "connection_sequence": queue,
+        "learning_candidates": {
+            "llamafactory": {
+                "upstream": "hiyouga/LlamaFactory",
+                "framework_version": "0.9.5",
+                "license": "Apache-2.0",
+                "installation_status": "NOT_VERIFIED_ON_CODESPACE",
+                "training_status": "NOT_PROVEN",
+                "harness_selected_provider": False,
+                "agent_mcp_connected": False,
+                "owner_signed_model_dataset_grant": False,
+                "code_candidate": "ISOLATED_WHEEL_INSTALLATION",
+                "resource_gate": "GPU_AND_LICENSE_AND_DATASET_GRANT_REQUIRED",
+                "auto_activate": False,
+                "production_approved": False,
+            }
+        },
         "production_approved": False,
     }
 
