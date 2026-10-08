@@ -270,7 +270,9 @@ def perform_multicase(cases: Mapping[str, Mapping[str, Any]], *,
         if not math.isfinite(value):
             raise MultiCaseError("CASE_METRIC_INVALID")
         # The evidence supplies a measurement, never an oracle answer.
-        prompt=f"case_id={case}\nmetric={metric_key}\nmeasured_value={value:.5f}\nSelect finding, action, evidence_keys, requires_human_review."
+        # Never disclose internal oracle case IDs (which encode the answer).
+        # The model receives only the measured physical quantity.
+        prompt=f"metric={metric_key}\nmeasured_value={value:.5f}\nSelect finding, action, evidence_keys, requires_human_review."
         for attempt in range(repetitions):
             nonce=secrets.token_hex(8)
             task=HazewaveTask(task_id=f"haze-multi-{case}-{nonce}",

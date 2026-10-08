@@ -113,7 +113,8 @@ def test_model_proposals_from_fake_transport_never_claim_live_execution(tmp_path
       "clipping_pcm16":_choice("CLIPPING_DETECTED","REDUCE_GAIN_OR_LIMIT","clipped_sample_fraction")
     }
     def fake(prompt,model,payload):
-        case=next(c for c in CASE_IDS if f"case_id={c}" in prompt)
+        case=next(c for c in CASE_IDS if f"metric={ {'gain_loss_12db':'attenuation_db','silence_1s':'silence_duration_s','clipping_pcm16':'clipped_sample_fraction'}[c] }" in prompt)
+        assert not any(leak in prompt for leak in CASE_IDS)
         assert "tools" not in payload
         return {"model":model,"choices":[{"finish_reason":"stop","message":{
           "role":"assistant","content":json.dumps(truths[case])}}],
@@ -139,3 +140,11 @@ def test_new_actions_workflow_never_runs_in_a15_or_alters_colibri():
     assert "b0638f08417a2d3c8652760462eb5407c6e30173cf9608ad0820757a281eea0e" in wf
     for bad in ("gh codespace start","gh codespace create","ollama pull","git push --force"):
         assert bad not in wf
+
+
+def test_prompt_never_exposes_answer_bearing_oracle_case_ids():
+    import inspect
+    from hazewave import actions_slm_multicase as mod
+    src=inspect.getsource(mod.perform_multicase)
+    assert 'prompt=f"case_id={case}' not in src
+    assert "metric={metric_key}" in src
