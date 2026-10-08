@@ -108,6 +108,28 @@ resource/licensing boundaries. Do not install all optional heavyweight tools
 default; qualify on an appropriate already-authorized workstation first.
 Do not confuse tool presence, schema validity and a successful real-media study.
 
+## WAVE visual camera — Iris v0.4.1 (candidate, not installed in Codespace yet)
+
+Use `config/av-research-capabilities-v1.json` and
+`skills/hazewave-iris-camera/SKILL.md` whenever a task needs a first-party
+website screenshot. Pin official MIT `brijr/iris` release `v0.4.1` and SHA256
+verification; use the existing Codespace and its own isolated Iris binary.
+Iris is a **visual observation sensor** subordinated to WAVE and the Harness,
+not software decompilation, an audio engine, a website designer, a
+self-authorizing browser agent or proof of artistic quality.
+
+Start with the repository-owned fixture and the gated installer:
+`scripts/codespaces/install-iris-open-tool.sh --preflight|--install|--doctor|--smoke`.
+A screenshot's PNG integrity/hash and CSS/pixel dimensions must be captured
+in a private receipt. Do not publish the screenshot automatically.
+
+DO NOT globally register `iris mcp` yet: the raw server accepts arbitrary
+URLs, and a Harness-enforced allowlist plus redirect/credential protections
+must be reviewed before giving an agent access. A runner proof does not
+establish that Iris is installed in the owner's Codespace or visible to
+agents. Keep `IRIS_MCP_CONNECTED=NOT_PROVEN`, no merges/production
+promotion without owner review, and do not touch stock Reflex/BR-no-GTA.
+
 ## Setup
 
 Development checkout:

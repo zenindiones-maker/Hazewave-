@@ -39,7 +39,8 @@
         "scene_cuts",
         "image_statistics",
         "story_pacing",
-        "timelines"
+        "timelines",
+        "first_party_site_screenshot_observation"
       ]
     },
     "BRIDGE": {
@@ -136,6 +137,23 @@
       "use": "frame debugging for authorized targets",
       "auto_install": false,
       "headless_requirement": false
+    },
+    {
+      "tool": "Iris visual camera",
+      "package": "iris-screenshot",
+      "version": "0.4.1",
+      "source_repository": "brijr/iris",
+      "release_tag": "v0.4.1",
+      "linux_x86_64_musl_sha256": "aa6073ba255c0bcf09364a5503cbd4794791b832e5934a52b169a455d66101c7",
+      "license": "MIT",
+      "tier": "OPTIONAL_VISUAL_OBSERVABILITY",
+      "use": "WAVE first-party site pixel evidence and controlled screenshot fixtures; not software decompilation or artistic proof",
+      "auto_install": false,
+      "mcp_registration": "MANUAL_GATED_NOT_ACTIVE",
+      "requires_browser": "CHROMIUM_FAMILY",
+      "production_approved": false,
+      "codespace_runtime_proven": false,
+      "grants_execution_authority": false
     }
   ],
   "research_states": [
@@ -160,6 +178,7 @@
     "otio": "https://github.com/AcademySoftwareFoundation/OpenTimelineIO",
     "image": "https://pypi.org/project/pillow/",
     "librosa": "https://pypi.org/project/librosa/",
-    "rea": "https://github.com/morluto/rea/releases/tag/rea-agents-6.0.0"
+    "rea": "https://github.com/morluto/rea/releases/tag/rea-agents-6.0.0",
+    "iris": "https://github.com/brijr/iris/releases/tag/v0.4.1"
   }
 }
