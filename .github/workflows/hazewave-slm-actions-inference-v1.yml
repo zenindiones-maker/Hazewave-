@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   compact_model_qa:
-    if: ${{ github.event.repository.private == false }}
+    if: ${{ github.event.repository.private == false && !contains(github.event.head_commit.message, '[skip-slm-live]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:

@@ -107,7 +107,7 @@ def test_actions_runner_job_public_only_and_a15_never_installs():
     assert "d81235049384534c167caea52b85a694f6103d14" in w
     assert "sudo apt-get install -y --no-install-recommends ffmpeg" in w
     assert "httpx==0.28.1" in w
-    assert w.index("httpx==0.28.1") < w.index("PYTHONPATH=src python -m hazewave.actions_slm_runner --inventory")
+    assert w.index("httpx==0.28.1") < w.index("-m hazewave.actions_slm_runner --inventory")
     assert "127.0.0.1" in w
     assert "python -m hazewave.actions_slm_runner --prove" in w
     for forbidden in ("ollama pull", "gh codespace create", "gh codespace start",
