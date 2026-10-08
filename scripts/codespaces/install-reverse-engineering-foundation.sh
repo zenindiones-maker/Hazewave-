@@ -25,8 +25,8 @@ RIZIN_URL="https://github.com/rizinorg/rizin/releases/download/v0.9.1/$RIZIN_ASS
 ROOT="${HAZEWAVE_RE_ROOT:-$HOME/.local/share/hazewave/reverse-engineering}"
 BIN_ROOT="$HOME/.local/bin"
 CONFIG_ROOT="$HOME/.config/hazewave"
-ENV_FILE="$CONFIG_ROOT/reverse-engineering.env"
-RECEIPT="$ROOT/reverse-engineering-install-receipt.json"
+ENV_FILE="$CONFIG_ROOT/reverse-engineering-rea6.env"
+RECEIPT="$ROOT/reverse-engineering-rea6-install-receipt.json"
 DOWNLOADS="$ROOT/downloads"
 NODE_ROOT="$ROOT/node-$NODE_VERSION"
 REA_PREFIX="$ROOT/rea-$REA_VERSION"
@@ -194,18 +194,19 @@ RIZIN_BIN="$RIZIN_ROOT/bin/rizin"
 [[ -x "$FRIDA_VENV/bin/frida" ]] || fail "FRIDA_BINARY_MISSING_AFTER_INSTALL"
 [[ -x "$GHIDRA_ROOT/support/analyzeHeadless" ]] || fail "GHIDRA_HEADLESS_MISSING_AFTER_INSTALL"
 
-ln -sfn "$REA_BIN" "$BIN_ROOT/rea"
-ln -sfn "$RIZIN_BIN" "$BIN_ROOT/rizin"
-ln -sfn "$FRIDA_VENV/bin/frida" "$BIN_ROOT/frida"
-ln -sfn "$FRIDA_VENV/bin/frida-trace" "$BIN_ROOT/frida-trace"
+mkdir -p "$REA_PREFIX/bin"
+ln -sfn "$REA_BIN" "$REA_PREFIX/bin/rea"
 
-cat >"$BIN_ROOT/hazewave-rea" <<EOF
+
+
+
+cat >"$BIN_ROOT/hazewave-rea6" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 source "$ENV_FILE"
 exec "$REA_BIN" "\$@"
 EOF
-chmod 755 "$BIN_ROOT/hazewave-rea"
+chmod 755 "$BIN_ROOT/hazewave-rea6"
 
 cat >"$ENV_FILE" <<EOF
 export HAZEWAVE_RE_ROOT="$ROOT"
@@ -214,14 +215,14 @@ export GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"
 export HAZEWAVE_RE_AUTHORITY="$AUTHORITY"
 export HAZEWAVE_RE_PYTHON="$CLI_VENV/bin/python"
 export HAZEWAVE_RE_REPO_ROOT="$REPO_ROOT"
-export PATH="$NODE_ROOT/bin:$BIN_ROOT:$FRIDA_VENV/bin:$RIZIN_ROOT/bin:\$PATH"
+export PATH="$REA_PREFIX/bin:$NODE_ROOT/bin:$FRIDA_VENV/bin:$RIZIN_ROOT/bin:$BIN_ROOT:\$PATH"
 EOF
 chmod 600 "$ENV_FILE"
 
-cat >"$BIN_ROOT/hazewave-re-cli" <<'EOF'
+cat >"$BIN_ROOT/hazewave-re6-cli" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-source "$HOME/.config/hazewave/reverse-engineering.env"
+source "$HOME/.config/hazewave/reverse-engineering-rea6.env"
 [[ -x "$HAZEWAVE_RE_PYTHON" ]] || {
   echo "HAZEWAVE_RE_CLI=FAIL:PYTHON_RUNTIME_MISSING" >&2
   exit 20
@@ -233,12 +234,12 @@ source "$HOME/.config/hazewave/reverse-engineering.env"
 exec env PYTHONPATH="$HAZEWAVE_RE_REPO_ROOT/src${PYTHONPATH:+:$PYTHONPATH}" \
   "$HAZEWAVE_RE_PYTHON" -m hazewave.cli reverse-engineering "$@"
 EOF
-chmod 755 "$BIN_ROOT/hazewave-re-cli"
+chmod 755 "$BIN_ROOT/hazewave-re6-cli"
 
 source "$ENV_FILE"
 
 "$HAZEWAVE_RE_PYTHON" -c "import httpx"   || fail "HAZEWAVE_CLI_HTTPX_IMPORT_FAILED"
-hazewave-re-cli registry >/dev/null   || fail "HAZEWAVE_CLI_REGISTRY_SMOKE_FAILED"
+hazewave-re6-cli registry >/dev/null   || fail "HAZEWAVE_CLI_REGISTRY_SMOKE_FAILED"
 
 rea_version="$("$REA_BIN" --version 2>/dev/null | tail -n 1 | tr -d '\r')"
 rizin_version="$("$RIZIN_BIN" -v 2>/dev/null | sed -n '1p' | tr -d '\r')"
@@ -247,9 +248,9 @@ ffmpeg_version="$(ffmpeg -version 2>/dev/null | sed -n '1p' | tr -d '\r')"
 mediainfo_version="$(mediainfo --Version 2>/dev/null | tail -n 1 | tr -d '\r')"
 java_version="$(java -version 2>&1 | sed -n '1p' | tr -d '\r')"
 
-REA_ANALYSIS_PROVIDER=ghidra GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"   "$REA_BIN" providers --json >"$ROOT/rea-providers.json" || fail "REA_PROVIDERS_FAILED"
+REA_ANALYSIS_PROVIDER=ghidra GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"   "$REA_BIN" providers --json >"$ROOT/rea6-providers.json" || fail "REA_PROVIDERS_FAILED"
 set +e
-REA_ANALYSIS_PROVIDER=ghidra GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"   "$REA_BIN" doctor --provider ghidra --json >"$ROOT/rea-doctor.json"
+REA_ANALYSIS_PROVIDER=ghidra GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"   "$REA_BIN" doctor --provider ghidra --json >"$ROOT/rea6-doctor.json"
 rea_doctor_rc=$?
 set -e
 [[ "$rea_doctor_rc" -eq 0 ]] || echo "HAZEWAVE_RE_DIAGNOSTIC=RE_DOCTOR_NONZERO:$rea_doctor_rc"
@@ -264,8 +265,8 @@ from pathlib import Path
     mediainfo_version, java_version, ghidra_root, ghidra_sha, rizin_sha,
     node_version, npm_version, rea_doctor_rc
 ) = sys.argv[1:]
-providers = Path(os.environ["HAZEWAVE_RE_ROOT"]) / "rea-providers.json"
-doctor = Path(os.environ["HAZEWAVE_RE_ROOT"]) / "rea-doctor.json"
+providers = Path(os.environ["HAZEWAVE_RE_ROOT"]) / "rea6-providers.json"
+doctor = Path(os.environ["HAZEWAVE_RE_ROOT"]) / "rea6-doctor.json"
 payload = {
     "schema": "HazewaveReverseEngineeringInstallReceipt/v1",
     "project_id": "HAZEWAVE",
