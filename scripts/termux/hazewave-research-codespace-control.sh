@@ -76,6 +76,11 @@ fi
 [[ "$(git -C "$WT" rev-parse HEAD)" == "$SHA" ]] || { echo "WORKTREE_SHA_MISMATCH"; exit 20; }
 [[ -z "$(git -C "$WT" status --porcelain)" ]] || { echo "WORKTREE_DIRTY"; exit 20; }
 cd "$WT"
+# Reuse the existing Codespace's installed project runtime, not Termux Python
+# or an ad-hoc internet install in the isolated worktree.
+if [[ -x "$BASE/.venv/bin/python" ]]; then
+  export PATH="$BASE/.venv/bin:$PATH"
+fi
 export PYTHONPATH="$WT/src"
 export HAZEWAVE_NATIVE_EXPECTED_SHA="$SHA"
 export HAZEWAVE_RESEARCH_EXPECTED_SHA="$SHA"
