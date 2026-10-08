@@ -33,7 +33,7 @@ REA_PREFIX="$ROOT/rea-$REA_VERSION"
 GHIDRA_ROOT="$ROOT/ghidra-$GHIDRA_VERSION"
 FRIDA_VENV="$ROOT/frida-$FRIDA_VERSION"
 RIZIN_ROOT="$ROOT/rizin-$RIZIN_VERSION"
-CLI_VENV="$ROOT/hazewave-cli-venv"
+CLI_VENV="$ROOT/hazewave-rea6-cli-venv"
 
 fail() {
   printf 'HAZEWAVE_RE_INSTALL=FAIL:%s\n' "$1" >&2
