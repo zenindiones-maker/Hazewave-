@@ -1,0 +1,165 @@
+{
+  "schema": "HazewaveAVResearchCapabilities/v1",
+  "authority": "HAZEWAVE_HARNESS",
+  "status": "DEVELOPMENT_CANDIDATE",
+  "project": "HAZEWAVE",
+  "source_rights": "TARGET_SPECIFIC_SIGNED_GRANT",
+  "admission": "ZERO_COST_FOSS_ONLY",
+  "activation": "MANUAL_ONLY",
+  "production_approved": false,
+  "private_media_policy": "LOCAL_ONLY",
+  "domains": {
+    "HAZE": {
+      "skill": "skills/hazewave-haze-audio-forensics/SKILL.md",
+      "kinds": [
+        "AUDIO_QC",
+        "AUDIO_MUSIC"
+      ],
+      "basis": [
+        "ebu_r128",
+        "ITU_BS1770",
+        "stereo",
+        "spectral",
+        "temporal",
+        "beat",
+        "onset"
+      ]
+    },
+    "WAVE": {
+      "skill": "skills/hazewave-wave-visual-forensics/SKILL.md",
+      "kinds": [
+        "VIDEO_QC",
+        "SCENE_DETECTION",
+        "IMAGE_METRICS",
+        "EDITORIAL_SCRIPT"
+      ],
+      "basis": [
+        "frames",
+        "timebase",
+        "scene_cuts",
+        "image_statistics",
+        "story_pacing",
+        "timelines"
+      ]
+    },
+    "BRIDGE": {
+      "authority": "NONE",
+      "purpose": "TRANSLATE_TYPED_EVIDENCE",
+      "may_execute_tools": false
+    }
+  },
+  "dependencies": [
+    {
+      "tool": "FFmpeg/ffprobe",
+      "tier": "SYSTEM_EXISTING",
+      "license": "LGPL-2.1+/GPL-2+ depending on build",
+      "version": "HOST_PIN_REQUIRED",
+      "use": "audio/video decode EBU128 QC color frame probes",
+      "auto_install": false
+    },
+    {
+      "tool": "Pillow",
+      "package": "pillow==12.3.0",
+      "license": "HPND",
+      "tier": "CORE",
+      "use": "bounded still image measurement",
+      "auto_install": false
+    },
+    {
+      "tool": "PySceneDetect",
+      "package": "scenedetect-headless==0.7.1",
+      "license": "BSD-3-Clause",
+      "tier": "CORE",
+      "use": "shot-boundary and transition estimates",
+      "auto_install": false
+    },
+    {
+      "tool": "OpenTimelineIO",
+      "package": "opentimelineio==0.18.1",
+      "license": "Apache-2.0",
+      "tier": "CORE",
+      "use": "editorial timeline interchange",
+      "auto_install": false
+    },
+    {
+      "tool": "librosa",
+      "package": "librosa==1.0.0",
+      "license": "ISC",
+      "tier": "MUSIC_OPTIONAL",
+      "use": "MIR corroboration",
+      "auto_install": false
+    },
+    {
+      "tool": "Essentia",
+      "package": "essentia==2.1b6.dev1389",
+      "license": "AGPL-3.0-only",
+      "tier": "MUSIC_OPTIONAL",
+      "use": "beat/onset/key spectral MIR",
+      "legal_review_required": true,
+      "auto_install": false
+    },
+    {
+      "tool": "REA",
+      "package": "rea-agents@6.0.0",
+      "license": "MIT",
+      "tier": "SOFTWARE_ONLY",
+      "use": "binary/source and application research; no audio/video quality claims",
+      "auto_install": false
+    },
+    {
+      "tool": "Ghidra",
+      "license": "Apache-2.0",
+      "tier": "SOFTWARE_ONLY",
+      "use": "authorized native binary inspection",
+      "auto_install": false
+    },
+    {
+      "tool": "Blender",
+      "license": "GPL-3.0-or-later",
+      "tier": "OPTIONAL_RENDER_WORKSTATION",
+      "use": "animation rigging render comparative fixture",
+      "auto_install": false,
+      "host_proof_required": true
+    },
+    {
+      "tool": "WhisperX",
+      "license": "BSD-2-Clause code; model licenses independent",
+      "tier": "OPTIONAL_ACCELERATED",
+      "use": "speech alignment, never voice identity certification",
+      "auto_install": false,
+      "model_licensing_review": true
+    },
+    {
+      "tool": "RenderDoc",
+      "license": "MIT",
+      "tier": "OPTIONAL_GRAPHICS_WORKSTATION",
+      "use": "frame debugging for authorized targets",
+      "auto_install": false,
+      "headless_requirement": false
+    }
+  ],
+  "research_states": [
+    "OBSERVATION_ONLY",
+    "HYPOTHESIS",
+    "CONTROLLED_REPRODUCTION",
+    "VALIDATED_TECHNICALLY",
+    "HUMAN_REVIEW",
+    "PRODUCTION_APPROVED"
+  ],
+  "forbidden_inference": [
+    "MEDIA_ANALYZED_EQUALS_ARTISTIC_APPROVAL",
+    "REA_BINARY_DISASSEMBLY_EQUALS_ORIGINAL_SOURCE",
+    "INSTALLATION_EQUALS_RUNTIME_READY",
+    "OPEN_SOURCE_SOFTWARE_EQUALS_OPEN_LICENSED_REFERENCE",
+    "SUBORDINATE_AGENT_MAY_PROMOTE_ITSELF"
+  ],
+  "reference_links": {
+    "ffmpeg": "https://ffmpeg.org/ffmpeg-filters.html",
+    "essentia": "https://github.com/MTG/essentia",
+    "scenes": "https://www.scenedetect.com/docs/latest/",
+    "otio": "https://github.com/AcademySoftwareFoundation/OpenTimelineIO",
+    "image": "https://pypi.org/project/pillow/",
+    "librosa": "https://pypi.org/project/librosa/",
+    "rea": "https://github.com/morluto/rea/releases/tag/rea-agents-6.0.0"
+  }
+}
