@@ -314,6 +314,28 @@ class ReverseEngineeringFoundation:
             purpose=purpose,
         )
         tools = self._route(domain=domain, target_kind=target_kind)
+        # The signed target grant is verified above; only now may the Harness
+        # issue a typed, project-local HAZE/WAVE research planning receipt.
+        # A planning receipt does NOT authorize a provider to execute.
+        harness_authorization = None
+        if domain in {"HAZE", "WAVE"}:
+            from hazewave.harness import HazewaveTask, issue_authorization, route_task
+            from hazewave.rea6_integration import audited_capability
+
+            task = HazewaveTask(
+                task_id=f"rea6-{evidence_grant['grant_id']}",
+                goal=f"{purpose}: authorized digest {evidence_grant['target_sha256']}",
+                required_capability=audited_capability(domain),
+                requested_domain=domain,
+            )
+            granted = issue_authorization(route_task(task))
+            harness_authorization = {
+                "authorization_id": granted.authorization_id,
+                "capability_id": granted.capability_id,
+                "domain": granted.domain,
+                "authority": granted.authority,
+                "execution_authorized": False,
+            }
         evidence = self._policy.get("evidence", {})
         required_evidence = [
             str(x) for x in evidence.get("allowed_claims", [])
@@ -329,6 +351,7 @@ class ReverseEngineeringFoundation:
             "purpose": purpose,
             "authorized_target": True,
             "authorization_evidence": evidence_grant,
+            "harness_research_plan": harness_authorization,
             "tools": tools,
             "required_evidence": required_evidence,
             "source_recovery_claim": evidence.get(
