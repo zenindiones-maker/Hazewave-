@@ -299,9 +299,16 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
     )
     re_plan.add_argument(
-        "--authorized",
-        action="store_true",
-        help="Confirm that the target is owned, open-source, or otherwise authorized for analysis.",
+        "--target-file", type=Path, required=True,
+        help="Immutable local target under owner authorization.",
+    )
+    re_plan.add_argument(
+        "--grant-file", type=Path, required=True,
+        help="Owner/Harness issued scoped grant (canonical JSON bytes).",
+    )
+    re_plan.add_argument(
+        "--signature-file", type=Path, required=True,
+        help="OpenSSH signature of the grant, namespace hazewave-research-grant.",
     )
     re_commands.add_parser(
         "registry",
@@ -433,8 +440,14 @@ def main() -> int:
                 plan = foundation.plan(
                     domain=args.domain,
                     target_kind=args.target_kind,
-                    authorized=args.authorized,
                     purpose=args.purpose,
+                    target_file=args.target_file,
+                    grant_file=args.grant_file,
+                    signature_file=args.signature_file,
+                    trusted_signers_file=(
+                        Path.home() / ".config" / "hazewave" /
+                        "reverse-engineering" / "allowed_signers"
+                    ),
                 )
                 print(json.dumps(plan, sort_keys=True, ensure_ascii=False))
                 return 0
