@@ -105,9 +105,16 @@ def test_actions_runner_job_public_only_and_a15_never_installs():
     assert w.index("--inventory") < w.index("Qwen3-0.6B-Q4_K_M.gguf")
     assert "b0638f08417a2d3c8652760462eb5407c6e30173cf9608ad0820757a281eea0e" in w
     assert "d81235049384534c167caea52b85a694f6103d14" in w
+    assert "sudo apt-get install -y --no-install-recommends ffmpeg" in w
     assert "127.0.0.1" in w
     assert "python -m hazewave.actions_slm_runner --prove" in w
     for forbidden in ("ollama pull", "gh codespace create", "gh codespace start",
-                      "sudo apt-get", "pip install", "TERMUX_VERSION=", "git push --force"):
+                      "pip install", "TERMUX_VERSION=", "git push --force"):
         assert forbidden not in w
     assert "A15_INFERENCE=FORBIDDEN" in w
+
+
+def test_public_evidence_does_not_disclose_live_harness_authorization_identifier():
+    code=(ROOT/"src"/"hazewave"/"actions_slm_runner.py").read_text()
+    assert '"authorization_id": grant.authorization_id' not in code
+    assert '"authorization_id_sha256"' in code
