@@ -252,3 +252,12 @@ def test_daily_intelligence_tracks_reverse_engineering_upstreams() -> None:
         assert set(sources[source_id]["domains"]) == domains
         assert sources[source_id]["tier"] == "A_AUTHORITATIVE"
         assert sources[source_id]["data_classification"] == "PUBLIC"
+
+
+def test_codespace_installer_avoids_head_sigpipe_under_pipefail() -> None:
+    script = (
+        ROOT / "scripts" / "codespaces" / "install-reverse-engineering-foundation.sh"
+    ).read_text(encoding="utf-8")
+
+    assert "| head -n 1" not in script
+    assert "sed -n '1p'" in script
