@@ -5,7 +5,8 @@ set -euo pipefail
 fail() { echo "HAZEWAVE_CLOSED_LOOP=BLOCKED:$1" >&2; exit 20; }
 [[ $# -eq 1 ]] || fail "EXPLICIT_MODE_REQUIRED"
 case "$1" in --preflight|--native-auto|--av-metrics) mode="$1";; *) fail "MODE_NOT_ADMITTED";; esac
-[[ "${CODESPACE_NAME:-}" == "hazewave-zero-cost-4jxp45676rq6279xx" ]] || fail "EXISTING_CODESPACE_REQUIRED"
+[[ "${CODESPACES:-}" == "true" ]] || fail "EXISTING_CODESPACE_REQUIRED"
+[[ -z "${CODESPACE_NAME:-}" || "${CODESPACE_NAME}" == "hazewave-zero-cost-4jxp45676rq6279xx" ]] || fail "EXISTING_CODESPACE_REQUIRED"
 
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ROOT="$(cd -- "$HERE/../.." && pwd -P)"

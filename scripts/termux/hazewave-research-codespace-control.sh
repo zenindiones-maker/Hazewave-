@@ -45,6 +45,11 @@ EXPECTED="${HAZEWAVE_RESEARCH_EXPECTED_SHA:-}"
 [[ "$EXPECTED" =~ ^[0-9a-f]{40}$ ]] || die "REVIEWED_SHA_REQUIRED"
 remote_sha="$(gh api "repos/$REPO/git/ref/heads/$BRANCH" --jq '.object.sha')" || die "BRANCH_SHA_QUERY_FAILED"
 [[ "$remote_sha" == "$EXPECTED" ]] || die "BRANCH_MOVED_REVIEW_BEFORE_RUNNING"
+# Authenticated GitHub API verifies both SSH target identity and repository.
+api_name="$(gh api "user/codespaces/$CS" --jq '.name')" || die "CODESPACE_IDENTITY_QUERY_FAILED"
+api_repo="$(gh api "user/codespaces/$CS" --jq '.repository.full_name')" || die "CODESPACE_REPOSITORY_QUERY_FAILED"
+[[ "$api_name" == "$CS" && "$api_repo" == "$REPO" ]] || die "CODESPACE_CONTROL_PLANE_IDENTITY_MISMATCH"
+echo "CODESPACE_CONTROL_PLANE_IDENTITY=PASS"
 command -v ssh >/dev/null 2>&1 || die "SSH_CLIENT_MISSING"
 echo "REVIEWED_SHA=$EXPECTED"
 echo "CODESPACE_NO_NEW_MACHINE=TRUE"
@@ -58,7 +63,10 @@ REPO="zenindiones-maker/Hazewave-"
 BRANCH="work/native-auto-synthesis-av-qa-v1"
 BASE="/workspaces/Hazewave-"
 SHA="${HAZEWAVE_RESEARCH_EXPECTED_SHA:-}"
-[[ "${CODESPACE_NAME:-}" == "$CS" ]] || { echo "REMOTE_IDENTITY=BLOCKED"; exit 20; }
+# Noninteractive SSH sessions can omit CODESPACE_NAME. The GitHub CLI -c
+# target is authenticated by the control plane; remote checks remain fail-closed.
+[[ "${CODESPACES:-}" == "true" ]] || { echo "REMOTE_PLATFORM=BLOCKED"; exit 20; }
+[[ -z "${CODESPACE_NAME:-}" || "${CODESPACE_NAME}" == "$CS" ]] || { echo "REMOTE_IDENTITY=BLOCKED"; exit 20; }
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "REMOTE_REVIEWED_SHA=BLOCKED"; exit 20; }
 [[ -d "$BASE" ]] || { echo "BASE_CHECKOUT_UNAVAILABLE"; exit 20; }
 origin="$(git -C "$BASE" remote get-url origin)"
@@ -66,6 +74,8 @@ case "$origin" in
   https://github.com/zenindiones-maker/Hazewave-|https://github.com/zenindiones-maker/Hazewave-.git|git@github.com:zenindiones-maker/Hazewave-|git@github.com:zenindiones-maker/Hazewave-.git) ;;
   *) echo "REMOTE_REPO_IDENTITY=BLOCKED"; exit 20 ;;
 esac
+echo "REMOTE_IDENTITY_SOURCE=AUTHENTICATED_GH_SSH_AND_REPOSITORY"
+echo "REMOTE_CODESPACE_NAME_FIELD=${CODESPACE_NAME:-UNSET}"
 git -C "$BASE" fetch --no-tags origin "refs/heads/$BRANCH"
 [[ "$(git -C "$BASE" rev-parse FETCH_HEAD)" == "$SHA" ]] || { echo "REMOTE_REVIEWED_SHA_MOVED"; exit 20; }
 WT="$HOME/.local/share/hazewave/research-audit-${SHA:0:12}"

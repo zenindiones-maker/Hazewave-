@@ -7,7 +7,8 @@ fail() { printf 'HAZEWAVE_NATIVE_CODESPACE=BLOCKED:%s\n' "$1" >&2; exit 20; }
 mode="$1"
 case "$mode" in --inventory|--behavior|--ghidra) ;; *) fail "MODE_NOT_ADMITTED" ;; esac
 
-[[ "${CODESPACE_NAME:-}" == "hazewave-zero-cost-4jxp45676rq6279xx" ]] || fail "WRONG_CODESPACE_ID"
+[[ "${CODESPACES:-}" == "true" ]] || fail "WRONG_CODESPACE_ID"
+[[ -z "${CODESPACE_NAME:-}" || "${CODESPACE_NAME}" == "hazewave-zero-cost-4jxp45676rq6279xx" ]] || fail "WRONG_CODESPACE_ID"
 DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ROOT="$(cd -- "$DIR/../.." && pwd -P)"
 SHA="${HAZEWAVE_NATIVE_EXPECTED_SHA:-}"
@@ -29,7 +30,7 @@ export PYTHONPATH="$ROOT/src"
 
 if [[ "$mode" == "--inventory" ]]; then
   echo "HAZEWAVE_CAPABILITY_INVENTORY_SCOPE=EXISTING_CODESPACE"
-  python3 -m hazewave.capability_plane inventory --host-id "$CODESPACE_NAME" --repo-sha "$SHA" || fail "HOST_TOOL_INVENTORY_INVALID"
+  python3 -m hazewave.capability_plane inventory --host-id "${CODESPACE_NAME:-hazewave-zero-cost-4jxp45676rq6279xx}" --repo-sha "$SHA" || fail "HOST_TOOL_INVENTORY_INVALID"
   python3 -m hazewave.harness_connection_inventory || fail "FULL_CONNECTION_LEDGER_INVALID"
   echo "HAZEWAVE_CAPABILITY_READY_WITHOUT_SIGNED_EVIDENCE=NONE"
   echo "HAZEWAVE_AGENT_SESSIONS=NOT_TESTED"

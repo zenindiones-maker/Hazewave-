@@ -19,7 +19,11 @@ def _fake_gh(tmp_path: Path) -> dict[str, str]:
         "    case \"$*\" in\n"
         "      *'/start'*) printf '{\"state\":\"Available\"}\\n' ;;\n"
         "      *'user/codespaces/hazewave-zero-cost-4jxp45676rq6279xx'*)\n"
-        "          printf '%s\\n' \"${FAKE_CODESPACE_STATE:-Shutdown}\" ;;\n"
+        "          case \"$*\" in\n"
+        "            *'.name'*) printf '%s\\n' \"${FAKE_CODESPACE_NAME:-hazewave-zero-cost-4jxp45676rq6279xx}\" ;;\n"
+        "            *'.repository.full_name'*) printf '%s\\n' \"${FAKE_CODESPACE_REPO:-zenindiones-maker/Hazewave-}\" ;;\n"
+        "            *) printf '%s\\n' \"${FAKE_CODESPACE_STATE:-Shutdown}\" ;;\n"
+        "          esac ;;\n"
         "      *'git/ref/heads/work/native-auto-synthesis-av-qa-v1'*)\n"
         "          printf '%s\\n' 'f94b9aadd8ead34ed7c0157b645d8295e7fd07dd' ;;\n"
         "      *) exit 44 ;;\n"
@@ -115,3 +119,54 @@ def test_heavy_research_audit_requires_verified_budget_even_if_host_is_running(t
     assert proc.returncode == 20
     assert "FREE_COMPUTE_NOT_VERIFIED" in proc.stderr
     assert not marker.exists()
+
+
+def test_authenticated_identity_rejects_wrong_repository_before_ssh(tmp_path: Path) -> None:
+    env = _fake_gh(tmp_path)
+    env["FAKE_CODESPACE_STATE"] = "Available"
+    env["FAKE_CODESPACE_REPO"] = "unrelated/other"
+    env["HAZEWAVE_RESEARCH_EXPECTED_SHA"] = "f94b9aadd8ead34ed7c0157b645d8295e7fd07dd"
+    marker = tmp_path / "ssh.marker"
+    env["FAKE_MARKER_FILE"] = str(marker)
+    proc = subprocess.run(["bash", str(SCRIPT), "--inventory"], env=env,
+                          capture_output=True, text=True, timeout=15)
+    assert proc.returncode == 20
+    assert "CODESPACE_CONTROL_PLANE_IDENTITY_MISMATCH" in proc.stderr
+    assert not marker.exists()
+
+
+def test_remote_session_guard_accepts_unset_name_only_in_codespace() -> None:
+    data = SCRIPT.read_text()
+    platform = next(line for line in data.splitlines()
+                    if '[[ "${CODESPACES:-}" == "true" ]] ||' in line)
+    named = next(line for line in data.splitlines()
+                 if '[[ -z "${CODESPACE_NAME:-}" || "${CODESPACE_NAME}" == "$CS" ]]' in line)
+    code = 'CS="hazewave-zero-cost-4jxp45676rq6279xx"\n' + platform + "\n" + named + "\necho REMOTE_GUARD=PASS\n"
+    for name, platform, accepted in [
+        (None, "true", True),
+        ("hazewave-zero-cost-4jxp45676rq6279xx", "true", True),
+        ("other-host", "true", False),
+        (None, "false", False),
+    ]:
+        env = {**os.environ, "CODESPACES": platform}
+        env.pop("CODESPACE_NAME", None)
+        if name is not None:
+            env["CODESPACE_NAME"] = name
+        proc = subprocess.run(["bash", "-c", code], env=env,
+                              capture_output=True, text=True, timeout=5)
+        assert (proc.returncode == 0) is accepted
+        if accepted:
+            assert "REMOTE_GUARD=PASS" in proc.stdout
+
+
+def test_downstream_guards_require_codespaces_context() -> None:
+    for rel in (
+        "scripts/codespaces/native-behavior-rea6-probe.sh",
+        "scripts/codespaces/research-closed-loop-qualification.sh",
+        "scripts/codespaces/harness-live-research-bridge.sh",
+    ):
+        script = (ROOT / rel).read_text()
+        assert '[[ "${CODESPACES:-}" == "true" ]]' in script
+        assert '[[ -z "${CODESPACE_NAME:-}" ||' in script
+        assert subprocess.run(["bash", "-n", str(ROOT / rel)],
+                              capture_output=True).returncode == 0
