@@ -66,6 +66,16 @@ jobs:
           chmod 700 "$RUNNER_TEMP/iris-ci-chromium"
           echo "IRIS_CHROME=$RUNNER_TEMP/iris-ci-chromium" >> "$GITHUB_ENV"
           echo "IRIS_CI_SANDBOX=DISABLED_FOR_OWNED_FIXTURE_ONLY"
+      - name: Prewarm Chrome CDP prerequisites on owned fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$IRIS_CHROME" --version
+          timeout 25 "$IRIS_CHROME" --headless=new --disable-gpu \
+            --dump-dom "file://$GITHUB_WORKSPACE/tests/fixtures/iris-proof.html" \
+            > "$RUNNER_TEMP/iris-chrome-dom.html"
+          grep -F 'HAZEWAVE / VISION EVIDENCE' "$RUNNER_TEMP/iris-chrome-dom.html" >/dev/null
+          echo "IRIS_DIRECT_CHROME_HTML_RENDER=PASS"
       - name: Capture real first-party HTML with Chromium, verify PNG and receipt
         env:
           PYTHONPATH: src
