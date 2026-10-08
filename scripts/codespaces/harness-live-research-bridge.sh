@@ -11,7 +11,8 @@ fail() {
 [[ "$#" -eq 1 ]] || fail "MODE_REQUIRED"
 mode="$1"
 case "$mode" in --preflight|--prove|--mcp) ;; *) fail "MODE_UNSUPPORTED" ;; esac
-[[ "${CODESPACE_NAME:-}" == "hazewave-zero-cost-4jxp45676rq6279xx" ]] || fail "CODESPACE_ID_MISMATCH"
+[[ "${CODESPACES:-}" == "true" ]] || fail "CODESPACE_ID_MISMATCH"
+[[ -z "${CODESPACE_NAME:-}" || "${CODESPACE_NAME}" == "hazewave-zero-cost-4jxp45676rq6279xx" ]] || fail "CODESPACE_ID_MISMATCH"
 
 DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ROOT="$(cd -- "$DIR/../.." && pwd -P)"
