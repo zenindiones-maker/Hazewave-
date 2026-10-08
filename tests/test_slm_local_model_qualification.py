@@ -140,11 +140,13 @@ def test_model_digest_changed_blocks_before_inference(tmp_path: Path):
 
 
 def test_forged_size_or_license_blocks_before_inference(tmp_path: Path):
-    for args in ({"license_text": ""}, {"size": "400B"}, {"show_count": 9_000_000_000}):
+    for i, args in enumerate(({"license_text": ""}, {"size": "400B"}, {"show_count": 9_000_000_000})):
         req, calls = fixed_transport(**args)
+        case_dir = tmp_path / str(i)
+        case_dir.mkdir()
         with pytest.raises(ModelQualificationError, match="MODEL_NOT_ELIGIBLE"):
             probe_verified_audio_case(
-                **audited_case(tmp_path), transport=req,
+                **audited_case(case_dir), transport=req,
                 model_name="qwen3:4b", expected_digest="a"*64
             )
         assert not [c for c in calls if c[1] == "/api/chat"]
@@ -156,7 +158,9 @@ def test_invalid_model_output_stays_failed_and_never_promotes(tmp_path: Path):
         **audited_case(tmp_path), transport=req,
         model_name="qwen3:4b", expected_digest="a"*64
     )
-    assert result["real_model_response_observed"] is True
+    assert result["real_model_response_observed"] is False
+    assert result["model_response_observed"] is True
+    assert result["transport_provenance"] == "INJECTED_TEST_DOUBLE"
     assert result["verifier_result"] == "FAIL"
     assert result["production_approved"] is False
 
