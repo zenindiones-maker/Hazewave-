@@ -16,7 +16,10 @@ fail() {
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 
-for cmd in rea rizin frida ffmpeg ffprobe mediainfo java python3; do
+[[ -n "${HAZEWAVE_RE_PYTHON:-}" && -x "$HAZEWAVE_RE_PYTHON" ]]   || fail "HAZEWAVE_RE_PYTHON_MISSING"
+[[ -n "${HAZEWAVE_RE_REPO_ROOT:-}" && -d "$HAZEWAVE_RE_REPO_ROOT/src/hazewave" ]]   || fail "HAZEWAVE_RE_REPO_ROOT_INVALID"
+
+for cmd in rea rizin frida ffmpeg ffprobe mediainfo java python3 hazewave-re-cli; do
   command -v "$cmd" >/dev/null 2>&1 || fail "COMMAND_MISSING:$cmd"
 done
 
@@ -27,10 +30,12 @@ done
 rea --version | grep -F "4.1.0" >/dev/null || fail "REA_VERSION_MISMATCH"
 frida --version | grep -F "17.23.0" >/dev/null || fail "FRIDA_VERSION_MISMATCH"
 rizin -v | grep -F "0.9.1" >/dev/null || fail "RIZIN_VERSION_MISMATCH"
-java -version 2>&1 | head -n 1 | grep -Eq '"21([."]|$)' || fail "JAVA_VERSION_MISMATCH"
+java -version 2>&1 | sed -n '1p' | grep -Eq '"21([."]|$)' || fail "JAVA_VERSION_MISMATCH"
+"$HAZEWAVE_RE_PYTHON" -c "import httpx" || fail "HAZEWAVE_CLI_HTTPX_IMPORT_FAILED"
 
 mkdir -p "$ROOT/doctor"
 chmod 700 "$ROOT/doctor"
+hazewave-re-cli registry >"$ROOT/doctor/hazewave-registry.json"   || fail "HAZEWAVE_CLI_REGISTRY_FAILED"
 rea providers --json >"$ROOT/doctor/providers.json" || fail "REA_PROVIDERS_FAILED"
 set +e
 rea doctor --json >"$ROOT/doctor/doctor.json"
@@ -65,7 +70,7 @@ PY
   echo "HAZEWAVE_RE_DEEP_PROBE=PASS"
 fi
 
-chmod 600 "$ROOT/doctor/providers.json" "$ROOT/doctor/doctor.json"
+chmod 600   "$ROOT/doctor/hazewave-registry.json"   "$ROOT/doctor/providers.json"   "$ROOT/doctor/doctor.json"
 echo "HAZEWAVE_RE_DOCTOR_GLOBAL_RC=$doctor_rc"
 echo "HAZEWAVE_RE_PROVIDER=ghidra"
 echo "HAZEWAVE_RE_DOCTOR=PASS"
