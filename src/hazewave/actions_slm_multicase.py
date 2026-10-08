@@ -405,15 +405,80 @@ def perform_multicase(cases: Mapping[str, Mapping[str, Any]], *,
     return report
 
 
+
+def diagnose_single_case(cases: Mapping[str, Mapping[str, Any]], *,
+                         case_id: str, model: str,
+                         model_caller: Callable[..., dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Exactly one bounded model request; no claim of reliability/competence."""
+    if case_id not in CASE_IDS:
+        raise MultiCaseError("UNKNOWN_CASE")
+    if model != "hazewave-qwen3-0.6b":
+        raise MultiCaseError("MODEL_NOT_PINNED")
+    if set(cases)!=set(CASE_IDS) or any(cases[c].get("negative_control_pass") is not True for c in CASE_IDS):
+        raise MultiCaseError("AUDIO_NEGATIVE_CONTROL_MISSING")
+    metric_key=_ALLOWED[case_id][2]
+    value=cases[case_id].get(metric_key)
+    if isinstance(value,bool) or not isinstance(value,(float,int)) or not math.isfinite(value):
+        raise MultiCaseError("CASE_METRIC_INVALID")
+    prompt=build_specialist_audio_prompt(metric_key,float(value))
+    task=HazewaveTask(
+        task_id="haze-shape-"+secrets.token_hex(8),
+        goal="Read one synthetic instrument measurement and classify output structure",
+        required_capability="reason.general",requested_domain="HAZE")
+    grant=issue_authorization(route_task(task))
+    validate_authorization(grant,expected_task_id=task.task_id,
+                           expected_capability="reason.general")
+    payload=_payload(prompt,model,seed=1000)
+    started=time.monotonic()
+    response=(model_caller or _call_model)(prompt,model,payload)
+    elapsed=round((time.monotonic()-started)*1000,2)
+    parsed=verify_llama_response(response,model)
+    content=response["choices"][0]["message"]["content"]
+    decision=parsed["decision"]
+    shape=classify_json_response_shape(content)
+    semantic=evaluate_choice(case_id,decision)
+    policy=load_audio_reference_knowledge()
+    enum=choice_schema()["properties"]["finding"]["enum"]
+    finding=decision.get("finding") if type(decision) is dict and decision.get("finding") in enum else "UNRECOGNIZED"
+    return {
+        "schema":"HazewaveActionsSLMStructuralDiagnosis/v1",
+        "harness_authority":"HAZEWAVE_HARNESS",
+        "case_id":case_id,
+        "task_id":task.task_id,
+        "model_alias":model,
+        "model_response_sha256":parsed["content_sha256"],
+        "model_json_shape":shape,
+        "observed_finding_enum":finding,
+        "model_response_char_count":len(content),
+        "prompt_sha256":hashlib.sha256(prompt.encode()).hexdigest(),
+        "knowledge_policy_sha256":policy["content_sha256"],
+        "knowledge_source_ids":[r["source_id"] for r in policy["references"]],
+        "evidence":dict(cases),
+        "verifier_result":semantic["grade"],
+        "verifier_failure_class":semantic["failure_class"],
+        "prompt_tokens":parsed["prompt_tokens"],
+        "completion_tokens":parsed["completion_tokens"],
+        "http_elapsed_ms":elapsed,
+        "transport_provenance":"RUNNER_LOOPBACK" if model_caller is None else "INJECTED_TEST_DOUBLE",
+        "real_model_response_observed":model_caller is None,
+        "reliability_measured":False,
+        "professional_audio":False,
+        "production_approved":False,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser=argparse.ArgumentParser()
     parser.add_argument("--prove",action="store_true",required=True)
     parser.add_argument("--model",type=Path,required=True)
     parser.add_argument("--output",type=Path,required=True)
     parser.add_argument("--repetitions",type=int,required=True)
+    parser.add_argument("--diagnose-case",choices=CASE_IDS)
     args=parser.parse_args(argv)
     try:
-        if args.repetitions!=3:
+        if (args.diagnose_case is None and args.repetitions!=3) or (
+            args.diagnose_case is not None and args.repetitions!=1
+        ):
             raise MultiCaseError("REPETITION_POLICY_INVALID")
         manifest=validate_model_manifest()
         runner_auth=authorize_runner(os.environ)
@@ -426,7 +491,10 @@ def main(argv: list[str] | None = None) -> int:
         root.mkdir(parents=True,mode=0o700,exist_ok=False)
         started=time.monotonic()
         measurements=make_multicase_evidence(root)
-        data=perform_multicase(measurements,model=manifest["served_alias"],repetitions=3)
+        data=(diagnose_single_case(
+                 measurements,case_id=args.diagnose_case,model=manifest["served_alias"])
+              if args.diagnose_case is not None else perform_multicase(
+                 measurements,model=manifest["served_alias"],repetitions=3))
         if data["transport_provenance"]!="RUNNER_LOOPBACK":
             raise MultiCaseError("MOCK_TRANSPORT_FORBIDDEN")
         data.update({
@@ -440,6 +508,17 @@ def main(argv: list[str] | None = None) -> int:
             "a15_inference":False
         })
         sha=write_receipt(args.output,data)
+        if args.diagnose_case is not None:
+            print("HAZE_DIAG_REAL_MODEL_RESPONSES=1")
+            print("HAZE_DIAG_CASE="+data["case_id"])
+            print("HAZE_DIAG_JSON_SHAPE="+data["model_json_shape"])
+            print("HAZE_DIAG_FINDING_ENUM="+data["observed_finding_enum"])
+            print("HAZE_DIAG_SEMANTIC_GRADE="+data["verifier_result"])
+            print("HAZE_DIAG_RECEIPT_SHA256="+sha)
+            print("HAZE_PROFESSIONAL=FALSE")
+            print("WAVE_PROFESSIONAL=FALSE")
+            print("A15_INFERENCE=FORBIDDEN")
+            return 0 if data["verifier_result"]=="PASS" else 21
         print("HAZE_MULTICASE_REAL_MODEL_RESPONSES="+str(data["cohort"]["attempts"]))
         print("HAZE_MULTICASE_PASS_AT_1="+str(data["cohort"]["pass_at_1"]))
         print("HAZE_MULTICASE_PASS_AT_3="+str(data["cohort"]["pass_at_k"]))
