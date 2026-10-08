@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd -P)"
+
 PROJECT_ID="HAZEWAVE"
 AUTHORITY="HAZEWAVE_HARNESS"
 NODE_VERSION="24.11.0"
@@ -30,6 +33,7 @@ REA_PREFIX="$ROOT/rea-$REA_VERSION"
 GHIDRA_ROOT="$ROOT/ghidra-$GHIDRA_VERSION"
 FRIDA_VENV="$ROOT/frida-$FRIDA_VERSION"
 RIZIN_ROOT="$ROOT/rizin-$RIZIN_VERSION"
+CLI_VENV="$ROOT/hazewave-cli-venv"
 
 fail() {
   printf 'HAZEWAVE_RE_INSTALL=FAIL:%s\n' "$1" >&2
@@ -45,6 +49,14 @@ done
 
 mkdir -p "$ROOT" "$DOWNLOADS" "$BIN_ROOT" "$CONFIG_ROOT"
 chmod 700 "$ROOT" "$DOWNLOADS" "$CONFIG_ROOT"
+
+if [[ ! -x "$CLI_VENV/bin/python" ]]; then
+  python3 -m venv "$CLI_VENV"     || fail "HAZEWAVE_CLI_VENV_CREATE_FAILED"
+fi
+
+"$CLI_VENV/bin/python" -m pip install   --disable-pip-version-check   --no-input   -e "$REPO_ROOT"   >/dev/null   || fail "HAZEWAVE_CLI_DEPENDENCIES_INSTALL_FAILED"
+
+"$CLI_VENV/bin/python" -c "import httpx, hazewave"   || fail "HAZEWAVE_CLI_IMPORT_FAILED"
 
 if [[ ! -x "$NODE_ROOT/bin/node" || ! -x "$NODE_ROOT/bin/npm" ]]; then
   node_tar="$DOWNLOADS/$NODE_ASSET"
@@ -187,11 +199,33 @@ export HAZEWAVE_RE_ROOT="$ROOT"
 export REA_ANALYSIS_PROVIDER=ghidra
 export GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"
 export HAZEWAVE_RE_AUTHORITY="$AUTHORITY"
+export HAZEWAVE_RE_PYTHON="$CLI_VENV/bin/python"
+export HAZEWAVE_RE_REPO_ROOT="$REPO_ROOT"
 export PATH="$NODE_ROOT/bin:$BIN_ROOT:$FRIDA_VENV/bin:$RIZIN_ROOT/bin:\$PATH"
 EOF
 chmod 600 "$ENV_FILE"
 
+cat >"$BIN_ROOT/hazewave-re-cli" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
 source "$ENV_FILE"
+[[ -x "\$HAZEWAVE_RE_PYTHON" ]] || {
+  echo "HAZEWAVE_RE_CLI=FAIL:PYTHON_RUNTIME_MISSING" >&2
+  exit 20
+}
+[[ -d "\$HAZEWAVE_RE_REPO_ROOT/src/hazewave" ]] || {
+  echo "HAZEWAVE_RE_CLI=FAIL:REPOSITORY_SOURCE_MISSING" >&2
+  exit 20
+}
+exec env PYTHONPATH="\$HAZEWAVE_RE_REPO_ROOT/src\${PYTHONPATH:+:\$PYTHONPATH}" \
+  "\$HAZEWAVE_RE_PYTHON" -m hazewave.cli reverse-engineering "\$@"
+EOF
+chmod 755 "$BIN_ROOT/hazewave-re-cli"
+
+source "$ENV_FILE"
+
+"$HAZEWAVE_RE_PYTHON" -c "import httpx"   || fail "HAZEWAVE_CLI_HTTPX_IMPORT_FAILED"
+hazewave-re-cli registry >/dev/null   || fail "HAZEWAVE_CLI_REGISTRY_SMOKE_FAILED"
 
 rea_version="$("$REA_BIN" --version 2>/dev/null | tail -n 1 | tr -d '\r')"
 rizin_version="$("$RIZIN_BIN" -v 2>/dev/null | sed -n '1p' | tr -d '\r')"
