@@ -19,3 +19,17 @@
 - All nine tasks use distinct Harness authorization/task IDs. Aggregation refuses incomplete/replayed cohorts; pass@1, pass@3 and observed pass^3 are computed only from completed groups of 3.
 - Model transport may fail or produce incorrect semantics. The result must be FAIL if any critical checks fail. There is no auto-promotion, owner media, artistic mastering claim, installed model on A15 or automatic rerun.
 - `HAZE_PROFESSIONAL=false`, `WAVE_PROFESSIONAL=false`, `PRODUCTION_APPROVED=false`.
+
+## Controlled model failure and bounded knowledge intervention
+
+First live multi-case Actions cohort [37858541806](https://github.com/zenindiones-maker/Hazewave-/actions/runs/37858541806), exact SHA `e55f0e901b365450921562b659761fdc54bae0b0`:
+- 9 real Qwen3-0.6B CPU-loopback responses, 3 cases x 3 attempts; model file and runtime hashes unchanged.
+- **Strict HAZE semantic verdict 0/9 (FAIL)**; pass@1 = pass@3 = observed pass^3 = 0.0. Exit 21 by design.
+- Categorized failure: `FINDING_MISMATCH` on all nine (3 gain, 3 silence, 3 clipping). The raw model answer is not stored, so further speculation about exact strings is unwarranted.
+- Original artifact [11584998908](https://github.com/zenindiones-maker/Hazewave-/actions/runs/37858541806/artifacts/11584998908), create-only receipt SHA-256 `3139e80b7a56b824bde9d743b1d619eb737570ea606fec126005b9fadea6b2d1`, 1,088 tokens, sum HTTP elapsed 8,752.86 ms. Audio FFmpeg controls remained PASS, not ML results.
+
+Targeted change on this branch: new `config/haze-slm-audio-evidence-knowledge-v1.json` with factual, source-versioned explanations of measurements for ALL cases, not an answer key; add its SHA-256 to receipts and only enum-level reported finding. Rationale: original numeric-only prompts lacked domain definitions. This is a **testable root-cause hypothesis**, not a proven causal attribution.
+
+New regression CI [37859251200](https://github.com/zenindiones-maker/Hazewave-/actions/runs/37859251200) **SUCCESS** Py3.12/3.14 at `ac73d4e92d2b9a9d1056dd60bbc40f67de0fc002`. Keep the original strict grade, negative controls, model GGUF SHA and runtime SHA unchanged.
+
+Next authorized experiment: exactly one bounded 3x3 live cohort on standard public GitHub Actions CPU to measure before-vs-after effects. **Never promote on the basis of a single improved run, and do not assert knowledge or model training occurred.** No A15 inference; no Colibri/Reflex changes, no new Codespace or paid runner.
