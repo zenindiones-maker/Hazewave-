@@ -59,6 +59,7 @@ for m in data["models"]:
     print("SIZE_METADATA_VERIFIED="+str(m["size_verified"]).upper())
     print("LICENSE_METADATA_VERIFIED="+str(m["license_metadata_verified"]).upper())
     print("CANDIDATE_ADMITTED_FOR_SMOKE="+str(m["candidate_admitted_for_smoke"]).upper())
+    print("LOCAL_MODEL_CANDIDATE="+m["name"] if m["candidate_admitted_for_smoke"] else "LOCAL_MODEL_CANDIDATE=BLOCKED")
 print("LOCAL_MODEL_IDENTITY=NOT_UPSTREAM_ATTESTED")
 print("MODEL_IS_SLM_PROVEN=FALSE")
 print("PRODUCTION_APPROVED=FALSE")
