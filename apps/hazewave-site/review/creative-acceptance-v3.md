@@ -42,7 +42,8 @@ REJEITADA COMO FINAL. A composição ficou mais limpa, mas a revisão de código
 - Identidade: oceanografia gráfica e deslocamento amplo de Aquaverno contrastam com o emblema original e camadas ósseas sob pressão de Hemorragia. Os títulos duplicados foram removidos.
 - Mobile: textos de orientação/ação ampliados; controles principais de 44–48 px; contraste inferior de Aquaverno revisto após reprovação da primeira composição.
 - Acesso e navegação: execução final Playwright com 26 PASS, 2 skips exclusivos do desktop. Foco, histórico, busca, reduced motion, perda de GPU e encerramento/reentrada no percurso cobertos.
-- Integridade: seis originais preservados byte a byte. Build e TypeScript PASS; core JS 25.742 bytes. Contratos do repositório PASS; suíte Python 196 PASS e uma falha preexistente de recuperação de supervisor, sem alterações nessa área.
+- Retorno: instruções e sinais do campo reaparecem somente ao fim da travessia reversa; o foco sai do botão de mundo antes de ele ficar inativo.
+- Integridade: seis originais preservados byte a byte. Build e TypeScript PASS; core JS 25.931 bytes. Contratos do repositório PASS; suíte Python 196 PASS e uma falha preexistente de recuperação de supervisor, sem alterações nessa área.
 - Revisão por agente: inspeção atualizada de fontes e capturas não encontrou outro bloqueio específico. A revisão não viu a gravação completa e não substitui a aprovação criativa do owner.
 
 Decisão: candidato apto à revisão visual do owner no escopo testado. Não equivale a aprovação de produção, classificação estética objetiva, teste em A15/Safari ou comprovação de FPS de hardware. Reprodução imediata permanece indisponível até o fornecimento de faixas autorizadas.

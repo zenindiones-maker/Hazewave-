@@ -192,10 +192,22 @@ export function bootLivingField(): void {
         status.textContent = artist
           ? `Você entrou no universo de ${artist.name}.`
           : "Você voltou ao campo Hazewave.";
+        if (!id && !instant) {
+          (
+            lastSelected ??
+            document.querySelector<HTMLButtonElement>(
+              '[data-primary-action="explore"]',
+            )
+          )?.focus({ preventScroll: true });
+        }
       },
       instant || motion.matches,
     );
     if (id && !instant) back.focus({ preventScroll: true });
+    else if (!id && !instant)
+      document
+        .querySelector<HTMLButtonElement>('[data-primary-action="explore"]')!
+        .focus({ preventScroll: true });
   };
   const enter = (button: HTMLButtonElement) => {
     stopJourney();

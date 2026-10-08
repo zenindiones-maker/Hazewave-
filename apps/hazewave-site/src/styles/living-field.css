@@ -1050,3 +1050,10 @@ input:focus-visible {
   .world-switch { font-size:11px;letter-spacing:.06em; }
   .signal-label b { font-size:10px; }
 }
+/* Home instructions return only when the original field is fully present. */
+.living-field[data-transitioning="true"] .field-invitation,
+.living-field[data-transitioning="true"] .field-intro,
+.living-field[data-transitioning="true"] .field-index,
+.living-field[data-transitioning="true"] .signal-field {
+  opacity:0;visibility:hidden;pointer-events:none;
+}
