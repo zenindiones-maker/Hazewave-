@@ -64,7 +64,7 @@ C
   cc -O0 -g -fno-omit-frame-pointer -o "$stage/fixture" "$stage/fixture.c" || deny "FIXTURE_COMPILE_FAILED"
   "$REA_BIN" function "$stage/fixture" main --provider ghidra --json > "$stage/main.json" || deny "GHIDRA_FUNCTION_QUERY_FAILED"
   chmod 0600 "$stage/main.json"
-  "$HAZEWAVE_RE_PYTHON" -m hazewave.rea6_integration verify-evidence \
+  PYTHONPATH="$ROOT/src" "$HAZEWAVE_RE_PYTHON" -m hazewave.rea6_integration verify-evidence \
     --target "$stage/fixture" --evidence "$stage/main.json" > "$stage/evidence-check.json" || deny "GHIDRA_NATIVE_EVIDENCE_INVALID"
   chmod 0600 "$stage/evidence-check.json"
   echo "REA6_GHIDRA_SOURCE_OWNED_BINARY_SHA256=$(sha256sum "$stage/fixture" | cut -d' ' -f1)"
