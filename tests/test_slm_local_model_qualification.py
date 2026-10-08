@@ -196,3 +196,14 @@ def test_private_checkpoint_is_create_only_and_owner_only(tmp_path: Path):
     assert path.stat().st_mode & 0o077 == 0
     with pytest.raises(ModelQualificationError,match="RECEIPT_EXISTS"):
         write_private_result(path,receipt)
+
+
+def test_ollama_transport_uses_local_host_only_and_denies_redirects():
+    from hazewave.slm_local_model_qualification import _RefuseRedirect, BASE_URL
+    from urllib.request import Request
+    assert BASE_URL == "http://127.0.0.1:11434"
+    blocked = _RefuseRedirect().redirect_request(
+        Request(BASE_URL + "/api/tags"), None, 302, "Found", {},
+        "http://169.254.169.254/latest/meta-data"
+    )
+    assert blocked is None

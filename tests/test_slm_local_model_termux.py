@@ -47,3 +47,18 @@ def test_host_probe_has_exact_private_prior_audio_source_and_no_automatic_fallba
     assert '--expected-digest' in data
     assert '--model "$MODEL"' in data
     assert 'HAZE_MODEL_PRODUCTION_APPROVED=FALSE' in data
+
+
+def test_existing_codespace_evidence_transfer_is_attested_and_only_synthetic():
+    data=CTRL.read_text()
+    assert "gh codespace ssh -c" in data
+    assert 'gh api "user/codespaces/$CS"' in data
+    assert '"Available"' in data
+    assert "hazewave-zero-cost-4jxp45676rq6279xx" in data
+    assert "os.O_NOFOLLOW" in data
+    assert "os.fstat(" in data
+    assert "base64.b64decode" in data
+    assert "TRANSFER_INTEGRITY_MISMATCH" in data
+    assert "REMOTE_SYNTHETIC_EVIDENCE_UNAVAILABLE" in data
+    assert "LOCAL_MODEL_CANDIDATE" in data
+    assert "REAL_MODEL_RESPONSE=PASS" in data
