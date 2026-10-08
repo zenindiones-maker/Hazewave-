@@ -33,3 +33,15 @@ Targeted change on this branch: new `config/haze-slm-audio-evidence-knowledge-v1
 New regression CI [37859251200](https://github.com/zenindiones-maker/Hazewave-/actions/runs/37859251200) **SUCCESS** Py3.12/3.14 at `ac73d4e92d2b9a9d1056dd60bbc40f67de0fc002`. Keep the original strict grade, negative controls, model GGUF SHA and runtime SHA unchanged.
 
 Next authorized experiment: exactly one bounded 3x3 live cohort on standard public GitHub Actions CPU to measure before-vs-after effects. **Never promote on the basis of a single improved run, and do not assert knowledge or model training occurred.** No A15 inference; no Colibri/Reflex changes, no new Codespace or paid runner.
+
+## Factual glossary tested — second real cohort still FAIL
+
+- Identical Qwen3-0.6B GGUF and llama.cpp source pin, run [37859378226](https://github.com/zenindiones-maker/Hazewave-/actions/runs/37859378226), exact SHA `72033699d80f70deeca3c775f93949429c008e76`.
+- 9 genuine model responses on three FFmpeg-owned synthetic cases (3x3); **0/9 strict PASS**, exit 21.
+- All nine grade errors **INVALID_RESPONSE_SCHEMA**, enum-only finding unavailable; the original artifact intentionally did not persist raw content so cannot yet tell whether JSON was malformed, fields were missing, or fields were unexpected.
+- Receipt artifact [11585273909](https://github.com/zenindiones-maker/Hazewave-/actions/runs/37859378226/artifacts/11585273909) SHA-256 `c4b6a24dc14b161eefe8f5893aecd63b9a9c4586d22c87c9ebd8ef2b8ab42259`.
+- Knowledge input source digest `d22c3afc11931684e562794b0984fe842df68bc83afe26d62e6549ba81c75011`; no quality uplift. More prompt tokens 256–257 per call vs 73–74 baseline, with no demonstrated benefit.
+- Targeted change: add a fixed `model_json_shape` enum and length metadata (no raw response text) plus one-case diagnostic mode. No invented model grade, no relaxed oracle, and no further full nine-call run until diagnosing the new failure class.
+- [CI 37860161897](https://github.com/zenindiones-maker/Hazewave-/actions/runs/37860161897) **SUCCESS** Py3.12 and 3.14 on code SHA `09140b959cc6fa7bf787c7829bd6ebeb2c2eadc2`.
+
+The only justified next inference is a SINGLE case on an ephemeral public GitHub Actions runner to learn whether the model output is JSON-invalid, wrong-key, or wrong-type. Diagnostic work can yield `MODEL_GRADE=FAIL` and still prove the tool executes. No old cohorts or FFmpeg proof reruns.
