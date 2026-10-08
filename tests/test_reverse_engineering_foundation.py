@@ -168,6 +168,23 @@ def test_codespace_installer_pins_rea_ghidra_frida_and_rizin_without_hopper() ->
     assert "reverse-engineering-install-receipt.json" in script
 
 
+
+def test_codespace_installer_bootstraps_pinned_user_local_node_for_rea() -> None:
+    script = (
+        ROOT / "scripts" / "codespaces" / "install-reverse-engineering-foundation.sh"
+    ).read_text(encoding="utf-8")
+
+    assert 'NODE_VERSION="24.11.0"' in script
+    assert 'NODE_ASSET="node-v24.11.0-linux-x64.tar.xz"' in script
+    assert 'NODE_SHA256="46da9a098973ab7ba4fca76945581ecb2eaf468de347173897044382f10e0a0a"' in script
+    assert 'https://nodejs.org/dist/v24.11.0/' in script
+    assert 'NODE_ROOT="$ROOT/node-$NODE_VERSION"' in script
+    assert 'export PATH="$NODE_ROOT/bin:$PATH"' in script
+    assert 'for cmd in curl sha256sum tar python3; do' in script
+    assert 'for cmd in curl sha256sum tar python3 npm node; do' not in script
+    assert 'npm install --prefix "$stage" --no-audit --no-fund "rea-agents@4.1.0"' in script
+    assert '"node": {"version_output": node_version, "pin": "24.11.0"' in script
+
 def test_specialist_charter_machine_policy_adopts_reverse_engineering_domains() -> None:
     specialists = json.loads(
         (ROOT / "config" / "creative-specialists-v1.json").read_text(encoding="utf-8")
