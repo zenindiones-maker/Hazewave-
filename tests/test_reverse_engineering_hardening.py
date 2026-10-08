@@ -117,4 +117,4 @@ def test_installer_only_claims_installed_not_runtime_ready() -> None:
     assert 'HAZEWAVE_RE_INSTALL=PASS' in script
     assert 'HAZEWAVE_RE_RUNTIME_READY=PASS' not in script
     assert '"$REA_BIN" doctor --json' in script
-    assert '"RE_DOCTOR_NONZERO"' in script
+    assert "RE_DOCTOR_NONZERO" in script
