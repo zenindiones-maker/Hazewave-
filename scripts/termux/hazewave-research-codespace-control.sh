@@ -5,7 +5,7 @@ set -euo pipefail
 die() { printf 'HAZEWAVE_CODESPACE_CONTROL=BLOCKED:%s\n' "$1" >&2; exit 20; }
 [[ "$#" -eq 1 ]] || die "EXPLICIT_MODE_REQUIRED"
 mode="$1"
-case "$mode" in --status|--audit|--start-existing) ;; *) die "MODE_UNSUPPORTED" ;; esac
+case "$mode" in --status|--inventory|--audit|--start-existing) ;; *) die "MODE_UNSUPPORTED" ;; esac
 
 CS="hazewave-zero-cost-4jxp45676rq6279xx"
 REPO="zenindiones-maker/Hazewave-"
@@ -38,6 +38,9 @@ if [[ "$mode" == "--start-existing" ]]; then
 fi
 
 [[ "$state" == "Available" ]] || die "CODESPACE_SHUTDOWN_START_REQUIRED"
+if [[ "$mode" == "--audit" && "${HAZEWAVE_FREE_COMPUTE_VERIFIED:-NO}" != "YES" ]]; then
+  die "FREE_COMPUTE_NOT_VERIFIED"
+fi
 EXPECTED="${HAZEWAVE_RESEARCH_EXPECTED_SHA:-}"
 [[ "$EXPECTED" =~ ^[0-9a-f]{40}$ ]] || die "REVIEWED_SHA_REQUIRED"
 remote_sha="$(gh api "repos/$REPO/git/ref/heads/$BRANCH" --jq '.object.sha')" || die "BRANCH_SHA_QUERY_FAILED"
@@ -47,7 +50,7 @@ echo "REVIEWED_SHA=$EXPECTED"
 echo "CODESPACE_NO_NEW_MACHINE=TRUE"
 # No op to start machine here. SSH existing instance and run a bounded
 # audited bash script over STDIN, not an interpolated user script.
-gh codespace ssh -c "$CS" -- "env HAZEWAVE_RESEARCH_EXPECTED_SHA=$EXPECTED bash -se" <<'REMOTE'
+gh codespace ssh -c "$CS" -- "env HAZEWAVE_RESEARCH_EXPECTED_SHA=$EXPECTED HAZEWAVE_RESEARCH_MODE=$mode bash -se" <<'REMOTE'
 set -euo pipefail
 umask 077
 CS="hazewave-zero-cost-4jxp45676rq6279xx"
@@ -98,6 +101,17 @@ run_step() {
 }
 run_step harness_inventory python3 -m hazewave.harness inventory
 run_step codespace_inventory bash scripts/codespaces/native-behavior-rea6-probe.sh --inventory
+if [[ "${HAZEWAVE_RESEARCH_MODE:-}" == "--inventory" ]]; then
+  echo "HAZEWAVE_RESEARCH_AUDIT_SCOPE=READ_ONLY_HOST_INVENTORY"
+  echo "HAZEWAVE_RESEARCH_AGENT_CONNECTION=NOT_TESTED"
+  echo "RESEARCH_LOG_DIRECTORY=$LOG"
+  if (( failures > 0 )); then
+    echo "HAZEWAVE_RESEARCH_AUDIT=INCOMPLETE"
+    exit 21
+  fi
+  echo "HAZEWAVE_RESEARCH_AUDIT=PASS"
+  exit 0
+fi
 run_step native_behavior bash scripts/codespaces/native-behavior-rea6-probe.sh --behavior
 run_step closed_loop_preflight bash scripts/codespaces/research-closed-loop-qualification.sh --preflight
 run_step automatic_reconstruction bash scripts/codespaces/research-closed-loop-qualification.sh --native-auto
