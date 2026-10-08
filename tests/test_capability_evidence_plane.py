@@ -71,6 +71,9 @@ def _signed_evidence(tmp_path: Path, *, tool: str = "iris", capability: str = "w
     trust = tmp_path / "trusted_signers"
     trust.write_text("hazewave-owner " + (tmp_path / "key.pub").read_text().strip() + "\n")
     trust.chmod(0o600)
+    artifact = tmp_path / "owned-fixture-log.txt"
+    artifact.write_text("HAZEWAVE_IRIS_FIXTURE=PASS\\nTOOL_CALL=PASS\\n")
+    artifact.chmod(0o600)
     evidence = {
         "schema": "HazewaveCapabilityRuntimeEvidence/v1",
         "authority": "HAZEWAVE_HARNESS", "issuer": "hazewave-owner",
@@ -82,7 +85,7 @@ def _signed_evidence(tmp_path: Path, *, tool: str = "iris", capability: str = "w
         "tool_call_observed": observed,
         "fixture_result": "PASS" if observed else "NOT_TESTED",
         "fixture_sha256": "c" * 64,
-        "evidence_sha256": "d" * 64,
+        "evidence_sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
         "benchmark": {
             "sample_count": sample_count, "quality_score": 0.88,
             "cost_usd": 0.0, "risk_score": 0.1,
@@ -101,15 +104,15 @@ def _signed_evidence(tmp_path: Path, *, tool: str = "iris", capability: str = "w
         check=True, capture_output=True,
     )
     (tmp_path / "evidence.json.sig").chmod(0o600)
-    return path, (tmp_path / "evidence.json.sig"), trust
+    return path, (tmp_path / "evidence.json.sig"), trust, artifact
 
 
 def test_signed_exact_bound_local_measurement_can_be_routed_without_prod_approval(tmp_path: Path) -> None:
-    evidence, sig, trust = _signed_evidence(tmp_path)
-    proof = verify_signed_runtime_evidence(evidence, sig, trust, now=NOW)
+    evidence, sig, trust, artifact = _signed_evidence(tmp_path)
+    proof = verify_signed_runtime_evidence(evidence, sig, trust, artifact=artifact, now=NOW)
     report = inventory(
         manifest=MANIFEST, host_id=CODESPACE, repo_sha=SHA,
-        binary_lookup=lambda name: "/bin/" + name, evidence_files=[proof], now=NOW,
+        binary_lookup=lambda name: "/bin/" + name, binary_fingerprint=lambda path: "b" * 64, evidence_files=[proof], now=NOW,
     )
     assert report["tools"]["iris"]["state"] == "MEASURED_READY"
     assert report["tools"]["iris"]["route_eligible"] is True
@@ -126,7 +129,7 @@ def test_signed_exact_bound_local_measurement_can_be_routed_without_prod_approva
     {"sample_count": 1},
 ])
 def test_wrong_host_stale_no_runtime_no_benchmark_cannot_route(tmp_path: Path, override: dict) -> None:
-    evidence, sig, trust = _signed_evidence(tmp_path, **override)
+    evidence, sig, trust, artifact = _signed_evidence(tmp_path, **override)
     if override.get("expires") is not None and override["expires"] <= NOW:
         with pytest.raises(CapabilityPlaneError, match="EVIDENCE_EXPIRED"):
             verify_signed_runtime_evidence(evidence, sig, trust, now=NOW)
@@ -134,7 +137,7 @@ def test_wrong_host_stale_no_runtime_no_benchmark_cannot_route(tmp_path: Path, o
     proof = verify_signed_runtime_evidence(evidence, sig, trust, now=NOW)
     report = inventory(manifest=MANIFEST, host_id=CODESPACE, repo_sha=SHA,
                        binary_lookup=lambda name: "/usr/bin/" + name,
-                       evidence_files=[proof], now=NOW)
+                       binary_fingerprint=lambda path: "b" * 64, evidence_files=[proof], now=NOW)
     assert not report["tools"]["iris"]["route_eligible"]
     with pytest.raises(CapabilityPlaneError, match="NO_OPERATIONALLY_VERIFIED_PROVIDER"):
         select_provider(report, "web.visual_regression", "WAVE")
@@ -151,9 +154,9 @@ def test_fake_json_without_valid_signature_rejected(tmp_path: Path) -> None:
 
 def test_malformed_or_untrusted_provider_cannot_win_selection(tmp_path: Path) -> None:
     e, sig, trust = _signed_evidence(tmp_path)
-    proof = verify_signed_runtime_evidence(e, sig, trust, now=NOW)
+    proof = verify_signed_runtime_evidence(e, sig, trust, artifact=artifact, now=NOW)
     report = inventory(manifest=MANIFEST, host_id=CODESPACE, repo_sha=SHA,
-                       binary_lookup=lambda x: "/usr/bin/" + x, evidence_files=[proof], now=NOW)
+                       binary_lookup=lambda x: "/usr/bin/" + x, binary_fingerprint=lambda path: "b" * 64, evidence_files=[proof], now=NOW)
     assert select_provider(report, "web.visual_regression", "WAVE")["quality_score"] == 0.88
     with pytest.raises(CapabilityPlaneError, match="CAPABILITY_DOMAIN_MISMATCH"):
         select_provider(report, "web.visual_regression", "HAZE")
