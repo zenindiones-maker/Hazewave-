@@ -261,3 +261,30 @@ def test_codespace_installer_avoids_head_sigpipe_under_pipefail() -> None:
 
     assert "| head -n 1" not in script
     assert "sed -n '1p'" in script
+
+
+def test_codespace_installer_provisions_isolated_hazewave_cli_runtime() -> None:
+    script = (
+        ROOT / "scripts" / "codespaces" / "install-reverse-engineering-foundation.sh"
+    ).read_text(encoding="utf-8")
+
+    assert 'SCRIPT_DIR=' in script
+    assert 'REPO_ROOT=' in script
+    assert 'CLI_VENV="$ROOT/hazewave-cli-venv"' in script
+    assert '"$CLI_VENV/bin/python" -m pip install' in script
+    assert '-e "$REPO_ROOT"' in script
+    assert 'export HAZEWAVE_RE_PYTHON="$CLI_VENV/bin/python"' in script
+    assert 'export HAZEWAVE_RE_REPO_ROOT="$REPO_ROOT"' in script
+    assert 'cat >"$BIN_ROOT/hazewave-re-cli"' in script
+    assert 'exec env PYTHONPATH="$HAZEWAVE_RE_REPO_ROOT/src' in script
+    assert '"$HAZEWAVE_RE_PYTHON" -m hazewave.cli reverse-engineering' in script
+
+
+def test_reverse_engineering_doctor_checks_governed_hazewave_cli_runtime() -> None:
+    script = (
+        ROOT / "scripts" / "codespaces" / "reverse-engineering-doctor.sh"
+    ).read_text(encoding="utf-8")
+
+    assert 'HAZEWAVE_RE_PYTHON' in script
+    assert 'hazewave-re-cli' in script
+    assert '"$HAZEWAVE_RE_PYTHON" -c "import httpx"' in script
