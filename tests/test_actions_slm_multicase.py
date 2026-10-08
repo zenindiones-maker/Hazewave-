@@ -149,7 +149,7 @@ def test_prompt_never_exposes_answer_bearing_oracle_case_ids():
     from hazewave import actions_slm_multicase as mod
     src=inspect.getsource(mod.perform_multicase)
     assert 'prompt=f"case_id={case}' not in src
-    assert "metric={metric_key}" in src
+    assert "build_specialist_audio_prompt(metric_key,value)" in src
 
 
 def test_generic_ci_skips_only_real_media_fixture_if_ffmpeg_not_installed():
