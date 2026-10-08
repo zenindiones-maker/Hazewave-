@@ -5,6 +5,8 @@ This runbook is subordinate to `AGENTS.md`, the project profile and the HAZE/WAV
 ## Operating boundary
 
 - Use the **existing** Hazewave Codespace. Do not create another, resize, add paid services or overwrite the active Reflex/HAZE/WAVE branches.
+- REA 6.0.0 is a **side-by-side candidate**: its environment is `~/.config/hazewave/reverse-engineering-rea6.env`; launch it through `hazewave-rea6` and `hazewave-re6-cli`. The legacy global `rea` command, `reverse-engineering.env` and older wrappers must remain untouched.
+- GitHub Actions proving published npm 6.0.0 is distinct from a real Codespace installation and an actual connected MCP client.
 - Do not run analysis of a target without a specific authorization and actual target digest.
 - Tool authority = NONE; HAZEWAVE_HARNESS alone approves scope. REA/Ghidra/Rizin/Frida are analyzers, never control-plane authorities.
 - Never confuse a CI pass, an installed command, `rea doctor` success and a successful real target analysis.
@@ -28,7 +30,7 @@ bash scripts/codespaces/reverse-engineering-doctor.sh
 bash scripts/codespaces/reverse-engineering-doctor.sh --deep
 ```
 
-The installer records a local installation receipt with `runtime_ready=false`; its own PASS means **installation only**. The standard doctor must exit zero. The deep analysis of harmless `/bin/true` currently writes the raw Ghidra/REA response but **deliberately exits nonzero as `RE_DEEP_EVIDENCE_SCHEMA_UNVERIFIED`**. A nonempty JSON response is not proof of a valid semantic analysis. Do not report runtime readiness until a future reviewed adapter verifies the actual REA 4.1.0 evidence schema, target digest, selected Ghidra provider and at least one real function/symbol analysis against the output observed on the existing Codespace. Retain output for this inspection; no forced retry loop, no stock changes.
+The installer records a local installation receipt with `runtime_ready=false`; its own PASS means **installation only**. The standard doctor must exit zero. The REA 6.0.0 `--deep` check now compiles a small **Hazewave-owned ELF fixture**, asks the explicitly selected Ghidra provider to inspect `main`, and validates the returned direct Evidence envelope against the target SHA-256 and known upstream schema. Any missing evidence, wrong provider, wrong digest, absent memory headroom or tool failure is fail-closed; retain output for inspection. A passing deep doctor establishes a bounded on-host Ghidra fixture proof, **not** agent MCP connectivity, arbitrary target authorization or production approval. No forced retry loop, no stock changes.
 
 Install receipt and provider diagnostics remain local to `~/.local/share/hazewave/reverse-engineering`. Never copy secrets, target binaries, decompiled output or private media into Git.
 
@@ -74,7 +76,7 @@ ssh-keygen -Y sign -f /path/to/owner-private-ed25519 -n hazewave-research-grant 
 Move only `approved-grant.json`, `approved-grant.json.sig` and the explicitly authorized target to the work environment. They must be regular files, owner-owned, mode 0600 for both grant and signature. Do not symlink the target or trust files.
 
 ```bash
-hazewave-re-cli plan \
+hazewave-re6-cli plan \
   --domain HAZE \
   --target-kind audio_plugin \
   --purpose AUTHORIZED_FEATURE_STUDY \

@@ -104,10 +104,10 @@
     {
       "tool_id": "rea",
       "name": "REA: Reverse Engineer Anything",
-      "version": "4.1.0",
+      "version": "6.0.0",
       "source_repository": "morluto/rea",
       "source_type": "NPM_PUBLISHED_RELEASE",
-      "package": "rea-agents@4.1.0",
+      "package": "rea-agents@6.0.0",
       "license_id": "MIT",
       "cost_class": "FREE_OPEN_SOURCE",
       "roles": [

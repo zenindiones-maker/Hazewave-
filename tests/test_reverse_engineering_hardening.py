@@ -118,7 +118,7 @@ def test_installer_only_claims_installed_not_runtime_ready() -> None:
     script = (ROOT / "scripts/codespaces/install-reverse-engineering-foundation.sh").read_text()
     assert 'HAZEWAVE_RE_INSTALL=PASS' in script
     assert 'HAZEWAVE_RE_RUNTIME_READY=PASS' not in script
-    assert '"$REA_BIN" doctor --json' in script
+    assert '"$REA_BIN" doctor --provider ghidra --json' in script
     assert "RE_DOCTOR_NONZERO" in script
 
 
@@ -158,6 +158,9 @@ def test_symlink_to_target_is_rejected(signed_case: dict, tmp_path: Path) -> Non
 def test_deep_probe_does_not_promote_nonempty_json_to_runtime_proven() -> None:
     script = (ROOT / "scripts/codespaces/reverse-engineering-doctor.sh").read_text()
     assert 'len(raw) < 64' not in script
-    assert "HAZEWAVE_RE_DEEP_PROBE=OBSERVED_UNVERIFIED" in script
-    assert "HAZEWAVE_RE_DEEP_PROBE=PASS" not in script
-    assert "RE_DEEP_EVIDENCE_SCHEMA_UNVERIFIED" in script
+    assert "REA6_SOURCE_OWNED_FIXTURE" in script
+    assert "rea function" in script
+    assert "main --provider ghidra --json" in script
+    assert "-m hazewave.rea6_integration verify-evidence" in script
+    assert "RE_DEEP_EVIDENCE_NOT_VERIFIED" in script
+    assert "len(raw) < 64" not in script
