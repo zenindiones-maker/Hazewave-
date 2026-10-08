@@ -103,8 +103,11 @@ def test_model_request_requires_digest_bound_synthetic_evidence_and_real_chat(tm
         trial_id="live-trial-000001"
     )
     assert result["schema"] == "HazewaveLocalAudioInferenceProof/v3"
-    assert result["real_model_request_observed"] is True
-    assert result["real_model_response_observed"] is True
+    # A mocked transport never proves that a model actually ran.
+    assert result["real_model_request_observed"] is False
+    assert result["real_model_response_observed"] is False
+    assert result["model_response_observed"] is True
+    assert result["transport_provenance"] == "INJECTED_TEST_DOUBLE"
     assert result["harness_authorization"] == "PASS"
     assert result["evidence_validation"] == "PASS"
     assert result["verifier_result"] == "PASS"
