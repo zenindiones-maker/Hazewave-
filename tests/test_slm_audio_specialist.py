@@ -192,3 +192,13 @@ def test_invalid_trial_id_fails_before_model_invocation(tmp_path: Path):
         with pytest.raises(SLMAudioSpecialistError, match="TRIAL_ID_INVALID"):
             execute_audio_specialist(**args, trial_id=trial_id)
     assert not called
+
+
+def test_reference_model_result_does_not_claim_slm_or_certify_size(tmp_path: Path):
+    def executor(**kw):
+        return _response(kw["authorization"], GOOD)
+    report = execute_audio_specialist(**_args(tmp_path, executor))
+    assert report["model_size_verified"] is False
+    assert report["model_is_slm_proven"] is False
+    assert report["model_reference_only"] is True
+    assert report["model_improvement_proven"] is False

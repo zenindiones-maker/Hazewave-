@@ -29,7 +29,7 @@ def test_registry_has_real_specialists_without_inventing_model_qualification():
     assert ids == ["HAZE_AUDIO_QC", "WAVE_VISUAL_QC", "RE_NATIVE_ANALYSIS"]
     haze, wave, native = registry["specialists"]
     assert haze["model_id"] == "oc/mimo-v2.6-flash-free"
-    assert haze["model_classification"] == "UNVERIFIED_PARAMETER_COUNT"
+    assert haze["model_classification"] == "UNVERIFIED_ROUTER_ALIAS_LARGE_FAMILY_RISK"
     assert haze["qualification"] == "AVAILABLE"
     assert wave["model_id"] is None
     assert native["model_id"] is None
@@ -41,11 +41,13 @@ def test_registry_has_real_specialists_without_inventing_model_qualification():
 
 def test_haze_evaluation_proposal_is_not_executable_authority():
     r = select_specialist(auth(), domain="HAZE", requested_workflow="audio.qc",
-                          risk="LOW", data_classification="PUBLIC")
+                          risk="LOW", data_classification="PUBLIC",
+                          require_small_model=False)
     assert r["decision"] == "EVALUATION_CANDIDATE"
     assert r["specialist_id"] == "HAZE_AUDIO_QC"
     assert r["model_id"] == "oc/mimo-v2.6-flash-free"
     assert r["execution_authorized"] is False
+    assert r["reference_only"] is True
     assert r["production_approved"] is False
     assert r["reason"] == "LIVE_ADMISSION_AND_COMPETENCE_NOT_PROVEN"
 
@@ -179,3 +181,26 @@ def test_incomplete_repetitions_cannot_claim_pass_power_k():
     assert result["pass_at_k"] is None
     assert result["pass_power_k"] is None
     assert result["repeat_count_per_case"] is None
+
+
+def test_slm_first_abstains_from_unverified_large_family_alias():
+    result = select_specialist(
+        auth(), domain="HAZE", requested_workflow="audio.qc",
+        risk="LOW", data_classification="PUBLIC"
+    )
+    assert result["decision"] == "ABSTAIN"
+    assert result["reason"] == "SLM_SIZE_AND_ROUTER_ALIAS_NOT_VERIFIED"
+    assert result["model_id"] is None
+    assert result["execution_authorized"] is False
+
+
+def test_registry_provenance_does_not_equate_router_alias_to_xiaomi_checkpoint():
+    row = load_specialist_registry(REGISTRY)["specialists"][0]
+    assert row["reference_role"] == "EXPERIMENTAL_UNVERIFIED_SIZE_NOT_SLM"
+    assert row["upstream_family"]["official_model_url"] == (
+        "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Flash-RL"
+    )
+    assert row["upstream_family"]["reported_total_parameters"] == 309_000_000_000
+    assert row["upstream_family"]["reported_active_parameters"] == 15_000_000_000
+    assert row["upstream_family"]["exact_router_alias_mapping_verified"] is False
+    assert row["production_approved"] is False
