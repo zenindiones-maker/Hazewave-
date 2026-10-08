@@ -1,0 +1,52 @@
+name: Harness capability evidence guard
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/harness-capability-evidence.yml"
+      - "config/capability-evidence-plane-v1.json"
+      - "src/hazewave/capability_plane.py"
+      - "tests/test_capability_evidence_plane.py"
+
+permissions:
+  contents: read
+
+jobs:
+  fail-closed-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run signed evidence integrity and readiness regression suite
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python -m pip install pytest==8.4.2
+          python -m pytest tests/test_capability_evidence_plane.py -q
+      - name: Prove inventory without signed local attestation is NOT READY
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python -m hazewave.capability_plane inventory \
+            --host-id "github-actions-disposable-worker" \
+            --repo-sha "$GITHUB_SHA" > "$RUNNER_TEMP/capability-inventory.json"
+          python - "$RUNNER_TEMP/capability-inventory.json" <<'PY'
+          import json, sys
+          r = json.load(open(sys.argv[1]))
+          assert r["authority"] == "HAZEWAVE_HARNESS"
+          assert r["coverage"]["total_harness_capabilities"] >= 100
+          assert r["coverage"]["tools_declared"] >= 10
+          assert r["coverage"]["operational_ready"] == 0
+          assert r["coverage"]["ready_percent"] == 0
+          assert all(not x["route_eligible"] for x in r["tools"].values())
+          assert r["production_approved"] is False
+          print("CAPABILITY_MANIFEST_VALID=PASS")
+          print("CAPABILITY_OPERATIONAL_READY=0")
+          print("CAPABILITY_CODESPACE_RUNTIME=NOT_TESTED")
+          print("CAPABILITY_PRODUCTION_AUTHORIZATION=NOT_GRANTED")
+          PY
