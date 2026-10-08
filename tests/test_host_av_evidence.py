@@ -144,6 +144,6 @@ def test_duplicate_json_keys_fail_closed(tmp_path: Path):
     log, receipt = proof(tmp_path)
     lines = log.read_text().splitlines()
     lines[1] = lines[1].replace('"source": ', '"source": "fake", "source": ', 1)
-    log.write_text("\\n".join(lines) + "\\n")
+    log.write_text("\n".join(lines) + "\n")
     with pytest.raises(HostAvEvidenceError, match="INVALID_JSON"):
         inspect(log, receipt)
