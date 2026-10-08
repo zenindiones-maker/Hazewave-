@@ -29,12 +29,13 @@ bash scripts/codespaces/install-av-research-open-tools.sh --preflight
 # Optional explicit install of bounded FOSS image/video/editorial core:
 bash scripts/codespaces/install-av-research-open-tools.sh --core
 bash scripts/codespaces/install-av-research-open-tools.sh --doctor
+bash scripts/codespaces/install-av-research-open-tools.sh --smoke
 
 # Music extensions, ONLY after AGPL-3 review and resource admission:
 # HAZEWAVE_ACCEPT_AGPL3=yes bash scripts/codespaces/install-av-research-open-tools.sh --music
 ```
 
-Installation uses a **separate venv**, strict direct-package pins, wheel-only installs, no privileged apt/npm process and zero automatic GPU/model downloads. It does not modify Reflex or install new Codespaces. `--doctor` verifies pinned Python packages/import/owned image fixture, **not full runtime QA or agent connectivity**. Log the pip install reports and version receipts. Review transitive dependency versions/metadata before promoting to any canonical runtime; these pip reports alone are not a comprehensive, hash-locked supply-chain guarantee.
+Installation uses a **separate venv**, strict direct-package pins, wheel-only installs, no privileged apt/npm process and zero automatic GPU/model downloads. It does not modify Reflex or install new Codespaces. `--doctor` verifies pinned Python packages/import/owned image fixture. The new explicit `--smoke` command executes actual local FFmpeg-generated WAV/MP4, PySceneDetect, Pillow and editorial analysis, then writes a 0600 JSON receipt under `~/.local/state/hazewave/av-research/runtime-proofs/`. The receipt includes synthetic fixture SHA-256 values, measured acoustic/visual/timing results, tool versions, elapsed wall time, max RSS and free disk. It explicitly sets owner-signed real-media study, stock health, REA6 MCP connectivity, human artistic approval and production approval to NOT_PROVEN/NOT_TESTED/false. A valid smoke result proves only synthetic analyzer behavior on the host where it ran, **not** full professional QA or agent connectivity. Log the pip install reports and version receipts. Review transitive dependency versions/metadata before promoting to any canonical runtime; these pip reports alone are not a comprehensive, hash-locked supply-chain guarantee.
 
 ## Real evidence production
 
