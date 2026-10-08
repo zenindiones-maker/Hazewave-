@@ -96,3 +96,16 @@ jobs:
           print("IRIS_HARNESS_LIVE_MCP=NOT_TESTED")
           print("IRIS_CODESPACE_INSTALLED=NOT_TESTED")
           PY
+
+      - name: Prove Iris MCP tool catalog and inline PNG on owned fixture
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python -m hazewave.iris_mcp_fixture_probe \
+            --workspace "$GITHUB_WORKSPACE" \
+            --iris "$IRIS_RUNNER_BINARY" \
+            --chrome "$IRIS_CHROME"
+          echo "IRIS_MCP_TEMPORARY_RUNNER=PASS"
+          echo "IRIS_OWNER_HARNESS_MCP=NOT_CONNECTED"
+          echo "IRIS_CODESPACE_RUNTIME=NOT_TESTED"
