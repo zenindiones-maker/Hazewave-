@@ -61,15 +61,15 @@ if [[ "$DEEP" -eq 1 ]]; then
 import json, sys
 path, target_sha = sys.argv[1:]
 data = json.load(open(path, encoding="utf-8"))
-raw = json.dumps(data)
-if not raw or len(raw) < 64:
+if not isinstance(data, dict) or not data:
     raise SystemExit(1)
-# The exact REA Evidence schema is provider/version specific. Keep the target
-# digest beside the immutable output rather than inventing a field REA may not expose.
+# This records an observed response. The REA 4.1.0 evidence schema must be
+# independently checked against the actual runtime output before claiming PASS.
 print(f"HAZEWAVE_RE_DEEP_TARGET_SHA256={target_sha}")
 PY
   chmod 600 "$ROOT/doctor/deep-probe.json"
-  echo "HAZEWAVE_RE_DEEP_PROBE=PASS"
+  echo "HAZEWAVE_RE_DEEP_PROBE=OBSERVED_UNVERIFIED"
+  fail "RE_DEEP_EVIDENCE_SCHEMA_UNVERIFIED"
 fi
 
 chmod 600   "$ROOT/doctor/hazewave-registry.json"   "$ROOT/doctor/providers.json"   "$ROOT/doctor/doctor.json"
