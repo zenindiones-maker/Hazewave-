@@ -8,7 +8,7 @@ fail() { printf 'HAZEWAVE_LLAMA_FACTORY=BLOCKED:%s\n' "$1" >&2; exit 20; }
 
 [[ $# -eq 1 ]] || fail "EXPLICIT_MODE_REQUIRED"
 case "$1" in
-  --preflight|--install|--doctor|--training-preflight) mode="$1" ;;
+  --preflight|--install|--doctor|--runtime-doctor|--training-preflight) mode="$1" ;;
   *) fail "MODE_NOT_ADMITTED" ;;
 esac
 [[ "${CODESPACE_NAME:-}" == "hazewave-zero-cost-4jxp45676rq6279xx" ]] || fail "WRONG_CODESPACE"
@@ -92,6 +92,19 @@ fi
 [[ -f "$ENV_PY" ]] || fail "ISOLATED_PACKAGE_NOT_INSTALLED"
 "$PY" -m hazewave.llamafactory_install doctor --python "$ENV_PY" \
   || fail "INSTALLED_METADATA_DRIFT"
+if [[ "$mode" == "--runtime-doctor" ]]; then
+  # Real Python import + installed PEP376 RECORD file hash verification.
+  # Missing Torch/Transformers is diagnosed as CLI NOT READY; never install
+  # heavyweight dependencies or attempt model training here.
+  "$PY" -m hazewave.llamafactory_runtime_probe doctor \
+    --python "$ENV_PY" \
+    --receipt-root "$HOME/.local/state/hazewave/llamafactory/runtime-receipts" \
+    || fail "RUNTIME_INTEGRITY_DIAGNOSTIC_FAILED"
+  echo "LLAMA_FACTORY_TRAINING=NOT_PROVEN"
+  echo "LLAMA_FACTORY_EXISTING_AGENT_CONNECTION=NOT_PROVEN"
+  exit 0
+fi
+
 if [[ "$mode" == "--doctor" ]]; then
   echo "HAZEWAVE_LLAMA_DOCTOR=PASS:DISTRIBUTION_METADATA"
   echo "LLAMA_FACTORY_TRAINING=NOT_PROVEN"
