@@ -72,6 +72,33 @@ jobs:
           print("WAVE_SCENE_CUT_RUNTIME=PASS")
           print("AV_RESEARCH_CODESPACE=NOT_TESTED")
           PY
+      - name: Run owner-synthetic integrated proof and inspect durable receipt
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          root="$(mktemp -d)"
+          python -m hazewave.av_runtime_proof --state-root "$root" | tee "$RUNNER_TEMP/av-integrated-proof.log"
+          python - "$root" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+          records = list((Path(sys.argv[1]) / "av-research" / "runtime-proofs").glob("*.json"))
+          assert len(records) == 1, records
+          receipt = json.loads(records[0].read_text())
+          assert receipt["status"] == "PASS:OWNED_SYNTHETIC_FIXTURES", receipt
+          for label in ("haze_audio_qc", "wave_video_qc", "wave_scene_detection",
+                        "wave_image_decode", "wave_editorial"):
+              assert receipt["measurements"][label]["status"] == "PASS", label
+          assert receipt["owner_signed_study"] == "NOT_PROVEN"
+          assert receipt["stock_health"] == "NOT_TESTED"
+          assert receipt["rea6_mcp_connected"] == "NOT_TESTED"
+          assert receipt["production_approved"] is False
+          assert records[0].stat().st_mode & 0o077 == 0
+          print("AV_RESEARCH_INTEGRATED_RUNTIME_FIXTURE=PASS")
+          print("AV_RESEARCH_CODESPACE=NOT_TESTED")
+          print("AV_RESEARCH_HUMAN_CREATIVE_REVIEW=NOT_GRANTED")
+          PY
       - name: Exercise actual decoder, editable timeline and scene imports
         env:
           PYTHONPATH: src
