@@ -175,6 +175,65 @@ def inventory_local_ollama(
     }
 
 
+
+def inspect_ninerouter_models(*, receipt: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Use the existing pinned/expiry-checked router policy; never call a model.
+
+    Model IDs and semantic admission receipts are NOT weights identity proof,
+    nor total parameter count evidence.
+    """
+    from hazewave import ninerouter
+    from hazewave.harness import HazewaveTask, issue_authorization, route_task
+
+    source = receipt if receipt is not None else ninerouter.load_9router_admission_receipt()
+    if not isinstance(source, dict):
+        return {
+            "receipt_present": False, "models": [],
+            "router_binding_verified": False, "professional_approved": False,
+        }
+    listing = source.get("execution_admitted_models")
+    if not isinstance(listing, list) or len(listing) > 100:
+        return {
+            "receipt_present": True, "models": [],
+            "router_binding_verified": False, "professional_approved": False,
+            "blocker": "ROUTER_ADMISSION_LIST_INVALID",
+        }
+    grant = issue_authorization(route_task(HazewaveTask(
+        task_id="slm-local-discovery-v3", goal="Inspect pinned 9Router policy only",
+        required_capability="reason.general", requested_domain="HAZE"
+    )))
+    out = []
+    for model in sorted(set(str(v) for v in listing)):
+        if not re.fullmatch(r"oc/[a-z0-9][a-z0-9.-]{1,90}", model):
+            continue
+        try:
+            admission = ninerouter.evaluate_9router_admission(
+                authorization=grant, model_id=model, receipt=source,
+                data_classification="PUBLIC"
+            )
+            status = admission.reason
+            permitted = admission.allowed is True
+        except Exception:
+            status = "ADMISSION_POLICY_UNVERIFIED"
+            permitted = False
+        out.append({
+            "model_id": model,
+            "admitted_for_free_public_task": permitted,
+            "admission_reason": status,
+            "upstream_checkpoint_verified": False,
+            "total_parameters_verified": False,
+            "slm_qualified": False,
+            "professional": False,
+            "production_approved": False,
+        })
+    return {
+        "receipt_present": True, "models": out,
+        "router_binding_verified": any(m["admitted_for_free_public_task"] for m in out),
+        "professional_approved": False,
+        "model_aliases_are_not_checkpoint_evidence": True,
+    }
+
+
 def _available_memory_bytes() -> int:
     try:
         for line in Path("/proc/meminfo").read_text().splitlines():
@@ -333,7 +392,22 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.inventory:
-            outcome = inventory_local_ollama()
+            try:
+                outcome = inventory_local_ollama()
+                outcome["local_runtime_blocker"] = None
+            except ModelQualificationError as exc:
+                # Inventory remains useful even if the A15 runs only 9Router:
+                # absence of Ollama is a BLOCKER, not a forged empty PASS.
+                outcome = {
+                    "schema": "HazewaveLocalModelInventory/v3",
+                    "harness_authority": "HAZEWAVE_HARNESS",
+                    "runtime_available": False,
+                    "total_models_installed": 0,
+                    "models": [],
+                    "local_runtime_blocker": str(exc),
+                    "professional_approved": False,
+                }
+            outcome["remote_9router"] = inspect_ninerouter_models()
         else:
             if not all((args.model, args.expected_digest, args.log, args.receipt,
                         args.reviewed_sha, args.log_sha256, args.receipt_sha256, args.output)):

@@ -51,7 +51,7 @@ chmod 600 "$INVENTORY"
 "$BASE/.venv/bin/python" - "$INVENTORY" <<'PY'
 import json, pathlib, sys
 data=json.loads(pathlib.Path(sys.argv[1]).read_text())
-print("LOCAL_MODEL_INVENTORY=PASS")
+print("LOCAL_MODEL_INVENTORY=" + ("PASS" if data["runtime_available"] else "BLOCKED:LOCAL_RUNTIME_UNAVAILABLE"))
 print("EXISTING_MODEL_COUNT="+str(data["total_models_installed"]))
 for m in data["models"]:
     print("MODEL_NAME="+m["name"])
@@ -63,6 +63,13 @@ for m in data["models"]:
 print("LOCAL_MODEL_IDENTITY=NOT_UPSTREAM_ATTESTED")
 print("MODEL_IS_SLM_PROVEN=FALSE")
 print("PRODUCTION_APPROVED=FALSE")
+router=data.get("remote_9router",{})
+print("ROUTER_ADMISSION_RECEIPT_PRESENT="+str(router.get("receipt_present", False)).upper())
+for row in router.get("models", []):
+    print("ROUTER_MODEL_ID="+row["model_id"])
+    print("ROUTER_PUBLIC_FREE_ADMITTED="+str(row["admitted_for_free_public_task"]).upper())
+    print("ROUTER_ADMISSION_REASON="+row["admission_reason"])
+print("ROUTER_ALIAS_IDENTITY_VERIFIED=FALSE")
 PY
 if [[ "$MODE" == "--inventory" ]]; then
   echo "HAZEWAVE_SLM_V3_INVENTORY=EXECUTED_READ_ONLY"
