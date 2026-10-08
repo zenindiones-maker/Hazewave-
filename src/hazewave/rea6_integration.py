@@ -134,3 +134,46 @@ def inspect_ghidra_evidence(
         "runtime_proven": False,
         "notes": "Shape and digest validated; live provider execution not attested.",
     }
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI verifier for recorded, source-owned Ghidra fixture Evidence only.
+
+    Arbitrary target studies must follow the independent signed-grant pathway.
+    No provider process is launched and no external agent is registered here.
+    """
+    import argparse
+    import hashlib
+    import json
+    import stat
+    import sys
+
+    parser = argparse.ArgumentParser(prog="python -m hazewave.rea6_integration")
+    commands = parser.add_subparsers(dest="command", required=True)
+    verify = commands.add_parser("verify-evidence")
+    verify.add_argument("--target", type=Path, required=True)
+    verify.add_argument("--evidence", type=Path, required=True)
+    args = parser.parse_args(argv)
+    try:
+        for path in (args.target, args.evidence):
+            if not path.is_absolute() or path.is_symlink():
+                raise Rea6ContractError("REA6_ABSOLUTE_REGULAR_FILE_REQUIRED")
+            if not stat.S_ISREG(path.stat(follow_symlinks=False).st_mode):
+                raise Rea6ContractError("REA6_ABSOLUTE_REGULAR_FILE_REQUIRED")
+        if args.evidence.stat().st_size > 4 * 1024 * 1024:
+            raise Rea6ContractError("REA6_EVIDENCE_SIZE_LIMIT")
+        target_sha = hashlib.sha256(args.target.read_bytes()).hexdigest()
+        evidence = json.loads(args.evidence.read_text(encoding="utf-8"))
+        receipt = inspect_ghidra_evidence(evidence, expected_sha256=target_sha)
+        # The verifier cannot authenticate process identity; runtime proof
+        # requires separately bound provider execution evidence.
+        print(json.dumps(receipt, sort_keys=True, separators=(",", ":")))
+        print("REA6_EVIDENCE_SHAPE=PASS")
+        return 0
+    except (Rea6ContractError, OSError, ValueError, TypeError) as exc:
+        print(f"REA6_EVIDENCE_SHAPE=BLOCKED:{type(exc).__name__}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
