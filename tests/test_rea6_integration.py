@@ -159,3 +159,27 @@ def test_rea6_side_by_side_install_does_not_overwrite_v4_agent_config() -> None:
     assert 'ln -sfn "$REA_BIN" "$REA_PREFIX/bin/rea"' in script
     assert 'rea6-providers.json' in script
     assert 'rea6-doctor.json' in script
+
+
+def test_rea6_native_function_dossier_without_locations_is_not_false_negative():
+    """REA's own Evidence schema permits empty locations for a function dossier."""
+    evidence = _evidence()
+    evidence["operation"] = "analyze_function"
+    evidence["normalized_result"] = {
+        "procedure": {"address": "0x401000", "name": "main"},
+        "assembly": ["401000: push rbp", "401001: mov rbp, rsp"],
+        "pseudocode": "int main(void) { return 0; }",
+    }
+    evidence["locations"] = []
+    result = inspect_ghidra_evidence(evidence, expected_sha256=TARGET)
+    assert result["state"] == "EVIDENCE_VALIDATED"
+    assert result["operation"] == "analyze_function"
+
+
+def test_rea6_native_function_dossier_must_contain_real_function_identity_if_no_locations():
+    evidence = _evidence()
+    evidence["operation"] = "analyze_function"
+    evidence["normalized_result"] = {"procedure": {"address": "", "name": "main"}, "assembly": []}
+    evidence["locations"] = []
+    with pytest.raises(Rea6ContractError, match="REA6_FUNCTION_DOSSIER"):
+        inspect_ghidra_evidence(evidence, expected_sha256=TARGET)
