@@ -37,10 +37,10 @@ def test_script_syntax_and_explicit_existing_host_only() -> None:
     assert SCRIPT.is_file()
     data = SCRIPT.read_text()
     assert subprocess.run(["bash", "-n", str(SCRIPT)], capture_output=True).returncode == 0
-    for token in ("--status", "--audit", "--start-existing",
+    for token in ("--status", "--inventory", "--audit", "--start-existing",
                   "hazewave-zero-cost-4jxp45676rq6279xx",
                   "work/native-auto-synthesis-av-qa-v1",
-                  "CODESPACE_STATE=Shutdown",
+                  'echo "CODESPACE_STATE=$state"',
                   "HAZEWAVE_FREE_COMPUTE_VERIFIED",
                   "CODESPACE_SHUTDOWN_START_REQUIRED",
                   "git -C \"$BASE\" worktree add --detach",
@@ -89,3 +89,29 @@ def test_start_existing_only_with_explicit_gate(tmp_path: Path) -> None:
     assert proc.returncode == 0, proc.stderr
     assert "CODESPACE_START_ATTEMPTED=EXISTING_ONLY" in proc.stdout
     assert "CODESPACE_NEW_MACHINE=FORBIDDEN" in proc.stdout
+
+
+def test_available_host_inventory_does_not_need_paid_execution_override(tmp_path: Path) -> None:
+    env = _fake_gh(tmp_path)
+    env["FAKE_CODESPACE_STATE"] = "Available"
+    env["HAZEWAVE_RESEARCH_EXPECTED_SHA"] = "f94b9aadd8ead34ed7c0157b645d8295e7fd07dd"
+    marker = tmp_path / "ssh.marker"
+    env["FAKE_MARKER_FILE"] = str(marker)
+    proc = subprocess.run(["bash", str(SCRIPT), "--inventory"], env=env,
+                          text=True, capture_output=True, timeout=15)
+    assert proc.returncode == 0, proc.stderr
+    assert "CODESPACE_STATE=Available" in proc.stdout
+    assert marker.exists()
+
+
+def test_heavy_research_audit_requires_verified_budget_even_if_host_is_running(tmp_path: Path) -> None:
+    env = _fake_gh(tmp_path)
+    env["FAKE_CODESPACE_STATE"] = "Available"
+    env["HAZEWAVE_RESEARCH_EXPECTED_SHA"] = "f94b9aadd8ead34ed7c0157b645d8295e7fd07dd"
+    marker = tmp_path / "ssh.marker"
+    env["FAKE_MARKER_FILE"] = str(marker)
+    proc = subprocess.run(["bash", str(SCRIPT), "--audit"], env=env,
+                          text=True, capture_output=True, timeout=15)
+    assert proc.returncode == 20
+    assert "FREE_COMPUTE_NOT_VERIFIED" in proc.stderr
+    assert not marker.exists()
