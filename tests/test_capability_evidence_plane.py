@@ -134,7 +134,7 @@ def test_wrong_host_stale_no_runtime_no_benchmark_cannot_route(tmp_path: Path, o
         with pytest.raises(CapabilityPlaneError, match="EVIDENCE_EXPIRED"):
             verify_signed_runtime_evidence(evidence, sig, trust, artifact=artifact, now=NOW)
         return
-    proof = verify_signed_runtime_evidence(evidence, sig, trust, now=NOW)
+    proof = verify_signed_runtime_evidence(evidence, sig, trust, artifact=artifact, now=NOW)
     report = inventory(manifest=MANIFEST, host_id=CODESPACE, repo_sha=SHA,
                        binary_lookup=lambda name: "/usr/bin/" + name,
                        binary_fingerprint=lambda path: "b" * 64, evidence_files=[proof], now=NOW)
@@ -149,7 +149,7 @@ def test_fake_json_without_valid_signature_rejected(tmp_path: Path) -> None:
     record["benchmark"]["quality_score"] = 1.0
     evidence.write_text(json.dumps(record))
     with pytest.raises(CapabilityPlaneError, match="EVIDENCE_SIGNATURE_INVALID"):
-        verify_signed_runtime_evidence(evidence, sig, trust, now=NOW)
+        verify_signed_runtime_evidence(evidence, sig, trust, artifact=artifact, now=NOW)
 
 
 def test_malformed_or_untrusted_provider_cannot_win_selection(tmp_path: Path) -> None:
