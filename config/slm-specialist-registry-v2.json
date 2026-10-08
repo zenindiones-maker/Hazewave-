@@ -1,0 +1,94 @@
+{
+  "schema": "HazewaveSpecialistRegistry/v2",
+  "version": "2026-10-08",
+  "authority": "HAZEWAVE_HARNESS",
+  "status": "EXPERIMENTAL_PROPOSALS_ONLY",
+  "promotion_policy": "NO_SELF_PROMOTION",
+  "specialists": [
+    {
+      "id": "HAZE_AUDIO_QC",
+      "harness_authority": "HAZEWAVE_HARNESS",
+      "authority": "NONE",
+      "domain": "HAZE",
+      "workflow": "audio.qc",
+      "model_id": "oc/mimo-v2.6-flash-free",
+      "model_classification": "UNVERIFIED_PARAMETER_COUNT",
+      "qualification": "AVAILABLE",
+      "professional": false,
+      "production_approved": false,
+      "tools": [
+        "ffmpeg:volumedetect:prior-owned-synthetic-receipt-readonly"
+      ],
+      "knowledge_refs": [
+        "config/slm-audio-specialist-v1.json"
+      ],
+      "evaluation_suite": "tests/test_slm_audio_specialist.py",
+      "max_attempts": 1,
+      "exclusions": [
+        "owner_media",
+        "autonomous_mastering",
+        "production_publish",
+        "install_or_train",
+        "privileged_tool_call"
+      ],
+      "max_output_tokens": 256,
+      "max_single_call_seconds": 75,
+      "allowed_data_classifications": [
+        "PUBLIC"
+      ],
+      "evidence_state": "CODE_INTEGRATED_LIVE_SLM_NOT_PROVEN"
+    },
+    {
+      "id": "WAVE_VISUAL_QC",
+      "harness_authority": "HAZEWAVE_HARNESS",
+      "authority": "NONE",
+      "domain": "WAVE",
+      "workflow": "visual.qc",
+      "model_id": null,
+      "model_classification": "NO_QUALIFIED_MODEL",
+      "qualification": "AVAILABLE",
+      "professional": false,
+      "production_approved": false,
+      "tools": [
+        "ffmpeg:ssim:prior-owned-synthetic-receipt-readonly"
+      ],
+      "knowledge_refs": [
+        "config/creative-specialists-v1.json"
+      ],
+      "evaluation_suite": "tests/test_av_fidelity_oracle.py",
+      "max_attempts": 1,
+      "exclusions": [
+        "model_inference_not_tested",
+        "production_approval",
+        "publish"
+      ],
+      "evidence_state": "TOOL_EXECUTED_SLM_NOT_INTEGRATED"
+    },
+    {
+      "id": "RE_NATIVE_ANALYSIS",
+      "harness_authority": "HAZEWAVE_HARNESS",
+      "authority": "NONE",
+      "domain": "RE",
+      "workflow": "reverse.native.inspect",
+      "model_id": null,
+      "model_classification": "NO_QUALIFIED_MODEL",
+      "qualification": "AVAILABLE",
+      "professional": false,
+      "production_approved": false,
+      "tools": [
+        "ghidra:owned-elf:function-inspection"
+      ],
+      "knowledge_refs": [
+        "config/reverse-engineering-foundation-v1.json"
+      ],
+      "evaluation_suite": "tests/test_native_behavior_synthesis.py",
+      "max_attempts": 1,
+      "exclusions": [
+        "general_source_recovery",
+        "arbitrary_external_binary",
+        "production_approval"
+      ],
+      "evidence_state": "BOUNDED_ELF_PROOF_NO_SLM_MODEL_INTEGRATION"
+    }
+  ]
+}
