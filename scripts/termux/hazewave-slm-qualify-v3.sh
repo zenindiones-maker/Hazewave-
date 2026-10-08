@@ -98,6 +98,95 @@ for path in "$HOME"/.local/state/hazewave/slm-specialist-proof-v1/session.*/audi
     FOUND_RECEIPT="$paired"
   fi
 done
+
+if [[ "$MATCH_COUNT" -eq 0 ]]; then
+  # Host-proven fixture is absent on A15: fetch ONLY those two bounded,
+  # hash-pinned files from the one EXISTING authenticated Codespace.
+  CS="hazewave-zero-cost-4jxp45676rq6279xx"
+  CS_STATE="$(gh api "user/codespaces/$CS" --jq '.state' 2>/dev/null)" || fail CODESPACE_STATE_QUERY_FAILED
+  CS_OWNER="$(gh api "user/codespaces/$CS" --jq '.repository.full_name' 2>/dev/null)" || fail CODESPACE_REPO_QUERY_FAILED
+  [[ "$CS_OWNER" == "$REPO" ]] || fail CODESPACE_REPO_MISMATCH
+  [[ "$CS_STATE" == "Available" ]] || fail CODESPACE_SHUTDOWN_NOT_ADMITTED
+  TRANSFER="$RUN/transfer.json"
+  if ! timeout --kill-after=5s 75s gh codespace ssh -c "$CS" -- 'python3 -' > "$TRANSFER" <<'REMOTE'
+import base64, hashlib, json, os, stat, subprocess
+from pathlib import Path
+if os.environ.get("CODESPACES") != "true":
+    raise SystemExit("CODESPACE_RUNTIME_IDENTITY_INVALID")
+valid={
+    "https://github.com/zenindiones-maker/Hazewave-",
+    "https://github.com/zenindiones-maker/Hazewave-.git",
+    "git@github.com:zenindiones-maker/Hazewave-",
+    "git@github.com:zenindiones-maker/Hazewave-.git",
+}
+origin=subprocess.run(
+    ["git","-C","/workspaces/Hazewave-","remote","get-url","origin"],
+    text=True,capture_output=True,check=True,timeout=10
+).stdout.strip()
+if origin not in valid:
+    raise SystemExit("CODESPACE_REPOSITORY_IDENTITY_INVALID")
+root=Path.home()/".local/state/hazewave"
+log=root/"audits/2d779b38cfa0d8b093160b9df5b7b130a13fa538/av_synthetic_fixture.log"
+records=root/"research-lab"
+log_digest="0a5c4f3ba77a8e13ad3aa7dcad91f2853cfb6058d262e763381715749d07cfe4"
+record_digest="9dc6f17a60a4406dd2a233cb719a8e6145ca0a1533dd052173e7d408aa03b3b6"
+def secure(path):
+    fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|
+               getattr(os,"O_CLOEXEC",0)|getattr(os,"O_NONBLOCK",0))
+    with os.fdopen(fd,"rb") as stream:
+        st=os.fstat(stream.fileno())
+        if not stat.S_ISREG(st.st_mode) or st.st_uid!=os.geteuid() or st.st_mode&0o077 or not 0<st.st_size<2097153:
+            raise SystemExit("CODESPACE_EVIDENCE_PERMISSIONS_INVALID")
+        data=stream.read(2097153)
+        if len(data)!=st.st_size:
+            raise SystemExit("CODESPACE_EVIDENCE_SIZE_MISMATCH")
+        return data
+log_data=secure(log)
+if hashlib.sha256(log_data).hexdigest()!=log_digest:
+    raise SystemExit("CODESPACE_LOG_DIGEST_MISMATCH")
+matches=[]
+for p in records.glob("av-metrics-*/av-receipt-*.json"):
+    if p.is_symlink():
+        continue
+    try:
+        blob=secure(p)
+    except OSError:
+        continue
+    if hashlib.sha256(blob).hexdigest()==record_digest:
+        matches.append(blob)
+if len(matches)!=1:
+    raise SystemExit("CODESPACE_RECEIPT_UNIQUE_MATCH_FAILED")
+print(json.dumps({"log":base64.b64encode(log_data).decode("ascii"),
+                  "receipt":base64.b64encode(matches[0]).decode("ascii")}))
+REMOTE
+  then
+    fail REMOTE_SYNTHETIC_EVIDENCE_UNAVAILABLE
+  fi
+  "$BASE/.venv/bin/python" - "$TRANSFER" "$RUN" "$OLD" "$LOG_SHA" "$REC_SHA" <<'PY'
+import base64, hashlib, json, pathlib, sys
+src,root,rev,log_hash,rec_hash=pathlib.Path(sys.argv[1]),pathlib.Path(sys.argv[2]),*sys.argv[3:]
+payload=json.loads(src.read_bytes())
+if set(payload)!={"log","receipt"}:
+    raise SystemExit("TRANSFER_SCHEMA_MISMATCH")
+paths=(
+    ("log", root/"audits"/rev/"av_synthetic_fixture.log",log_hash),
+    ("receipt", root/"research-lab"/"av-metrics-imported"/"av-receipt-owned.json",rec_hash)
+)
+for key,path,expected in paths:
+    data=base64.b64decode(payload[key],validate=True)
+    if hashlib.sha256(data).hexdigest()!=expected:
+        raise SystemExit("TRANSFER_INTEGRITY_MISMATCH")
+    path.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
+    path.write_bytes(data)
+    path.chmod(0o600)
+src.unlink()
+print("SYNTHETIC_EVIDENCE_TRANSFER=VERIFIED_ONLY")
+PY
+  FOUND_LOG="$RUN/audits/$OLD/av_synthetic_fixture.log"
+  FOUND_RECEIPT="$RUN/research-lab/av-metrics-imported/av-receipt-owned.json"
+  MATCH_COUNT=1
+fi
+
 [[ "$MATCH_COUNT" -eq 1 ]] || fail PREVIOUS_SYNTHETIC_EVIDENCE_NOT_IMPORTED_OR_AMBIGUOUS
 OUT="$RUN/local-audio-model-receipt.json"
 if ! PYTHONPATH="$WT/src" timeout --kill-after=5s 100s \

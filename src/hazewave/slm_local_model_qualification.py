@@ -19,7 +19,7 @@ import sys
 import time
 from typing import Any, Callable
 from urllib.error import HTTPError, URLError
-from urllib.request import ProxyHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 from hazewave.harness import HazewaveTask, issue_authorization, route_task, validate_authorization
 from hazewave.host_av_evidence import verify_host_av_evidence
@@ -38,6 +38,13 @@ class ModelQualificationError(ValueError):
     pass
 
 
+class _RefuseRedirect(HTTPRedirectHandler):
+    """Prevent compromised local API from redirecting to public/private networks."""
+    def redirect_request(self, req: Request, fp: Any, code: int,
+                         msg: str, headers: Any, newurl: str) -> None:
+        return None
+
+
 def _direct_loopback_request(method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
     if (method, path) not in {
         ("GET", "/api/tags"), ("POST", "/api/show"), ("POST", "/api/chat")
@@ -48,7 +55,7 @@ def _direct_loopback_request(method: str, path: str, payload: dict[str, Any] | N
                       headers={"Content-Type": "application/json"} if body else {})
     try:
         # ProxyHandler({}) forbids HTTP_PROXY from redirecting a local request.
-        with build_opener(ProxyHandler({})).open(
+        with build_opener(ProxyHandler({}), _RefuseRedirect()).open(
             request, timeout=_TIMEOUT_SECONDS if path == "/api/chat" else 8
         ) as response:
             raw = response.read(_MAX_BYTES + 1)
