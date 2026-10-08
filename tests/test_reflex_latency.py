@@ -72,7 +72,7 @@ def test_latency_policy_validates_against_schema() -> None:
     assert loaded["provider_authority"] == "NONE"
 
 
-def test_exec_server_routes_explicit_engine_binary_through_coli_engine_flag(
+def test_exec_server_routes_explicit_engine_binary_through_pinned_coli_env_contract(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -121,10 +121,10 @@ def test_exec_server_routes_explicit_engine_binary_through_coli_engine_flag(
 
     argv = captured["argv"]
     assert isinstance(argv, list)
-    assert argv[argv.index("--engine") + 1] == str(derived.resolve())
+    assert "--engine" not in argv
     env = captured["env"]
     assert isinstance(env, dict)
-    assert "COLI_ENGINE" not in env
+    assert env["COLI_ENGINE"] == str(derived.resolve())
 
     stderr = capsys.readouterr().err
     assert f"REFLEX_LATENCY_ENGINE_BIN={derived.resolve()}" in stderr
