@@ -213,6 +213,39 @@ benchmarks, resource budget and failure receipts. **Do not bulk-install or
 bulk-register the 114 unmapped capabilities.** Never touch BR-no-GTA,
 the Reflex stock runtime or the existing Hazewave branch in use.
 
+## Scientific reverse-engineering loop — HAZE / WAVE / REA / Iris
+
+Read `docs/runbooks/REVERSE_ENGINEERING_SCIENTIFIC_LOOP_V1.md` before
+calling a research capability. Do not mistake tools listed in a catalog
+for installed tools, or installed tools for task-authorized, behaviorally
+verified, agent-connected, or production-ready capabilities.
+
+The **first-party** native behavioral synthesis pilot
+(`hazewave.native_behavior_synthesis`) infers a piecewise model from
+*observed executable I/O*, generates C, compiles and checks all 2001
+accepted integer inputs in [-1000,1000]. Its evidence is
+`EXHAUSTIVE_WITHIN_EXPLICIT_FINITE_DOMAIN`, never arbitrary binary
+decompilation, automatic Ghidra-guided generation or mathematical
+equivalence for unconstrained inputs. REA6 Ghidra function Evidence
+from PR #36 is independently qualified, and must not be silently
+relabeled as participating in that synthesis until explicitly measured.
+
+HAZE and WAVE must prove every new metric using both a matching
+reference and a deliberately damaged synthetic target. The
+`hazewave.av_fidelity_oracle` proves FFmpeg loudness-level difference
+and FFV1/SSIM video difference only. It is not a subjective evaluation
+of a mix, a voice clone, cartoon quality, animation or a website.
+Do not use owner voice, private artist media or third-party content
+without an exact task-scoped grant and an explicit human quality gate.
+
+On the existing Codespace only, use the reviewed SHA-pinned
+`scripts/codespaces/research-closed-loop-qualification.sh` modes
+`--preflight`, `--native-auto`, and `--av-metrics`. Do not run
+them in BR-no-GTA, restart the stock Colibri, create a second
+Codespace, make paid installations or globally register raw Iris MCP.
+Actual agent client MCP discovery/calls and owner-signed host receipts
+remain separate from GitHub CI.
+
 ## Setup
 
 Development checkout:
