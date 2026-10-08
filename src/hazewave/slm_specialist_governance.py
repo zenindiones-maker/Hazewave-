@@ -143,6 +143,8 @@ def evaluate_reliability(reports: list[Mapping[str, Any]], *, min_trials: int = 
     seen: set[str] = set()
     case_ids: set[str] = set()
     hashes: set[str] = set()
+    case_successes: dict[str, list[bool]] = {}
+    case_digest: dict[str, str] = {}
     current_model: str | None = None
     current_sha: str | None = None
     successes = 0
@@ -174,6 +176,9 @@ def evaluate_reliability(reports: list[Mapping[str, Any]], *, min_trials: int = 
             raise SpecialistGovernanceError("SOURCE_SHA_INVALID")
         case_ids.add(case)
         hashes.add(digest)
+        if case in case_digest and case_digest[case] != digest:
+            raise SpecialistGovernanceError("CASE_DIGEST_MISMATCH")
+        case_digest[case] = digest
         model = row.get("model_id")
         if not isinstance(model, str) or not model.startswith("oc/") or model == "oc/auto":
             raise SpecialistGovernanceError("MODEL_COHORT_MISMATCH")
@@ -195,9 +200,31 @@ def evaluate_reliability(reports: list[Mapping[str, Any]], *, min_trials: int = 
                 raise SpecialistGovernanceError("BENCHMARK_METRIC_INVALID")
             total_tokens += tokens
             total_latency_ms += _rate(result.get("elapsed_ms"))
-        successes += specialist["grade"] == "PASS"
+        succeeded = specialist["grade"] == "PASS"
+        successes += succeeded
+        case_successes.setdefault(case, []).append(succeeded)
         baseline_successes += baseline["grade"] == "PASS"
 
+    # Report pass@k (any of k successful) and observed pass^k
+    # (all k successful) ONLY when all cases have exactly k distinct
+    # attempts, with at least three distinct cases and three repetitions.
+    # Do not estimate repeated consistency from one observation per case.
+    repeated_k = (
+        len(next(iter(case_successes.values())))
+        if len(case_successes) >= 3 else None
+    )
+    complete_repeats = bool(
+        repeated_k is not None and repeated_k >= 3
+        and all(len(x) == repeated_k for x in case_successes.values())
+    )
+    pass_at_k = (
+        sum(any(xs) for xs in case_successes.values()) / len(case_successes)
+        if complete_repeats else None
+    )
+    pass_power_k = (
+        sum(all(xs) for xs in case_successes.values()) / len(case_successes)
+        if complete_repeats else None
+    )
     diversity = len(case_ids)
     status = ("INSUFFICIENT_CASE_DIVERSITY" if diversity < 3 or len(hashes) < 3
               else "OBSERVED_UNATTESTED_NOT_PROFESSIONAL")
@@ -212,6 +239,9 @@ def evaluate_reliability(reports: list[Mapping[str, Any]], *, min_trials: int = 
         "pass_at_1": successes / len(reports),
         "baseline_pass_at_1": baseline_successes / len(reports),
         "observed_pass_all_trials": successes == len(reports),
+        "repeat_count_per_case": repeated_k if complete_repeats else None,
+        "pass_at_k": pass_at_k,
+        "pass_power_k": pass_power_k,
         "measured_total_tokens": total_tokens,
         "sum_reported_latency_ms": total_latency_ms,
         "independently_attested": False,
@@ -220,6 +250,7 @@ def evaluate_reliability(reports: list[Mapping[str, Any]], *, min_trials: int = 
         "limits": [
             "No independent workload attestation or professional-grade holdout.",
             "Observed pass across repeats is not a guarantee of future consistency.",
+            "pass@k = cases with at least one success in k repeats; pass^k = cases with all k successes. No values for incomplete cohorts.",
             "No trust upgrade from model- or caller-supplied grade labels.",
         ]
     }
