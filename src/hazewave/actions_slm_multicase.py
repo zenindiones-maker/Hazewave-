@@ -301,7 +301,20 @@ def _payload(prompt: str, model: str, seed: int) -> dict[str, Any]:
         "chat_template_kwargs":{"enable_thinking":False},
         "response_format":{"type":"json_schema","schema":choice_schema()},
         "messages":[
-            {"role":"system","content":"Classify audio defects from measured numeric facts only. No tools. Answer one JSON object with four fields; request human review."},
+            {"role":"system","content":(
+                "You classify bounded synthetic audio measurements. NO TOOL CALLS. "
+                "Return ONLY one JSON object with EXACTLY four required keys: "
+                "finding (string), action (string), evidence_keys (one-element list of strings), "
+                "requires_human_review (boolean true). "
+                "Permitted finding values: ATTENUATION_DETECTED, SILENCE_DETECTED, "
+                "CLIPPING_DETECTED, NO_ISSUE_DETECTED. "
+                "Permitted action values: REVIEW_GAIN_STAGE, RESTORE_SIGNAL_PATH, "
+                "REDUCE_GAIN_OR_LIMIT, NO_ACTION. "
+                "evidence_keys must contain the input metric key exactly. "
+                "Select the finding and action by interpreting the provided measurement. "
+                "These alternatives are NOT the answer. No extra fields, prose, "
+                "Markdown, tool calls, approval or policy overrides."
+             )},
             {"role":"user","content":prompt}
         ],
     }
