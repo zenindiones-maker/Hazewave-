@@ -246,6 +246,29 @@ Codespace, make paid installations or globally register raw Iris MCP.
 Actual agent client MCP discovery/calls and owner-signed host receipts
 remain separate from GitHub CI.
 
+## LLaMA-Factory fine-tuning research candidate (not yet operational)
+
+The upstream `hiyouga/LlamaFactory` Apache-2.0 v0.9.5 distribution is
+approved only as a SHA256-pinned **isolated installation candidate**.
+Consult `config/llamafactory-training-policy-v1.json` and
+`docs/runbooks/LLAMAFACTORY_ISOLATED_HARNESS_V1.md`.
+
+Distribution `INSTALLED` is not `CLI_RUNTIME_READY`, `GPU_TRAINING_READY`,
+`HAZE_AUDIO_ENGINE_READY`, `WAVE_VIDEO_ENGINE_READY`, or an agent
+integration. Do not route it as a qualified provider, download weights,
+ingest private owner media, install Torch/Transformers globally, start
+model training or automatically register MCP. The existing Codespace
+must separately prove installation and resource admission; CI only
+proves execution on its own ephemeral runner.
+
+The private `hazewave.learning_dataset_bridge` can convert first-party,
+synthetic native/FFmpeg receipts into a **non-training** Alpaca schema
+preview. This is not a valid owner dataset or completed learning loop.
+Only a separately signed task, data/model rights, sufficient existing
+hardware, held-out accuracy and operator review can authorize training.
+No paid fallback, new Codespace, Colibri stock restart, source rebase,
+or BR-no-GTA modification.
+
 ## Setup
 
 Development checkout:
