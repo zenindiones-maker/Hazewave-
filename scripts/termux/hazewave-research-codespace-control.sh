@@ -5,14 +5,14 @@ set -euo pipefail
 die() { printf 'HAZEWAVE_CODESPACE_CONTROL=BLOCKED:%s\n' "$1" >&2; exit 20; }
 [[ "$#" -eq 1 ]] || die "EXPLICIT_MODE_REQUIRED"
 mode="$1"
-case "$mode" in --status|--inventory|--audit|--start-existing) ;; *) die "MODE_UNSUPPORTED" ;; esac
+case "$mode" in --status|--inventory|--av-fixture|--audit|--start-existing) ;; *) die "MODE_UNSUPPORTED" ;; esac
 
 CS="hazewave-zero-cost-4jxp45676rq6279xx"
 REPO="zenindiones-maker/Hazewave-"
 BRANCH="${HAZEWAVE_RESEARCH_REF:-work/native-auto-synthesis-av-qa-v1}"
 # Only these already-reviewed repository branches may be selected.
 case "$BRANCH" in
-  work/native-auto-synthesis-av-qa-v1|work/research-codespace-identity-authenticated-v1|work/provider-python-distribution-qualification-v1) ;;
+  work/native-auto-synthesis-av-qa-v1|work/research-codespace-identity-authenticated-v1|work/provider-python-distribution-qualification-v1|work/av-fixture-existing-codespace-v1) ;;
   *) die "UNREVIEWED_RESEARCH_REF" ;;
 esac
 command -v gh >/dev/null 2>&1 || die "GH_CLI_UNAVAILABLE"
@@ -68,7 +68,7 @@ CS="hazewave-zero-cost-4jxp45676rq6279xx"
 REPO="zenindiones-maker/Hazewave-"
 BRANCH="${HAZEWAVE_RESEARCH_REF:-work/native-auto-synthesis-av-qa-v1}"
 case "$BRANCH" in
-  work/native-auto-synthesis-av-qa-v1|work/research-codespace-identity-authenticated-v1|work/provider-python-distribution-qualification-v1) ;;
+  work/native-auto-synthesis-av-qa-v1|work/research-codespace-identity-authenticated-v1|work/provider-python-distribution-qualification-v1|work/av-fixture-existing-codespace-v1) ;;
   *) echo "REMOTE_RESEARCH_REF=BLOCKED"; exit 20 ;;
 esac
 BASE="/workspaces/Hazewave-"
@@ -135,6 +135,98 @@ if [[ "${HAZEWAVE_RESEARCH_MODE:-}" == "--inventory" ]]; then
     exit 21
   fi
   echo "HAZEWAVE_RESEARCH_AUDIT=PASS"
+  exit 0
+fi
+if [[ "${HAZEWAVE_RESEARCH_MODE:-}" == "--av-fixture" ]]; then
+  # Dedicated low-resource real HAZE/WAVE execution, not the heavyweight audit.
+  # FFmpeg is run only against the existing first-party 1s generated fixtures.
+  if command -v ffmpeg >/dev/null 2>&1; then
+    run_step av_synthetic_fixture timeout --kill-after=5s 150s bash scripts/codespaces/research-closed-loop-qualification.sh --av-metrics
+  else
+    echo "av_synthetic_fixture=BLOCKED:FFMPEG_UNAVAILABLE"
+    failures=$((failures+1))
+  fi
+  if (( failures > 0 )); then
+    echo "HAZEWAVE_AV_HOST_PROOF=BLOCKED:PREREQUISITES_OR_EXECUTION"
+    exit 21
+  fi
+  grep -Fxq "HAZEWAVE_AV_METRICS=PASS:OWNED_SYNTHETIC_ONLY" "$LOG/av_synthetic_fixture.log" || {
+    echo "HAZEWAVE_AV_HOST_PROOF=BLOCKED:ORACLE_RECEIPT_MISSING"
+    exit 21
+  }
+  python3 - "$LOG/av_synthetic_fixture.log" <<'PY'
+import hashlib
+import json
+import pathlib
+import re
+import stat
+import sys
+
+log = pathlib.Path(sys.argv[1])
+if log.is_symlink() or log.stat().st_mode & 0o077:
+    raise SystemExit("HAZEWAVE_AV_HOST_PROOF=BLOCKED:LOG_PERMISSIONS")
+data = log.read_bytes()
+records = []
+for line in data.splitlines():
+    if line.startswith(b"{"):
+        try:
+            obj = json.loads(line)
+        except ValueError:
+            raise SystemExit("HAZEWAVE_AV_HOST_PROOF=BLOCKED:INVALID_JSON")
+        if obj.get("schema") == "HazewaveSyntheticAudioVideoFidelity/v1":
+            records.append(obj)
+if len(records) != 1:
+    raise SystemExit("HAZEWAVE_AV_HOST_PROOF=BLOCKED:EVIDENCE_COUNT")
+r = records[0]
+required = {
+    "harness_authority": "HAZEWAVE_HARNESS",
+    "source": "OWNED_SYNTHETIC_MEDIA",
+    "actual_ffmpeg_executed": True,
+    "synthetic_audio_verified": True,
+    "synthetic_video_verified": True,
+    "owner_media_analyzed": False,
+    "agent_mcp_connected": False,
+    "capability_plane_ready": False,
+    "production_approved": False,
+}
+if any(r.get(k) != v for k, v in required.items()):
+    raise SystemExit("HAZEWAVE_AV_HOST_PROOF=BLOCKED:CLAIMS_INCONSISTENT")
+try:
+    delta = float(r["audio_attenuation_detected_db"])
+    same = float(r["identical_video_ssim"])
+    different = float(r["altered_video_ssim"])
+    digests = r["sample_hashes"]
+except (KeyError, ValueError, TypeError):
+    raise SystemExit("HAZEWAVE_AV_HOST_PROOF=BLOCKED:METRICS_MISSING")
+if not (10 <= delta <= 14 and 0.999 <= same <= 1 and 0 <= different < 0.99 and same > different):
+    raise SystemExit("HAZEWAVE_AV_HOST_PROOF=BLOCKED:NEGATIVE_CONTROL")
+if not all(isinstance(digests.get(k), str) and re.fullmatch(r"[0-9a-f]{64}", digests[k])
+           for k in ("reference_wav", "altered_wav", "reference_video", "altered_video")):
+    raise SystemExit("HAZEWAVE_AV_HOST_PROOF=BLOCKED:FIXTURE_HASH_MISSING")
+if not r.get("haze_authorization_id") or not r.get("wave_authorization_id"):
+    raise SystemExit("HAZEWAVE_AV_HOST_PROOF=BLOCKED:HARNESS_AUTH_MISSING")
+
+# The oracle separately persists its first-party JSON receipt with mode 0600.
+private = pathlib.Path.home() / ".local/state/hazewave/research-lab"
+normalized = (json.dumps(r, sort_keys=True) + "\n").encode()
+matches = []
+for file in private.glob("av-metrics-*/av-receipt-*.json"):
+    if (not file.is_symlink() and file.is_file() and file.stat().st_mode & 0o077 == 0
+            and file.read_bytes() == normalized):
+        matches.append(file)
+if len(matches) != 1:
+    raise SystemExit("HAZEWAVE_AV_HOST_PROOF=BLOCKED:DURABLE_RECEIPT_MISMATCH")
+print("HAZEWAVE_AV_LOG_SHA256=" + hashlib.sha256(data).hexdigest())
+print("HAZEWAVE_AV_RECEIPT_SHA256=" + hashlib.sha256(normalized).hexdigest())
+print("HAZEWAVE_AV_ATTENUATION_DB=" + str(delta))
+print("HAZEWAVE_AV_IDENTICAL_SSIM=" + str(same))
+print("HAZEWAVE_AV_DIFFERENT_SSIM=" + str(different))
+print("HAZEWAVE_AV_LOG=" + str(log))
+PY
+  echo "HAZEWAVE_AV_HOST_PROOF=PASS_SYNTHETIC_EXECUTION_ONLY"
+  echo "HAZEWAVE_AV_AGENT_MCP=NOT_PROVEN"
+  echo "HAZEWAVE_AV_PRODUCTION_APPROVED=FALSE"
+  echo "HAZEWAVE_STOCK_RESTART=NONE"
   exit 0
 fi
 run_step native_behavior bash scripts/codespaces/native-behavior-rea6-probe.sh --behavior
