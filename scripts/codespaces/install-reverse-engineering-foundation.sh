@@ -249,7 +249,7 @@ java_version="$(java -version 2>&1 | sed -n '1p' | tr -d '\r')"
 
 REA_ANALYSIS_PROVIDER=ghidra GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"   "$REA_BIN" providers --json >"$ROOT/rea-providers.json" || fail "REA_PROVIDERS_FAILED"
 set +e
-REA_ANALYSIS_PROVIDER=ghidra GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"   "$REA_BIN" doctor --json >"$ROOT/rea-doctor.json"
+REA_ANALYSIS_PROVIDER=ghidra GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"   "$REA_BIN" doctor --provider ghidra --json >"$ROOT/rea-doctor.json"
 rea_doctor_rc=$?
 set -e
 [[ "$rea_doctor_rc" -eq 0 ]] || echo "HAZEWAVE_RE_DIAGNOSTIC=RE_DOCTOR_NONZERO:$rea_doctor_rc"
