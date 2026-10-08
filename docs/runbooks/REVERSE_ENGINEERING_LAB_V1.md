@@ -28,7 +28,7 @@ bash scripts/codespaces/reverse-engineering-doctor.sh
 bash scripts/codespaces/reverse-engineering-doctor.sh --deep
 ```
 
-The installer records a local installation receipt with `runtime_ready=false`; its own PASS means **installation only**. The doctor must exit zero, and deep analysis of the harmless system `/bin/true` using the Ghidra provider must yield real evidence before claiming the analysis lane is operational. On failure, retain diagnostic outputs; no forced retry loop, no stock changes.
+The installer records a local installation receipt with `runtime_ready=false`; its own PASS means **installation only**. The standard doctor must exit zero. The deep analysis of harmless `/bin/true` currently writes the raw Ghidra/REA response but **deliberately exits nonzero as `RE_DEEP_EVIDENCE_SCHEMA_UNVERIFIED`**. A nonempty JSON response is not proof of a valid semantic analysis. Do not report runtime readiness until a future reviewed adapter verifies the actual REA 4.1.0 evidence schema, target digest, selected Ghidra provider and at least one real function/symbol analysis against the output observed on the existing Codespace. Retain output for this inspection; no forced retry loop, no stock changes.
 
 Install receipt and provider diagnostics remain local to `~/.local/share/hazewave/reverse-engineering`. Never copy secrets, target binaries, decompiled output or private media into Git.
 
