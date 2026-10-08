@@ -108,7 +108,7 @@ def training_readiness(
 
 def inspect_environment(python: Path) -> dict[str, Any]:
     path = Path(python)
-    if path.is_symlink() or not path.is_file():
+    if not path.is_file():
         raise LlamaFactoryError("PYTHON_RUNTIME_NOT_ADMITTED")
     code = (
         "import importlib.metadata as m,json;"
