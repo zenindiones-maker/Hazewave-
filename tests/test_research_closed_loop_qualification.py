@@ -32,3 +32,14 @@ def test_host_qualification_never_merges_installs_paid_tools_or_registers_global
                    "pip install","apt-get","npm install","codex mcp add",
                    "hazewave-reflex serve-stop","--no-sandbox","curl | bash"):
         assert banned not in script
+
+
+def test_formal_native_triangulation_is_guarded_by_real_ghidra_and_z3():
+    script=SCRIPT.read_text()
+    assert "--triangulate" in script
+    assert "Z3_PYTHON_BINDING_REQUIRED" in script
+    assert "REA6_BINARY_MISSING" in script
+    assert "GHIDRA_HEADLESS_MISSING" in script
+    assert "--formal --rea" in script
+    assert "GHIDRA_FORMAL_NATIVE_TRIANGULATION=PASS" in script
+    assert "PRODUCTION_APPROVED=FALSE" in script
