@@ -11,11 +11,12 @@
   },
   "dependencies": {
     "astro": "7.3.0",
-    "three": "0.186.0",
-    "gsap": "3.15.0"
+    "gsap": "3.15.0",
+    "three": "0.186.0"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
+    "@types/node": "^24.19.1",
     "@types/three": "0.186.0",
     "typescript": "^5.9.0"
   }

@@ -1,0 +1,47 @@
+{
+  "purpose": "Source-byte evidence for owner-supplied visual assets; no publication or music rights claim",
+  "assets": [
+    {
+      "asset": "/media/hazewave-world.jpg",
+      "owner_source": "1000861827.jpg",
+      "sha256": "0e89d371159947552a0c1ff5d36e856868680a03756a88d16a2c230dea1764ab",
+      "bytes": 378000,
+      "original_bytes_preserved": true
+    },
+    {
+      "asset": "/media/artists/barak-ozama-beats.png",
+      "owner_source": "1000788665.png",
+      "sha256": "b9b74659e15f4297b8b8a9185686ec149e64aff6dc6ddf0cebd50091fdd955c8",
+      "bytes": 228920,
+      "original_bytes_preserved": true
+    },
+    {
+      "asset": "/media/artists/indionesbala.webp",
+      "owner_source": "1001044236(1).webp",
+      "sha256": "e9c4c00ab903cfc583138e333c594fc8c99c9c868c691454f4e17744193246e4",
+      "bytes": 187234,
+      "original_bytes_preserved": true
+    },
+    {
+      "asset": "/media/artists/baazu.png",
+      "owner_source": "1000788325(2).png",
+      "sha256": "e19b2a5c5075aeaa819ee9d3b8642af0e213e3beff4d7455d43e81436afcba66",
+      "bytes": 288024,
+      "original_bytes_preserved": true
+    },
+    {
+      "asset": "/media/artists/aquaverno.jpg",
+      "owner_source": "1001084342.jpg",
+      "sha256": "4dc416c2085c8e4eec1463c31ffc3df82bdba59da5f2bcb863cd5834fb9c46ac",
+      "bytes": 661644,
+      "original_bytes_preserved": true
+    },
+    {
+      "asset": "/media/artists/hemorragia-cosmica.jpg",
+      "owner_source": "1001084321.jpg",
+      "sha256": "d70a836f978897bd0c3e044d0def854f26d3cd5bc280d339e8724d23586ef1b1",
+      "bytes": 121170,
+      "original_bytes_preserved": true
+    }
+  ]
+}

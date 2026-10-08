@@ -1,170 +1,310 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const REAL_ARTISTS = [
-  "Barak Ozama Beats",
-  "Indionesbala",
-  "Baazü",
-  "Aquaverno",
-  "Hemorragia Cósmica"
-] as const;
-
-async function fireWave(page: Page, xRatio = 0.7, yRatio = 0.52) {
-  const field = page.locator("#living-field");
-  const box = await field.boundingBox();
-  expect(box).not.toBeNull();
-  const x = box!.x + box!.width * xRatio;
-  const y = box!.y + box!.height * yRatio;
-  await page.mouse.click(x, y);
-  await expect(field).toHaveAttribute("data-wave-active", "true", { timeout: 2_000 });
+const ids = [
+  "barak-ozama-beats",
+  "indionesbala",
+  "baazu",
+  "aquaverno",
+  "hemorragia-cosmica",
+];
+async function ready(page: Page) {
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-field-runtime",
+    "webgl2",
+    { timeout: 15000 },
+  );
+}
+async function settled(page: Page) {
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-world-ready",
+    "true",
+    { timeout: 5000 },
+  );
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-transitioning",
+    "false",
+  );
 }
 
-test("Living Resonance Field owns the first viewport and old primary UI is absent", async ({ page }, testInfo) => {
+test("original artwork renders and all real artist signals are reachable", async ({
+  page,
+}, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
-
-  await expect(page.locator("#living-field")).toBeVisible();
-  await expect(page.locator("#hazewave-world-source")).toHaveAttribute(
-    "src",
-    "/media/hazewave-world.jpg.webp"
-  );
-  await expect(page.getByRole("heading", { name: "HAZEWAVE" })).toBeVisible();
-  await expect(page.getByText("Núcleo Sonoro Independente", { exact: true })).toBeVisible();
-  await expect(page.getByText("Santos", { exact: true })).toBeVisible();
-
-  await expect(page.getByRole("button", { name: "EXPLORE" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "LISTEN" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "SEARCH" })).toBeVisible();
-
-  await expect(page.locator("#resonance-deck")).toHaveCount(0);
-  await expect(page.locator("#player-wheel")).toHaveCount(0);
-  await expect(page.locator("[data-artist-cassette='true']")).toHaveCount(0);
-
-  await page.screenshot({ path: testInfo.outputPath("living-field-desktop.png"), fullPage: false });
-});
-
-test("production discovery exposes the five real owner-supplied artists and no DEMO authority", async ({ page }) => {
-  await page.goto("/");
+  await ready(page);
+  await expect(
+    page.getByRole("heading", { name: "HAZEWAVE", exact: true }),
+  ).toBeVisible();
   await expect(page.locator("[data-artist-signal]")).toHaveCount(5);
-
-  for (const artist of REAL_ARTISTS) {
-    await expect(page.getByRole("button", { name: new RegExp(artist, "i") })).toBeAttached();
-  }
-
-  const body = await page.locator("body").innerText();
-  expect(body).not.toContain("AETHER");
-  expect(body).not.toContain("MONOLITH");
-  expect(body).not.toContain("FLORA");
-  expect(body).not.toContain("DEMO CONTENT");
-});
-
-test("Wave-through-Haze disturbs the owner artwork and reveals a real artist signal", async ({ page }, testInfo) => {
-  await page.goto("/");
-  const field = page.locator("#living-field");
-  await expect(field).toHaveAttribute("data-field-runtime", /webgl2|css-fallback/, { timeout: 4_000 });
-
-  await fireWave(page, 0.62, 0.48);
-  await expect(page.locator("[data-artist-signal][data-revealed='true']")).toHaveCount(1, {
-    timeout: 2_000
-  });
-
-  await page.screenshot({ path: testInfo.outputPath("wave-through-haze.png"), fullPage: false });
-});
-
-test("Aquaverno emerges from the field and browser back restores Hazewave", async ({ page }, testInfo) => {
-  await page.goto("/");
-  await page.locator("[data-artist-signal='aquaverno']").click();
-
-  await expect(page.locator("html")).toHaveAttribute("data-active-artist", "aquaverno");
-  await expect(page.locator("[data-artist-world='aquaverno']")).toHaveAttribute("data-active", "true");
-  await expect(page.locator("[data-artist-world='aquaverno'] img")).toHaveAttribute(
-    "src",
-    "/media/artists/aquaverno.webp"
+  for (const selector of ["#hazewave-world-source", ".world-fallback-art"])
+    expect(
+      await page
+        .locator(selector)
+        .evaluateAll((images) =>
+          images.every(
+            (image) => (image as HTMLImageElement).naturalWidth >= 1000,
+          ),
+        ),
+    ).toBe(true);
+  for (const name of ["EXPLORE", "LISTEN", "SEARCH"])
+    await expect(
+      page.getByRole("button", { name: new RegExp(name) }),
+    ).toBeVisible();
+  expect(await page.locator("body").innerText()).not.toMatch(
+    /AETHER|MONOLITH|FLORA/,
   );
-  expect(new URL(page.url()).searchParams.get("artist")).toBe("aquaverno");
+  await expect(
+    page.locator("#resonance-deck,#player-wheel,[data-artist-cassette]"),
+  ).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath("living-field.png") });
+  expect(errors).toEqual([]);
+});
 
-  await expect(page.locator("#living-field")).toHaveAttribute("data-world-ready", "true", { timeout: 2_500 });
-  await expect(page.locator("#living-field")).toHaveAttribute("data-transitioning", "false", { timeout: 2_500 });
-  await page.screenshot({ path: testInfo.outputPath("artist-world-aquaverno.png"), fullPage: false });
+test("Wave refracts the actual GPU canvas and reveals an artist", async ({
+  page,
+}, info) => {
+  await page.goto("/");
+  await ready(page);
+  const before = await page.locator("canvas").screenshot();
+  const box = (await page.locator("#living-field").boundingBox())!;
+  await page.mouse.click(box.width * 0.54, box.height * 0.51);
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-wave-active",
+    "true",
+  );
+  await expect(
+    page.locator('[data-artist-signal][data-revealed="true"]'),
+  ).toHaveCount(1);
+  const after = await page.locator("canvas").screenshot();
+  expect(before.equals(after)).toBe(false);
+  await page.screenshot({ path: info.outputPath("wave-through-haze.png") });
+});
 
+test("artist entry, browser back and forward preserve route and world", async ({
+  page,
+}, info) => {
+  await page.goto("/");
+  await ready(page);
+  await page.locator('[data-artist-signal="aquaverno"]').click();
+  await expect(page).toHaveURL(/artist=aquaverno/);
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-transitioning",
+    "true",
+  );
+  await page.screenshot({ path: info.outputPath("aquaverno-transition.png") });
+  await settled(page);
+  await page.screenshot({ path: info.outputPath("aquaverno-world.png") });
+  await expect(page.locator('[data-artist-world="aquaverno"]')).toHaveAttribute(
+    "data-active",
+    "true",
+  );
   await page.goBack();
-  await expect(page.locator("html")).not.toHaveAttribute("data-active-artist", "aquaverno");
-  expect(new URL(page.url()).searchParams.get("artist")).toBeNull();
-});
-
-test("Hemorragia Cósmica is a materially different artist world, not a skin", async ({ page }, testInfo) => {
-  await page.goto("/?artist=hemorragia-cosmica");
-
-  await expect(page.locator("html")).toHaveAttribute("data-active-artist", "hemorragia-cosmica");
-  const world = page.locator("[data-artist-world='hemorragia-cosmica']");
-  await expect(world).toHaveAttribute("data-active", "true");
-  await expect(world).toHaveAttribute("data-world-system", "pressure-wire");
-  await expect(world.locator("img")).toHaveAttribute(
-    "src",
-    "/media/artists/hemorragia-cosmica.webp"
+  await settled(page);
+  await expect(page.locator('[data-artist-signal="aquaverno"]')).toBeFocused();
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-world-active",
+    "false",
   );
-  await expect(world.locator(".hemorragia-wire")).toHaveCount(3);
-
-  await expect(page.locator("#living-field")).toHaveAttribute("data-world-ready", "true", { timeout: 2_500 });
-  await page.screenshot({ path: testInfo.outputPath("artist-world-hemorragia-cosmica.png"), fullPage: false });
+  await page.goForward();
+  await settled(page);
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-active-artist",
+    "aquaverno",
+  );
 });
 
-test("direct Aquaverno deep link bypasses exploration and resolves the correct world", async ({ page }) => {
+test("direct artist link returns to the field without leaving the site", async ({
+  page,
+}, info) => {
+  await page.goto("/?artist=hemorragia-cosmica");
+  await ready(page);
+  await settled(page);
+  await expect(
+    page.locator('[data-artist-world="hemorragia-cosmica"]'),
+  ).toHaveAttribute("data-world-system", "pressure-wire");
+  await page.screenshot({ path: info.outputPath("hemorragia-world.png") });
+  await page.locator("#world-back").click();
+  await settled(page);
+  expect(new URL(page.url()).searchParams.has("artist")).toBe(false);
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-world-active",
+    "false",
+  );
+});
+
+test("search filters accents, empty results and switches between worlds", async ({
+  page,
+}) => {
   await page.goto("/?artist=aquaverno");
-  await expect(page.locator("html")).toHaveAttribute("data-active-artist", "aquaverno");
-  await expect(page.locator("[data-artist-world='aquaverno']")).toHaveAttribute("data-active", "true");
+  await ready(page);
+  await page.getByRole("button", { name: /SEARCH/ }).click();
+  const input = page.getByRole("searchbox");
+  await input.fill("cosmica");
+  await expect(page.locator("[data-search-artist]:visible")).toHaveCount(1);
+  await expect(
+    page.locator('[data-search-artist="hemorragia-cosmica"]'),
+  ).toBeVisible();
+  await input.fill("xyz-unlisted");
+  await expect(page.locator("#search-empty")).toBeVisible();
+  await input.fill("baazu");
+  await page.locator('[data-search-artist="baazu"]').click();
+  await settled(page);
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-active-artist",
+    "baazu",
+  );
+  await expect(page.locator("#world-back")).toBeFocused();
 });
 
-test("minimal transport is conventional and fail-closed without authorized audio", async ({ page }) => {
-  await page.goto("/?artist=aquaverno");
-  const transport = page.locator("#persistent-transport");
-  await expect(transport).toBeVisible();
-  await expect(transport.getByRole("button", { name: "Anterior" })).toBeVisible();
-  await expect(transport.getByRole("button", { name: "Tocar" })).toBeDisabled();
-  await expect(transport.getByRole("button", { name: "Próxima" })).toBeVisible();
-  await expect(transport.getByText("Áudio ainda não materializado", { exact: true })).toBeVisible();
-  await expect(page.locator("#player-wheel")).toHaveCount(0);
+test("all worlds keep original artwork and working direct navigation", async ({
+  page,
+}) => {
+  for (const id of ids) {
+    await page.goto(`/?artist=${id}`);
+    await ready(page);
+    await settled(page);
+    await expect(page.locator(`[data-artist-world="${id}"]`)).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    await expect(page.locator("#transport-artist")).not.toHaveText("HAZEWAVE");
+  }
 });
 
-test("search reaches a real artist without traversing the field", async ({ page }) => {
+test("audio remains unavailable honestly, with conventional disabled controls", async ({
+  page,
+}) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "SEARCH" }).click();
-  const dialog = page.getByRole("dialog", { name: "Buscar artista" });
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "Hemorragia Cósmica" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-active-artist", "hemorragia-cosmica");
+  await ready(page);
+  await page.getByRole("button", { name: /LISTEN/ }).click();
+  await expect(page.locator("#transport-state")).toHaveText(
+    "As faixas chegam em breve.",
+  );
+  await expect(
+    page.getByRole("button", { name: "Tocar", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("slider", { name: "Volume", exact: true }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Recolher player" }).click();
+  await expect(page.getByRole("button", { name: /LISTEN/ })).toBeFocused();
 });
 
-test("reduced motion keeps field, discovery and artist entry authored and functional", async ({ page }) => {
+test("reduced motion and WebGL loss retain navigation and artwork", async ({
+  page,
+}) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await expect(page.locator("#living-field")).toHaveAttribute("data-motion", "reduced");
-  await page.locator("[data-artist-signal='aquaverno']").click();
-  await expect(page.locator("html")).toHaveAttribute("data-active-artist", "aquaverno");
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-field-runtime",
+    "css-fallback",
+  );
+  await page.locator('[data-artist-signal="aquaverno"]').click();
+  await settled(page);
+  await expect(
+    page.locator('[data-artist-world="aquaverno"] img'),
+  ).toBeVisible();
+  await page.locator("#world-back").click();
+  await settled(page);
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-world-active",
+    "false",
+  );
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await ready(page);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-field-runtime",
+    "css-fallback",
+  );
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await ready(page);
+  await page.evaluate(() => {
+    const c = document.querySelector("canvas")!;
+    c.getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext();
+  });
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-field-runtime",
+    "css-fallback",
+  );
+  await page.locator('[data-artist-signal="hemorragia-cosmica"]').click();
+  await settled(page);
 });
 
-test("mobile field is separately composed, touchable and overflow-free", async ({ page }, testInfo) => {
-  const viewport = page.viewportSize();
-  test.skip(!viewport || viewport.width > 700, "mobile-only proof");
-
+test("keyboard hides inactive worlds and dialog restores focus", async ({
+  page,
+}) => {
   await page.goto("/");
-  const field = page.locator("#living-field");
-  const box = await field.boundingBox();
-  expect(box).not.toBeNull();
-  await page.touchscreen.tap(box!.x + box!.width * 0.48, box!.y + box!.height * 0.56);
-  await expect(field).toHaveAttribute("data-wave-active", "true", { timeout: 2_000 });
+  await ready(page);
+  await expect(page.locator(".artist-world:not([inert])")).toHaveCount(0);
+  await page.getByRole("button", { name: /SEARCH/ }).click();
+  await expect(page.getByRole("searchbox")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: /SEARCH/ })).toBeFocused();
+  await page.locator('[data-artist-signal="aquaverno"]').focus();
+  await page.keyboard.press("Enter");
+  await settled(page);
+  await expect(page.locator(".signal-field")).toHaveAttribute("inert", "");
+  await page.keyboard.press("Escape");
+  await settled(page);
+  await expect(page.locator('[data-artist-signal="aquaverno"]')).toBeFocused();
+});
 
-  const overflow = await page.evaluate(() => ({
-    width: window.innerWidth,
-    scrollWidth: document.documentElement.scrollWidth
-  }));
-  expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.width + 1);
-
-  const actions = page.locator(".primary-paths button");
-  for (let index = 0; index < await actions.count(); index += 1) {
-    const target = actions.nth(index);
-    const rect = await target.boundingBox();
-    expect(rect).not.toBeNull();
-    expect(rect!.height).toBeGreaterThanOrEqual(44);
+test("mobile touch, readable targets and no horizontal overflow", async ({
+  page,
+}, info) => {
+  test.skip(!info.project.name.includes("mobile"), "mobile proof");
+  await page.goto("/");
+  await ready(page);
+  const viewport = page.viewportSize()!;
+  await page.touchscreen.tap(viewport.width * 0.5, viewport.height * 0.52);
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-wave-active",
+    "true",
+  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  for (const selector of [".primary-paths button", "[data-artist-signal]"]) {
+    const boxes = await page.locator(selector).evaluateAll((elements) =>
+      elements.map((e) => {
+        const r = e.getBoundingClientRect();
+        return { w: r.width, h: r.height };
+      }),
+    );
+    expect(boxes.every((b) => b.w >= 44 && b.h >= 44)).toBe(true);
   }
+  await page.screenshot({ path: info.outputPath("mobile-touch.png") });
+});
 
-  await page.screenshot({ path: testInfo.outputPath("living-field-mobile.png"), fullPage: false });
+test("without JavaScript the original artist gallery is accessible", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  await page.goto("/");
+  await expect(
+    page.getByRole("region", { name: "Artistas Hazewave" }),
+  ).toBeVisible();
+  await expect(page.locator(".static-gallery a")).toHaveCount(5);
+  await expect(page.locator(".static-gallery img")).toHaveCount(6);
+  await context.close();
+});
+
+test("short mobile keeps signals above the transport", async ({
+  page,
+}, info) => {
+  test.skip(!info.project.name.includes("mobile"), "mobile-only");
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.goto("/");
+  await ready(page);
+  await expect(page.locator(".field-invitation")).not.toBeVisible();
+  const nav = (await page.locator(".primary-paths").boundingBox())!;
+  for (const signal of await page.locator("[data-artist-signal]").all()) {
+    const b = (await signal.boundingBox())!;
+    expect(b.y + b.height).toBeLessThan(nav.y);
+  }
 });

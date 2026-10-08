@@ -20,6 +20,7 @@ export interface RealArtistVisualAuthority {
     mobile: readonly [number, number];
   };
   worldSystem: WorldSystem;
+  color: string;
   artwork: string | null;
   artworkAlt: string;
   provenance: string;
@@ -37,60 +38,68 @@ export const realArtists: readonly RealArtistVisualAuthority[] = [
   {
     id: "barak-ozama-beats",
     name: "Barak Ozama Beats",
-    signal: { desktop: [0.18, 0.58], mobile: [0.24, 0.63] },
+    signal: { desktop: [0.22, 0.42], mobile: [0.15, 0.34] },
     worldSystem: "pressure-type",
-    artwork: null,
-    artworkAlt: "",
-    provenance: "Owner-supplied visual asset confirmed; production derivative not yet materialized in this bounded slice.",
-    materializedWorld: false
+    color: "#deded1",
+    artwork: "/media/artists/barak-ozama-beats.png",
+    artworkAlt: "Arte original fornecida pelo artista",
+    provenance: "Owner source 1000788665.png; original bytes preserved.",
+    materializedWorld: true,
   },
   {
     id: "indionesbala",
     name: "Indionesbala",
-    signal: { desktop: [0.36, 0.34], mobile: [0.7, 0.32] },
+    signal: { desktop: [0.75, 0.27], mobile: [0.85, 0.26] },
     worldSystem: "heat-type",
-    artwork: null,
-    artworkAlt: "",
-    provenance: "Owner-supplied visual asset confirmed; production derivative not yet materialized in this bounded slice.",
-    materializedWorld: false
+    color: "#ffa22c",
+    artwork: "/media/artists/indionesbala.webp",
+    artworkAlt: "Arte original fornecida pelo artista",
+    provenance: "Owner source 1001044236(1).webp; original bytes preserved.",
+    materializedWorld: true,
   },
   {
     id: "baazu",
     name: "Baazü",
-    signal: { desktop: [0.52, 0.7], mobile: [0.38, 0.78] },
+    signal: { desktop: [0.29, 0.68], mobile: [0.16, 0.6] },
     worldSystem: "blue-illustration",
-    artwork: null,
-    artworkAlt: "",
-    provenance: "Owner-supplied visual assets confirmed; production derivatives not yet materialized in this bounded slice.",
-    materializedWorld: false
+    color: "#a4d5e9",
+    artwork: "/media/artists/baazu.png",
+    artworkAlt: "Arte original fornecida pelo artista",
+    provenance: "Owner source 1000788325(2).png; original bytes preserved.",
+    materializedWorld: true,
   },
   {
     id: "aquaverno",
     name: "Aquaverno",
-    signal: { desktop: [0.72, 0.5], mobile: [0.54, 0.46] },
+    signal: { desktop: [0.8, 0.51], mobile: [0.85, 0.46] },
     worldSystem: "tidal-depth",
-    artwork: "/media/artists/aquaverno.webp",
+    color: "#efcfa2",
+    artwork: "/media/artists/aquaverno.jpg",
     artworkAlt: "Arte oficial fornecida pelo owner para Aquaverno",
-    provenance: "Owner source 1001084342.jpg → bounded WebP derivative; source composition preserved.",
-    materializedWorld: true
+    provenance: "Owner source 1001084342.jpg ; original bytes preserved.",
+    materializedWorld: true,
   },
   {
     id: "hemorragia-cosmica",
     name: "Hemorragia Cósmica",
-    signal: { desktop: [0.84, 0.72], mobile: [0.76, 0.7] },
+    signal: { desktop: [0.74, 0.75], mobile: [0.85, 0.66] },
     worldSystem: "pressure-wire",
-    artwork: "/media/artists/hemorragia-cosmica.webp",
+    color: "#efcb32",
+    artwork: "/media/artists/hemorragia-cosmica.jpg",
     artworkAlt: "Arte oficial fornecida pelo owner para Hemorragia Cósmica",
-    provenance: "Owner clean source 1001084321.jpg → bounded WebP derivative; phone screenshot explicitly excluded.",
-    materializedWorld: true
-  }
+    provenance:
+      "Owner clean source 1001084321.jpg ; original bytes preserved. Phone screenshot excluded.",
+    materializedWorld: true,
+  },
 ] as const;
 
 export const materializedWorldArtists = realArtists.filter(
-  (artist) => artist.materializedWorld
+  (artist) => artist.materializedWorld,
 );
 
-export function getRealArtist(id: string | null): RealArtistVisualAuthority | null {
+export function getRealArtist(
+  id: string | null,
+): RealArtistVisualAuthority | null {
   if (!id) return null;
   return realArtists.find((artist) => artist.id === id) ?? null;
 }
