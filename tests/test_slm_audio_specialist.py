@@ -165,3 +165,30 @@ def test_model_attempt_to_invoke_external_tool_is_rejected(tmp_path: Path):
         return res
     with pytest.raises(SLMAudioSpecialistError, match="GOVERNED_MODEL_RESPONSE_INVALID"):
         execute_audio_specialist(**_args(tmp_path, executor))
+
+
+def test_different_trial_ids_bind_distinct_real_harness_task_grants(tmp_path: Path):
+    task_ids = []
+    def executor(**kw):
+        task_ids.append(kw["authorization"].task_id)
+        return _response(kw["authorization"], GOOD)
+    args = _args(tmp_path, executor)
+    first = execute_audio_specialist(**args, trial_id="trial0001", compare_baseline=True)
+    second = execute_audio_specialist(**args, trial_id="trial0002", compare_baseline=True)
+    assert first["trial_id"] == "trial0001"
+    assert second["trial_id"] == "trial0002"
+    assert len(set(task_ids)) == 4
+    assert "trial0001" in task_ids[0] and "trial0002" in task_ids[2]
+    assert first["baseline"]["task_id"] != first["specialist"]["task_id"]
+
+
+def test_invalid_trial_id_fails_before_model_invocation(tmp_path: Path):
+    called = []
+    def executor(**kw):
+        called.append(kw)
+        return _response(kw["authorization"], GOOD)
+    args = _args(tmp_path, executor)
+    for trial_id in ("", "bad id", "trial/../secret", "x" * 100, 25):
+        with pytest.raises(SLMAudioSpecialistError, match="TRIAL_ID_INVALID"):
+            execute_audio_specialist(**args, trial_id=trial_id)
+    assert not called
