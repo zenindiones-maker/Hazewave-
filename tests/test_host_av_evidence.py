@@ -128,3 +128,22 @@ def test_unverified_inputs_do_not_affect_declarative_catalog() -> None:
     assert report["summary"]["host_synthetic_av_executions_observed"] == 0
     assert report["capabilities"]["audio.qc"]["fixture_execution"] == "UNVERIFIED"
     assert report["summary"]["ready_on_existing_codespace"] == 0
+
+
+def test_wrong_expected_log_sha_is_rejected(tmp_path: Path):
+    log, receipt = proof(tmp_path)
+    with pytest.raises(HostAvEvidenceError, match="LOG_DIGEST_MISMATCH"):
+        verify_host_av_evidence(
+            log_path=log, receipt_path=receipt, reviewed_sha=SHA,
+            expected_log_sha256="f" * 64,
+            expected_receipt_sha256=hashlib.sha256(receipt.read_bytes()).hexdigest()
+        )
+
+
+def test_duplicate_json_keys_fail_closed(tmp_path: Path):
+    log, receipt = proof(tmp_path)
+    lines = log.read_text().splitlines()
+    lines[1] = lines[1].replace('"source": ', '"source": "fake", "source": ', 1)
+    log.write_text("\\n".join(lines) + "\\n")
+    with pytest.raises(HostAvEvidenceError, match="INVALID_JSON"):
+        inspect(log, receipt)

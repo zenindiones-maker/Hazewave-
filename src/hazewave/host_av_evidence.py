@@ -29,13 +29,23 @@ OUTPUT_MARKER = b"HAZEWAVE_AV_FIDELITY=PASS_SYNTHETIC"
 
 
 def _private_file(path: Path) -> bytes:
+    # Bind the access check and content read to ONE open file descriptor.
+    # A check of Path.lstat() followed by Path.read_bytes() is race-prone:
+    # the path can be exchanged for a symlink between both operations.
+    if not hasattr(os, "O_NOFOLLOW"):
+        raise HostAvEvidenceError("UNSAFE_FILE")
+    flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NONBLOCK", 0)
     try:
-        st = path.lstat()
-        if (not stat.S_ISREG(st.st_mode) or st.st_uid != os.geteuid()
-                or st.st_mode & 0o077 or st.st_size < 1
-                or st.st_size > MAX_BYTES or path.is_symlink()):
-            raise HostAvEvidenceError("UNSAFE_FILE")
-        return path.read_bytes()
+        fd = os.open(path, flags)
+        with os.fdopen(fd, "rb") as stream:
+            st = os.fstat(stream.fileno())
+            if (not stat.S_ISREG(st.st_mode) or st.st_uid != os.geteuid()
+                    or st.st_mode & 0o077 or st.st_size < 1 or st.st_size > MAX_BYTES):
+                raise HostAvEvidenceError("UNSAFE_FILE")
+            content = stream.read(MAX_BYTES + 1)
+            if len(content) != st.st_size or len(content) > MAX_BYTES:
+                raise HostAvEvidenceError("UNSAFE_FILE")
+            return content
     except OSError as exc:
         raise HostAvEvidenceError("UNSAFE_FILE") from exc
 
@@ -78,11 +88,12 @@ def verify_host_av_evidence(
     if not SHA64.fullmatch(expected_log_sha256) or not SHA64.fullmatch(expected_receipt_sha256):
         raise HostAvEvidenceError("EXPECTED_HASH_INVALID")
     log_path, receipt_path = Path(log_path), Path(receipt_path)
+    # Reject unsafe file types/links before making any claim about path scope.
+    log, receipt = _private_file(log_path), _private_file(receipt_path)
     if log_path.name != "av_synthetic_fixture.log" or log_path.parent.name != reviewed_sha:
         raise HostAvEvidenceError("HOST_LOG_SCOPE_MISMATCH")
     if not receipt_path.name.startswith("av-receipt-") or not receipt_path.parent.name.startswith("av-metrics-"):
         raise HostAvEvidenceError("HOST_RECEIPT_SCOPE_MISMATCH")
-    log, receipt = _private_file(log_path), _private_file(receipt_path)
     if hashlib.sha256(log).hexdigest() != expected_log_sha256:
         raise HostAvEvidenceError("LOG_DIGEST_MISMATCH")
     if hashlib.sha256(receipt).hexdigest() != expected_receipt_sha256:
