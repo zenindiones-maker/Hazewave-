@@ -291,7 +291,7 @@ def main(argv: list[str] | None = None) -> int:
             "schema": "HazewaveActionsSLMExecution/v1",
             "authority": "HAZEWAVE_HARNESS",
             "task_id": grant.task_id,
-            "authorization_id": grant.authorization_id,
+            "authorization_id_sha256": hashlib.sha256(grant.authorization_id.encode()).hexdigest(),
             "model_id": manifest["model_id"],
             "model_revision": manifest["revision"],
             **model_evidence,

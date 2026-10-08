@@ -41,12 +41,21 @@ jobs:
           command -v g++
           command -v git
           command -v curl
-          command -v ffmpeg
           python -V
           free -h
           df -h "$RUNNER_TEMP"
           find "$RUNNER_TEMP" -maxdepth 1 -type f -name '*.gguf' -printf '%f\n' || true
           PYTHONPATH=src python -m hazewave.actions_slm_runner --inventory
+
+      - name: Install only FFmpeg in ephemeral Actions runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          command -v ffmpeg
+          echo "FFMPEG_RUNNER_ONLY=PASS"
+          echo "A15_INSTALL=NONE"
 
       - name: Fetch exact official GGUF and compile pinned CPU llama.cpp
         working-directory: repo
