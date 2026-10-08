@@ -27,7 +27,7 @@ done
 [[ -n "${GHIDRA_INSTALL_DIR:-}" ]] || fail "GHIDRA_INSTALL_DIR_MISSING"
 [[ -x "$GHIDRA_INSTALL_DIR/support/analyzeHeadless" ]] || fail "GHIDRA_HEADLESS_MISSING"
 
-rea --version | grep -F "4.1.0" >/dev/null || fail "REA_VERSION_MISMATCH"
+rea --version | grep -F "6.0.0" >/dev/null || fail "REA_VERSION_MISMATCH"
 frida --version | grep -F "17.23.0" >/dev/null || fail "FRIDA_VERSION_MISMATCH"
 rizin -v | grep -F "0.9.1" >/dev/null || fail "RIZIN_VERSION_MISMATCH"
 java -version 2>&1 | sed -n '1p' | grep -Eq '"21([."]|$)' || fail "JAVA_VERSION_MISMATCH"
