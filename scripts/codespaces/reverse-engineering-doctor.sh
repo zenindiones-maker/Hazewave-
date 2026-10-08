@@ -50,6 +50,8 @@ if "ghidra" not in raw:
     raise SystemExit(1)
 PY
 
+[[ "$doctor_rc" -eq 0 ]] || fail "REA_DOCTOR_FAILED:$doctor_rc"
+
 if [[ "$DEEP" -eq 1 ]]; then
   target="/bin/true"
   [[ -x "$target" ]] || fail "DEEP_PROBE_TARGET_MISSING"
