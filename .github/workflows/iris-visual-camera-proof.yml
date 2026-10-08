@@ -52,6 +52,20 @@ jobs:
           grep -F "0.4.1" "$RUNNER_TEMP/iris-version.txt"
           echo "IRIS_EXACT_RELEASE_SHA256=PASS"
           echo "IRIS_RUNNER_BINARY=$RUNNER_TEMP/iris-release/iris" >> "$GITHUB_ENV"
+      - name: Use isolated Chromium startup for synthetic fixture only
+        shell: bash
+        run: |
+          set -euo pipefail
+          # This GitHub-hosted disposable worker lacks a usable Chromium
+          # user-namespace sandbox. ONLY the bundled offline fixture is loaded.
+          # Never copy the --no-sandbox wrapper into the owner's Codespace.
+          cat > "$RUNNER_TEMP/iris-ci-chromium" <<'SH'
+          #!/bin/sh
+          exec /usr/bin/chromium --no-sandbox --disable-dev-shm-usage "$@"
+          SH
+          chmod 700 "$RUNNER_TEMP/iris-ci-chromium"
+          echo "IRIS_CHROME=$RUNNER_TEMP/iris-ci-chromium" >> "$GITHUB_ENV"
+          echo "IRIS_CI_SANDBOX=DISABLED_FOR_OWNED_FIXTURE_ONLY"
       - name: Capture real first-party HTML with Chromium, verify PNG and receipt
         env:
           PYTHONPATH: src
