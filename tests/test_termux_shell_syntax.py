@@ -243,3 +243,24 @@ def test_reflex_engine_tune_sweeps_lossless_mc_cache_blocks_without_changing_k_o
     assert 'run_case mc_144_v1 "$mc144"' in remote
     assert 'run_case mc_408_v1 "$mc408"' in remote
     assert 'run_case mc_816_v1 "$mc816"' in remote
+
+
+def test_reflex_cached_derived_metadata_validation_is_fail_closed_and_mc_paths_are_unique() -> None:
+    remote = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
+
+    assert 'local variant="mc_\\${mc}_v1"' not in remote
+    assert 'local variant="mc_${mc}_v2"' in remote
+
+    assert remote.count('if ! "$PYTHON_BIN" - "$meta" "$binary" <<\'PY\'') >= 3
+    assert 'if ! "$PYTHON_BIN" - "$meta" "$binary" "$mc" <<\'PY\'' in remote
+
+    for reason in (
+        "ENGINE_PACK_REUSE_CACHED_METADATA_INVALID",
+        "ENGINE_DIRECT_STORE_CACHED_METADATA_INVALID",
+        "ENGINE_MC_CACHED_METADATA_INVALID",
+        "ENGINE_PROFILE_CACHED_METADATA_INVALID",
+    ):
+        assert reason in remote
+
+    for variant in ("mc_144_v2", "mc_408_v2", "mc_816_v2"):
+        assert variant in remote
