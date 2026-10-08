@@ -53,23 +53,42 @@ PY
 [[ "$doctor_rc" -eq 0 ]] || fail "REA_DOCTOR_FAILED:$doctor_rc"
 
 if [[ "$DEEP" -eq 1 ]]; then
-  target="/bin/true"
-  [[ -x "$target" ]] || fail "DEEP_PROBE_TARGET_MISSING"
+  command -v cc >/dev/null 2>&1 || fail "RE_DEEP_COMPILER_MISSING"
+  # The Codespace is shared with REAPER/FFmpeg and stock Colibri. Do not
+  # start a JVM decompiler when memory is already under pressure.
+  available_kib="$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)"
+  [[ "$available_kib" =~ ^[0-9]+$ ]] || fail "RE_DEEP_MEMORY_UNKNOWN"
+  (( available_kib >= 4 * 1024 * 1024 )) || fail "RE_DEEP_MEMORY_BELOW_4GIB"
+
+  # Compile a harmless first-party target rather than assume the system
+  # /bin/true has a searchable `main` function or stable symbols.
+  local_run="$(mktemp -d "$ROOT/doctor/rea6-fixture.XXXXXXXX")"
+  chmod 700 "$local_run"
+  source_file="$local_run/fixture.c"
+  target="$local_run/fixture"
+  evidence_file="$local_run/ghidra-main.evidence.json"
+  cat >"$source_file" <<'C'
+/* REA6_SOURCE_OWNED_FIXTURE: no secrets, network or third-party code. */
+__attribute__((noinline)) static int evidence_constant(void) { return 42; }
+int main(void) { return evidence_constant() == 42 ? 0 : 1; }
+C
+  chmod 600 "$source_file"
+  cc -O0 -g -fno-omit-frame-pointer -o "$target" "$source_file" || fail "RE_DEEP_FIXTURE_COMPILE_FAILED"
+  chmod 600 "$target"
   target_sha="$(sha256sum "$target" | awk '{print $1}')"
-  REA_ANALYSIS_PROVIDER=ghidra rea analyze "$target" --provider ghidra --json     >"$ROOT/doctor/deep-probe.json" || fail "GHIDRA_DEEP_PROBE_FAILED"
-  python3 - "$ROOT/doctor/deep-probe.json" "$target_sha" <<'PY' || fail "DEEP_PROBE_EVIDENCE_INVALID"
-import json, sys
-path, target_sha = sys.argv[1:]
-data = json.load(open(path, encoding="utf-8"))
-if not isinstance(data, dict) or not data:
-    raise SystemExit(1)
-# This records an observed response. The REA 4.1.0 evidence schema must be
-# independently checked against the actual runtime output before claiming PASS.
-print(f"HAZEWAVE_RE_DEEP_TARGET_SHA256={target_sha}")
-PY
-  chmod 600 "$ROOT/doctor/deep-probe.json"
-  echo "HAZEWAVE_RE_DEEP_PROBE=OBSERVED_UNVERIFIED"
-  fail "RE_DEEP_EVIDENCE_SCHEMA_UNVERIFIED"
+
+  # Ghidra provider explicitly selected: no Hopper/proprietary fallback.
+  # JSON remains on disk even when the schema validation fails.
+  REA_ANALYSIS_PROVIDER=ghidra rea function "$target" main --provider ghidra --json \
+    >"$evidence_file" || fail "RE_DEEP_GHIDRA_FUNCTION_FAILED"
+  chmod 600 "$evidence_file"
+  "$HAZEWAVE_RE_PYTHON" -m hazewave.rea6_integration verify-evidence \
+    --target "$target" --evidence "$evidence_file" \
+    >"$local_run/evidence-audit.json" || fail "RE_DEEP_EVIDENCE_NOT_VERIFIED"
+  chmod 600 "$local_run/evidence-audit.json"
+  echo "HAZEWAVE_RE_DEEP_FIXTURE_SHA256=$target_sha"
+  echo "HAZEWAVE_RE_DEEP_EVIDENCE=$evidence_file"
+  echo "HAZEWAVE_RE_DEEP_PROBE=PASS"
 fi
 
 chmod 600   "$ROOT/doctor/hazewave-registry.json"   "$ROOT/doctor/providers.json"   "$ROOT/doctor/doctor.json"
