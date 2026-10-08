@@ -47,7 +47,7 @@ chmod 700 "$ROOT/doctor"
 hazewave-re-cli registry >"$ROOT/doctor/hazewave-registry.json"   || fail "HAZEWAVE_CLI_REGISTRY_FAILED"
 rea providers --json >"$ROOT/doctor/providers.json" || fail "REA_PROVIDERS_FAILED"
 set +e
-rea doctor --json >"$ROOT/doctor/doctor.json"
+rea doctor --provider ghidra --json >"$ROOT/doctor/doctor.json"
 doctor_rc=$?
 set -e
 
