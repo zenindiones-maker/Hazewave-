@@ -114,5 +114,5 @@ def test_existing_harness_registry_has_no_cross_domain_research_escalation() -> 
         grant = issue_authorization(route_task(task))
         assert grant.domain == domain
         assert grant.authority == "HAZEWAVE_HARNESS"
-    with pytest.raises(ValueError):
+    with pytest.raises(PermissionError, match="DOMAIN_CAPABILITY_MISMATCH"):
         route_task(HazewaveTask(task_id="bad", goal="invalid cross domain", required_capability="research.audio.inspect", requested_domain="WAVE"))
