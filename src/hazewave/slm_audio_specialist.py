@@ -13,6 +13,7 @@ import json
 import math
 from pathlib import Path
 import re
+import secrets
 import sys
 import time
 from typing import Any, Callable
@@ -24,6 +25,7 @@ from hazewave.ninerouter import NineRouterExecutionError, execute_9router_text
 _POLICY = Path(__file__).resolve().parents[2] / "config" / "slm-audio-specialist-v1.json"
 _MODEL = re.compile(r"^oc/(?:[a-z0-9][a-z0-9.-]{1,90}-free|big-pickle)$")
 _HASH = re.compile(r"^[a-f0-9]{64}$")
+_TRIAL_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{7,31}$")
 
 
 class SLMAudioSpecialistError(RuntimeError):
@@ -98,10 +100,10 @@ def evaluate_audio_decision(decision: Any, *, attenuation: float) -> dict[str, s
 
 def _evaluate_call(
     *, executor: Callable[..., Any], prompt: str, model_id: str, mode: str,
-    reviewed_sha: str, attenuation: float
+    reviewed_sha: str, attenuation: float, trial_id: str
 ) -> dict[str, Any]:
     task = HazewaveTask(
-        task_id=f"slm-haze-{reviewed_sha[:12]}-{mode}",
+        task_id=f"slm-haze-{reviewed_sha[:12]}-{mode}-{trial_id}",
         goal="Assess previously verified synthetic audio attenuation only",
         required_capability="reason.general",
         requested_domain="HAZE"
@@ -134,6 +136,7 @@ def _evaluate_call(
     eval_result = evaluate_audio_decision(decision, attenuation=attenuation)
     return {
         **eval_result,
+        "task_id": auth.task_id,
         "decision": decision if eval_result["grade"] == "PASS" else None,
         "model_id": model_id,
         "model_response_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
@@ -151,7 +154,11 @@ def execute_audio_specialist(
     log_sha256: str, receipt_sha256: str, model_id: str,
     executor: Callable[..., Any] = execute_9router_text,
     compare_baseline: bool = False, knowledge_path: Path = _POLICY,
+    trial_id: str | None = None,
 ) -> dict[str, Any]:
+    trial = secrets.token_hex(8) if trial_id is None else trial_id
+    if not isinstance(trial, str) or not _TRIAL_ID.fullmatch(trial):
+        raise SLMAudioSpecialistError("TRIAL_ID_INVALID")
     if not isinstance(model_id, str) or not _MODEL.fullmatch(model_id):
         raise SLMAudioSpecialistError("MODEL_ID_NOT_EXACT_FREE_ROUTE")
     if model_id == "oc/deepseek-v4-flash-free":
@@ -173,13 +180,15 @@ def execute_audio_specialist(
             executor=executor, prompt=build_audio_prompt(
                 attenuation, knowledge=notes, baseline=True
             ), model_id=model_id, mode="baseline",
-            reviewed_sha=reviewed_sha, attenuation=attenuation
+            reviewed_sha=reviewed_sha, attenuation=attenuation,
+            trial_id=trial
         )
     specialist = _evaluate_call(
         executor=executor, prompt=build_audio_prompt(
             attenuation, knowledge=notes
         ), model_id=model_id, mode="specialist",
-        reviewed_sha=reviewed_sha, attenuation=attenuation
+        reviewed_sha=reviewed_sha, attenuation=attenuation,
+        trial_id=trial
     )
     no_advantage = (
         baseline_result is not None
@@ -191,12 +200,17 @@ def execute_audio_specialist(
         total_tokens = total_tokens + bt if isinstance(bt, int) and isinstance(total_tokens, int) else None
     return {
         "schema": "HazewaveSLMAudioSpecialistBenchmark/v1",
+        "trial_id": trial,
+        "case_id": "owned-synthetic-gain-attenuation",
         "harness_authority": "HAZEWAVE_HARNESS",
         "reviewed_source_sha": reviewed_sha,
         "source_evidence_digest_sha256": evidence["receipt_sha256"],
         "specialist_policy_sha256": knowledge_digest,
         "knowledge_sources": [s["url"] for s in data["sources"]],
         "model_id": model_id,
+        "model_size_verified": False,
+        "model_is_slm_proven": False,
+        "model_reference_only": True,
         "baseline": baseline_result,
         "specialist": specialist,
         "benchmark_execution": (
@@ -222,6 +236,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--receipt-sha256", required=True)
     p.add_argument("--model", required=True)
     p.add_argument("--compare-baseline", action="store_true")
+    p.add_argument("--trial-id")
     args = p.parse_args(argv)
     try:
         result = execute_audio_specialist(
@@ -230,7 +245,8 @@ def main(argv: list[str] | None = None) -> int:
             log_sha256=args.log_sha256,
             receipt_sha256=args.receipt_sha256,
             model_id=args.model,
-            compare_baseline=args.compare_baseline
+            compare_baseline=args.compare_baseline,
+            trial_id=args.trial_id
         )
     except (SLMAudioSpecialistError, NineRouterExecutionError, HostAvEvidenceError) as exc:
         # Router/validator error codes are safe only when an uppercase
