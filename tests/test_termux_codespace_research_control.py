@@ -200,3 +200,12 @@ def test_unreviewed_ref_is_rejected_before_ssh(tmp_path: Path) -> None:
     assert "UNREVIEWED_RESEARCH_REF" in proc.stderr
     assert not marker.exists()
 
+
+def test_inventory_receipt_discloses_local_fetch_worktree_and_log_writes() -> None:
+    text = SCRIPT.read_text()
+    assert "READ_ONLY_HOST_INVENTORY" not in text
+    assert "NON_DESTRUCTIVE_HOST_INVENTORY_WITH_LOCAL_WORKTREE_AND_LOG_WRITES" in text
+    assert 'git -C "$BASE" worktree add --detach' in text
+    assert 'mkdir -p "$LOG"' in text
+    assert subprocess.run(["bash", "-n", str(SCRIPT)],
+                          capture_output=True).returncode == 0

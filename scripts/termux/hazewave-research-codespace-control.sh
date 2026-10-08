@@ -127,7 +127,7 @@ run_step() {
 run_step harness_inventory python3 -m hazewave.harness inventory
 run_step codespace_inventory bash scripts/codespaces/native-behavior-rea6-probe.sh --inventory
 if [[ "${HAZEWAVE_RESEARCH_MODE:-}" == "--inventory" ]]; then
-  echo "HAZEWAVE_RESEARCH_AUDIT_SCOPE=READ_ONLY_HOST_INVENTORY"
+  echo "HAZEWAVE_RESEARCH_AUDIT_SCOPE=NON_DESTRUCTIVE_HOST_INVENTORY_WITH_LOCAL_WORKTREE_AND_LOG_WRITES"
   echo "HAZEWAVE_RESEARCH_AGENT_CONNECTION=NOT_TESTED"
   echo "RESEARCH_LOG_DIRECTORY=$LOG"
   if (( failures > 0 )); then
