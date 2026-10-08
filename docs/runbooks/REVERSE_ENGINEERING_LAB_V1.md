@@ -1,63 +1,102 @@
-# Reverse Engineering Lab Runbook V1
+# Reverse Engineering Lab V1 — owner-controlled operations
 
-## Purpose
+This runbook is subordinate to `AGENTS.md`, the project profile and the HAZE/WAVE research policy. **Development candidate only; NOT production ready** until physical Codespace evidence exists.
 
-Install and verify the zero-cost Hazewave reverse-engineering core in an isolated worktree on the existing Hazewave Codespace.
+## Operating boundary
 
-Do not create another Codespace. Do not switch or reset another active Hazewave worktree.
+- Use the **existing** Hazewave Codespace. Do not create another, resize, add paid services or overwrite the active Reflex/HAZE/WAVE branches.
+- Do not run analysis of a target without a specific authorization and actual target digest.
+- Tool authority = NONE; HAZEWAVE_HARNESS alone approves scope. REA/Ghidra/Rizin/Frida are analyzers, never control-plane authorities.
+- Never confuse a CI pass, an installed command, `rea doctor` success and a successful real target analysis.
+- For source-available Colibri, prefer direct source profiling and `hazewave-reflex engine-re-doctor` over heavy decompilation.
 
-## Core installation
+## Safe installation
 
-Run the pinned repository installer:
+Perform in a dedicated isolated `git worktree` tied to the exact reviewed candidate SHA, not by switching the current Codespace checkout. Before installation, check the exact worktree HEAD and approved runner resource budget. No automatic fresh Codespaces or paid route.
+
+```bash
+bash scripts/codespaces/install-reverse-engineering-foundation.sh --preflight
+```
+
+The read-only preflight checks Linux x86_64 and at least 8 GiB disk headroom and returns `HAZEWAVE_RE_INSTALL=NOT_ATTEMPTED`.
+
+Only after that and reviewed upstream pins:
 
 ```bash
 bash scripts/codespaces/install-reverse-engineering-foundation.sh
-```
-
-The installer manages REA, Ghidra, Rizin and an isolated Frida virtual environment. It reuses the existing qualified FFmpeg runtime and records an owner-only install receipt.
-
-## Verification
-
-Read-only provider verification:
-
-```bash
 bash scripts/codespaces/reverse-engineering-doctor.sh
-```
-
-Real core proof against the harmless system binary `/bin/true`:
-
-```bash
 bash scripts/codespaces/reverse-engineering-doctor.sh --deep
 ```
 
-The deep proof uses the Ghidra provider and stores the REA JSON result locally as evidence. It does not establish production approval for arbitrary targets.
+The installer records a local installation receipt with `runtime_ready=false`; its own PASS means **installation only**. The standard doctor must exit zero. The deep analysis of harmless `/bin/true` currently writes the raw Ghidra/REA response but **deliberately exits nonzero as `RE_DEEP_EVIDENCE_SCHEMA_UNVERIFIED`**. A nonempty JSON response is not proof of a valid semantic analysis. Do not report runtime readiness until a future reviewed adapter verifies the actual REA 4.1.0 evidence schema, target digest, selected Ghidra provider and at least one real function/symbol analysis against the output observed on the existing Codespace. Retain output for this inspection; no forced retry loop, no stock changes.
 
-## Planning an investigation
+Install receipt and provider diagnostics remain local to `~/.local/share/hazewave/reverse-engineering`. Never copy secrets, target binaries, decompiled output or private media into Git.
 
-Example HAZE plug-in study:
+## Owner/Harness authorization of each target
+
+The old `--authorized` flag is intentionally not admitted. The caller could assert it without external verification. The plan now requires a **signed owner grant**, bound to one immutable binary hash, purpose, domain, target kind and expiry (24h maximum); it verifies the signature with OpenSSH Ed25519 signature support and a local trusted public-key allowlist.
+
+The owner controls a private signing key outside the workstation running the analysis. The trust file is local to the analyzer at:
+
+`~/.config/hazewave/reverse-engineering/allowed_signers`
+
+Use owner-controlled provisioning to place **only the approved public key** as a single allowed-signers entry:
+
+```text
+hazewave-owner ssh-ed25519 AAAA... owner-key-comment
+```
+
+File mode 0600; do not include the signing private key in the Codespace, any plugin, Git, environment files, prompts, or receipts. A privileged actor who can change the trusted signers file could substitute trust; the gate protects against ordinary untrusted task inputs, not a compromised owner account. For stronger adversarial isolation, provision/pin the signer through a separate trusted control plane.
+
+Example payload (filled and signed by owner/Harness; never auto-generated as a fake approval):
+
+```json
+{
+  "schema": "HazewaveReverseEngineeringTargetGrant/v1",
+  "authority": "HAZEWAVE_HARNESS",
+  "issuer": "hazewave-owner",
+  "grant_id": "authorized-research-20261008-001",
+  "domain": "HAZE",
+  "target_kind": "audio_plugin",
+  "purpose": "AUTHORIZED_FEATURE_STUDY",
+  "target_sha256": "64_lowercase_hex_digest_of_exact_authorized_target_file",
+  "issued_at": "2026-10-08T12:00:00+00:00",
+  "expires_at": "2026-10-08T12:30:00+00:00"
+}
+```
+
+The target digest above is a placeholder, not a valid grant. Compute the digest over the actual target file and sign the **unchanged JSON bytes** on the owner-controlled machine:
 
 ```bash
-PYTHONPATH=src python -m hazewave.cli reverse-engineering plan \
+ssh-keygen -Y sign -f /path/to/owner-private-ed25519 -n hazewave-research-grant /path/to/approved-grant.json
+```
+
+Move only `approved-grant.json`, `approved-grant.json.sig` and the explicitly authorized target to the work environment. They must be regular files, owner-owned, mode 0600 for both grant and signature. Do not symlink the target or trust files.
+
+```bash
+hazewave-re-cli plan \
   --domain HAZE \
   --target-kind audio_plugin \
   --purpose AUTHORIZED_FEATURE_STUDY \
-  --authorized
+  --target-file /absolute/path/to/authorized-target \
+  --grant-file /absolute/path/to/approved-grant.json \
+  --signature-file /absolute/path/to/approved-grant.json.sig
 ```
 
-Example WAVE shader study:
+A resulting `authorized_target=true` means the signature, target hash, scope and validity window were checked. It does **not** grant reverse-engineering tool execution, API credentials, installation rights, model promotion, production approval or permission to redistribute the original artifact.
 
-```bash
-PYTHONPATH=src python -m hazewave.cli reverse-engineering plan \
-  --domain WAVE \
-  --target-kind visual_shader \
-  --purpose AUTHORIZED_FEATURE_STUDY \
-  --authorized
-```
+## Operational research practice
 
-Omitting `--authorized` must fail closed.
+1. Log target identity, license, provenance, intended observation and consent basis.
+2. Inspect source and format metadata before choosing static or dynamic tooling.
+3. Use REA with **explicit Ghidra provider**; no Hopper fallback. Verify actual provider health and preserve limitations, not just tool presence.
+4. Work with isolated resource budgets and owner-controlled datasets. Never attach arbitrary processes or ingest secrets.
+5. Record reproducible findings, confidence level, source evidence, limitations and target digest. Never call pseudocode the original source.
+6. Recreate behavior independently in Hazewave-owned code and test correctness before benchmarking speed. Avoid DRM bypass or unauthorized access.
+7. Preserve all failed runs and no-op results as evidence; no automatic merge/promotion.
 
-## Evidence handling
+## Runtime proof gate
 
-Keep proprietary or sensitive snapshots local and owner-readable. Do not commit target binaries, decompiler output, runtime dumps or proprietary snapshots to the Hazewave repository.
+Until the doctor and deep analysis complete **in the existing Codespace**, report `RE_RUNTIME_PROVEN=false`. Do not represent successful GitHub Actions or an installer receipt as proof of workstation readiness.
 
-Commit only Hazewave-owned implementation, fixtures that are legally redistributable, policy, tests and non-sensitive receipts/metadata appropriate for source control.
+The independent [Reflex Binary Research runbook](REFLEX_BINARY_RESEARCH_V1.md) is in another candidate branch and must not be assumed to be checked out by this worktree.

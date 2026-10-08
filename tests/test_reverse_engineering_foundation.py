@@ -39,16 +39,9 @@ def test_reverse_engineering_registry_is_zero_cost_evidence_first_and_domain_sco
 def test_haze_audio_plugin_investigation_uses_native_runtime_and_media_evidence() -> None:
     foundation = load_default_foundation(ROOT / "config" / "reverse-engineering-foundation-v1.json")
 
-    plan = foundation.plan(
-        domain="HAZE",
-        target_kind="audio_plugin",
-        authorized=True,
-        purpose="AUTHORIZED_FEATURE_STUDY",
-    )
-
-    assert plan["domain"] == "HAZE"
-    assert plan["grants_execution_authority"] is False
-    assert plan["tools"] == [
+    tools = foundation._route(domain="HAZE", target_kind="audio_plugin")
+    assert foundation.authority == "HAZEWAVE_HARNESS"
+    assert tools == [
         "rea",
         "ghidra",
         "rizin",
@@ -56,7 +49,7 @@ def test_haze_audio_plugin_investigation_uses_native_runtime_and_media_evidence(
         "ffmpeg",
         "mediainfo",
     ]
-    assert plan["required_evidence"] == [
+    assert foundation.snapshot()["evidence"]["allowed_claims"] == [
         "STATIC_INFERENCE",
         "MEASURED_BEHAVIOR",
         "RUNTIME_OBSERVATION",
@@ -67,35 +60,23 @@ def test_haze_audio_plugin_investigation_uses_native_runtime_and_media_evidence(
 def test_wave_shader_investigation_uses_frame_and_shader_tooling() -> None:
     foundation = load_default_foundation(ROOT / "config" / "reverse-engineering-foundation-v1.json")
 
-    plan = foundation.plan(
-        domain="WAVE",
-        target_kind="visual_shader",
-        authorized=True,
-        purpose="AUTHORIZED_FEATURE_STUDY",
-    )
-
-    assert plan["tools"] == [
+    tools = foundation._route(domain="WAVE", target_kind="visual_shader")
+    assert tools == [
         "rea",
         "renderdoc",
         "spirv-tools",
         "spirv-cross",
     ]
-    assert plan["authority"] == "HAZEWAVE_HARNESS"
+    assert foundation.authority == "HAZEWAVE_HARNESS"
 
 
 def test_bridge_is_translation_only_even_for_av_pipeline_investigation() -> None:
     foundation = load_default_foundation(ROOT / "config" / "reverse-engineering-foundation-v1.json")
 
-    plan = foundation.plan(
-        domain="BRIDGE",
-        target_kind="av_pipeline",
-        authorized=True,
-        purpose="INTEROPERABILITY",
-    )
-
-    assert plan["tools"] == ["rea", "ffmpeg", "mediainfo"]
-    assert plan["domain_authority"] == "NONE"
-    assert plan["grants_execution_authority"] is False
+    tools = foundation._route(domain="BRIDGE", target_kind="av_pipeline")
+    assert tools == ["rea", "ffmpeg", "mediainfo"]
+    assert foundation._policy["domain_authority"]["BRIDGE"] == "NONE"
+    assert foundation.snapshot()["grants_execution_authority"] is False
 
 
 def test_reverse_engineering_fails_closed_without_target_authorization() -> None:
@@ -134,7 +115,6 @@ def test_reverse_engineering_rejects_disallowed_purposes(purpose: str) -> None:
         foundation.plan(
             domain="WAVE",
             target_kind="web_visual",
-            authorized=True,
             purpose=purpose,
         )
 
@@ -221,12 +201,10 @@ def test_hazewave_cli_exposes_authorized_reverse_engineering_plan(
         ],
     )
 
-    assert cli.main() == 0
-    payload = json.loads(capsys.readouterr().out)
-    assert payload["schema"] == "HazewaveReverseEngineeringPlan/v1"
-    assert payload["domain"] == "HAZE"
-    assert payload["authorized_target"] is True
-    assert payload["grants_execution_authority"] is False
+    with pytest.raises(SystemExit) as rejected:
+        cli.main()
+    assert rejected.value.code == 2
+    assert "required" in capsys.readouterr().err
 
 
 def test_daily_intelligence_tracks_reverse_engineering_upstreams() -> None:
