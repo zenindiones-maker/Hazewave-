@@ -77,7 +77,7 @@ jobs:
               def rpc(method, params=None, id=1, timeout=110):
                   message={"jsonrpc":"2.0","id":id,"method":method}
                   if params is not None: message["params"]=params
-                  child.stdin.write(json.dumps(message)+"\\n")
+                  child.stdin.write(json.dumps(message)+chr(10))
                   child.stdin.flush()
                   ready,_,_ = select.select([child.stdout], [], [], timeout)
                   assert ready, ("Gateway did not respond in time", method)
