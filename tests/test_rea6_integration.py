@@ -145,3 +145,17 @@ def test_signed_plan_receipt_contains_typed_harness_capability() -> None:
     assert '"harness_research_plan": harness_authorization' in foundation
     assert "authorization_id" in foundation
     assert "execution_authorized" in foundation
+
+
+def test_rea6_side_by_side_install_does_not_overwrite_v4_agent_config() -> None:
+    script = (ROOT / "scripts/codespaces/install-reverse-engineering-foundation.sh").read_text()
+    doctor = (ROOT / "scripts/codespaces/reverse-engineering-doctor.sh").read_text()
+    assert 'reverse-engineering-rea6.env' in script
+    assert 'reverse-engineering-rea6.env' in doctor
+    assert 'reverse-engineering-rea6-install-receipt.json' in script
+    assert 'hazewave-rea6' in script
+    assert 'hazewave-re6-cli' in script
+    assert 'ln -sfn "$REA_BIN" "$BIN_ROOT/rea"' not in script
+    assert 'ln -sfn "$REA_BIN" "$REA_PREFIX/bin/rea"' in script
+    assert 'rea6-providers.json' in script
+    assert 'rea6-doctor.json' in script
