@@ -155,7 +155,8 @@ def _secure_write(path: Path, payload: bytes) -> None:
         os.fsync(writer.fileno())
 
 
-def synthesize_owned_native_fixture(*,state_root:Path,compiler:str="cc",\n                                    rea_binary:Path|None=None,require_formal:bool=False) -> dict[str,Any]:
+def synthesize_owned_native_fixture(*,state_root:Path,compiler:str="cc",
+                                    rea_binary:Path|None=None,require_formal:bool=False) -> dict[str,Any]:
     """Compiles one approved local source fixture then synthesizes from binary I/O.
 
     The synthesis never reads, imports or copies the original source file. The
@@ -256,7 +257,8 @@ def main(argv:list[str]|None=None)->int:
     p.add_argument("--formal",action="store_true")
     args=p.parse_args(argv)
     try:
-        result=synthesize_owned_native_fixture(state_root=args.state_root,compiler=args.compiler,\n                                               rea_binary=args.rea,require_formal=args.formal)
+        result=synthesize_owned_native_fixture(state_root=args.state_root,compiler=args.compiler,
+                                               rea_binary=args.rea,require_formal=args.formal)
     except (SynthesisError,OSError) as exc:
         print("HAZEWAVE_NATIVE_SYNTHESIS=BLOCKED:"+str(exc),file=sys.stderr)
         return 20
