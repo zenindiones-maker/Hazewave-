@@ -5,6 +5,10 @@ on:
     paths:
       - ".github/workflows/rea6-real-ghidra-native.yml"
       - "src/hazewave/native_behavior_qualification.py"
+      - "src/hazewave/native_behavior_synthesis.py"
+      - "src/hazewave/native_formal_contract.py"
+      - "tests/test_native_formal_contract.py"
+      - "tests/test_native_triangulated_execution.py"
       - "src/hazewave/rea6_integration.py"
       - "tests/fixtures/native-owned-reconstruction/**"
 
@@ -102,4 +106,46 @@ jobs:
           print("NATIVE_ORACLE_SAMPLED_BEHAVIOR=PASS_300")
           print("AUTOMATED_SOURCE_RECONSTRUCTION=NOT_PROVEN")
           print("GHIDRA_EXISTING_CODESPACE=NOT_TESTED")
+          PY
+      - name: Triangulate ONE ELF through Ghidra, automatic synthesis and Z3
+        env:
+          PYTHONPATH: src
+          REA_ANALYSIS_PROVIDER: ghidra
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -e .
+          python -m pip install --only-binary=:all: z3-solver==5.1.0.0 pytest==8.4.2
+          python -m pytest -q tests/test_native_formal_contract.py tests/test_native_triangulated_execution.py
+          python -m hazewave.native_behavior_synthesis \
+            --state-root "$RUNNER_TEMP/native-triangulated-one-elf" \
+            --rea "$REA_GHIDRA_BIN" --formal \
+            > "$RUNNER_TEMP/native-triangulation.jsonl"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"native-triangulated-one-elf"
+          items=list(root.glob("synthesis-receipt-*.json"))
+          assert len(items)==1
+          r=json.loads(items[0].read_text())
+          ghidra=r["ghidra_direct_observation"]
+          z3=r["formal_contract"]
+          assert ghidra and ghidra["provider_id"]=="ghidra"
+          assert ghidra["target_sha256"]==r["oracle_elf_sha256"]
+          assert r["ghidra_observed_exact_same_elf"] is True
+          assert r["automatic_candidate_generation"] is True
+          assert r["inputs_checked"]==2001
+          assert r["behavioral_status"]=="EXHAUSTIVE_WITHIN_EXPLICIT_FINITE_DOMAIN"
+          assert z3["result"]=="UNSAT_NO_COUNTEREXAMPLE_WITHIN_SPEC"
+          assert z3["binary_equivalence_proven"] is False
+          assert r["ghidra_guided_synthesis_proven"] is False
+          assert r["codespace_runtime_proven"] is False
+          assert r["production_approved"] is False
+          assert items[0].stat().st_mode & 0o077==0
+          print("REA_GHIDRA_SYNTHESIS_SAME_ELF=PASS")
+          print("NATIVE_AUTOMATIC_GENERATED_C=PASS")
+          print("NATIVE_COMPILED_DIFFERENTIAL=PASS_2001")
+          print("Z3_BOUNDED_MATHEMATICAL_CONTRACT=UNSAT")
+          print("GHIDRA_GUIDED_SOURCE_SYNTHESIS=NOT_CLAIMED")
+          print("EXISTING_CODESPACE_RESEARCH=NOT_ATTESTED")
           PY
