@@ -567,7 +567,7 @@ build_pack_reuse_engine_variant() {
   [[ -z "$(git -C "$SOURCE_ROOT" status --porcelain)" ]] || die "ENGINE_PACK_REUSE_UPSTREAM_SOURCE_DIRTY"
 
   if [[ -x "$binary" && -f "$meta" ]]; then
-    "$PYTHON_BIN" - "$meta" "$binary" <<'PY'
+    if ! "$PYTHON_BIN" - "$meta" "$binary" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
 meta = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -578,6 +578,9 @@ if meta.get("binary_sha256") != actual:
 if meta.get("weight_panel_reuse_only") is not True:
     raise SystemExit("ENGINE_PACK_REUSE_DERIVED_METADATA_INVALID")
 PY
+    then
+      die "ENGINE_PACK_REUSE_CACHED_METADATA_INVALID"
+    fi
     printf '%s\n' "$binary"
     return 0
   fi
@@ -708,7 +711,7 @@ build_direct_y_store_engine_variant() {
   [[ -z "$(git -C "$SOURCE_ROOT" status --porcelain)" ]] || die "ENGINE_DIRECT_STORE_UPSTREAM_SOURCE_DIRTY"
 
   if [[ -x "$binary" && -f "$meta" ]]; then
-    "$PYTHON_BIN" - "$meta" "$binary" <<'PY'
+    if ! "$PYTHON_BIN" - "$meta" "$binary" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
 meta = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -721,6 +724,9 @@ if meta.get("direct_y_store_only") is not True:
 if meta.get("preserves_k_accumulation_order") is not True:
     raise SystemExit("ENGINE_DIRECT_STORE_ACCUMULATION_ORDER_INVALID")
 PY
+    then
+      die "ENGINE_DIRECT_STORE_CACHED_METADATA_INVALID"
+    fi
     printf '%s\n' "$binary"
     return 0
   fi
@@ -851,7 +857,7 @@ build_mc_engine_variant() {
     144|408|816) ;;
     *) die "ENGINE_MC_VARIANT_UNSUPPORTED:$mc" ;;
   esac
-  local variant="mc_\${mc}_v1"
+  local variant="mc_${mc}_v2"
   local root="$HOME/.local/share/hazewave/providers/colibri/derived/$variant"
   local binary="$root/c/laya"
   local meta="$root/build.json"
@@ -861,7 +867,7 @@ build_mc_engine_variant() {
   [[ -z "$(git -C "$SOURCE_ROOT" status --porcelain)" ]] || die "ENGINE_MC_UPSTREAM_SOURCE_DIRTY"
 
   if [[ -x "$binary" && -f "$meta" ]]; then
-    "$PYTHON_BIN" - "$meta" "$binary" "$mc" <<'PY'
+    if ! "$PYTHON_BIN" - "$meta" "$binary" "$mc" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
 meta = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -877,6 +883,9 @@ if meta.get("qi_mc") != mc:
 if meta.get("preserves_k_accumulation_order") is not True:
     raise SystemExit("ENGINE_MC_ACCUMULATION_ORDER_INVALID")
 PY
+    then
+      die "ENGINE_MC_CACHED_METADATA_INVALID:$variant"
+    fi
     printf '%s\n' "$binary"
     return 0
   fi
@@ -958,7 +967,7 @@ build_phase_profile_engine_variant() {
   [[ -z "$(git -C "$SOURCE_ROOT" status --porcelain)" ]] || die "ENGINE_PROFILE_UPSTREAM_SOURCE_DIRTY"
 
   if [[ -x "$binary" && -f "$meta" ]]; then
-    "$PYTHON_BIN" - "$meta" "$binary" <<'PY'
+    if ! "$PYTHON_BIN" - "$meta" "$binary" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
 meta = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -969,6 +978,9 @@ if meta.get("binary_sha256") != actual:
 if meta.get("diagnostic_only") is not True or meta.get("activatable") is not False:
     raise SystemExit("ENGINE_PROFILE_DERIVED_METADATA_INVALID")
 PY
+    then
+      die "ENGINE_PROFILE_CACHED_METADATA_INVALID"
+    fi
     printf '%s\n' "$binary"
     return 0
   fi
@@ -1833,15 +1845,15 @@ PY
   run_case static_all_f32_v2 "$all"
   run_case reuse_packed_w_v1 "$reuse"
   run_case direct_y_store_v1 "$direct_store"
-  run_case mc_144_v1 "$mc144"
-  run_case mc_408_v1 "$mc408"
-  run_case mc_816_v1 "$mc816"
+  run_case mc_144_v2 "$mc144"
+  run_case mc_408_v2 "$mc408"
+  run_case mc_816_v2 "$mc816"
 
   "$PYTHON_BIN" - "$run_dir" <<'PY'
 import hashlib, json, os, sys
 from pathlib import Path
 root = Path(sys.argv[1])
-names = ["stock", "static_attention_v2", "static_gemm_f32_v2", "static_all_f32_v2", "reuse_packed_w_v1", "direct_y_store_v1", "mc_144_v1", "mc_408_v1", "mc_816_v1"]
+names = ["stock", "static_attention_v2", "static_gemm_f32_v2", "static_all_f32_v2", "reuse_packed_w_v1", "direct_y_store_v1", "mc_144_v2", "mc_408_v2", "mc_816_v2"]
 rows = {n: json.load(open(root / f"{n}.json", encoding="utf-8")) for n in names}
 base = rows["stock"]
 bs = [x for x in base["samples"] if x.get("status") == "PASS"]
