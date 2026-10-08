@@ -26,7 +26,8 @@ class LlamaRuntimeError(RuntimeError):
     pass
 
 
-_VERSION = "0.9.5"\n_OFFICIAL_WHEEL_SHA256 = "10776e9b259798bf65f6c5343f6298f0302e92e9cd47472abe29eef69e286c6a"
+_VERSION = "0.9.5"
+_OFFICIAL_WHEEL_SHA256 = "10776e9b259798bf65f6c5343f6298f0302e92e9cd47472abe29eef69e286c6a"
 _SHA = re.compile(r"^[A-Za-z0-9_-]{43}$")
 
 
@@ -152,7 +153,8 @@ def validate_probe(record: dict[str, Any]) -> dict[str, Any]:
             or record.get("imported_version") != _VERSION):
         raise LlamaRuntimeError("INSTALLED_VERSION_OR_IMPORT_DRIFT")
     if record.get("environment_isolated") is not True:
-        raise LlamaRuntimeError("VENV_ISOLATION_NOT_VERIFIED")\n    if (record.get("release_wheel_sha256") != _OFFICIAL_WHEEL_SHA256
+        raise LlamaRuntimeError("VENV_ISOLATION_NOT_VERIFIED")
+    if (record.get("release_wheel_sha256") != _OFFICIAL_WHEEL_SHA256
             or type(record.get("release_files_verified")) is not int
             or record["release_files_verified"] < 20):
         raise LlamaRuntimeError("OFFICIAL_WHEEL_REFERENCE_MISSING")
@@ -184,7 +186,10 @@ def validate_probe(record: dict[str, Any]) -> dict[str, Any]:
         "package": "llamafactory",
         "version": _VERSION,
         "package_imported": True,
-        "installed_files_hash_verified": True,\n        "source_release_payload_verified": True,\n        "release_files_verified": record["release_files_verified"],\n        "official_wheel_sha256": _OFFICIAL_WHEEL_SHA256,
+        "installed_files_hash_verified": True,
+        "source_release_payload_verified": True,
+        "release_files_verified": record["release_files_verified"],
+        "official_wheel_sha256": _OFFICIAL_WHEEL_SHA256,
         "hash_files_verified": n,
         "isolated_venv": True,
         "dependencies_satisfied": ok,
@@ -279,7 +284,8 @@ def _persist(result: dict[str, Any], receipt_root: Path) -> Path:
 def main(argv: list[str] | None = None) -> int:
     parser=argparse.ArgumentParser(description="LLaMA-Factory pinned real import and on-host integrity audit")
     parser.add_argument("action",choices=("doctor",))
-    parser.add_argument("--python",type=Path,required=True)\n    parser.add_argument("--wheel",type=Path,required=True)
+    parser.add_argument("--python",type=Path,required=True)
+    parser.add_argument("--wheel",type=Path,required=True)
     parser.add_argument("--receipt-root",type=Path)
     args=parser.parse_args(argv)
     try:
