@@ -185,6 +185,34 @@ Use the existing independent Ghidra on-host route probe for REA native targets;
 a JavaScript fixture result does not prove Ghidra or Frida readiness.
 `BR_OWNER_V1` and BR-no-GTA remain separate and untouched.
 
+## First-class operational inventory and real native behavior lab (candidate)
+
+**Always start real reverse engineering tasks with the Harness's own inventory**
+(`python -m hazewave.harness inventory`) and the ordered connection queue
+(`python -m hazewave.harness_connection_inventory`). Read
+`docs/runbooks/NATIVE_BEHAVIOR_CAPABILITY_CONNECTION_V1.md` for the
+native/source-owned behavior, Ghidra and actual-agent proof procedure.
+
+The current baseline derives the declared 124 capabilities from the real
+`harness_status()` and maps 10 of them to the first provider roster.
+`NO_EXACT_PROVIDER_MAPPING` means **unqualified provider mapping**, NOT
+proof a workstation lacks a tool. Neither this catalog nor an ephemeral CI
+run proves the owner's existing Codespace is ready or agents can call a tool.
+
+The native lab compiles original C, a separate hypothesis and a known-bad
+mutant and performs differential runs over 300 reproducible bounded inputs.
+A matching sample is `BOUNDED_BEHAVIOR_MATCH`, not full mathematical proof.
+A manually supplied hypothesis is NOT automatically reconstructed source.
+`rea6 --provider ghidra` may only be marked as analyzed when it actually
+returns validated direct Evidence matching the ELF's exact SHA256.
+Host-native installation and production review remain separate.
+
+The next phase is to qualify and connect one operation at a time with
+owner-scoped authority, actual agent MCP `tools/list` and `tools/call`,
+benchmarks, resource budget and failure receipts. **Do not bulk-install or
+bulk-register the 114 unmapped capabilities.** Never touch BR-no-GTA,
+the Reflex stock runtime or the existing Hazewave branch in use.
+
 ## Setup
 
 Development checkout:

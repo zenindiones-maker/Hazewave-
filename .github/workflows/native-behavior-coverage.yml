@@ -1,0 +1,79 @@
+name: Harness full inventory and native behavior conformance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/native-behavior-coverage.yml"
+      - "src/hazewave/native_behavior_qualification.py"
+      - "src/hazewave/harness_connection_inventory.py"
+      - "tests/fixtures/native-owned-reconstruction/**"
+      - "tests/test_native_behavior_and_connection_inventory.py"
+      - "scripts/codespaces/native-behavior-rea6-probe.sh"
+
+permissions:
+  contents: read
+
+jobs:
+  owned-native-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install only existing project's test dependencies
+        run: python -m pip install -e . pytest==8.4.2
+      - name: Real source-owned native and capability inventory regressions
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/test_native_behavior_and_connection_inventory.py
+          python -m hazewave.harness_connection_inventory             --output "$RUNNER_TEMP/full-harness-capabilities.json" > "$RUNNER_TEMP/full-harness-output.json"
+          python - "$RUNNER_TEMP/full-harness-capabilities.json" <<'PY'
+          import json,sys
+          a=json.load(open(sys.argv[1]))
+          assert a["authority"]=="HAZEWAVE_HARNESS"
+          assert a["summary"]["declared"] >= 120
+          assert a["summary"]["provider_mapped"] == 10
+          assert a["summary"]["ready_on_existing_codespace"] == 0
+          assert len(a["capabilities"]) == a["summary"]["declared"]
+          assert len(a["connection_sequence"]) >= a["summary"]["declared"]
+          assert all(not x["auto_connect"] for x in a["connection_sequence"])
+          print("HARNESS_FULL_CAPABILITY_INVENTORY=PASS")
+          print("HARNESS_CODESPACE_READY=NOT_PROVEN")
+          print("HARNESS_AGENT_AUTO_CONNECTION=FORBIDDEN")
+          PY
+      - name: Actually compile, run, compare source-owned ELF behavior
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python -m hazewave.native_behavior_qualification             --state-root "$RUNNER_TEMP/native-owned-proof" --seed 42 --count 300             > "$RUNNER_TEMP/native-pass.jsonl"
+          if python -m hazewave.native_behavior_qualification             --state-root "$RUNNER_TEMP/native-mutant-proof" --candidate mutant             --seed 42 --count 300 > "$RUNNER_TEMP/native-false.jsonl"; then
+            echo "NATIVE_KNOWN_BUG_ESCAPED=FAIL" >&2
+            exit 20
+          fi
+          python - <<'PY'
+          from pathlib import Path
+          import json,os
+          root=Path(os.environ["RUNNER_TEMP"])
+          passing=list((root/"native-owned-proof").glob("*.json"))
+          rejected=list((root/"native-mutant-proof").glob("*.json"))
+          assert len(passing)==len(rejected)==1
+          p=json.loads(passing[0].read_text())
+          n=json.loads(rejected[0].read_text())
+          assert p["semantic_status"]=="BOUNDED_BEHAVIOR_MATCH"
+          assert p["oracle_runs"]==300 and p["candidate_runs"]==300
+          assert p["ghidra_provider_attested"] is False
+          assert p["reconstruction_automatically_generated"] is False
+          assert p["universal_equivalence_proven"] is False
+          assert n["semantic_status"]=="REJECTED_BEHAVIOR_MISMATCH"
+          assert n["first_mismatch_input"] is not None
+          assert passing[0].stat().st_mode & 0o077 == 0
+          print("HARNESS_NATIVE_COMPILED_DIFFERENTIAL=PASS_300_INPUTS")
+          print("HARNESS_NATIVE_WRONG_MUTANT=REJECTED")
+          print("REA_GHIDRA_LIVE_PROVIDER=NOT_TESTED")
+          print("AUTOMATED_BINARY_TO_SOURCE_RECONSTRUCTION=NOT_PROVEN")
+          PY

@@ -116,8 +116,26 @@ def inspect_ghidra_evidence(
     if not isinstance(result, (dict, list, str)) or not result:
         raise Rea6ContractError("REA6_NATIVE_OBSERVATION_EMPTY")
     locations = evidence.get("locations")
-    if not isinstance(locations, list) or not locations:
+    if not isinstance(locations, list):
         raise Rea6ContractError("REA6_LOCATIONS_MISSING")
+    # Official REA Evidence schema permits an empty locations array.
+    # For the specific native analyze_function operation, the result's
+    # structured procedure entry and disassembly carry exact address identity.
+    # Other operations continue to require explicit Evidence locations.
+    if not locations:
+        if evidence.get("operation") != "analyze_function" or not isinstance(result, dict):
+            raise Rea6ContractError("REA6_LOCATIONS_MISSING")
+        proc = result.get("procedure")
+        if (not isinstance(proc, Mapping)
+                or not isinstance(proc.get("address"), str)
+                or not re.fullmatch(r"0x[0-9a-fA-F]+", proc["address"])
+                or not isinstance(proc.get("name"), str)
+                or not proc["name"].strip()
+                or not isinstance(result.get("assembly"), list)
+                or not result["assembly"]
+                or any(not isinstance(line, str) or not line.strip()
+                       for line in result["assembly"])):
+            raise Rea6ContractError("REA6_FUNCTION_DOSSIER_INCOMPLETE")
     limitations = evidence.get("limitations")
     if not isinstance(limitations, list) or any(not isinstance(x, str) for x in limitations):
         raise Rea6ContractError("REA6_LIMITATIONS_MISSING")
