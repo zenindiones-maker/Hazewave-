@@ -1030,30 +1030,71 @@ input:focus-visible {
   pointer-events: none;
 }
 @media (max-width: 700px) and (max-height: 650px) {
-  .field-invitation {
-    display: none;
+  .field-invitation p {
+    font-size: 20px;
+    white-space: normal;
+    width: 260px;
+    text-align: center;
   }
 }
-.living-field[data-journey="true"] .signal-label b { display: none; }
-@media (max-width:700px) {
-  .living-field:has([data-world-system="tidal-depth"][data-active="true"])::after {
-    background:linear-gradient(#03060490,transparent 22%,transparent 48%,#030604a8 70%,#030604dd);
+.living-field[data-journey="true"] .signal-label b {
+  display: none;
+}
+@media (max-width: 700px) {
+  .living-field:has(
+      [data-world-system="tidal-depth"][data-active="true"]
+    )::after {
+    background: linear-gradient(
+      #03060490,
+      transparent 22%,
+      transparent 48%,
+      #030604a8 70%,
+      #030604dd
+    );
   }
-  [data-world-system="tidal-depth"] .world-switch { color:#fff3db; text-shadow:0 1px 4px #000; }
+  [data-world-system="tidal-depth"] .world-switch {
+    color: #fff3db;
+    text-shadow: 0 1px 4px #000;
+  }
 }
 /* Reading pass: interaction guidance remains legible over the printed surf. */
-.field-invitation p { text-shadow:0 2px 8px #000,0 0 20px #000; }
-.field-invitation p span { font:11px/2.6 Arial,Helvetica,sans-serif;letter-spacing:.035em;color:#edf1e2;text-shadow:0 1px 4px #000,0 0 12px #000; }
-.signal-label b { font-size:10px; }
-@media (max-width:700px) {
-  .field-invitation p span { font-size:11px; }
-  .world-switch { font-size:11px;letter-spacing:.06em; }
-  .signal-label b { font-size:10px; }
+.field-invitation p {
+  text-shadow:
+    0 2px 8px #000,
+    0 0 20px #000;
+}
+.field-invitation p span {
+  font:
+    11px/2.6 Arial,
+    Helvetica,
+    sans-serif;
+  letter-spacing: 0.035em;
+  color: #edf1e2;
+  text-shadow:
+    0 1px 4px #000,
+    0 0 12px #000;
+}
+.signal-label b {
+  font-size: 10px;
+}
+@media (max-width: 700px) {
+  .field-invitation p span {
+    font-size: 11px;
+  }
+  .world-switch {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+  .signal-label b {
+    font-size: 10px;
+  }
 }
 /* Home instructions return only when the original field is fully present. */
 .living-field[data-transitioning="true"] .field-invitation,
 .living-field[data-transitioning="true"] .field-intro,
 .living-field[data-transitioning="true"] .field-index,
 .living-field[data-transitioning="true"] .signal-field {
-  opacity:0;visibility:hidden;pointer-events:none;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }

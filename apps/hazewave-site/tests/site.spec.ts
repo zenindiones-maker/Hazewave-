@@ -7,6 +7,122 @@ const ids = [
   "aquaverno",
   "hemorragia-cosmica",
 ];
+
+test("motion preference changed during decode never restarts the field", async ({
+  page,
+}) => {
+  let release!: () => void;
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/media/**", async (route) => {
+    await blocked;
+    await route.continue();
+  });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector("#living-field")
+        ?.getAttribute("data-world-ready") === "true",
+  );
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  release();
+  await page.waitForFunction(() =>
+    Array.from(
+      document.querySelectorAll(".field-origin img,.world-fallback-art"),
+    ).every(
+      (img) =>
+        (img as HTMLImageElement).complete &&
+        (img as HTMLImageElement).naturalWidth > 0,
+    ),
+  );
+  await page.waitForTimeout(500);
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-field-runtime",
+    "css-fallback",
+  );
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-motion",
+    "reduced",
+  );
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await ready(page);
+});
+
+test("distant signal is revealed after the wave reaches its location", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/");
+  await ready(page);
+  const expected = await page.evaluate(() => {
+    const x = 15,
+      y = 1060;
+    const distance = Math.min(
+      ...Array.from(document.querySelectorAll("[data-artist-signal]")).map(
+        (button) => {
+          const b = button.getBoundingClientRect();
+          return Math.hypot(
+            (b.x + b.width / 2 - x) / innerHeight,
+            (b.y + b.height / 2 - y) / innerHeight,
+          );
+        },
+      ),
+    );
+    return (distance / 0.55) * 1000;
+  });
+  await page.evaluate(() => {
+    const started = performance.now();
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('[data-revealed="true"]')) {
+        (window as Window & { revealDelay?: number }).revealDelay =
+          performance.now() - started;
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.querySelector(".signal-field")!, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-revealed"],
+    });
+    document
+      .querySelector("#living-field")!
+      .dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          clientX: 15,
+          clientY: 1060,
+          pointerType: "touch",
+        }),
+      );
+  });
+  await page.waitForFunction(
+    () =>
+      (window as Window & { revealDelay?: number }).revealDelay !== undefined,
+  );
+  const observed = await page.evaluate(
+    () => (window as Window & { revealDelay?: number }).revealDelay!,
+  );
+  expect(observed).toBeGreaterThanOrEqual(expected - 25);
+});
+
+test("short portrait retains readable discovery guidance", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("/");
+  await ready(page);
+  await expect(page.locator(".field-invitation")).toBeVisible();
+  const instruction = (await page.locator(".field-invitation").boundingBox())!;
+  const navigation = (await page.locator(".primary-paths").boundingBox())!;
+  expect(instruction.y + instruction.height).toBeLessThanOrEqual(navigation.y);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+  ).toBe(false);
+});
 async function ready(page: Page) {
   await expect(page.locator("#living-field")).toHaveAttribute(
     "data-field-runtime",
@@ -301,8 +417,10 @@ test("short mobile keeps signals above the transport", async ({
   await page.setViewportSize({ width: 360, height: 640 });
   await page.goto("/");
   await ready(page);
-  await expect(page.locator(".field-invitation")).not.toBeVisible();
+  await expect(page.locator(".field-invitation")).toBeVisible();
   const nav = (await page.locator(".primary-paths").boundingBox())!;
+  const instruction = (await page.locator(".field-invitation").boundingBox())!;
+  expect(instruction.y + instruction.height).toBeLessThanOrEqual(nav.y);
   for (const signal of await page.locator("[data-artist-signal]").all()) {
     const b = (await signal.boundingBox())!;
     expect(b.y + b.height).toBeLessThan(nav.y);

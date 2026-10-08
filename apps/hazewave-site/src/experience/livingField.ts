@@ -3,7 +3,7 @@ import {
   getRealArtist,
   type RealArtistId,
 } from "../data/realArtists";
-import { FieldRenderer } from "./fieldRenderer";
+import { FieldRenderer, FIELD_WAVE_SPEED } from "./fieldRenderer";
 
 export function bootLivingField(): void {
   const field = document.querySelector<HTMLElement>("#living-field")!;
@@ -132,7 +132,7 @@ export function bootLivingField(): void {
     if (candidates[0])
       arrivalTimer = window.setTimeout(
         () => reveal(candidates[0].button),
-        motion.matches ? 0 : Math.min(750, (candidates[0].d / 0.55) * 1000),
+        motion.matches ? 0 : (candidates[0].d / FIELD_WAVE_SPEED) * 1000,
       );
   };
   const setUrl = (id: RealArtistId | null, mode: "push" | "replace") => {
@@ -302,7 +302,7 @@ export function bootLivingField(): void {
       journeyControls.hidden = false;
       journeyDistance.hidden = false;
       field.dataset.journey = "true";
-      field.style.setProperty("--journey-progress","0");
+      field.style.setProperty("--journey-progress", "0");
       const b = signals[3].getBoundingClientRect();
       wave(b.x + b.width / 2, b.y + b.height / 2);
       clearTimeout(arrivalTimer);

@@ -1,5 +1,7 @@
 # Hazewave — Living Resonance Field
 
+**Owner rejected V3 as a final product (2026-10-08).** The [V4 critical audit](review/creative-audit-v4.md) supersedes the earlier readiness assessment. The current corrections address three reproduced defects only; spatial art direction, traversal interruption, adaptive quality and authorized audio remain open. Do not treat passing tests as creative approval.
+
 Candidate creative reset, based on site HEAD `9873973e79df670ff29e31fff08b1cc38c41c3ee`.
 
 The first screen samples the owner's lighthouse artwork as an interactive WebGL2 field. Contact emits a radial refraction through the image; signal selection replaces the material with the selected artist artwork using the same spatial aperture that revealed it. EXPLORE starts a short optional native-scroll journey into Aquaverno: advance, pause and reverse the texture takeover before entering its world. Direct artist selection and SEARCH remain available without the journey. Aquaverno uses tidal displacement and close ocean framing on mobile. Hemorragia Cósmica uses asymmetric compression, skeletal texture and wire tension. The original five artists are searchable and have direct `?artist=` links.

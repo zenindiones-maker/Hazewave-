@@ -1,3 +1,5 @@
+export const FIELD_WAVE_SPEED = 0.55;
+
 /** Original artwork is sampled directly. No generated artwork or particle proxy. */
 export class FieldRenderer {
   private gl: WebGL2RenderingContext | null = null;
@@ -29,6 +31,7 @@ export class FieldRenderer {
   private previousFrame = 0;
   private disposed = false;
   private completion: (() => void) | null = null;
+  private initialization: Promise<void> | null = null;
   constructor(
     private host: HTMLElement,
     private canvas: HTMLCanvasElement,
@@ -40,6 +43,14 @@ export class FieldRenderer {
       this.host.dataset.fieldRuntime = "css-fallback";
       return;
     }
+    if (this.initialization) return this.initialization;
+    this.initialization = this.initializeResources(images).finally(() => {
+      this.initialization = null;
+    });
+    return this.initialization;
+  }
+
+  private async initializeResources(images: HTMLImageElement[]): Promise<void> {
     const gl = this.canvas.getContext("webgl2", {
       alpha: false,
       antialias: false,
@@ -130,7 +141,7 @@ export class FieldRenderer {
         float vapor=mist(flow+vec2(mist(flow*.7),0.));
         float banks=exp(-pow((uv.y-.22-sin(uv.x*5.+uTime*.07)*.045)*5.5,2.));
         float filament=pow(max(0.,1.-abs(vapor-.5)*3.2),5.);
-        float cleared=exp(-pow((length((uv-uWaveOrigin)*vec2(aspect,1.))-uWaveAge*.55)*9.,2.))*exp(-max(0.,uWaveAge)*.32);
+        float cleared=exp(-pow((length((uv-uWaveOrigin)*vec2(aspect,1.))-uWaveAge*${FIELD_WAVE_SPEED.toFixed(2)})*9.,2.))*exp(-max(0.,uWaveAge)*.32);
         float haze=banks*filament*.32*(1.-cleared*.9);
         vec3 sourceLight=mix(vec3(.12,.15,.12),vec3(.29,.34,.20),vapor);
         result=mix(result,sourceLight,haze);
@@ -152,7 +163,7 @@ export class FieldRenderer {
       vec2 waveDelta=(vUv-uWaveOrigin)*vec2(aspect,1.);
       float distance=length(waveDelta);
       float age=max(0.,uWaveAge);
-      float radius=age*.55;
+      float radius=age*${FIELD_WAVE_SPEED.toFixed(2)};
       float envelope=exp(-pow((distance-radius)*14.,2.))*exp(-age*.65)*step(age,3.1);
       float oscillation=sin((distance-radius)*78.);
       vec2 direction=waveDelta/max(.001,distance)/vec2(aspect,1.);
@@ -240,11 +251,17 @@ export class FieldRenderer {
       }),
     );
     if (this.disposed) return;
-    this.host.dataset.fieldRuntime = "webgl2";
-    this.resize();
     window.addEventListener("resize", this.resize, { passive: true });
     document.addEventListener("visibilitychange", this.visibility);
     this.canvas.addEventListener("webglcontextlost", this.contextLost);
+    // Image decode may finish after the user has changed their motion preference.
+    // Keep the allocated resources ready for a later opt-in, without restarting motion.
+    if (this.reduced) {
+      this.host.dataset.fieldRuntime = "css-fallback";
+      return;
+    }
+    this.host.dataset.fieldRuntime = "webgl2";
+    this.resize();
     this.raf = requestAnimationFrame(this.frame);
   }
   async setReduced(reduced: boolean, images: HTMLImageElement[]) {
@@ -263,6 +280,7 @@ export class FieldRenderer {
       !this.gl.isContextLost() &&
       this.assets.size === images.length
     ) {
+      cancelAnimationFrame(this.raf);
       this.host.dataset.fieldRuntime = "webgl2";
       this.resize();
       this.raf = requestAnimationFrame(this.frame);
