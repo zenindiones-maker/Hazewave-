@@ -17,6 +17,8 @@ _CAPABILITY_DOMAINS: Final[dict[str, str]] = {
     "audio.generate": HAZE,
     "audio.separate": HAZE,
     "audio.analyze": HAZE,
+    "research.audio.inspect": HAZE,
+    "research.visual.inspect": WAVE,
     "audio.mix": HAZE,
     "audio.master": HAZE,
     "audio.voice": HAZE,
