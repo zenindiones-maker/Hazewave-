@@ -5,6 +5,8 @@ This runbook is subordinate to `AGENTS.md`, the project profile and the HAZE/WAV
 ## Operating boundary
 
 - Use the **existing** Hazewave Codespace. Do not create another, resize, add paid services or overwrite the active Reflex/HAZE/WAVE branches.
+- REA 6.0.0 is a **side-by-side candidate**: its environment is `~/.config/hazewave/reverse-engineering-rea6.env`; launch it through `hazewave-rea6` and `hazewave-re6-cli`. The legacy global `rea` command, `reverse-engineering.env` and older wrappers must remain untouched.
+- GitHub Actions proving published npm 6.0.0 is distinct from a real Codespace installation and an actual connected MCP client.
 - Do not run analysis of a target without a specific authorization and actual target digest.
 - Tool authority = NONE; HAZEWAVE_HARNESS alone approves scope. REA/Ghidra/Rizin/Frida are analyzers, never control-plane authorities.
 - Never confuse a CI pass, an installed command, `rea doctor` success and a successful real target analysis.
@@ -74,7 +76,7 @@ ssh-keygen -Y sign -f /path/to/owner-private-ed25519 -n hazewave-research-grant 
 Move only `approved-grant.json`, `approved-grant.json.sig` and the explicitly authorized target to the work environment. They must be regular files, owner-owned, mode 0600 for both grant and signature. Do not symlink the target or trust files.
 
 ```bash
-hazewave-re-cli plan \
+hazewave-re6-cli plan \
   --domain HAZE \
   --target-kind audio_plugin \
   --purpose AUTHORIZED_FEATURE_STUDY \
