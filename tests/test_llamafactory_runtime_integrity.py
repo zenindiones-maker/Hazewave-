@@ -62,13 +62,13 @@ def test_record_audit_blocks_symlink_and_out_of_environment(tmp_path):
 def test_metadata_and_import_but_missing_deps_is_not_cli_or_training_ready():
     report=validate_probe({
         "distribution":"llamafactory","version":"0.9.5",
-        "imported_version":"0.9.5", "hash_files_verified":81,
+        "imported_version":"0.9.5", "hash_files_verified":81,\n        "release_files_verified":75, "release_wheel_sha256":"10776e9b259798bf65f6c5343f6298f0302e92e9cd47472abe29eef69e286c6a",
         "environment_isolated":True, "dependency_check_ok":False,
         "missing_dependencies_count":17,"cli_status":"NOT_ATTEMPTED_MISSING_DEPS",
         "python_version":"3.12.1",
     })
     assert report["package_imported"] is True
-    assert report["installed_files_hash_verified"] is True
+    assert report["installed_files_hash_verified"] is True\n    assert report["source_release_payload_verified"] is True
     assert report["dependencies_satisfied"] is False
     assert report["cli_runnable"] is False
     assert report["model_training_ready"] is False
@@ -108,3 +108,31 @@ def test_workflow_really_runs_package_probe_and_tamper_negative_control():
     assert "LLAMA_FACTORY_TAMPERED_PACKAGE=REJECTED" in source
     assert "llamafactory_runtime_probe doctor" in source
     assert "LLAMA_FACTORY_CLI_RUNTIMEREADY=FALSE" in source
+
+
+def test_mutable_record_cannot_attest_upstream_release_without_immutable_wheel():
+    with pytest.raises(LlamaRuntimeError, match="OFFICIAL_WHEEL_REFERENCE_MISSING"):
+        validate_probe({
+            "distribution":"llamafactory","version":"0.9.5","imported_version":"0.9.5",
+            "hash_files_verified":120, "environment_isolated":True,
+            "dependency_check_ok":False, "missing_dependencies_count":30,
+            "cli_status":"NOT_ATTEMPTED_MISSING_DEPS","python_version":"3.12.1"
+        })
+
+
+def test_official_wheel_zip_payload_validation_is_executed_on_host():
+    from pathlib import Path
+    s=(ROOT/"src/hazewave/llamafactory_runtime_probe.py").read_text()
+    assert "zipfile.ZipFile" in s
+    assert "release_files_verified" in s
+    assert "OFFICIAL_WHEEL_SHA256" in s
+    assert "dist.locate_file" in s
+    assert "INSTALLED_FILE_TAMPERED" in s
+
+
+def test_runtime_doctor_reuses_pinned_cached_official_wheel():
+    script=INSTALLER.read_text()
+    assert 'WHEEL_CACHE="$ENV_ROOT/release/$WHEEL"' in script
+    assert 'sha256sum -c -' in script
+    assert 'chmod 0400 "$WHEEL_CACHE"' in script
+    assert '--wheel "$WHEEL_CACHE"' in script
