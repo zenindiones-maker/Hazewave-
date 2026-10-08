@@ -1,0 +1,36 @@
+{
+  "schema": "HazewaveLlamaFactoryLearningPolicy/v1",
+  "harness_authority": "HAZEWAVE_HARNESS",
+  "domain": "HAZE_WAVE_LEARNING_AUXILIARY",
+  "status": "INSTALLATION_CANDIDATE_NOT_OPERATIONAL",
+  "upstream": {
+    "repository": "hiyouga/LlamaFactory",
+    "version": "0.9.5",
+    "tag": "v0.9.5",
+    "tag_sha": "7af909522a951e3ad9f022ea6f88b6755257eaa5",
+    "wheel_filename": "llamafactory-0.9.5-py3-none-any.whl",
+    "wheel_sha256": "10776e9b259798bf65f6c5343f6298f0302e92e9cd47472abe29eef69e286c6a",
+    "license": "Apache-2.0"
+  },
+  "installation": {
+    "target": "EXISTING_HAZEWAVE_CODESPACE_ONLY",
+    "machine": "hazewave-zero-cost-4jxp45676rq6279xx",
+    "mode": "ISOLATED_WHEEL_ONLY_NO_DEPS",
+    "allow_automatic_runtime_dependencies": false,
+    "allow_gpu_or_machine_upgrade": false,
+    "allow_paid_fallback": false,
+    "allow_model_download": false,
+    "allow_training": false
+  },
+  "harness_capability_coverage": {
+    "declared_new_capability": false,
+    "auto_register_existing_capability": false,
+    "reason": "Fine-tuning framework is a candidate learning tool, not a qualified HAZE audio or WAVE video inference/QA executor",
+    "owner_signoff_required": true,
+    "runtime_evidence_required": true,
+    "agent_mcp_connection": "NOT_PROVEN"
+  },
+  "auto_training": false,
+  "owner_media_allowed": false,
+  "production_approved": false
+}
