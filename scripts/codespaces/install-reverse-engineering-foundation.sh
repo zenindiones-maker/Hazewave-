@@ -43,6 +43,19 @@ fail() {
 [[ "$(uname -s)" == "Linux" ]] || fail "UNSUPPORTED_OS"
 [[ "$(uname -m)" == "x86_64" ]] || fail "UNSUPPORTED_ARCH"
 
+# Prevent a heavy install when disk headroom is insufficient for Ghidra,
+# Rizin, Node/npm and the existing Colibri model. Do not mutate the host on preflight.
+available_kib="$(df -Pk "$HOME" | awk 'NR==2 {print $4}')"
+[[ "$available_kib" =~ ^[0-9]+$ ]] || fail "DISK_HEADROOM_UNKNOWN"
+(( available_kib >= 8 * 1024 * 1024 )) || fail "DISK_HEADROOM_BELOW_8GIB"
+echo "HAZEWAVE_RE_DISK_FREE_KIB=$available_kib"
+if [[ "${1:-}" == "--preflight" ]]; then
+  echo "HAZEWAVE_RE_PREFLIGHT=PASS"
+  echo "HAZEWAVE_RE_INSTALL=NOT_ATTEMPTED"
+  exit 0
+fi
+[[ "$#" -eq 0 ]] || fail "UNSUPPORTED_ARGUMENT"
+
 for cmd in curl sha256sum tar python3; do
   command -v "$cmd" >/dev/null 2>&1 || fail "MISSING_PREREQUISITE:$cmd"
 done
@@ -110,7 +123,7 @@ echo "HAZEWAVE_RE_NPM=$npm_version"
 
 if [[ ! -x "$REA_PREFIX/node_modules/.bin/rea" ]]; then
   stage="$(mktemp -d "$ROOT/.rea-stage.XXXXXX")"
-  npm install --prefix "$stage" --no-audit --no-fund "rea-agents@4.1.0"
+  npm_config_ignore_scripts=true npm install --prefix "$stage" --no-audit --no-fund "rea-agents@4.1.0"
   [[ -x "$stage/node_modules/.bin/rea" ]] || { rm -rf "$stage"; fail "REA_BINARY_MISSING"; }
   observed="$("$stage/node_modules/.bin/rea" --version 2>/dev/null | tr -d '\r' | tail -n 1)"
   [[ "$observed" == *"$REA_VERSION"* ]] || { rm -rf "$stage"; fail "REA_VERSION_MISMATCH:$observed"; }
@@ -235,9 +248,13 @@ mediainfo_version="$(mediainfo --Version 2>/dev/null | tail -n 1 | tr -d '\r')"
 java_version="$(java -version 2>&1 | sed -n '1p' | tr -d '\r')"
 
 REA_ANALYSIS_PROVIDER=ghidra GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"   "$REA_BIN" providers --json >"$ROOT/rea-providers.json" || fail "REA_PROVIDERS_FAILED"
-REA_ANALYSIS_PROVIDER=ghidra GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"   "$REA_BIN" doctor --json >"$ROOT/rea-doctor.json" || true
+set +e
+REA_ANALYSIS_PROVIDER=ghidra GHIDRA_INSTALL_DIR="$GHIDRA_ROOT"   "$REA_BIN" doctor --json >"$ROOT/rea-doctor.json"
+rea_doctor_rc=$?
+set -e
+[[ "$rea_doctor_rc" -eq 0 ]] || echo "HAZEWAVE_RE_DIAGNOSTIC=RE_DOCTOR_NONZERO:$rea_doctor_rc"
 
-python3 - "$RECEIPT" "$rea_version" "$rizin_version" "$frida_version"   "$ffmpeg_version" "$mediainfo_version" "$java_version" "$GHIDRA_ROOT"   "$GHIDRA_SHA256" "$RIZIN_SHA256" "$node_version" "$npm_version" <<'PY'
+python3 - "$RECEIPT" "$rea_version" "$rizin_version" "$frida_version"   "$ffmpeg_version" "$mediainfo_version" "$java_version" "$GHIDRA_ROOT"   "$GHIDRA_SHA256" "$RIZIN_SHA256" "$node_version" "$npm_version" "$rea_doctor_rc" <<'PY'
 import hashlib, json, os, sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -245,7 +262,7 @@ from pathlib import Path
 (
     receipt_path, rea_version, rizin_version, frida_version, ffmpeg_version,
     mediainfo_version, java_version, ghidra_root, ghidra_sha, rizin_sha,
-    node_version, npm_version
+    node_version, npm_version, rea_doctor_rc
 ) = sys.argv[1:]
 providers = Path(os.environ["HAZEWAVE_RE_ROOT"]) / "rea-providers.json"
 doctor = Path(os.environ["HAZEWAVE_RE_ROOT"]) / "rea-doctor.json"
@@ -270,6 +287,9 @@ payload = {
     "rea_doctor_sha256": hashlib.sha256(doctor.read_bytes()).hexdigest() if doctor.exists() else None,
     "grants_execution_authority": False,
     "production_approved": False,
+    "rea_doctor_exit_code": int(rea_doctor_rc),
+    "runtime_ready": False,
+    "installation_state": "INSTALLED_NOT_RUNTIME_PROVEN",
 }
 target = Path(receipt_path)
 tmp = target.with_suffix(".tmp")
@@ -289,3 +309,5 @@ echo "HAZEWAVE_RE_RIZIN=$rizin_version"
 echo "HAZEWAVE_RE_FRIDA=$frida_version"
 echo "HAZEWAVE_RE_RECEIPT=$RECEIPT"
 echo "HAZEWAVE_RE_INSTALL=PASS"
+echo "HAZEWAVE_RE_RUNTIME_READY=NOT_PROVEN"
+[[ "$rea_doctor_rc" -eq 0 ]] || echo "HAZEWAVE_RE_READY_BLOCKER=RE_DOCTOR_NONZERO"
