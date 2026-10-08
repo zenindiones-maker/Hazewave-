@@ -233,6 +233,142 @@
       "tier": "A_AUTHORITATIVE",
       "source_kind": "UPSTREAM_MODEL_DOCUMENTATION",
       "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "reaper-official-videos",
+      "url": "https://www.reaper.fm/videos.php",
+      "domains": [
+        "HAZE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "reaper-generated-api",
+      "url": "https://www.cockos.com/reaper/sdk/reascript/reascripthelp.html",
+      "domains": [
+        "HAZE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_API_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "ebu-tech3343",
+      "url": "https://tech.ebu.ch/publications/tech3343",
+      "domains": [
+        "HAZE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_STANDARD_GUIDANCE",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "aes-loudness",
+      "url": "https://aes.org/audio-topics/loudness/",
+      "domains": [
+        "HAZE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "PROFESSIONAL_STANDARDS_INDEX",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "blender-manual",
+      "url": "https://docs.blender.org/manual/en/latest/",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "w3c-webgpu",
+      "url": "https://www.w3.org/TR/webgpu/",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_STANDARD",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "w3c-wgsl",
+      "url": "https://www.w3.org/TR/WGSL/",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_STANDARD",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "w3c-webaudio",
+      "url": "https://www.w3.org/TR/webaudio/",
+      "domains": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_STANDARD",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "w3c-webcodecs",
+      "url": "https://www.w3.org/TR/webcodecs/",
+      "domains": [
+        "WAVE",
+        "BRIDGE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_STANDARD",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "threejs-webgpu",
+      "url": "https://threejs.org/docs/pages/WebGPU.html",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "gsap-scrolltrigger",
+      "url": "https://gsap.com/docs/v3/Plugins/ScrollTrigger/",
+      "domains": [
+        "WAVE"
+      ],
+      "tier": "A_AUTHORITATIVE",
+      "source_kind": "OFFICIAL_DOCUMENTATION",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "mdn-web-audio",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API",
+      "domains": [
+        "HAZE",
+        "WAVE",
+        "BRIDGE"
+      ],
+      "tier": "B_PROFESSIONAL",
+      "source_kind": "PROFESSIONAL_IMPLEMENTATION_REFERENCE",
+      "data_classification": "PUBLIC"
+    },
+    {
+      "source_id": "mdn-webcodecs",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API",
+      "domains": [
+        "WAVE",
+        "BRIDGE"
+      ],
+      "tier": "B_PROFESSIONAL",
+      "source_kind": "PROFESSIONAL_IMPLEMENTATION_REFERENCE",
+      "data_classification": "PUBLIC"
     }
   ]
 }
