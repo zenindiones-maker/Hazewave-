@@ -132,7 +132,7 @@ def test_wrong_host_stale_no_runtime_no_benchmark_cannot_route(tmp_path: Path, o
     evidence, sig, trust, artifact = _signed_evidence(tmp_path, **override)
     if override.get("expires") is not None and override["expires"] <= NOW:
         with pytest.raises(CapabilityPlaneError, match="EVIDENCE_EXPIRED"):
-            verify_signed_runtime_evidence(evidence, sig, trust, now=NOW)
+            verify_signed_runtime_evidence(evidence, sig, trust, artifact=artifact, now=NOW)
         return
     proof = verify_signed_runtime_evidence(evidence, sig, trust, now=NOW)
     report = inventory(manifest=MANIFEST, host_id=CODESPACE, repo_sha=SHA,
@@ -144,7 +144,7 @@ def test_wrong_host_stale_no_runtime_no_benchmark_cannot_route(tmp_path: Path, o
 
 
 def test_fake_json_without_valid_signature_rejected(tmp_path: Path) -> None:
-    evidence, sig, trust = _signed_evidence(tmp_path)
+    evidence, sig, trust, artifact = _signed_evidence(tmp_path)
     record = json.loads(evidence.read_text())
     record["benchmark"]["quality_score"] = 1.0
     evidence.write_text(json.dumps(record))
@@ -153,7 +153,7 @@ def test_fake_json_without_valid_signature_rejected(tmp_path: Path) -> None:
 
 
 def test_malformed_or_untrusted_provider_cannot_win_selection(tmp_path: Path) -> None:
-    e, sig, trust = _signed_evidence(tmp_path)
+    e, sig, trust, artifact = _signed_evidence(tmp_path)
     proof = verify_signed_runtime_evidence(e, sig, trust, artifact=artifact, now=NOW)
     report = inventory(manifest=MANIFEST, host_id=CODESPACE, repo_sha=SHA,
                        binary_lookup=lambda x: "/usr/bin/" + x, binary_fingerprint=lambda path: "b" * 64, evidence_files=[proof], now=NOW)
