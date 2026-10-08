@@ -164,3 +164,18 @@ def test_codespace_installer_pins_rea_ghidra_frida_and_rizin_without_hopper() ->
     assert "hopper" not in script.casefold()
     assert "chmod 600" in script
     assert "reverse-engineering-install-receipt.json" in script
+
+
+def test_specialist_charter_machine_policy_adopts_reverse_engineering_domains() -> None:
+    specialists = json.loads(
+        (ROOT / "config" / "creative-specialists-v1.json").read_text(encoding="utf-8")
+    )
+
+    assert "audio_reverse_engineering" in specialists["domains"]["HAZE"]["includes"]
+    assert "visual_reverse_engineering" in specialists["domains"]["WAVE"]["includes"]
+    policy = specialists["reverse_engineering"]
+    assert policy["required"] is True
+    assert policy["policy_ref"] == "config/reverse-engineering-foundation-v1.json"
+    assert policy["tool_authority"] == "NONE"
+    assert policy["authorized_targets_only"] is True
+    assert policy["runtime_mutation_authority"] is False
