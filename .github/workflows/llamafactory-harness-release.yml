@@ -94,6 +94,7 @@ jobs:
           set -euo pipefail
           python -m hazewave.llamafactory_runtime_probe doctor \
             --python "$RUNNER_TEMP/llama-isolated/bin/python" \
+            --wheel "$RUNNER_TEMP/llama-wheel/llamafactory-0.9.5-py3-none-any.whl" \
             --receipt-root "$RUNNER_TEMP/llama-real-import-evidence" \
             > "$RUNNER_TEMP/llama-import-report.jsonl"
           python - <<'PY'
@@ -130,6 +131,7 @@ jobs:
           PY
           if python -m hazewave.llamafactory_runtime_probe doctor \
             --python "$RUNNER_TEMP/llama-isolated/bin/python" \
+            --wheel "$RUNNER_TEMP/llama-wheel/llamafactory-0.9.5-py3-none-any.whl" \
             > "$RUNNER_TEMP/llama-tamper-rejected.log" 2>&1; then
             echo "LLAMA_FACTORY_TAMPERED_PACKAGE=FALSE_PASS" >&2
             exit 20
