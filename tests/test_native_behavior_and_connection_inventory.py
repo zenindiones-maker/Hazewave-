@@ -121,3 +121,29 @@ def test_native_result_never_automatically_promotes_ghidra_or_live_mcp(tmp_path)
     assert report["owner_agent_mcp_connected"] is False
     assert report["codespace_runtime_proven"] is False
     assert report["ghidra_provider_attested"] is False
+
+
+def test_harness_itself_exposes_full_inventory_cli_not_only_subordinate_module():
+    from os import environ
+    env={**environ, "PYTHONPATH": str(ROOT/"src")}
+    r=subprocess.run([__import__("sys").executable, "-m", "hazewave.harness", "inventory"],
+                     cwd=ROOT, env=env, capture_output=True, text=True, timeout=15)
+    assert r.returncode == 0, r.stderr
+    payload=json.loads(r.stdout)
+    assert payload["schema"]=="HazewaveFullCapabilityConnectionInventory/v1"
+    assert payload["summary"]["declared"]==124
+    assert payload["summary"]["ready_on_existing_codespace"]==0
+    assert payload["authority"]=="HAZEWAVE_HARNESS"
+
+
+def test_codespace_native_proofs_are_opt_in_host_guarded_and_never_autopromoted():
+    path=ROOT/"scripts/codespaces/native-behavior-rea6-probe.sh"
+    code=path.read_text()
+    assert "hazewave-zero-cost-4jxp45676rq6279xx" in code
+    assert "--inventory|--behavior|--ghidra" in code
+    assert "HAZEWAVE_NATIVE_EXPECTED_SHA" in code
+    assert "GHIDRA_HEADLESS_MISSING" in code
+    assert "HAZEWAVE_GHIDRA_AGENT_MCP_SESSION=NOT_PROVEN" in code
+    for banned in ("gh codespace create", "sudo ", "git reset", "git push", "hazewave-reflex serve-stop", "curl | sh"):
+        assert banned not in code
+    assert subprocess.run(["bash","-n",str(path)],capture_output=True,text=True).returncode==0
