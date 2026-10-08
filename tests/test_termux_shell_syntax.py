@@ -228,3 +228,18 @@ def test_reflex_engine_tune_includes_exact_output_direct_y_store_variant() -> No
     assert '"direct_y_store_only": True' in remote
     assert 'run_case direct_y_store_v1 "$direct_store"' in remote
     assert '"direct_y_store_v1"' in remote
+
+
+def test_reflex_engine_tune_sweeps_lossless_mc_cache_blocks_without_changing_k_order() -> None:
+    remote = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
+
+    assert "build_mc_engine_variant() {" in remote
+    for variant in ("mc_144_v1", "mc_408_v1", "mc_816_v1"):
+        assert variant in remote
+    assert 'text.replace("#define QI_MC 192", f"#define QI_MC {mc}", 1)' in remote
+    assert '"cache_block_mc_only": True' in remote
+    assert '"preserves_k_accumulation_order": True' in remote
+    assert '"changes_model_or_precision": False' in remote
+    assert 'run_case mc_144_v1 "$mc144"' in remote
+    assert 'run_case mc_408_v1 "$mc408"' in remote
+    assert 'run_case mc_816_v1 "$mc816"' in remote
