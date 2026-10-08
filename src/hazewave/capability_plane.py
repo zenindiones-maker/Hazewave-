@@ -220,6 +220,32 @@ def describe_capabilities(manifest: Path = _DEFAULT_MANIFEST) -> dict[str, Any]:
     return data
 
 
+def discover_local_executable(
+    executable: str,
+    *,
+    home: Path | None = None,
+    which: Callable[[str], str | None] = shutil.which,
+) -> str | None:
+    """Search only the known, version-pinned first-party installation slots.
+
+    This is executable presence detection, never an automatic doctor or proof.
+    """
+    base = Path(home or Path.home())
+    relative_slots = {
+        "iris": (".local/share/hazewave/iris/v0.4.1/bin/iris",),
+        "rea": (".local/share/hazewave/reverse-engineering/rea-6.0.0/bin/rea",),
+        "scenedetect": (".local/share/hazewave/av-research/av-research-venv/bin/scenedetect",),
+    }
+    for relative in relative_slots.get(executable, ()):
+        candidate = base / relative
+        try:
+            if candidate.is_file() and os.access(candidate, os.X_OK) and not candidate.is_symlink():
+                return str(candidate)
+        except OSError:
+            pass
+    return which(executable)
+
+
 def _real_binary_sha(path: str) -> str | None:
     try:
         p = Path(path)
@@ -238,7 +264,7 @@ def inventory(
     manifest: Path = _DEFAULT_MANIFEST,
     host_id: str,
     repo_sha: str,
-    binary_lookup: Callable[[str], str | None] = shutil.which,
+    binary_lookup: Callable[[str], str | None] = discover_local_executable,
     binary_fingerprint: Callable[[str], str | None] = _real_binary_sha,
     evidence_files: list[VerifiedCapabilityEvidence] | None = None,
     now: datetime | None = None,
@@ -293,7 +319,20 @@ def inventory(
                 else:
                     state = "FIXTURE_PROVEN" if p.get("fixture_result") == "PASS" else "EVIDENCE_UNVERIFIED"
             else:
-                state = "STALE"
+                if any(x.data.get("scope") == "CI_FIXTURE" and x.data.get("fixture_result") == "PASS"
+                       for x in candidates):
+                    state = "CI_FIXTURE_PROVEN"
+                else:
+                    state = "STALE"
+        # Previously verified objects must expire when reused by a long-lived caller.
+        relevant = [x for x in candidates if
+                    x.data.get("host_id") == host_id and
+                    x.data.get("repo_sha") == repo_sha and
+                    x.data.get("scope") == "LOCAL_HOST"]
+        clock = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+        if any(_time(x.data["expires_at"]) <= clock for x in relevant):
+            state = "STALE"
+            ready.discard(cap)
         tools[tid] = {
             "tool_id": tid,
             "capability_id": cap,
@@ -326,6 +365,7 @@ def inventory(
         "coverage": {
             "tools_declared": count,
             "tools_present_unproven": sum(x["state"] == "PRESENT_UNPROVEN" for x in tools.values()),
+            "ci_fixture_proven": sum(x["state"] == "CI_FIXTURE_PROVEN" for x in tools.values()),
             "operational_ready": operational,
             "ready_percent": round(100 * operational / count, 2) if count else 0.0,
             "total_harness_capabilities": len(official),
