@@ -46,6 +46,8 @@ def signed_case(tmp_path: Path) -> dict:
     subprocess.run(["ssh-keygen", "-Y", "sign", "-f", str(private), "-n", "hazewave-research-grant", str(grant_path)], check=True, stdout=subprocess.DEVNULL)
     # OpenSSH writes the signature to <file>.sig
     assert signature.is_file()
+    grant_path.chmod(0o600)
+    signature.chmod(0o600)
     return {"target": target, "grant": grant_path, "signature": signature, "signers": signers, "content": grant}
 
 
