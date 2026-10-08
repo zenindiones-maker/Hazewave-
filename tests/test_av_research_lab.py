@@ -25,7 +25,7 @@ def _script_file(path: Path) -> Path:
         "schema": "HazewaveEditorialReference/v1",
         "segments": [
             {"id": "intro", "start_seconds": 0, "duration_seconds": 12, "narration": "Vice City é o centro da nossa história."},
-            {"id": "contexto", "start_seconds": 12, "duration_seconds": 10, "narration": "Agora vamos observar a montagem."},
+            {"id": "contexto", "start_seconds": 12, "duration_seconds": 10, "narration": "Agora vamos observar a montagem visual."},
         ],
     }
     path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
