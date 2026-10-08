@@ -234,15 +234,15 @@ def test_reflex_engine_tune_sweeps_lossless_mc_cache_blocks_without_changing_k_o
     remote = (ROOT / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
 
     assert "build_mc_engine_variant() {" in remote
-    for variant in ("mc_144_v1", "mc_408_v1", "mc_816_v1"):
+    for variant in ("mc_144_v2", "mc_408_v2", "mc_816_v2"):
         assert variant in remote
     assert 'text.replace("#define QI_MC 192", f"#define QI_MC {mc}", 1)' in remote
     assert '"cache_block_mc_only": True' in remote
     assert '"preserves_k_accumulation_order": True' in remote
     assert '"changes_model_or_precision": False' in remote
-    assert 'run_case mc_144_v1 "$mc144"' in remote
-    assert 'run_case mc_408_v1 "$mc408"' in remote
-    assert 'run_case mc_816_v1 "$mc816"' in remote
+    assert 'run_case mc_144_v2 "$mc144"' in remote
+    assert 'run_case mc_408_v2 "$mc408"' in remote
+    assert 'run_case mc_816_v2 "$mc816"' in remote
 
 
 def test_reflex_cached_derived_metadata_validation_is_fail_closed_and_mc_paths_are_unique() -> None:
