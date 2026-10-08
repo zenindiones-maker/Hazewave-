@@ -155,7 +155,7 @@ def _secure_write(path: Path, payload: bytes) -> None:
         os.fsync(writer.fileno())
 
 
-def synthesize_owned_native_fixture(*,state_root:Path,compiler:str="cc") -> dict[str,Any]:
+def synthesize_owned_native_fixture(*,state_root:Path,compiler:str="cc",\n                                    rea_binary:Path|None=None,require_formal:bool=False) -> dict[str,Any]:
     """Compiles one approved local source fixture then synthesizes from binary I/O.
 
     The synthesis never reads, imports or copies the original source file. The
@@ -178,9 +178,25 @@ def synthesize_owned_native_fixture(*,state_root:Path,compiler:str="cc") -> dict
         oracle=workdir/"original.elf"
         _compile(compiler,_OWNED_SOURCE,oracle)
         oracle_sha=_digest(oracle.read_bytes())
+        # Ghidra observes the exact SAME compiled executable before inference.
+        # This is co-attestation, not proof that the synth uses Ghidra p-code.
+        ghidra_evidence=None
+        if rea_binary is not None:
+            from hazewave.native_behavior_qualification import _ghidra_observation
+            ghidra_evidence=_ghidra_observation(Path(rea_binary),oracle)
+            if (ghidra_evidence.get("provider_id")!="ghidra"
+                    or ghidra_evidence.get("target_sha256")!=oracle_sha
+                    or not isinstance(ghidra_evidence.get("evidence_id"),str)):
+                raise SynthesisError("GHIDRA_ELF_IDENTITY_MISMATCH")
         # The entire inference sees only oracle OUTPUTS. Never original .c.
         samples={x:_run_oracle(oracle,x) for x in range(_DOMAIN[0],_DOMAIN[1]+1)}
         hypo=infer_linear_quadratic_linear(samples)
+        formal_result=None
+        if require_formal:
+            from hazewave.native_formal_contract import verify_bounded_piecewise_contract
+            formal_result=verify_bounded_piecewise_contract(hypo)
+            if formal_result["result"]!="UNSAT_NO_COUNTEREXAMPLE_WITHIN_SPEC":
+                raise SynthesisError("FORMAL_CONTRACT_COUNTEREXAMPLE")
         generated=_generate_c(hypo)
         candidate_source=workdir/"candidate.c"
         candidate_source.write_text(generated)
@@ -218,6 +234,9 @@ def synthesize_owned_native_fixture(*,state_root:Path,compiler:str="cc") -> dict
         "outside_domain_equivalence_proven":False,
         "general_binary_decompilation_proven":False,
         "ghidra_guided_synthesis_proven":False,
+        "ghidra_observed_exact_same_elf":ghidra_evidence is not None,
+        "ghidra_direct_observation":ghidra_evidence,
+        "formal_contract":formal_result,
         "owner_agent_mcp_connected":False,
         "codespace_runtime_proven":False,
         "production_approved":False,
@@ -233,9 +252,11 @@ def main(argv:list[str]|None=None)->int:
     p=argparse.ArgumentParser(description="First-party executable I/O to bounded C synthesis")
     p.add_argument("--state-root",type=Path,required=True)
     p.add_argument("--compiler",default="cc")
+    p.add_argument("--rea",type=Path)
+    p.add_argument("--formal",action="store_true")
     args=p.parse_args(argv)
     try:
-        result=synthesize_owned_native_fixture(state_root=args.state_root,compiler=args.compiler)
+        result=synthesize_owned_native_fixture(state_root=args.state_root,compiler=args.compiler,\n                                               rea_binary=args.rea,require_formal=args.formal)
     except (SynthesisError,OSError) as exc:
         print("HAZEWAVE_NATIVE_SYNTHESIS=BLOCKED:"+str(exc),file=sys.stderr)
         return 20
