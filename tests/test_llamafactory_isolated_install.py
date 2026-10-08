@@ -84,3 +84,17 @@ def test_training_cpu_machine_fails_closed_and_no_automatic_gpu_install():
                               free_disk_gib=45,dependencies_ok=True)
     assert state3["training_admitted"] is False
     assert state3["reason"]=="OWNER_MODEL_AND_DATASET_GRANT_MISSING"
+
+
+def test_harness_inventory_surfaces_learning_tool_without_claiming_ready():
+    from hazewave.harness_connection_inventory import inventory_all_capabilities
+    x=inventory_all_capabilities()
+    item=x["learning_candidates"]["llamafactory"]
+    assert item["framework_version"]=="0.9.5"
+    assert item["installation_status"]=="NOT_VERIFIED_ON_CODESPACE"
+    assert item["training_status"]=="NOT_PROVEN"
+    assert item["harness_selected_provider"] is False
+    assert item["agent_mcp_connected"] is False
+    assert item["owner_signed_model_dataset_grant"] is False
+    assert x["summary"]["provider_mapped"]==10
+    assert x["summary"]["ready_on_existing_codespace"]==0
