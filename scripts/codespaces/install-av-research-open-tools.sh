@@ -17,7 +17,7 @@ die() {
 
 [[ "$#" -eq 1 ]] || die "EXPLICIT_MODE_REQUIRED"
 case "$1" in
-  --preflight|--core|--music|--doctor) MODE="$1" ;;
+  --preflight|--core|--music|--doctor|--smoke) MODE="$1" ;;
   *) die "UNKNOWN_MODE" ;;
 esac
 
@@ -41,6 +41,18 @@ echo "AV_RESEARCH_MEM_AVAILABLE_KIB=$ram_free"
 if [[ "$MODE" == "--preflight" ]]; then
   echo "AV_RESEARCH_PREFLIGHT=PASS"
   echo "AV_RESEARCH_INSTALL=NOT_ATTEMPTED"
+  exit 0
+fi
+
+if [[ "$MODE" == "--smoke" ]]; then
+  [[ -x "$VENV/bin/python" ]] || die "CORE_NOT_INSTALLED"
+  # Real first-party media analysis; no owner media, model, or stock service.
+  "$VENV/bin/python" -m hazewave.av_runtime_proof \
+    --state-root "$HOME/.local/state/hazewave" \
+    || die "SYNTHETIC_RUNTIME_PROOF_FAILED"
+  echo "AV_RESEARCH_FULL_PROFESSIONAL_RUNTIME=NOT_PROVEN"
+  echo "AV_RESEARCH_OWNER_SIGNED_MEDIA=NOT_TESTED"
+  echo "AV_RESEARCH_STOCK_HEALTH=NOT_TESTED"
   exit 0
 fi
 
