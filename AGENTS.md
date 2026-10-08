@@ -156,6 +156,35 @@ unmapped Harness capabilities count against portfolio coverage. Quality/cost/ris
 scores must come from owner-reviewed measurements, never fabricated weights.
 Production promotion always requires its own signed review.
 
+## Harness-executed REA/Iris owned-fixture gateway (candidate)
+
+The research investigation capability is **executed** (not just cataloged)
+through `hazewave.harness_research_execution` and the restricted STDIO MCP
+`hazewave.harness_research_mcp`. Read
+`docs/runbooks/HARNESSED_REA_IRIS_EXECUTION_V1.md` before acting.
+The only admitted operations are `harness_rea_owned_js` (pinned official
+REA6 analyzes a repository-owned JS fixture) and
+`harness_iris_owned_page` (pinned Iris captures a repository-owned offline
+HTML fixture). Every call requires an exact clean reviewed Git worktree and
+a Harness route/authorization. It runs the real executable, verifies output,
+writes a private `0600` receipt and explicitly denies owner/external
+targets, arbitrary URLs, extra args, production, and auto tool promotion.
+
+**Do not treat the successful ephemeral GitHub CI runner proof as a Codespace
+deployment or evidence that existing agents have this MCP loaded.** The
+single existing Codespace `hazewave-zero-cost-4jxp45676rq6279xx` requires
+an on-host `scripts/codespaces/harness-live-research-bridge.sh --preflight`
+followed by `--prove`; `--mcp` may only be attached through a reviewed
+agent-local config. No automatic agent config writes or stock restart.
+
+Never register raw upstream `iris mcp` for arbitrary websites: a browser
+capture URL allowlist is not full network isolation. Until request-level and
+kernel-level egress restrictions, redirects, browser profiles and owner
+target-grants are qualified, **NO live websites or external apps are admitted**.
+Use the existing independent Ghidra on-host route probe for REA native targets;
+a JavaScript fixture result does not prove Ghidra or Frida readiness.
+`BR_OWNER_V1` and BR-no-GTA remain separate and untouched.
+
 ## Setup
 
 Development checkout:

@@ -166,6 +166,7 @@ def capture_owned_fixture(
     iris_binary: Path,
     chrome_binary: Path,
     output: Path,
+    process_env: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     fixture = (workspace.resolve() / _FIXTURE)
     url = iris_capture_policy(fixture.as_uri(), workspace=workspace)
@@ -186,7 +187,7 @@ def capture_owned_fixture(
         "--timeout", "20", "--json", "-o", str(out), url,
     ]
     try:
-        process = subprocess.run(args, capture_output=True, text=True, timeout=36, check=False)
+        process = subprocess.run(args, capture_output=True, text=True, timeout=36, check=False, env=process_env)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise IrisCaptureError("IRIS_CAPTURE_PROCESS_ERROR") from exc
     if process.returncode != 0:
