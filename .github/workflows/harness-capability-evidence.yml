@@ -25,7 +25,7 @@ jobs:
           PYTHONPATH: src
         run: |
           set -euo pipefail
-          python -m pip install pytest==8.4.2
+          python -m pip install -e . pytest==8.4.2
           python -m pytest tests/test_capability_evidence_plane.py -q
       - name: Prove inventory without signed local attestation is NOT READY
         env:
