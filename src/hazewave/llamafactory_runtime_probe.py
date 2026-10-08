@@ -17,6 +17,7 @@ import re
 import stat
 import subprocess
 import sys
+import zipfile
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
@@ -25,7 +26,7 @@ class LlamaRuntimeError(RuntimeError):
     pass
 
 
-_VERSION = "0.9.5"
+_VERSION = "0.9.5"\n_OFFICIAL_WHEEL_SHA256 = "10776e9b259798bf65f6c5343f6298f0302e92e9cd47472abe29eef69e286c6a"
 _SHA = re.compile(r"^[A-Za-z0-9_-]{43}$")
 
 
@@ -77,7 +78,7 @@ def check_record_hashes(root: Path, rows: Iterable[tuple[Path, str, str]]) -> in
 # This code executes in the ISOLATED venv interpreter under '-I': only stdlib
 # plus the pinned package itself. Its result is NOT trusted unless exit=0.
 _PROBE_CODE = r"""
-import base64, hashlib, importlib.metadata as meta, json, os, pathlib, sys
+import base64, hashlib, importlib.metadata as meta, json, os, pathlib, sys, zipfile
 if sys.prefix == sys.base_prefix:
     raise RuntimeError("UNISOLATED_PYTHON")
 root=pathlib.Path(sys.prefix).resolve(strict=True)
@@ -105,12 +106,40 @@ for item in rows:
         count+=1
 if count < 20:
     raise RuntimeError("INSUFFICIENT_VERIFIED_FILES")
+wheel=pathlib.Path(sys.argv[1])
+if wheel.is_symlink() or not wheel.is_file() or wheel.stat().st_size > 8_000_000:
+    raise RuntimeError("OFFICIAL_WHEEL_NOT_AVAILABLE")
+wheel_digest=hashlib.sha256(wheel.read_bytes()).hexdigest()
+if wheel_digest!="10776e9b259798bf65f6c5343f6298f0302e92e9cd47472abe29eef69e286c6a":
+    raise RuntimeError("OFFICIAL_WHEEL_SHA256_MISMATCH")
+release_count=0
+with zipfile.ZipFile(wheel) as archive:
+    for info in archive.infolist():
+        name=info.filename
+        if not name.startswith("llamafactory/") or info.is_dir():
+            continue
+        if ".." in pathlib.PurePosixPath(name).parts:
+            raise RuntimeError("WHEEL_ARCHIVE_TRAVERSAL")
+        installed=pathlib.Path(dist.locate_file(name))
+        if installed.is_symlink():
+            raise RuntimeError("INSTALLED_FILE_SYMLINK")
+        target=installed.resolve(strict=True)
+        if not target.is_relative_to(root) or not target.is_file():
+            raise RuntimeError("INSTALLED_FILE_OUTSIDE_VENV")
+        if hashlib.sha256(target.read_bytes()).digest()!=hashlib.sha256(archive.read(info)).digest():
+            raise RuntimeError("INSTALLED_FILE_TAMPERED")
+        release_count+=1
+if release_count<20:
+    raise RuntimeError("OFFICIAL_WHEEL_PAYLOAD_INCOMPLETE")
+# Only import installed package code AFTER comparing it with pinned upstream.
 import llamafactory
 if llamafactory.__version__!="0.9.5":
     raise RuntimeError("PACKAGE_IMPORT_VERSION_DRIFT")
 print(json.dumps({"distribution":"llamafactory","version":dist.version,
                   "imported_version":llamafactory.__version__,
                   "hash_files_verified":count,"environment_isolated":True,
+                  "release_files_verified":release_count,
+                  "release_wheel_sha256":wheel_digest,
                   "python_version":".".join(map(str,sys.version_info[:3]))},sort_keys=True))
 """
 
@@ -123,7 +152,11 @@ def validate_probe(record: dict[str, Any]) -> dict[str, Any]:
             or record.get("imported_version") != _VERSION):
         raise LlamaRuntimeError("INSTALLED_VERSION_OR_IMPORT_DRIFT")
     if record.get("environment_isolated") is not True:
-        raise LlamaRuntimeError("VENV_ISOLATION_NOT_VERIFIED")
+        raise LlamaRuntimeError("VENV_ISOLATION_NOT_VERIFIED")\n    if (record.get("release_wheel_sha256") != _OFFICIAL_WHEEL_SHA256
+            or type(record.get("release_files_verified")) is not int
+            or record["release_files_verified"] < 20):
+        raise LlamaRuntimeError("OFFICIAL_WHEEL_REFERENCE_MISSING")
+
     n = record.get("hash_files_verified")
     if type(n) is not int or n < 20:
         raise LlamaRuntimeError("INSTALLED_HASH_COVERAGE_INSUFFICIENT")
@@ -151,7 +184,7 @@ def validate_probe(record: dict[str, Any]) -> dict[str, Any]:
         "package": "llamafactory",
         "version": _VERSION,
         "package_imported": True,
-        "installed_files_hash_verified": True,
+        "installed_files_hash_verified": True,\n        "source_release_payload_verified": True,\n        "release_files_verified": record["release_files_verified"],\n        "official_wheel_sha256": _OFFICIAL_WHEEL_SHA256,
         "hash_files_verified": n,
         "isolated_venv": True,
         "dependencies_satisfied": ok,
@@ -189,7 +222,7 @@ def _run(args: list[str], timeout: int) -> subprocess.CompletedProcess[str]:
         raise LlamaRuntimeError("ISOLATED_PROCESS_UNAVAILABLE_OR_TIMEOUT") from exc
 
 
-def diagnose_runtime(python: Path) -> dict[str, Any]:
+def diagnose_runtime(python: Path, wheel: Path) -> dict[str, Any]:
     path = Path(python).expanduser()
     # Linux venv/bin/python is commonly a symlink to the base interpreter.
     # Isolation is attested by executing it and checking sys.prefix != base_prefix;
@@ -199,7 +232,7 @@ def diagnose_runtime(python: Path) -> dict[str, Any]:
     if not (path.parent.parent / "pyvenv.cfg").is_file():
         raise LlamaRuntimeError("VENV_CONFIGURATION_NOT_FOUND")
     # Never inherit connected GitHub tokens, private Telegram keys or model tokens.
-    result = _run([str(path), "-I", "-c", _PROBE_CODE], 25)
+    result = _run([str(path), "-I", "-c", _PROBE_CODE, str(Path(wheel).expanduser())], 25)
     if result.returncode or len(result.stdout)>10000:
         raise LlamaRuntimeError("ISOLATED_PACKAGE_IMPORT_OR_RECORD_FAILED")
     try:
@@ -246,11 +279,11 @@ def _persist(result: dict[str, Any], receipt_root: Path) -> Path:
 def main(argv: list[str] | None = None) -> int:
     parser=argparse.ArgumentParser(description="LLaMA-Factory pinned real import and on-host integrity audit")
     parser.add_argument("action",choices=("doctor",))
-    parser.add_argument("--python",type=Path,required=True)
+    parser.add_argument("--python",type=Path,required=True)\n    parser.add_argument("--wheel",type=Path,required=True)
     parser.add_argument("--receipt-root",type=Path)
     args=parser.parse_args(argv)
     try:
-        data=diagnose_runtime(args.python)
+        data=diagnose_runtime(args.python,args.wheel)
         if args.receipt_root is not None:
             receipt=_persist(data,args.receipt_root)
             data["local_receipt_path"]=str(receipt)
