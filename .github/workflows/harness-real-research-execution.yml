@@ -49,6 +49,72 @@ jobs:
           "$RUNNER_TEMP/iris/chrome-owned-fixture-only" --headless=new --disable-gpu             --dump-dom "file://$GITHUB_WORKSPACE/tests/fixtures/iris-proof.html"             > "$RUNNER_TEMP/iris/chrome-dom.html"
           grep -F 'HAZEWAVE / VISION EVIDENCE' "$RUNNER_TEMP/iris/chrome-dom.html"
           echo "HARNESS_RUNNER_IRIS=OFFICIAL_SHA256_CONFIRMED"
+      - name: Prove actual Harness MCP tools/list and tools/call dispatch
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, select, subprocess, sys, time
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"])
+          repo = Path(os.environ["GITHUB_WORKSPACE"])
+          mcp_state = root / "private-mcp-evidence"
+          mcp_state.mkdir(mode=0o700, exist_ok=True)
+          cmd = [
+              sys.executable, "-m", "hazewave.harness_research_mcp",
+              "--workspace", str(repo),
+              "--expected-sha", subprocess.check_output(
+                  ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip(),
+              "--state-root", str(mcp_state),
+              "--rea", str(root / "rea6" / "node_modules" / ".bin" / "rea"),
+              "--iris", str(root / "iris" / "iris"),
+              "--chrome", str(root / "iris" / "chrome-owned-fixture-only"),
+          ]
+          with subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True, bufsize=1) as child:
+              def rpc(method, params=None, id=1, timeout=110):
+                  message={"jsonrpc":"2.0","id":id,"method":method}
+                  if params is not None: message["params"]=params
+                  child.stdin.write(json.dumps(message)+"\\n")
+                  child.stdin.flush()
+                  ready,_,_ = select.select([child.stdout], [], [], timeout)
+                  assert ready, ("Gateway did not respond in time", method)
+                  answer=json.loads(child.stdout.readline())
+                  assert answer.get("id")==id, answer
+                  assert not answer.get("error"), answer
+                  return answer["result"]
+              init=rpc("initialize", {"protocolVersion":"2025-11-25",
+                      "clientInfo":{"name":"harness-ci-mcp","version":"1.0.0"},
+                      "capabilities":{}}, id=1)
+              assert init["serverInfo"]["name"]=="hazewave-research-fixtures"
+              catalog=rpc("tools/list", {}, id=2)
+              assert {x["name"] for x in catalog["tools"]}=={
+                  "harness_rea_owned_js","harness_iris_owned_page"}, catalog
+              bad=rpc("tools/call", {"name":"harness_iris_owned_page",
+                      "arguments":{"task_id":"owner-owned-page-test","url":"https://example.com"}},id=3)
+              assert bad["isError"] is True
+              for index, name in enumerate(("harness_rea_owned_js","harness_iris_owned_page"), start=4):
+                  result=rpc("tools/call", {"name":name,
+                      "arguments":{"task_id":f"owner-mcp-fixture-{index}"}}, id=index)
+                  assert result["isError"] is False, result
+                  payload=json.loads(result["content"][0]["text"])
+                  assert payload["state"]=="OBSERVATION_ONLY"
+                  assert payload["production_approved"] is False
+                  assert payload["agent_mcp_session_connected"] is False
+              receipts=list((mcp_state/"research"/"receipts").glob("*.json"))
+              assert len(receipts)==2, receipts
+              assert all(x.stat().st_mode & 0o077 == 0 for x in receipts)
+              child.stdin.close()
+              child.wait(timeout=8)
+              assert child.returncode==0, child.returncode
+          print("HARNESS_GATEWAY_REAL_MCP_TOOLS_LIST=PASS")
+          print("HARNESS_GATEWAY_REAL_REA_TOOL_CALL=PASS")
+          print("HARNESS_GATEWAY_REAL_IRIS_TOOL_CALL=PASS")
+          print("HARNESS_GATEWAY_EXTERNAL_URL_DENIED=PASS")
+          print("HARNESS_CODESPACE_AGENT_CONNECTION=NOT_PROVEN")
+          PY
       - name: Dispatch REAL REA and Iris from Harness, verify private receipts
         env:
           PYTHONPATH: src
