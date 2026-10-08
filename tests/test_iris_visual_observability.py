@@ -122,3 +122,13 @@ def test_iris_capture_rejects_mismatched_json_path_status(tmp_path: Path) -> Non
     png.write_bytes(_valid_png())
     with pytest.raises(IrisCaptureError):
         verify_iris_capture({"status": "error"}, output=png, source_url=FIXTURE.as_uri())
+
+
+def test_mcp_fixture_invocation_is_explicit_and_never_registers_globally() -> None:
+    installer = INSTALLER.read_text(encoding="utf-8")
+    assert "--mcp-smoke" in installer
+    assert "hazewave.iris_mcp_fixture_probe" in installer
+    assert "IRIS_MCP_PROCESS_FIXTURE=PASS" in installer
+    assert "IRIS_OWNER_AGENT_CONNECTED=NOT_PROVEN" in installer
+    assert "codex mcp add" not in installer
+    assert "iris mcp --help" not in installer
