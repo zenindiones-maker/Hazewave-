@@ -145,7 +145,7 @@ def test_codespace_installer_pins_rea_ghidra_frida_and_rizin_without_hopper() ->
     assert "GHIDRA_INSTALL_DIR=" in script
     assert "hopper" not in script.casefold()
     assert "chmod 600" in script
-    assert "reverse-engineering-install-receipt.json" in script
+    assert "reverse-engineering-rea6-install-receipt.json" in script
 
 
 
@@ -253,7 +253,7 @@ def test_codespace_installer_provisions_isolated_hazewave_cli_runtime() -> None:
     assert '-e "$REPO_ROOT"' in script
     assert 'export HAZEWAVE_RE_PYTHON="$CLI_VENV/bin/python"' in script
     assert 'export HAZEWAVE_RE_REPO_ROOT="$REPO_ROOT"' in script
-    assert 'cat >"$BIN_ROOT/hazewave-re-cli"' in script
+    assert 'cat >"$BIN_ROOT/hazewave-re6-cli"' in script
     assert 'exec env PYTHONPATH="$HAZEWAVE_RE_REPO_ROOT/src' in script
     assert '"$HAZEWAVE_RE_PYTHON" -m hazewave.cli reverse-engineering' in script
 
@@ -264,5 +264,5 @@ def test_reverse_engineering_doctor_checks_governed_hazewave_cli_runtime() -> No
     ).read_text(encoding="utf-8")
 
     assert 'HAZEWAVE_RE_PYTHON' in script
-    assert 'hazewave-re-cli' in script
+    assert 'hazewave-re6-cli' in script
     assert '"$HAZEWAVE_RE_PYTHON" -c "import httpx"' in script
