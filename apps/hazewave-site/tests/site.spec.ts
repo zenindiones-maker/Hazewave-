@@ -308,3 +308,94 @@ test("short mobile keeps signals above the transport", async ({
     expect(b.y + b.height).toBeLessThan(nav.y);
   }
 });
+
+test("native scroll traversal reverses, retains its origin and exits accessibly", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await ready(page);
+  await page.locator('[data-primary-action="explore"]').click();
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-journey",
+    "true",
+  );
+  await expect(page.locator(".signal-field")).toHaveAttribute("inert", "");
+  await page.evaluate(() =>
+    scrollTo(
+      0,
+      document.querySelector<HTMLElement>("#journey-distance")!.offsetHeight *
+        0.5,
+    ),
+  );
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-traversal-progress",
+    /^0\.4/,
+  );
+  const p = await page
+    .locator("#living-field")
+    .getAttribute("data-traversal-progress");
+  await page.mouse.move(200, 250);
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-traversal-progress",
+    p!,
+  );
+  await page.evaluate(() =>
+    scrollTo(
+      0,
+      document.querySelector<HTMLElement>("#journey-distance")!.offsetHeight,
+    ),
+  );
+  await expect(page).toHaveURL(/artist=aquaverno/);
+  await page.evaluate(() =>
+    scrollTo(
+      0,
+      document.querySelector<HTMLElement>("#journey-distance")!.offsetHeight *
+        0.32,
+    ),
+  );
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-traversal-progress",
+    /^0\.25/,
+  );
+  expect(new URL(page.url()).searchParams.has("artist")).toBe(false);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-journey",
+    "false",
+  );
+  await expect(page.locator('[data-primary-action="explore"]')).toBeFocused();
+});
+
+test("scroll journey stops cleanly for motion preference and GPU loss", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await ready(page);
+  await page.locator('[data-primary-action="explore"]').click();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-journey",
+    "false",
+  );
+  await expect(page.locator('[data-primary-action="explore"]')).toBeFocused();
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await ready(page);
+  await page.locator('[data-primary-action="explore"]').click();
+  await page.evaluate(() =>
+    document
+      .querySelector("canvas")!
+      .getContext("webgl2")
+      ?.getExtension("WEBGL_lose_context")
+      ?.loseContext(),
+  );
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-journey",
+    "false",
+  );
+  await expect(page.locator('[data-primary-action="explore"]')).toBeFocused();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollHeight <= innerHeight,
+    ),
+  ).toBe(true);
+});

@@ -39,6 +39,28 @@ export function bootLivingField(): void {
   const renderer = new FieldRenderer(field, canvas, motion.matches);
   field.dataset.motion = motion.matches ? "reduced" : "full";
   let current: RealArtistId | null = null;
+  let journey = false;
+  let journeyFrame = 0;
+  let journeyWorld = false;
+  const journeyControls =
+    document.querySelector<HTMLElement>(".journey-controls")!;
+  const journeyDistance =
+    document.querySelector<HTMLElement>("#journey-distance")!;
+  const journeyStage = document.querySelector<HTMLElement>("#journey-stage")!;
+  const stopJourney = () => {
+    if (!journey) return;
+    journey = false;
+    cancelAnimationFrame(journeyFrame);
+    journeyFrame = 0;
+    clearTimeout(arrivalTimer);
+    clearTimeout(revealTimer);
+    journeyControls.hidden = true;
+    journeyDistance.hidden = true;
+    field.dataset.journey = "false";
+    document.querySelector<HTMLElement>(".signal-field")!.inert =
+      Boolean(current);
+    window.scrollTo({ top: 0, behavior: "instant" });
+  };
   let transitionToken = 0;
   let revealTimer = 0,
     waveTimer = 0,
@@ -66,11 +88,20 @@ export function bootLivingField(): void {
     });
   const reveal = (button: HTMLButtonElement) => {
     signals.forEach((s) => (s.dataset.revealed = String(s === button)));
-    clearTimeout(revealTimer);
-    revealTimer = window.setTimeout(
-      () => signals.forEach((s) => (s.dataset.revealed = "false")),
-      4600,
+    const r = field.getBoundingClientRect(),
+      b = button.getBoundingClientRect();
+    renderer.preview(
+      signals.indexOf(button) + 1,
+      (b.x + b.width / 2 - r.x) / r.width,
+      (b.y + b.height / 2 - r.y) / r.height,
     );
+    field.dataset.signalDiscovered = "true";
+    clearTimeout(revealTimer);
+    revealTimer = window.setTimeout(() => {
+      signals.forEach((s) => (s.dataset.revealed = "false"));
+      renderer.clearPreview();
+      field.dataset.signalDiscovered = "false";
+    }, 8000);
     status.textContent = `${getRealArtist(button.dataset.artistSignal!)?.name}. Selecione o sinal para entrar.`;
   };
   const wave = (clientX: number, clientY: number) => {
@@ -123,6 +154,7 @@ export function bootLivingField(): void {
     id = artist?.materializedWorld ? artist.id : null;
     const token = ++transitionToken;
     current = id;
+    field.dataset.signalDiscovered = "false";
     field.dataset.worldActive = String(Boolean(id));
     field.dataset.worldReady = "false";
     field.dataset.transitioning = "true";
@@ -166,6 +198,7 @@ export function bootLivingField(): void {
     if (id && !instant) back.focus({ preventScroll: true });
   };
   const enter = (button: HTMLButtonElement) => {
+    stopJourney();
     const id = button.dataset.artistSignal as RealArtistId;
     if (!getRealArtist(id)) return;
     lastSelected = button;
@@ -179,6 +212,10 @@ export function bootLivingField(): void {
     show(id, "push", origin);
   };
   const openSearch = () => {
+    if (journey) {
+      stopJourney();
+      show(current, "none", [0.5, 0.5], true);
+    }
     query.value = "";
     searchResults.forEach((b) => (b.hidden = false));
     document.querySelector<HTMLElement>("#search-empty")!.hidden = true;
@@ -191,14 +228,14 @@ export function bootLivingField(): void {
     button.addEventListener(
       "pointerenter",
       () => {
-        if (!current) reveal(button);
+        if (!current && !journey) reveal(button);
       },
       options,
     );
     button.addEventListener(
       "focus",
       () => {
-        if (!current) reveal(button);
+        if (!current && !journey) reveal(button);
       },
       options,
     );
@@ -206,7 +243,10 @@ export function bootLivingField(): void {
   field.addEventListener(
     "pointerdown",
     (event) => {
-      if ((event.target as Element).closest("button,dialog,input,a,label"))
+      if (
+        journey ||
+        (event.target as Element).closest("button,dialog,input,a,label")
+      )
         return;
       wave(event.clientX, event.clientY);
     },
@@ -215,6 +255,7 @@ export function bootLivingField(): void {
   field.addEventListener(
     "pointermove",
     (event) => {
+      if (journey) return;
       const rect = field.getBoundingClientRect();
       renderer.point(
         clamp((event.clientX - rect.x) / rect.width),
@@ -238,9 +279,78 @@ export function bootLivingField(): void {
   document.querySelector('[data-primary-action="explore"]')!.addEventListener(
     "click",
     () => {
+      if (motion.matches || field.dataset.fieldRuntime !== "webgl2") {
+        signals[3].focus({ preventScroll: true });
+        return;
+      }
+      setUrl(null, "push");
+      journey = true;
+      document.querySelector<HTMLElement>(".signal-field")!.inert = true;
+      journeyWorld = false;
+      journeyControls.hidden = false;
+      journeyDistance.hidden = false;
+      field.dataset.journey = "true";
+      field.style.setProperty("--journey-progress","0");
       const b = signals[3].getBoundingClientRect();
       wave(b.x + b.width / 2, b.y + b.height / 2);
-      signals[3].focus({ preventScroll: true });
+      clearTimeout(arrivalTimer);
+      reveal(signals[3]);
+      clearTimeout(revealTimer);
+      journeyStage.textContent = "01 / ROLE PARA ATRAVESSAR";
+      document
+        .querySelector<HTMLButtonElement>("#journey-exit")!
+        .focus({ preventScroll: true });
+    },
+    options,
+  );
+  const updateJourney = () => {
+    journeyFrame = 0;
+    if (!journey) return;
+    const progress = clamp(scrollY / Math.max(1, journeyDistance.offsetHeight));
+    const p = clamp((progress - 0.12) / 0.78);
+    const reached = p >= 0.999;
+    if (reached !== journeyWorld) {
+      journeyWorld = reached;
+      show(reached ? "aquaverno" : null, "replace", [0.5, 0.5], true);
+    }
+    document.querySelector<HTMLElement>(".signal-field")!.inert = true;
+    const [x, y] =
+      innerWidth <= 700
+        ? realArtists[3].signal.mobile
+        : realArtists[3].signal.desktop;
+    if (p <= 0) {
+      renderer.transition(0, x, y, () => {}, true);
+      renderer.preview(4, x, y);
+      signals[3].dataset.revealed = "true";
+    } else {
+      renderer.scrub(4, x, y, p);
+      signals.forEach((s) => (s.dataset.revealed = "false"));
+    }
+    field.style.setProperty("--journey-progress", String(progress));
+    journeyStage.textContent =
+      progress < 0.12
+        ? "01 / ROLE PARA ATRAVESSAR"
+        : progress < 0.9
+          ? "02 / ATRAVESSE A ONDA"
+          : "03 / AQUAVERNO";
+    field.dataset.signalDiscovered = "true";
+  };
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (journey && !journeyFrame)
+        journeyFrame = requestAnimationFrame(updateJourney);
+    },
+    { ...options, passive: true },
+  );
+  document.querySelector("#journey-exit")!.addEventListener(
+    "click",
+    () => {
+      stopJourney();
+      show(null, "replace", [0.5, 0.5], true);
+      document
+        .querySelector<HTMLButtonElement>('[data-primary-action="explore"]')!
+        .focus();
     },
     options,
   );
@@ -321,6 +431,7 @@ export function bootLivingField(): void {
   back.addEventListener(
     "click",
     () => {
+      stopJourney();
       show(null, "push");
       (
         lastSelected ??
@@ -334,6 +445,7 @@ export function bootLivingField(): void {
   window.addEventListener(
     "popstate",
     () => {
+      stopJourney();
       if (search.open) search.close();
       const id =
         getRealArtist(new URL(location.href).searchParams.get("artist"))?.id ??
@@ -352,6 +464,14 @@ export function bootLivingField(): void {
   window.addEventListener(
     "keydown",
     (event) => {
+      if (event.key === "Escape" && journey && !search.open) {
+        stopJourney();
+        show(null, "replace", [0.5, 0.5], true);
+        document
+          .querySelector<HTMLButtonElement>('[data-primary-action="explore"]')!
+          .focus();
+        return;
+      }
       if (event.key === "Escape" && current && !search.open) {
         show(null, "push");
         lastSelected?.focus({ preventScroll: true });
@@ -359,7 +479,29 @@ export function bootLivingField(): void {
     },
     options,
   );
-  window.addEventListener("resize", position, { ...options, passive: true });
+  window.addEventListener(
+    "resize",
+    () => {
+      position();
+      if (journey) updateJourney();
+    },
+    { ...options, passive: true },
+  );
+  field.addEventListener(
+    "fieldfallback",
+    () => {
+      if (journey) {
+        stopJourney();
+        show(current, "none", [0.5, 0.5], true);
+        (current
+          ? back
+          : document.querySelector<HTMLButtonElement>(
+              '[data-primary-action="explore"]',
+            ))!.focus();
+      }
+    },
+    options,
+  );
   position();
   const images = [
     source,
@@ -368,6 +510,15 @@ export function bootLivingField(): void {
   motion.addEventListener(
     "change",
     () => {
+      if (journey && motion.matches) {
+        stopJourney();
+        show(current, "none", [0.5, 0.5], true);
+        (current
+          ? back
+          : document.querySelector<HTMLButtonElement>(
+              '[data-primary-action="explore"]',
+            ))!.focus();
+      }
       field.dataset.motion = motion.matches ? "reduced" : "full";
       void renderer
         .setReduced(motion.matches, images)
@@ -396,6 +547,7 @@ export function bootLivingField(): void {
     () => {
       disposed = true;
       events.abort();
+      cancelAnimationFrame(journeyFrame);
       renderer.dispose();
       [revealTimer, waveTimer, arrivalTimer].forEach(clearTimeout);
     },

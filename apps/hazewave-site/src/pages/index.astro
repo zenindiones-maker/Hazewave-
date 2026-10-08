@@ -23,7 +23,7 @@ import { realArtists } from "../data/realArtists";
       <div class="field-grain" aria-hidden="true"></div>
       <header class="field-header">
         <div class="field-brand"><h1>HAZEWAVE<span class="brand-cross" aria-hidden="true">✳</span></h1><p>Núcleo Sonoro Independente</p></div>
-        <div class="field-location"><span class="location-dot"></span><span>Santos</span><span class="location-secondary">BR · 23° S</span></div>
+        <div class="field-location"><span class="location-dot"></span><span>Santos</span></div>
         <button id="world-back" class="world-back" type="button" hidden>← <span>VOLTAR AO CAMPO</span></button>
       </header>
       <nav class="primary-paths" aria-label="Caminhos principais">
@@ -31,20 +31,21 @@ import { realArtists } from "../data/realArtists";
         <button type="button" data-primary-action="listen"><span class="nav-number">02</span> LISTEN</button>
         <button type="button" data-primary-action="search"><span class="nav-number">03</span> SEARCH <span class="search-icon" aria-hidden="true"></span></button>
       </nav>
-      <div class="field-intro" aria-hidden="true"><span class="eyebrow">LIVING RESONANCE FIELD</span><p>Cada sinal,<br />um universo.</p><span class="intro-line"></span></div>
+      <div class="field-intro" aria-hidden="true"><span class="eyebrow">LIVING RESONANCE FIELD</span></div>
       <div class="signal-field" aria-label="Sinais de artistas">
         {realArtists.map((artist, index) => <button type="button" class="artist-signal" data-artist-signal={artist.id} data-materialized={String(artist.materializedWorld)} aria-label={`Entrar no sinal de ${artist.name}`} style={`--signal-color:${artist.color}`}>
           <span class="signal-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-          <span class="signal-label"><small>0{index + 1}</small><strong>{artist.name}</strong><b aria-hidden="true">↗</b></span>
+          <span class="signal-label"><small>0{index + 1}</small><strong>{artist.name}</strong><b aria-hidden="true">ENTRAR ↗</b></span>
           <span class="signal-preview" aria-hidden="true"><img src={artist.artwork!} alt="" /><span>ENTRAR NO MUNDO ↗</span></span>
         </button>)}
       </div>
-      <div class="field-invitation"><span class="touch-mark" aria-hidden="true">+</span><p>Toque a névoa.<br /><span>Deixe a onda encontrar um sinal.</span></p></div>
+      <div class="field-invitation"><span class="touch-mark" aria-hidden="true">+</span><p>Atravesse a névoa.<br /><span>Toque para descobrir um artista.</span></p></div>
+      <div class="journey-controls" hidden><span id="journey-stage">01 / ENCONTRE O SINAL</span><span class="journey-track"><i></i></span><button type="button" id="journey-exit">SAIR DA TRAVESSIA ×</button></div>
       <div class="field-index" aria-hidden="true"><span>05 SINAIS</span><span class="index-line"></span><span>UM CAMPO ABERTO</span></div>
       <div class="artist-world-shell">
         {realArtists.map((artist, index) => <section class="artist-world" data-artist-world={artist.id} data-world-system={artist.worldSystem} data-active="false" aria-label={`Mundo visual de ${artist.name}`} inert>
           <img class="world-fallback-art" src={artist.artwork!} alt={artist.artworkAlt} decoding="async" />
-          <div class="world-caption"><span class="eyebrow">UNIVERSO 0{index + 1} / HAZEWAVE</span><h2>{artist.name}</h2><span class="world-caption-rule"></span></div>
+          <div class="world-caption"><span class="eyebrow">HAZEWAVE / 0{index + 1}</span><h2>{artist.name}</h2><span class="world-caption-rule"></span></div>
           <button type="button" class="world-switch" data-world-switch>EXPLORAR OUTRO SINAL <span aria-hidden="true">↗</span></button>
         </section>)}
       </div>
@@ -71,9 +72,10 @@ import { realArtists } from "../data/realArtists";
           <figure><img src="/media/hazewave-world.jpg" alt="Universo Hazewave: farol entre ondas e um vórtice verde e roxo" /><figcaption>HAZEWAVE — Santos</figcaption></figure>
           {realArtists.map(artist=><figure><a href={artist.artwork!}><img src={artist.artwork!} alt={artist.artworkAlt} /></a><figcaption>{artist.name}</figcaption></figure>)}
         </section>
-        <style>.living-field{height:auto;overflow:visible}.field-origin,#living-field-canvas,.field-header,.field-intro,.primary-paths,.signal-field,.artist-world-shell,.field-invitation,.field-index,.persistent-transport{display:none}.static-gallery{padding:28px;max-width:800px;margin:auto}.static-gallery figure{margin:35px 0}.static-gallery img{max-width:100%;max-height:80svh;object-fit:contain}.static-gallery p{line-height:1.6}</style>
+        <style>.living-field::after{display:none}.living-field{height:auto;overflow:visible}.field-origin,#living-field-canvas,.field-header,.field-intro,.primary-paths,.signal-field,.artist-world-shell,.field-invitation,.field-index,.persistent-transport{display:none}.static-gallery{padding:28px;max-width:800px;margin:auto}.static-gallery figure{margin:35px 0}.static-gallery img{max-width:100%;max-height:80svh;object-fit:contain}.static-gallery p{line-height:1.6}</style>
       </noscript>
     </main>
+    <div id="journey-distance" aria-hidden="true" hidden></div>
     <script>import { bootLivingField } from "../experience/livingField"; bootLivingField();</script>
   </body>
 </html>

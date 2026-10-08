@@ -2,7 +2,7 @@
 
 Candidate creative reset, based on site HEAD `9873973e79df670ff29e31fff08b1cc38c41c3ee`.
 
-The first screen samples the owner's lighthouse artwork as an interactive WebGL2 field. Contact emits a radial refraction through the image; signal selection replaces the material with the selected artist artwork using a spatial, noise-edged reveal. Aquaverno uses tidal displacement and close ocean framing on mobile. Hemorragia Cósmica uses asymmetric compression, skeletal texture and wire tension. The original five artists are searchable and have direct `?artist=` links.
+The first screen samples the owner's lighthouse artwork as an interactive WebGL2 field. Contact emits a radial refraction through the image; signal selection replaces the material with the selected artist artwork using the same spatial aperture that revealed it. EXPLORE starts a short optional native-scroll journey into Aquaverno: advance, pause and reverse the texture takeover before entering its world. Direct artist selection and SEARCH remain available without the journey. Aquaverno uses tidal displacement and close ocean framing on mobile. Hemorragia Cósmica uses asymmetric compression, skeletal texture and wire tension. The original five artists are searchable and have direct `?artist=` links.
 
 The six image files are byte-identical to the owner submissions. `owner-art-provenance.json` records their SHA-256 values. Older infrastructure and historical art derivatives remain in the repository, but the cassette/player wheel and synthetic demo catalog are absent from the entry point's dependency graph.
 
@@ -27,7 +27,7 @@ npx playwright install chromium
 npm test -- --workers=1
 ```
 
-If a compatible Chromium is already installed, set `PLAYWRIGHT_EXECUTABLE_PATH` to its executable. This disables Playwright's optional video recording; tests still produce screenshots and failure traces. Desktop and Pixel 7 projects cover source-image decoding, actual canvas changes, transitions, URL/history navigation, accent-insensitive search, direct entry/return, disabled audio, reduced motion changes, GPU loss, keyboard focus, no-JavaScript access and a 360×640 layout.
+If a compatible Chromium is already installed, set `PLAYWRIGHT_EXECUTABLE_PATH` to its executable. This disables Playwright's optional video recording; tests still produce screenshots and failure traces. Desktop and Pixel 7 projects cover source-image decoding, actual canvas changes, transitions, URL/history navigation, accent-insensitive search, direct entry/return, disabled audio, reduced motion changes, GPU loss, keyboard focus, no-JavaScript access and a 360×640 layout, scroll reversal and journey teardown after motion/GPU changes. Draws are gated by a non-blocking GPU fence and settled scenes sample only their active texture.
 
 ## Scope and limitations
 

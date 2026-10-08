@@ -38,7 +38,7 @@ export const realArtists: readonly RealArtistVisualAuthority[] = [
   {
     id: "barak-ozama-beats",
     name: "Barak Ozama Beats",
-    signal: { desktop: [0.22, 0.42], mobile: [0.15, 0.34] },
+    signal: { desktop: [0.22, 0.42], mobile: [0.24, 0.34] },
     worldSystem: "pressure-type",
     color: "#deded1",
     artwork: "/media/artists/barak-ozama-beats.png",
@@ -49,7 +49,7 @@ export const realArtists: readonly RealArtistVisualAuthority[] = [
   {
     id: "indionesbala",
     name: "Indionesbala",
-    signal: { desktop: [0.75, 0.27], mobile: [0.85, 0.26] },
+    signal: { desktop: [0.75, 0.27], mobile: [0.72, 0.25] },
     worldSystem: "heat-type",
     color: "#ffa22c",
     artwork: "/media/artists/indionesbala.webp",
@@ -60,7 +60,7 @@ export const realArtists: readonly RealArtistVisualAuthority[] = [
   {
     id: "baazu",
     name: "Baazü",
-    signal: { desktop: [0.29, 0.68], mobile: [0.16, 0.6] },
+    signal: { desktop: [0.29, 0.68], mobile: [0.24, 0.6] },
     worldSystem: "blue-illustration",
     color: "#a4d5e9",
     artwork: "/media/artists/baazu.png",
@@ -71,7 +71,7 @@ export const realArtists: readonly RealArtistVisualAuthority[] = [
   {
     id: "aquaverno",
     name: "Aquaverno",
-    signal: { desktop: [0.8, 0.51], mobile: [0.85, 0.46] },
+    signal: { desktop: [0.8, 0.51], mobile: [0.7, 0.46] },
     worldSystem: "tidal-depth",
     color: "#efcfa2",
     artwork: "/media/artists/aquaverno.jpg",
@@ -82,7 +82,7 @@ export const realArtists: readonly RealArtistVisualAuthority[] = [
   {
     id: "hemorragia-cosmica",
     name: "Hemorragia Cósmica",
-    signal: { desktop: [0.74, 0.75], mobile: [0.85, 0.66] },
+    signal: { desktop: [0.74, 0.75], mobile: [0.7, 0.66] },
     worldSystem: "pressure-wire",
     color: "#efcb32",
     artwork: "/media/artists/hemorragia-cosmica.jpg",
