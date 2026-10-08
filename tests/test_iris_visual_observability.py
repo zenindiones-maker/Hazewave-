@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+
 import hashlib
 from pathlib import Path
 import subprocess
@@ -88,7 +90,7 @@ def test_iris_policy_requires_exact_explicit_preview_origin() -> None:
 
 def test_iris_receipt_does_not_promote_mcp_or_human_approval(tmp_path: Path) -> None:
     png = tmp_path / "iris.png"
-    png.write_bytes(b"\\x89PNG\\r\\n\\x1a\\n" + b"some-image-bytes")
+    png.write_bytes(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlQk4cAAAAASUVORK5CYII="))
     result = verify_iris_capture(
         {
             "status": "ok", "url": FIXTURE.as_uri(), "format": "png",
@@ -106,6 +108,6 @@ def test_iris_receipt_does_not_promote_mcp_or_human_approval(tmp_path: Path) -> 
 
 def test_iris_capture_rejects_mismatched_json_path_status(tmp_path: Path) -> None:
     png = tmp_path / "iris.png"
-    png.write_bytes(b"\\x89PNG\\r\\n\\x1a\\n" + b"data")
+    png.write_bytes(base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlQk4cAAAAASUVORK5CYII="))
     with pytest.raises(IrisCaptureError):
         verify_iris_capture({"status": "error"}, output=png, source_url=FIXTURE.as_uri())
