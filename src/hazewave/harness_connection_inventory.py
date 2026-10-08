@@ -36,7 +36,9 @@ _ROUTE_PLAN = (
 )
 
 
-def inventory_all_capabilities(manifest: Path = _DEFAULT) -> dict[str, Any]:
+def inventory_all_capabilities(
+    manifest: Path = _DEFAULT, *, host_av_execution: dict[str, Any] | None = None
+) -> dict[str, Any]:
     declared = tuple(harness_status()["capabilities"])
     registry = describe_capabilities(Path(manifest))
     providers: dict[str, list[str]] = {}
@@ -65,6 +67,21 @@ def inventory_all_capabilities(manifest: Path = _DEFAULT) -> dict[str, Any]:
             "ready": False,
             "production_approved": False,
         }
+    observed_av_count = 0
+    if host_av_execution is not None:
+        if (host_av_execution.get("schema") != "HazewaveObservedHostAVExecution/v1"
+                or host_av_execution.get("evidence_state") != "EXECUTED"
+                or host_av_execution.get("provenance")
+                    != "LOCAL_LOG_AND_RECEIPT_INTEGRITY_NOT_INDEPENDENT_ATTESTATION"
+                or any(host_av_execution.get(k) is not False for k in
+                       ("agent_connected", "tool_routing_authorized", "benchmarked", "production_approved"))):
+            raise ValueError("HOST_AV_UNVERIFIED_OR_PROMOTED")
+        for cap in ("audio.qc", "visual.qc"):
+            if cap not in capabilities:
+                raise ValueError("HOST_AV_CAPABILITY_NOT_DECLARED")
+            capabilities[cap]["fixture_execution"] = "EXECUTED_SYNTHETIC_UNATTESTED"
+            capabilities[cap]["execution_evidence_sha256"] = host_av_execution["log_sha256"]
+            observed_av_count += 1
     queue: list[dict[str, Any]] = []
     for route, cap, provider, action in _ROUTE_PLAN:
         if provider not in providers.get(cap, []):
@@ -90,7 +107,8 @@ def inventory_all_capabilities(manifest: Path = _DEFAULT) -> dict[str, Any]:
     return {
         "schema": "HazewaveFullCapabilityConnectionInventory/v1",
         "authority": AUTHORITY,
-        "scope": "REPOSITORY_DECLARATIONS_NOT_LIVE_HOST",
+        "scope": ("REPOSITORY_DECLARATIONS_WITH_UNATTESTED_AV_OBSERVATION"
+                  if observed_av_count else "REPOSITORY_DECLARATIONS_NOT_LIVE_HOST"),
         "codespace_proven": False,
         "capabilities": capabilities,
         "summary": {
@@ -100,6 +118,7 @@ def inventory_all_capabilities(manifest: Path = _DEFAULT) -> dict[str, Any]:
             "providers_declared": len(registry["tools"]),
             "ready_on_existing_codespace": 0,
             "agent_connected_on_existing_codespace": 0,
+            "host_synthetic_av_executions_observed": observed_av_count,
         },
         "connection_sequence": queue,
         "production_approved": False,
@@ -110,8 +129,29 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Read-only full Harness capability coverage")
     p.add_argument("--manifest", type=Path, default=_DEFAULT)
     p.add_argument("--output", type=Path)
+    p.add_argument("--host-av-log", type=Path)
+    p.add_argument("--host-av-receipt", type=Path)
+    p.add_argument("--host-av-repo-sha")
+    p.add_argument("--host-av-log-sha256")
+    p.add_argument("--host-av-receipt-sha256")
     args = p.parse_args(argv)
-    report = inventory_all_capabilities(args.manifest)
+    parts = (args.host_av_log, args.host_av_receipt, args.host_av_repo_sha,
+             args.host_av_log_sha256, args.host_av_receipt_sha256)
+    if any(v is not None for v in parts) and not all(v is not None for v in parts):
+        raise SystemExit("HOST_AV_EVIDENCE_ARGS_INCOMPLETE")
+    observation = None
+    if all(v is not None for v in parts):
+        from hazewave.host_av_evidence import HostAvEvidenceError, verify_host_av_evidence
+        try:
+            observation = verify_host_av_evidence(
+                log_path=args.host_av_log, receipt_path=args.host_av_receipt,
+                reviewed_sha=args.host_av_repo_sha,
+                expected_log_sha256=args.host_av_log_sha256,
+                expected_receipt_sha256=args.host_av_receipt_sha256
+            )
+        except HostAvEvidenceError as exc:
+            raise SystemExit("HOST_AV_EVIDENCE_BLOCKED:" + str(exc)) from exc
+    report = inventory_all_capabilities(args.manifest, host_av_execution=observation)
     # Do not write into the repo by default; private output optional.
     if args.output:
         import os
