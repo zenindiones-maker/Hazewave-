@@ -19,6 +19,7 @@ from hazewave.native_behavior_synthesis import SynthesisError, synthesize_owned_
 def test_joint_real_elf_sha_and_formal_contract_with_mocked_ghidra_boundary(tmp_path,monkeypatch):
     if not shutil.which("cc"):
         pytest.skip("no system C compiler")
+    pytest.importorskip('z3')
     observed=[]
     def native_evidence(rea,oracle):
         digest=hashlib.sha256(Path(oracle).read_bytes()).hexdigest()
@@ -48,6 +49,7 @@ def test_joint_real_elf_sha_and_formal_contract_with_mocked_ghidra_boundary(tmp_
 def test_bad_ghidra_elf_identity_fails_closed_no_receipt(tmp_path,monkeypatch):
     if not shutil.which("cc"):
         pytest.skip("no system C compiler")
+    pytest.importorskip("z3")
     def wrong_native(rea,oracle):
         return {"provider_id":"ghidra","target_sha256":"0"*64,
                 "evidence_id":"ev_wrong","operation":"analyze_function"}
