@@ -170,3 +170,47 @@ def test_manifest_is_non_executable_and_inventory_cannot_write_or_start_tools() 
     assert "pip install" not in text
     assert "gh codespace create" not in text
     assert "codex mcp add" not in text
+
+
+def test_ci_fixture_is_visible_but_cannot_be_promoted_to_codespace(tmp_path: Path) -> None:
+    evidence, sig, trust, artifact = _signed_evidence(
+        tmp_path, host="github-actions-disposable-worker", scope="CI_FIXTURE"
+    )
+    proof = verify_signed_runtime_evidence(evidence, sig, trust, artifact=artifact, now=NOW)
+    report = inventory(manifest=MANIFEST, host_id=CODESPACE, repo_sha=SHA,
+                       binary_lookup=lambda _: "/usr/bin/iris",
+                       binary_fingerprint=lambda _: "b" * 64,
+                       evidence_files=[proof], now=NOW)
+    assert report["tools"]["iris"]["state"] == "CI_FIXTURE_PROVEN"
+    assert report["coverage"]["ci_fixture_proven"] >= 1
+    assert report["coverage"]["operational_ready"] == 0
+
+
+def test_after_freshness_deadline_even_verified_in_memory_claim_cannot_route(tmp_path: Path) -> None:
+    evidence, sig, trust, artifact = _signed_evidence(tmp_path)
+    proof = verify_signed_runtime_evidence(evidence, sig, trust, artifact=artifact, now=NOW)
+    late = NOW + timedelta(hours=1)
+    report = inventory(manifest=MANIFEST, host_id=CODESPACE, repo_sha=SHA,
+                       binary_lookup=lambda _: "/usr/bin/iris",
+                       binary_fingerprint=lambda _: "b" * 64,
+                       evidence_files=[proof], now=late)
+    assert report["tools"]["iris"]["state"] == "STALE"
+    assert report["coverage"]["operational_ready"] == 0
+
+
+def test_default_discovery_of_isolated_iris_binary_without_global_path(tmp_path: Path) -> None:
+    from hazewave.capability_plane import discover_local_executable
+    iris = tmp_path / ".local/share/hazewave/iris/v0.4.1/bin/iris"
+    iris.parent.mkdir(parents=True)
+    iris.write_bytes(b"fixture only")
+    iris.chmod(0o700)
+    assert discover_local_executable("iris", home=tmp_path, which=lambda _: None) == str(iris)
+
+
+def test_unknown_or_missing_benchmark_never_selects_freeware_by_assumption() -> None:
+    data = inventory(manifest=MANIFEST, host_id=CODESPACE, repo_sha=SHA,
+                     binary_lookup=lambda x: "/bin/" + x, evidence_files=[], now=NOW)
+    assert data["tools"]["demucs"]["cost_class"] == "UNKNOWN_DENY"
+    assert data["tools"]["demucs"]["route_eligible"] is False
+    with pytest.raises(CapabilityPlaneError, match="NO_OPERATIONALLY_VERIFIED_PROVIDER"):
+        select_provider(data, "audio.separate", "HAZE")
