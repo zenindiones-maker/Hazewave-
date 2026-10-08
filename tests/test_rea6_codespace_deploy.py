@@ -14,12 +14,12 @@ def test_rea6_codespace_deployer_is_explicit_and_identity_pinned() -> None:
     assert 'ls-remote --exit-code origin "$EXPECTED_REMOTE_REF"' in script
     assert "zenindiones-maker/Hazewave-" in script
     assert 'CODESPACE_NAME' in script
-    assert '"$(git rev-parse HEAD)"' in script
-    assert 'git status --porcelain' in script
-    assert "git remote get-url origin" in script
+    assert 'git -C "$REPO_ROOT" rev-parse HEAD' in script
+    assert 'git -C "$REPO_ROOT" status --porcelain' in script
+    assert 'git -C "$REPO_ROOT" remote get-url origin' in script
     assert 'INSTALL=NOT_ATTEMPTED' in script
     assert '"--install"' in script
-    assert 'install-reverse-engineering-foundation.sh --preflight' in script
+    assert 'install-reverse-engineering-foundation.sh" --preflight' in script
     assert "reverse-engineering-doctor.sh" in script
 
 
