@@ -129,3 +129,19 @@ def test_tool_inventory_is_read_only_and_has_no_install_side_effects(monkeypatch
     assert tools["readelf"] == "AVAILABLE"
     assert tools["perf"] == "NOT_INSTALLED"
     assert tools["ghidra"] == "NOT_INSTALLED"
+
+
+def test_reflex_control_plane_exposes_read_only_audit_without_runtime_restart() -> None:
+    root = Path(__file__).resolve().parents[1]
+    remote = (root / "scripts" / "codespaces" / "reflex-shadow-control.sh").read_text(encoding="utf-8")
+    termux = (root / "scripts" / "hazewave_reflex_termux_control.sh").read_text(encoding="utf-8")
+    assert "engine-re-doctor) reflex_research_doctor ;;" in remote
+    assert "engine-re-doctor" in termux
+    block = remote.split("reflex_research_doctor() {", 1)[1].split("\nlatency_engine_tune() {", 1)[0]
+    assert "ensure_checkout" in block
+    assert "--stock-binary" in block
+    assert "--derived-root" in block
+    assert "--state-root" in block
+    assert "latency_engine_tune" not in block
+    assert "reconcile" not in block
+    assert "serve-stop" not in block
