@@ -1744,6 +1744,21 @@ PY
   echo "REFLEX_ENGINE_PROFILE_ACTIVATION=FORBIDDEN"
 }
 
+reflex_research_doctor() {
+  ensure_checkout
+  "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE" >/dev/null || die "RUNTIME_DOCTOR_BLOCKED"
+  local source_sha
+  source_sha="$(git -C "$SOURCE_ROOT" rev-parse HEAD)" || die "RE_UPSTREAM_IDENTITY_UNAVAILABLE"
+  [[ "$source_sha" == "bf2442915d6e3dd4cdfd2eb9c2a3d2aa44a25850" ]] || die "RE_UPSTREAM_SHA_MISMATCH"
+  [[ -z "$(git -C "$SOURCE_ROOT" status --porcelain)" ]] || die "RE_UPSTREAM_DIRTY"
+  "$PYTHON_BIN" -m hazewave.reflex_research \
+    --stock-binary "$SOURCE_ROOT/c/laya" \
+    --derived-root "$HOME/.local/share/hazewave/providers/colibri/derived" \
+    --upstream-commit "$source_sha" \
+    --state-root "$STATE_ROOT" \
+    || die "RE_RESEARCH_AUDIT_BLOCKED"
+}
+
 latency_engine_tune() {
   ensure_checkout
   "$PYTHON_BIN" -m hazewave.reflex_shadow_runtime doctor --repository-root "$WORKTREE" >/dev/null || die "RUNTIME_DOCTOR_BLOCKED"
@@ -2249,7 +2264,8 @@ case "${1:-}" in
   latency-report) latency_report ;;
   latency-engine-tune) latency_engine_tune ;;
   latency-engine-profile) latency_engine_profile ;;
+  engine-re-doctor) reflex_research_doctor ;;
   latency-engine-report) latency_engine_report ;;
   latency-scale-probe) latency_scale_probe ;;
-  *) echo "usage: $0 {doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report|latency-scale-probe}" >&2; exit 2 ;;
+  *) echo "usage: $0 {doctor|prepare|serve|serve-stop|reconcile|runtime-status|smoke|observe EVENT.json|report|latency-profiles|latency-selected|latency-tune|latency-report|latency-engine-tune|latency-engine-report|engine-re-doctor|latency-scale-probe}" >&2; exit 2 ;;
 esac
