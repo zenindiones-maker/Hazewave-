@@ -1,0 +1,56 @@
+name: Hazewave HAZE Synthetic Audio Oracle Qualification
+on:
+  push:
+    branches:
+      - work/haze-actions-multicase-reliability-v1
+permissions:
+  contents: read
+concurrency:
+  group: haze-audio-oracle-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  qualify_audio_oracles:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout exact SHA
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install only runner-local open-source test dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          python -m pip install -e ".[dev]"
+          command -v ffmpeg
+          echo "A15_INSTALL=NONE"
+          echo "CODESPACE_MUTATION=NONE"
+          echo "A15_INFERENCE=FORBIDDEN"
+      - name: Run the three actual FFmpeg evidence generators and negatives
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/test_actions_slm_multicase.py::test_actual_ffmpeg_fixture_evidence_has_positive_and_negative_controls
+      - name: Record measured synthetic-only evidence summary
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import tempfile
+          from pathlib import Path
+          from hazewave.actions_slm_multicase import make_multicase_evidence, CASE_IDS
+          with tempfile.TemporaryDirectory() as root:
+              metrics=make_multicase_evidence(Path(root))
+              assert tuple(metrics)==CASE_IDS
+              assert all(m['negative_control_pass'] for m in metrics.values())
+              print("HAZE_FFMPEG_DISTINCT_CASES="+str(len(metrics)))
+              print("HAZE_FFMPEG_NEGATIVE_CONTROLS=PASS")
+              print("HAZE_FFMPEG_CASE_METRICS="+json.dumps(metrics, sort_keys=True))
+              print("HAZE_SLM_MODEL_CALLS=NOT_RUN")
+              print("HAZE_PROFESSIONAL=FALSE")
+          PY
