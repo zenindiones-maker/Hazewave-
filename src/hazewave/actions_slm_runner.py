@@ -193,20 +193,68 @@ def verify_llama_response(body: Any, expected_model: str) -> dict[str, Any]:
             "content_sha256": hashlib.sha256(content.encode()).hexdigest()}
 
 
+_AUDIO_DECISION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "finding": {"type": "string", "enum": ["ATTENUATION_DETECTED", "NO_ISSUE_DETECTED"]},
+        "action": {"type": "string", "enum": ["REVIEW_GAIN_STAGE", "NO_ACTION"]},
+        "evidence_keys": {
+            "type": "array",
+            "items": {"type": "string", "enum": ["audio_attenuation_db"]},
+            "minItems": 1, "maxItems": 1,
+        },
+        "requires_human_review": {"type": "boolean"},
+    },
+    "required": ["finding", "action", "evidence_keys", "requires_human_review"],
+    "additionalProperties": False,
+}
+
+
+def classify_audio_decision_failure(decision: Any, attenuation: float) -> str:
+    """Return a non-sensitive fixed reason; independent strict grader decides PASS."""
+    if type(decision) is not dict:
+        return "NONOBJECT_OR_INVALID_JSON"
+    if set(decision) != set(_AUDIO_DECISION_SCHEMA["required"]):
+        return "EXTRA_OR_MISSING_KEYS"
+    target = ("ATTENUATION_DETECTED", "REVIEW_GAIN_STAGE") if 10 <= attenuation <= 14 else (
+        "NO_ISSUE_DETECTED", "NO_ACTION"
+    )
+    if decision.get("finding") != target[0]:
+        return "FINDING_MISMATCH"
+    if decision.get("action") != target[1]:
+        return "ACTION_MISMATCH"
+    if decision.get("evidence_keys") != ["audio_attenuation_db"]:
+        return "EVIDENCE_KEYS_MISMATCH"
+    if decision.get("requires_human_review") is not True:
+        return "HUMAN_REVIEW_FLAG_MISMATCH"
+    return "NONE"
+
+
+def _model_request_payload(prompt: str, model: str) -> dict[str, Any]:
+    # Both semantic choices remain possible in the grammar. Grammar does not
+    # supply the correct answer: the model must reason about the FFmpeg metric.
+    return {
+        "model": model, "stream": False, "temperature": 0,
+        "max_tokens": 240,
+        "chat_template_kwargs": {"enable_thinking": False},
+        "response_format": {
+            "type": "json_schema",
+            "schema": _AUDIO_DECISION_SCHEMA,
+        },
+        "messages": [
+            {"role": "system", "content":
+             "You evaluate a single measured audio anomaly. Never call tools. "
+             "Return exactly one JSON object with the four requested keys."},
+            {"role": "user", "content": prompt},
+        ],
+    }
+
+
 def _request_model(prompt: str, model: str) -> dict[str, Any]:
     # Network is limited to one literal process-local HTTP endpoint.
     request = Request(LOOPBACK + "/v1/chat/completions",
         method="POST", headers={"Content-Type": "application/json"},
-        data=json.dumps({
-            "model": model, "stream": False, "temperature": 0,
-            "max_tokens": 240,
-            "chat_template_kwargs": {"enable_thinking": False},
-            "messages": [
-                {"role": "system", "content":
-                 "You are a bounded audio signal quality evaluator. Never request tools. Return exactly one JSON object."},
-                {"role": "user", "content": prompt}
-            ]
-        }).encode())
+        data=json.dumps(_model_request_payload(prompt, model)).encode())
     try:
         with build_opener(ProxyHandler({}), _NoRedirect()).open(request, timeout=90) as answer:
             payload = answer.read(_LIMIT + 1)
@@ -287,6 +335,10 @@ def main(argv: list[str] | None = None) -> int:
         result = _request_model(prompt, manifest["served_alias"])
         judged = verify_llama_response(result, manifest["served_alias"])
         grade = evaluate_audio_decision(judged["decision"], attenuation=metrics["attenuation_db"])
+        failure_class = classify_audio_decision_failure(judged["decision"], metrics["attenuation_db"])
+        # Never upgrade based on a categorizer. Reject internal disagreements.
+        if (failure_class == "NONE") != (grade["grade"] == "PASS"):
+            raise RunnerProofError("AUDIO_VERIFIER_CLASSIFIER_DISAGREEMENT")
         record = {
             "schema": "HazewaveActionsSLMExecution/v1",
             "authority": "HAZEWAVE_HARNESS",
@@ -304,6 +356,9 @@ def main(argv: list[str] | None = None) -> int:
             "audio_metrics": metrics,
             "audio_verifier_result": grade["grade"],
             "audio_verifier_error": grade["error"],
+            "audio_failure_class": failure_class,
+            "json_schema_constrained_generation_requested": True,
+            "json_schema_server_enforcement_independently_proven": False,
             "tokens": judged["tokens"], "prompt_tokens": judged["prompt_tokens"],
             "completion_tokens": judged["completion_tokens"],
             "total_elapsed_ms": round((time.monotonic()-started)*1000, 1),
@@ -320,6 +375,7 @@ def main(argv: list[str] | None = None) -> int:
         sha = write_receipt(args.output, record)
         print("HAZE_ACTIONS_MODEL_REAL_RESPONSE=PASS")
         print("HAZE_ACTIONS_AUDIO_VERIFIER=" + grade["grade"])
+        print("HAZE_ACTIONS_FAILURE_CLASS=" + failure_class)
         print("HAZE_ACTIONS_RECEIPT_SHA256=" + sha)
         print("HAZE_ACTIONS_MODEL_SHA256=" + manifest["sha256"])
         print("A15_INFERENCE=FORBIDDEN")
