@@ -153,3 +153,11 @@ def test_symlink_to_target_is_rejected(signed_case: dict, tmp_path: Path) -> Non
     alias.symlink_to(signed_case["target"])
     with pytest.raises(ReverseEngineeringError, match="TARGET_FILE_UNSAFE"):
         _verify(signed_case, target_file=alias)
+
+
+def test_deep_probe_does_not_promote_nonempty_json_to_runtime_proven() -> None:
+    script = (ROOT / "scripts/codespaces/reverse-engineering-doctor.sh").read_text()
+    assert 'len(raw) < 64' not in script
+    assert "HAZEWAVE_RE_DEEP_PROBE=OBSERVED_UNVERIFIED" in script
+    assert "HAZEWAVE_RE_DEEP_PROBE=PASS" not in script
+    assert "RE_DEEP_EVIDENCE_SCHEMA_UNVERIFIED" in script
