@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import sys
 
 import pytest
 
+from hazewave import cli
 from hazewave.reverse_engineering import (
     ReverseEngineeringError,
     load_default_foundation,
@@ -179,3 +181,32 @@ def test_specialist_charter_machine_policy_adopts_reverse_engineering_domains() 
     assert policy["tool_authority"] == "NONE"
     assert policy["authorized_targets_only"] is True
     assert policy["runtime_mutation_authority"] is False
+
+
+def test_hazewave_cli_exposes_authorized_reverse_engineering_plan(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "hazewave",
+            "reverse-engineering",
+            "plan",
+            "--domain",
+            "HAZE",
+            "--target-kind",
+            "audio_plugin",
+            "--purpose",
+            "AUTHORIZED_FEATURE_STUDY",
+            "--authorized",
+        ],
+    )
+
+    assert cli.main() == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["schema"] == "HazewaveReverseEngineeringPlan/v1"
+    assert payload["domain"] == "HAZE"
+    assert payload["authorized_target"] is True
+    assert payload["grants_execution_authority"] is False
