@@ -214,3 +214,61 @@ def test_unknown_or_missing_benchmark_never_selects_freeware_by_assumption() -> 
     assert data["tools"]["demucs"]["route_eligible"] is False
     with pytest.raises(CapabilityPlaneError, match="NO_OPERATIONALLY_VERIFIED_PROVIDER"):
         select_provider(data, "audio.separate", "HAZE")
+
+
+def test_python_interpreter_is_not_a_provider_distribution() -> None:
+    r = inventory(manifest=MANIFEST, host_id=CODESPACE, repo_sha=SHA,
+                  binary_lookup=lambda n: "/usr/bin/" + n,
+                  python_distribution_version=lambda _: None, now=NOW)
+    for key in ("pillow", "essentia", "otio", "opencv"):
+        row = r["tools"][key]
+        assert row["state"] == "UNAVAILABLE"
+        assert row["interpreter_executable_observed"] is True
+        assert row["installed_path_observed"] is False
+        assert row["discovery_reason"] == "PYTHON_DISTRIBUTION_MISSING"
+        assert row["route_eligible"] is False
+    assert r["tools"]["ffmpeg_audio"]["state"] == "PRESENT_UNPROVEN"
+
+
+def test_python_packages_match_pinned_versions_and_open_cv_variants() -> None:
+    versions = {"Pillow": "12.3.0", "essentia": "2.1b6.dev1389",
+                "OpenTimelineIO": "0.18.1", "opencv-python-headless": "4.10.0"}
+    r = inventory(manifest=MANIFEST, host_id=CODESPACE, repo_sha=SHA,
+                  binary_lookup=lambda n: "/usr/bin/" + n,
+                  python_distribution_version=lambda n: versions.get(n), now=NOW)
+    for key in ("pillow", "essentia", "otio", "opencv"):
+        row = r["tools"][key]
+        assert row["state"] == "PRESENT_UNPROVEN"
+        assert row["python_distribution_version"]
+        assert row["route_eligible"] is False
+    assert r["tools"]["opencv"]["python_distribution_name"] == "opencv-python-headless"
+
+
+def test_python_package_wrong_version_is_blocked_not_ready() -> None:
+    r = inventory(manifest=MANIFEST, host_id=CODESPACE, repo_sha=SHA,
+                  binary_lookup=lambda n: "/usr/bin/" + n,
+                  python_distribution_version=lambda n: "0.0.0", now=NOW)
+    for key in ("pillow", "essentia", "otio"):
+        assert r["tools"][key]["state"] == "BLOCKED"
+        assert r["tools"][key]["discovery_reason"] == "PYTHON_DISTRIBUTION_VERSION_MISMATCH"
+
+
+def test_python_plugin_never_ready_from_interpreter_signature_only() -> None:
+    from hazewave.capability_plane import VerifiedCapabilityEvidence
+    evidence = {
+        "tool_id": "otio", "capability_id": "timeline.inspect", "domain": "WAVE",
+        "version": "0.18.1", "host_id": CODESPACE, "repo_sha": SHA,
+        "scope": "LOCAL_HOST", "stage": "BENCHMARKED", "fixture_result": "PASS",
+        "binary_sha256": "b" * 64, "tool_list_observed": True,
+        "tool_call_observed": True,
+        "expires_at": (NOW + timedelta(minutes=30)).isoformat(),
+        "benchmark": {"sample_count": 10, "cost_usd": 0, "quality_score": 1,
+                      "risk_score": 0, "p50_latency_ms": 1, "p95_latency_ms": 1},
+    }
+    r = inventory(manifest=MANIFEST, host_id=CODESPACE, repo_sha=SHA,
+                  binary_lookup=lambda n: "/usr/bin/" + n,
+                  binary_fingerprint=lambda _: "b" * 64,
+                  python_distribution_version=lambda n: "0.18.1" if n == "OpenTimelineIO" else None,
+                  evidence_files=[VerifiedCapabilityEvidence(evidence, "a" * 64)], now=NOW)
+    assert r["tools"]["otio"]["state"] == "FIXTURE_PROVEN"
+    assert r["tools"]["otio"]["route_eligible"] is False

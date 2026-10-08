@@ -12,6 +12,7 @@ import argparse
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
+from importlib import metadata
 import json
 import math
 import os
@@ -38,6 +39,24 @@ _NAMESPACE = "hazewave-capability-proof"
 _SCHEMA = "HazewaveCapabilityRuntimeEvidence/v1"
 _ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_MANIFEST = _ROOT / "config" / "capability-evidence-plane-v1.json"
+
+# Python presence does not imply that a domain provider distribution exists.
+# Metadata enumeration is non-executing and does not import provider code.
+_PYTHON_DISTRIBUTIONS: dict[str, tuple[str, ...]] = {
+    "pillow": ("Pillow",),
+    "essentia": ("essentia",),
+    "otio": ("OpenTimelineIO",),
+    "opencv": ("opencv-python", "opencv-python-headless", "opencv-contrib-python",
+               "opencv-contrib-python-headless"),
+}
+
+
+def _installed_distribution_version(name: str) -> str | None:
+    try:
+        return metadata.version(name)
+    except metadata.PackageNotFoundError:
+        return None
+
 
 
 @dataclass(frozen=True)
@@ -266,6 +285,7 @@ def inventory(
     repo_sha: str,
     binary_lookup: Callable[[str], str | None] = discover_local_executable,
     binary_fingerprint: Callable[[str], str | None] = _real_binary_sha,
+    python_distribution_version: Callable[[str], str | None] = _installed_distribution_version,
     evidence_files: list[VerifiedCapabilityEvidence] | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
@@ -289,9 +309,37 @@ def inventory(
         cap = item["capability_id"]
         mapped.add(cap)
         path = binary_lookup(item["executable"])
-        available = bool(path)
+        interpreter_present = bool(path)
+        distribution_names = _PYTHON_DISTRIBUTIONS.get(tid, ())
+        observed_name: str | None = None
+        observed_version: str | None = None
+        if distribution_names and item["executable"] != "python3":
+            raise CapabilityPlaneError("PYTHON_PROVIDER_EXE_MISMATCH:" + tid)
+        if interpreter_present:
+            for name in distribution_names:
+                version = python_distribution_version(name)
+                if version is not None:
+                    observed_name, observed_version = name, version
+                    break
+        pinned = item["version"]
+        version_mismatch = (observed_version is not None
+                            and pinned != "HOST_PIN_REQUIRED"
+                            and observed_version != pinned)
+        available = bool(interpreter_present and (
+            not distribution_names or (observed_version is not None and not version_mismatch)
+        ))
         fingerprint = binary_fingerprint(str(path)) if available else None
-        state = "PRESENT_UNPROVEN" if available else "UNAVAILABLE"
+        if version_mismatch:
+            state = "BLOCKED"
+            discovery_reason = "PYTHON_DISTRIBUTION_VERSION_MISMATCH"
+        elif distribution_names and observed_version is None:
+            state = "UNAVAILABLE"
+            discovery_reason = ("PYTHON_DISTRIBUTION_MISSING" if interpreter_present
+                                else "PYTHON_INTERPRETER_MISSING")
+        else:
+            state = "PRESENT_UNPROVEN" if available else "UNAVAILABLE"
+            discovery_reason = ("PYTHON_DISTRIBUTION_METADATA_ONLY" if distribution_names
+                                else "EXECUTABLE_FOUND" if available else "EXECUTABLE_NOT_FOUND")
         p: Mapping[str, Any] | None = None
         candidates = [x for x in measured if
                       isinstance(x, VerifiedCapabilityEvidence) and
@@ -308,7 +356,10 @@ def inventory(
             valid = [x for x in local if x.data.get("binary_sha256") == fingerprint]
             if valid:
                 p = valid[-1].data
-                if (p.get("stage") == "BENCHMARKED" and p.get("fixture_result") == "PASS"
+                # Interpreter digest alone cannot attest plugin package bytes.
+                if distribution_names:
+                    state = "FIXTURE_PROVEN" if p.get("fixture_result") == "PASS" else "EVIDENCE_UNVERIFIED"
+                elif (p.get("stage") == "BENCHMARKED" and p.get("fixture_result") == "PASS"
                         and p.get("tool_list_observed") is True
                         and p.get("tool_call_observed") is True
                         and p["benchmark"]["sample_count"] >= definition["policy"]["minimum_samples"]
@@ -344,6 +395,10 @@ def inventory(
             "risk_tier": item["risk_tier"],
             "source": item["source"],
             "installed_path_observed": available,
+            "interpreter_executable_observed": interpreter_present if distribution_names else None,
+            "python_distribution_name": observed_name,
+            "python_distribution_version": observed_version,
+            "discovery_reason": discovery_reason,
             "binary_digest_verified": p is not None and p.get("binary_sha256") == fingerprint,
             "evidence_scope": p.get("scope") if p else None,
             "evidence_version": p.get("version") if p else None,
@@ -378,6 +433,8 @@ def inventory(
         "production_approved": False,
         "limitations": [
             "Installed command presence is not a working analyzer.",
+            "A Python interpreter is not proof that domain provider libraries are installed.",
+            "Python distribution metadata does not bind runtime proofs to installed package code.",
             "A signed owner statement is not independent reproduction of the underlying tool log.",
             "Host-scoped benchmark evidence does not grant executable or production authority.",
         ],

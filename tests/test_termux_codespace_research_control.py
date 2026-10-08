@@ -24,6 +24,8 @@ def _fake_gh(tmp_path: Path) -> dict[str, str]:
         "            *'.repository.full_name'*) printf '%s\\n' \"${FAKE_CODESPACE_REPO:-zenindiones-maker/Hazewave-}\" ;;\n"
         "            *) printf '%s\\n' \"${FAKE_CODESPACE_STATE:-Shutdown}\" ;;\n"
         "          esac ;;\n"
+        "      *'git/ref/heads/work/provider-python-distribution-qualification-v1'*)\n"
+        "          printf '%s\\n' 'f94b9aadd8ead34ed7c0157b645d8295e7fd07dd' ;;\n"
         "      *'git/ref/heads/work/research-codespace-identity-authenticated-v1'*)\n"
         "          printf '%s\\n' 'f94b9aadd8ead34ed7c0157b645d8295e7fd07dd' ;;\n"
         "      *'git/ref/heads/work/native-auto-synthesis-av-qa-v1'*)\n"
@@ -209,3 +211,17 @@ def test_inventory_receipt_discloses_local_fetch_worktree_and_log_writes() -> No
     assert 'mkdir -p "$LOG"' in text
     assert subprocess.run(["bash", "-n", str(SCRIPT)],
                           capture_output=True).returncode == 0
+
+
+def test_pinned_python_provider_branch_accepted_before_ssh(tmp_path: Path) -> None:
+    env = _fake_gh(tmp_path)
+    env["FAKE_CODESPACE_STATE"] = "Available"
+    env["HAZEWAVE_RESEARCH_REF"] = "work/provider-python-distribution-qualification-v1"
+    env["HAZEWAVE_RESEARCH_EXPECTED_SHA"] = "f94b9aadd8ead34ed7c0157b645d8295e7fd07dd"
+    marker = tmp_path / "ssh.marker"
+    env["FAKE_MARKER_FILE"] = str(marker)
+    proc = subprocess.run(["bash", str(SCRIPT), "--inventory"], env=env,
+                          capture_output=True, text=True, timeout=15)
+    assert proc.returncode == 0, proc.stderr
+    assert "REVIEWED_REF=work/provider-python-distribution-qualification-v1" in proc.stdout
+    assert marker.exists()
