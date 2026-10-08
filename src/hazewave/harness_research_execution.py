@@ -90,7 +90,11 @@ def _checked_worktree(workspace: Path, expected_sha: str | None) -> tuple[Path, 
 
 def _tool_environment() -> dict[str, str]:
     """Pass only essential, noncredential environment to spawned providers."""
-    env = _tool_environment()
+    env = {key: os.environ[key] for key in
+           ("HOME", "PATH", "LANG", "LC_ALL", "TMPDIR", "DISPLAY",
+            "XDG_RUNTIME_DIR", "XDG_CACHE_HOME", "FONTCONFIG_PATH")
+           if key in os.environ}
+    env["NO_COLOR"] = "1"
     return env
 
 
@@ -100,11 +104,7 @@ def _command(binary: Path, arguments: list[str], *, timeout: int = 90) -> str:
         raise ResearchExecutionError("TOOL_BINARY_UNAVAILABLE")
     # Inherit only the minimum execution environment. Do not inject GitHub,
     # package registry, SSH, Telegram, API keys or personal secrets.
-    env = {key: os.environ[key] for key in
-           ("HOME", "PATH", "LANG", "LC_ALL", "TMPDIR", "DISPLAY",
-            "XDG_RUNTIME_DIR", "XDG_CACHE_HOME", "FONTCONFIG_PATH")
-           if key in os.environ}
-    env["NO_COLOR"] = "1"
+    env = _tool_environment()
     try:
         response = subprocess.run(
             [str(path), *arguments], capture_output=True, text=True,
