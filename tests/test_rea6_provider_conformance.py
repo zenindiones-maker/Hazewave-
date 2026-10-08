@@ -64,3 +64,13 @@ def test_provider_matrix_rejects_fake_pass_or_missing_route() -> None:
         summarize_provider_matrix({"ghidra": {"status": "PASS"}})
     with pytest.raises(ReaProviderError, match="PROVIDER_STATUS_INVALID"):
         summarize_provider_matrix({"ghidra": {"status": "READY"}})
+
+
+def test_native_ghidra_readiness_does_not_depend_on_auxiliary_frida_rizin() -> None:
+    raw = SCRIPT.read_text()
+    assert "rea doctor --provider ghidra --json" in raw
+    assert "rea function" in raw
+    assert "-m hazewave.rea6_integration verify-evidence" in raw
+    assert "reverse-engineering-doctor.sh --deep" not in raw
+    assert "GHIDRA_INSTALL_DIR" in raw
+    assert "REA6_NATIVE_AUXILIARY=NOT_REQUIRED" in raw
