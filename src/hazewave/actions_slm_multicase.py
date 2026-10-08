@@ -1,0 +1,369 @@
+"""HAZE audio reliability: three real FFmpeg fault types, three independent model calls.
+
+This is a bounded research experiment on a public GitHub-hosted CPU runner.
+One published evaluation case remains a historical PASS only; model
+professionalization requires representative independent held-out workloads.
+A15 and Colibri/Reflex must never run or be changed by this module.
+"""
+from __future__ import annotations
+
+import argparse
+import array
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import re
+import secrets
+import struct
+import subprocess
+import sys
+import time
+from typing import Any, Callable, Mapping
+from urllib.request import Request, ProxyHandler, build_opener
+
+from hazewave.harness import HazewaveTask, route_task, issue_authorization, validate_authorization
+from hazewave.actions_slm_runner import (
+    RunnerProofError, _NoRedirect, _process, _sha256, _volumedetect,
+    validate_model_manifest, verify_model_bytes, verify_llama_response,
+    authorize_runner, write_receipt, _memory_available, LOOPBACK
+)
+
+CASE_IDS = ("gain_loss_12db", "silence_1s", "clipping_pcm16")
+_ALLOWED = {
+    "gain_loss_12db": ("ATTENUATION_DETECTED", "REVIEW_GAIN_STAGE", "attenuation_db"),
+    "silence_1s": ("SILENCE_DETECTED", "RESTORE_SIGNAL_PATH", "silence_duration_s"),
+    "clipping_pcm16": ("CLIPPING_DETECTED", "REDUCE_GAIN_OR_LIMIT", "clipped_sample_fraction"),
+}
+_LIMIT = 131072
+_PROOF_REPEATS = 3
+
+class MultiCaseError(ValueError):
+    pass
+
+
+def choice_schema() -> dict[str, Any]:
+    # The grammar permits every decision, including incorrect ones.
+    return {
+        "type": "object",
+        "properties": {
+            "finding": {"type": "string", "enum": [
+                "ATTENUATION_DETECTED", "SILENCE_DETECTED",
+                "CLIPPING_DETECTED", "NO_ISSUE_DETECTED"]},
+            "action": {"type": "string", "enum": [
+                "REVIEW_GAIN_STAGE", "RESTORE_SIGNAL_PATH",
+                "REDUCE_GAIN_OR_LIMIT", "NO_ACTION"]},
+            "evidence_keys": {"type": "array", "items": {"type": "string",
+                "enum": ["attenuation_db", "silence_duration_s",
+                         "clipped_sample_fraction"]}, "minItems": 1, "maxItems": 1},
+            "requires_human_review": {"type": "boolean"},
+        },
+        "required": ["finding", "action", "evidence_keys", "requires_human_review"],
+        "additionalProperties": False,
+    }
+
+
+def evaluate_choice(case: str, decision: Any) -> dict[str, str]:
+    if case not in _ALLOWED:
+        raise MultiCaseError("UNKNOWN_CASE")
+    if type(decision) is not dict or set(decision) != set(choice_schema()["required"]):
+        return {"grade": "FAIL", "failure_class": "INVALID_RESPONSE_SCHEMA"}
+    finding, action, key = _ALLOWED[case]
+    if decision.get("finding") != finding:
+        return {"grade": "FAIL", "failure_class": "FINDING_MISMATCH"}
+    if decision.get("action") != action:
+        return {"grade": "FAIL", "failure_class": "ACTION_MISMATCH"}
+    if decision.get("evidence_keys") != [key]:
+        return {"grade": "FAIL", "failure_class": "EVIDENCE_MISMATCH"}
+    if decision.get("requires_human_review") is not True:
+        return {"grade": "FAIL", "failure_class": "HUMAN_REVIEW_MISMATCH"}
+    return {"grade": "PASS", "failure_class": "NONE"}
+
+
+def summarize_trials(rows: list[dict[str, Any]], *, expected_repetitions: int = 3) -> dict[str, Any]:
+    if type(expected_repetitions) is not int or expected_repetitions != _PROOF_REPEATS:
+        raise MultiCaseError("REPETITION_POLICY_INVALID")
+    if not isinstance(rows, list):
+        raise MultiCaseError("INCOMPLETE_COHORT")
+    trials = set()
+    tasks = set()
+    per_case: dict[str, list[bool]] = {case: [] for case in CASE_IDS}
+    for item in rows:
+        if not isinstance(item, dict) or item.get("case_id") not in per_case:
+            raise MultiCaseError("INVALID_TRIAL")
+        trial_id, task_id = item.get("trial_id"), item.get("task_id")
+        if not isinstance(trial_id, str) or not trial_id.startswith("trial-") or not isinstance(task_id, str):
+            raise MultiCaseError("INVALID_TRIAL")
+        if trial_id in trials or task_id in tasks:
+            raise MultiCaseError("TRIAL_REPLAY")
+        trials.add(trial_id)
+        tasks.add(task_id)
+        if item.get("verifier_result") not in {"PASS", "FAIL"}:
+            raise MultiCaseError("INVALID_TRIAL")
+        for k in ("prompt_tokens", "completion_tokens"):
+            if type(item.get(k)) is not int or not 0 <= item[k] <= 100000:
+                raise MultiCaseError("INVALID_TRIAL")
+        if isinstance(item.get("elapsed_ms"), bool) or not isinstance(item.get("elapsed_ms"), (float, int)) or not math.isfinite(item["elapsed_ms"]) or item["elapsed_ms"] < 0:
+            raise MultiCaseError("INVALID_TRIAL")
+        digest = item.get("model_response_sha256")
+        if not isinstance(digest, str) or re.fullmatch(r"[a-f0-9]{64}", digest) is None:
+            raise MultiCaseError("INVALID_TRIAL")
+        per_case[item["case_id"]].append(item["verifier_result"] == "PASS")
+    if any(len(v) != expected_repetitions for v in per_case.values()):
+        raise MultiCaseError("INCOMPLETE_COHORT")
+    all_rows = len(rows)
+    passed = sum(sum(values) for values in per_case.values())
+    return {
+        "schema": "HazewaveHazeMultiCaseReliability/v1",
+        "attempts": all_rows,
+        "case_count": len(CASE_IDS),
+        "repetitions_per_case": expected_repetitions,
+        "pass_at_1": passed / all_rows,
+        "pass_at_k": sum(any(x) for x in per_case.values()) / len(CASE_IDS),
+        "pass_power_k": sum(all(x) for x in per_case.values()) / len(CASE_IDS),
+        "all_cases_reliably_passed": all(all(x) for x in per_case.values()),
+        "total_model_tokens": sum(x["prompt_tokens"]+x["completion_tokens"] for x in rows),
+        "sum_model_http_elapsed_ms": round(sum(x["elapsed_ms"] for x in rows), 2),
+        "professional": False,
+        "promotion_authorized": False,
+        "attestation_scope": "BOUNDED_OWNED_SYNTHETIC_REAL_RUNNER_ONLY",
+    }
+
+
+def _ffmpeg(command: list[str], timeout: int = 25) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(command, capture_output=True, text=True,
+                              check=True, timeout=timeout)
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        raise MultiCaseError("FFMPEG_EXECUTION_FAILED") from exc
+
+
+def _generate(ref: Path, freq: int) -> None:
+    _ffmpeg(["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+             "-f", "lavfi", "-i", f"sine=frequency={freq}:sample_rate=16000:duration=1",
+             "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", str(ref)])
+
+
+def _transform(ref: Path, altered: Path, gain: str) -> None:
+    _ffmpeg(["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+             "-i", str(ref), "-af", f"volume={gain}",
+             "-c:a", "pcm_s16le", str(altered)])
+
+
+def _silence_duration(path: Path) -> float:
+    proc=_ffmpeg(["ffmpeg", "-nostdin", "-hide_banner", "-i", str(path),
+                  "-af", "silencedetect=noise=-50dB:d=0.2", "-f", "null", "-"])
+    matches=re.findall(r"silence_duration:\s*(\d+(?:\.\d+)?)", proc.stderr)
+    return max(map(float, matches), default=0.0)
+
+
+def _clipped_fraction(path: Path) -> float:
+    import wave
+    with wave.open(str(path), "rb") as src:
+        if src.getsampwidth() != 2 or src.getnchannels() != 1:
+            raise MultiCaseError("PCM16_MONO_REQUIRED")
+        pcm=src.readframes(src.getnframes())
+    if not pcm or len(pcm)%2:
+        raise MultiCaseError("INVALID_PCM")
+    # This detects saturation/flat-top clipping in the intentionally generated
+    # PCM16 case only; peak alone is not a general music-quality detector.
+    count=0
+    total=0
+    for (value,) in struct.iter_unpack("<h",pcm):
+        total+=1
+        if abs(value)>=32760:
+            count+=1
+    return round(count/total, 6)
+
+
+def make_multicase_evidence(root: Path) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for case, freq, gain in (
+        ("gain_loss_12db", 440, "0.25"),
+        ("silence_1s", 330, "0"),
+        ("clipping_pcm16", 880, "16"),
+    ):
+        work=root/case
+        work.mkdir(parents=True, exist_ok=False)
+        ref,altered=work/"reference.wav",work/"processed.wav"
+        _generate(ref,freq)
+        _transform(ref,altered,gain)
+        evidence = {
+            "source_sha256":_sha256(ref),"processed_sha256":_sha256(altered),
+            "negative_control_pass":False
+        }
+        if evidence["source_sha256"]==evidence["processed_sha256"]:
+            raise MultiCaseError("AUDIO_CONTROL_SAME_INPUT_OUTPUT")
+        if case=="gain_loss_12db":
+            delta=round(_volumedetect(ref)-_volumedetect(altered),3)
+            if not 11.5<=delta<=12.5:
+                raise MultiCaseError("AUDIO_GAIN_CONTROL_FAILED")
+            evidence.update(attenuation_db=delta,negative_control_pass=True)
+        elif case=="silence_1s":
+            observed = _silence_duration(altered)
+            original = _silence_duration(ref)
+            if observed < .8 or original>.01:
+                raise MultiCaseError("AUDIO_SILENCE_CONTROL_FAILED")
+            evidence.update(silence_duration_s=round(observed,3),
+                            reference_has_silence=False,negative_control_pass=True)
+        else:
+            a=_clipped_fraction(altered)
+            b=_clipped_fraction(ref)
+            if a <= .025 or b >= .005:
+                raise MultiCaseError("AUDIO_CLIPPING_CONTROL_FAILED")
+            evidence.update(clipped_sample_fraction=a,
+                            reference_clipped_sample_fraction=b,
+                            negative_control_pass=True)
+        out[case]=evidence
+    return out
+
+
+def _payload(prompt: str, model: str, seed: int) -> dict[str, Any]:
+    return {
+        "model": model, "stream": False, "temperature": 0.2, "seed": seed,
+        "max_tokens": 190,
+        "chat_template_kwargs":{"enable_thinking":False},
+        "response_format":{"type":"json_schema","schema":choice_schema()},
+        "messages":[
+            {"role":"system","content":"Classify audio defects from measured numeric facts only. No tools. Answer one JSON object with four fields; request human review."},
+            {"role":"user","content":prompt}
+        ],
+    }
+
+
+def _call_model(prompt: str, model: str, payload: dict[str, Any]) -> dict[str, Any]:
+    req = Request(LOOPBACK+"/v1/chat/completions",method="POST",
+                  headers={"Content-Type":"application/json"},
+                  data=json.dumps(payload).encode())
+    try:
+        with build_opener(ProxyHandler({}),_NoRedirect()).open(req,timeout=45) as stream:
+            body=stream.read(_LIMIT+1)
+        if len(body)>_LIMIT:
+            raise MultiCaseError("MODEL_RESPONSE_OVERSIZE")
+        obj=json.loads(body)
+    except (OSError, ValueError) as exc:
+        if isinstance(exc,MultiCaseError):
+            raise
+        raise MultiCaseError("MODEL_TRANSPORT_FAILURE") from exc
+    if not isinstance(obj,dict):
+        raise MultiCaseError("MODEL_RESPONSE_INVALID")
+    return obj
+
+
+def perform_multicase(cases: Mapping[str, Mapping[str, Any]], *,
+                      model: str, model_caller: Callable[..., dict[str, Any]] | None = None,
+                      repetitions: int = 3) -> dict[str, Any]:
+    if type(repetitions) is not int or repetitions != 3 or not isinstance(cases,Mapping) or set(cases)!=set(CASE_IDS):
+        raise MultiCaseError("CASE_OR_REPETITION_SCOPE_INVALID")
+    if model != "hazewave-qwen3-0.6b":
+        raise MultiCaseError("MODEL_NOT_PINNED")
+    if any(x.get("negative_control_pass") is not True for x in cases.values()):
+        raise MultiCaseError("AUDIO_NEGATIVE_CONTROL_MISSING")
+    caller=model_caller or _call_model
+    rows=[]
+    for index,case in enumerate(CASE_IDS):
+        metric_key=_ALLOWED[case][2]
+        if isinstance(cases[case].get(metric_key),bool) or not isinstance(cases[case].get(metric_key),(float,int)):
+            raise MultiCaseError("CASE_METRIC_INVALID")
+        value=float(cases[case][metric_key])
+        if not math.isfinite(value):
+            raise MultiCaseError("CASE_METRIC_INVALID")
+        # The evidence supplies a measurement, never an oracle answer.
+        prompt=f"case_id={case}\nmetric={metric_key}\nmeasured_value={value:.5f}\nSelect finding, action, evidence_keys, requires_human_review."
+        for attempt in range(repetitions):
+            nonce=secrets.token_hex(8)
+            task=HazewaveTask(task_id=f"haze-multi-{case}-{nonce}",
+                 goal="Grade one public source-owned FFmpeg signal anomaly",
+                 required_capability="reason.general",requested_domain="HAZE")
+            grant=issue_authorization(route_task(task))
+            validate_authorization(grant,expected_task_id=task.task_id,
+                                   expected_capability="reason.general")
+            payload=_payload(prompt,model,seed=1000+index*100+attempt)
+            started=time.monotonic()
+            response=caller(prompt,model,payload)
+            elapsed=round((time.monotonic()-started)*1000,2)
+            parsed=verify_llama_response(response,model)
+            verdict=evaluate_choice(case,parsed["decision"])
+            rows.append({
+                "case_id":case,"trial_id":f"trial-{case}-{nonce}",
+                "task_id":task.task_id,
+                "verifier_result":verdict["grade"],
+                "failure_class":verdict["failure_class"],
+                "prompt_tokens":parsed["prompt_tokens"],
+                "completion_tokens":parsed["completion_tokens"],
+                "model_response_sha256":parsed["content_sha256"],
+                "elapsed_ms":elapsed,
+            })
+    report={
+        "schema":"HazewaveActionsSLMMultiCase/v1",
+        "harness_authority":"HAZEWAVE_HARNESS",
+        "model_alias":model,
+        "evidence":dict(cases),
+        "trials":rows,
+        "cohort":summarize_trials(rows,expected_repetitions=repetitions),
+        "transport_provenance":"RUNNER_LOOPBACK" if model_caller is None else "INJECTED_TEST_DOUBLE",
+        "live_model_execution_proven":model_caller is None,
+        "professional_audio":False,
+        "professional_wave":False,
+        "production_approved":False,
+        "general_audio_quality_proven":False,
+        "model_superiority_proven":False,
+        "limited_scope":"THREE_SYNTHETIC_SIGNAL_FAULT_TYPES_ONLY"
+    }
+    return report
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--prove",action="store_true",required=True)
+    parser.add_argument("--model",type=Path,required=True)
+    parser.add_argument("--output",type=Path,required=True)
+    parser.add_argument("--repetitions",type=int,required=True)
+    args=parser.parse_args(argv)
+    try:
+        if args.repetitions!=3:
+            raise MultiCaseError("REPETITION_POLICY_INVALID")
+        manifest=validate_model_manifest()
+        runner_auth=authorize_runner(os.environ)
+        model_meta=verify_model_bytes(args.model,manifest)
+        if _memory_available()<3*1024**3:
+            raise MultiCaseError("RUNNER_MEMORY_HEADROOM_INSUFFICIENT")
+        if args.output.exists() or args.output.is_symlink():
+            raise MultiCaseError("RECEIPT_EXISTS")
+        root=args.output.parent/"multicase"
+        root.mkdir(parents=True,mode=0o700,exist_ok=False)
+        started=time.monotonic()
+        measurements=make_multicase_evidence(root)
+        data=perform_multicase(measurements,model=manifest["served_alias"],repetitions=3)
+        if data["transport_provenance"]!="RUNNER_LOOPBACK":
+            raise MultiCaseError("MOCK_TRANSPORT_FORBIDDEN")
+        data.update({
+            "runner_task_id":runner_auth.task_id,
+            "model_id":manifest["model_id"],
+            "model_revision":manifest["revision"],
+            "model_sha256":model_meta["model_sha256"],
+            "model_size_bytes":model_meta["model_size_bytes"],
+            "runtime_commit":manifest["llama_cpp_commit"],
+            "elapsed_wall_ms":round((time.monotonic()-started)*1000,2),
+            "a15_inference":False
+        })
+        sha=write_receipt(args.output,data)
+        print("HAZE_MULTICASE_REAL_MODEL_RESPONSES="+str(data["cohort"]["attempts"]))
+        print("HAZE_MULTICASE_PASS_AT_1="+str(data["cohort"]["pass_at_1"]))
+        print("HAZE_MULTICASE_PASS_AT_3="+str(data["cohort"]["pass_at_k"]))
+        print("HAZE_MULTICASE_PASS_POWER_3="+str(data["cohort"]["pass_power_k"]))
+        print("HAZE_MULTICASE_RECEIPT_SHA256="+sha)
+        print("HAZE_PROFESSIONAL=FALSE")
+        print("WAVE_PROFESSIONAL=FALSE")
+        print("A15_INFERENCE=FORBIDDEN")
+        return 0 if data["cohort"]["all_cases_reliably_passed"] else 21
+    except (MultiCaseError,RunnerProofError,OSError,ValueError) as exc:
+        message=str(exc) if isinstance(exc,(MultiCaseError,RunnerProofError)) else "UNCLASSIFIED_FAILURE"
+        if not re.fullmatch(r"[A-Z0-9_]{3,100}",message):
+            message="UNCLASSIFIED_FAILURE"
+        print("HAZE_MULTICASE=BLOCKED:"+message,file=sys.stderr)
+        return 20
+
+if __name__=="__main__":
+    raise SystemExit(main())
