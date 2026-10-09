@@ -83,7 +83,7 @@ void main() {
     puv += vec2(t * 0.006 * (0.35 + fi * 0.12), sin(t * 0.05 + fi) * 0.012);
 
     float delta = planeZ - front;
-    float pass = smoothstep(0.055, -0.035, delta);
+    float pass = (1.0 - smoothstep(-0.035, 0.055, delta));
     float crest = exp(-delta * delta * 70.0);
 
     vec2 turb = vec2(fbm(puv * 1.55 + fi * 2.0), fbm(puv * 1.55 + vec2(8.0, fi)));
@@ -105,8 +105,8 @@ void main() {
     vec2 cell = floor(suv);
     vec2 f = fract(suv) - 0.5;
     float h = hash(cell + fi * 19.0);
-    float star = smoothstep(0.05, 0.0, length(f)) * step(0.986, h);
-    float streak = smoothstep(0.018, 0.0, abs(f.y)) * step(0.993, h) * crest;
+    float star = (1.0 - smoothstep(0.0, 0.05, length(f))) * step(0.986, h);
+    float streak = (1.0 - smoothstep(0.0, 0.018, abs(f.y))) * step(0.993, h) * crest;
     vec3 starCol = mix(vec3(0.78, 0.84, 1.0), vec3(0.85, 1.0, 0.62), pass);
     color += starCol * (star + streak) * presence * (0.55 + pass * 0.7 + crest);
 
@@ -132,7 +132,7 @@ void main() {
   vec2 scell = floor(starSt);
   vec2 sf = fract(starSt) - 0.5;
   float sh = hash(scell);
-  float field = smoothstep(0.045, 0.0, length(sf)) * step(0.972, sh);
+  float field = (1.0 - smoothstep(0.0, 0.045, length(sf))) * step(0.972, sh);
   color += vec3(0.82, 0.88, 1.0) * field * 0.55;
 
   float birthAmp = 1.0 - smoothstep(0.14, 0.42, p);
@@ -157,15 +157,15 @@ void main() {
   color += vec3(0.8, 1.0, 0.38) * shock * traverse * 1.45;
   color += vec3(0.55, 0.06, 0.9) * side * traverse;
   color += vec3(0.75, 0.9, 1.0) * partial * traverse * 0.4;
-  float wake = smoothstep(0.02, -0.55, band) * traverse;
+  float wake = (1.0 - smoothstep(-0.55, 0.02, band)) * traverse;
   color += vec3(0.16, 0.28, 0.08) * wake * 0.22;
 
   float reveal = smoothstep(0.68, 0.94, p);
-  float plate = smoothstep(1.05, 0.15, length(st * vec2(0.72, 1.05)));
+  float plate = (1.0 - smoothstep(0.15, 1.05, length(st * vec2(0.72, 1.05))));
   color *= mix(1.0, 0.28, reveal * plate);
   color += vec3(0.45, 0.9, 0.25) * exp(-dot(st, st) * (2.0 + reveal * 6.0)) * reveal * 0.28;
 
-  float vignette = smoothstep(1.25, 0.25, length(st));
+  float vignette = (1.0 - smoothstep(0.25, 1.25, length(st)));
   color *= mix(0.45, 1.0, vignette);
   color = color / (1.0 + color * 0.72);
   color += (hash(frag + fract(t * 3.0)) - 0.5) * 0.004;
@@ -206,7 +206,7 @@ void main() {
   float rad = length(q);
   float ripple = sin(logoUv.y * 48.0 - t * 2.0 + rad * 9.0) * (1.0 - open) * 0.035;
   float reached = rad - mix(0.0, 1.5, open) + ripple;
-  float mask = smoothstep(0.03, -0.008, reached) * inside * step(0.5, uLogoReady);
+  float mask = (1.0 - smoothstep(-0.008, 0.03, reached)) * inside * step(0.5, uLogoReady);
 
   vec3 logo = texture(uLogo, clamp(logoUv, 0.0, 1.0)).rgb;
   float core = smoothstep(0.4, 0.56, mask);
