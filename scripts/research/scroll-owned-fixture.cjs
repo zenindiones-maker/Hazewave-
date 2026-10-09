@@ -72,7 +72,7 @@ async function main() {
             const length=trace.getTotalLength();
             const offset=Number.parseFloat(getComputedStyle(trace).strokeDashoffset);
             const numericTransform=node=>{
-              const m=(node.getAttribute("transform")||"").match(/^translate\\((-?\\d+(?:\\.\\d+)?),0\\)$/);
+              const m=(node.getAttribute("transform")||"").match(/^translate\((-?\d+(?:\.\d+)?),0\)$/);
               if (!m) throw new Error("RIG_TRANSFORM_NOT_OBSERVED");
               return Number(m[1]);
             };
