@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
+  testMatch: "**/*.spec.ts", // Node-only evidence contract tests run separately via node --test
   timeout: 45_000,
   outputDir: "test-results",
   use: {
