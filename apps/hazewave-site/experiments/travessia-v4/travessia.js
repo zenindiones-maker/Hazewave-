@@ -36,6 +36,50 @@ const state={schema:'HazewaveV4PhysicalTraversalRuntime/v1',ready:false,progress
  humanCreativeApproval:false,productionApproved:false};
 window.__HAZEWAVE_TRAVERSAL_V4=state;
 
+ // NASA Prospect MIT-inspired principles: chapter-aware navigation, reversed
+ // scroll state, and optional low-detail compositor. Original Hazewave code.
+ const chapterStops=Object.freeze([0,.25,.47,.70,.92]);
+ const chapterLinks=[...doc.querySelectorAll('[data-world-stop]')];
+ let userRequestedLite=false,autoLite=false,frameBudgetStreak=0,lastFrameAt=NaN;
+ function updateQuality(){
+  const lite=userRequestedLite||autoLite;
+  vars.stage.dataset.quality=lite?'lite':'full';
+  const button=el('lightweight-mode');
+  if(button){button.setAttribute('aria-pressed',String(userRequestedLite));button.textContent=userRequestedLite?'EFEITOS':'LEVE';}
+  state.visualQualityTier=lite?'lite':'full';
+  state.qualityDowngradeAutomatic=autoLite;
+  // Geometry, original art, and interaction authority NEVER change with quality.
+ }
+ function observeFrameBudget(timestamp){
+  if(Number.isFinite(lastFrameAt)){
+   const delta=timestamp-lastFrameAt;
+   if(delta>0&&delta<180){
+    frameBudgetStreak=delta>44?frameBudgetStreak+1:Math.max(0,frameBudgetStreak-1);
+    if(frameBudgetStreak>=5&&!autoLite){autoLite=true;updateQuality();}
+   } else if(delta>=180){frameBudgetStreak=0;}
+  }
+  lastFrameAt=timestamp;
+ }
+ function gotoAct(index){
+  if(!Number.isInteger(index)||index<0||index>=chapterStops.length)return false;
+  const start=vars.section.getBoundingClientRect().top+window.scrollY;
+  const travel=Math.max(1,vars.section.offsetHeight-innerHeight);
+  window.scrollTo({top:start+travel*chapterStops[index],behavior:'instant'});
+  schedule();return true;
+ }
+ function setupChapterNavigation(){
+  for(const button of chapterLinks){
+   const index=Number(button.dataset.worldStop);
+   if(Number.isInteger(index))button.addEventListener('click',()=>gotoAct(index));
+  }
+  const light=el('lightweight-mode');
+  if(light)light.addEventListener('click',()=>{userRequestedLite=!userRequestedLite;updateQuality();});
+  updateQuality();
+ }
+ state.researchReferenceTechniques=['nasa-prospect-direction-reversible-chapter-nav','ponpon-mania-layered-illustration-camera','whoisguilty-motion-graphic-compositor'];
+ state.productionApproved=false;
+ window.__HAZEWAVE_RESEARCH_V5={gotoAct,getStops:()=>[...chapterStops],getQuality:()=>state.visualQualityTier};
+
 function mount(spec){
  const piece=doc.createElement('img');piece.src=(window.__assetUrls?.[spec.file] || 'assets/'+spec.file);
  piece.alt='';piece.draggable=false;piece.decoding='async';piece.className='rig-part rig-'+spec.type;
@@ -157,6 +201,10 @@ function updatePose(p){
   mechanicalSplitPx:split,cameraTravelPx:Math.hypot(camX,camY),machineScale:scale,
   fogSeparationPx:2*fogPush,cityOpacity:parseFloat(vars.city.style.opacity),hubOpacity:parseFloat(vars.hub.style.opacity),
   changedRegion:rupture>.45,secondIllustratedRegionVisible:arrival>.4});
+ for(const [index,button] of chapterLinks.entries()){
+  if(index===phase)button.setAttribute('aria-current','step');
+  else button.removeAttribute('aria-current');
+ }
  vars.stage.dataset.phase=String(phase);vars.stage.dataset.reversed=p<.001?'start':'travel';
 }
 function progressFromScroll(){
@@ -165,7 +213,7 @@ function progressFromScroll(){
 }
 function tick(){const p=progressFromScroll();if(!Number.isFinite(lastProgress)||Math.abs(p-lastProgress)>.00007){updatePose(p);lastProgress=p;}}
 let scheduled=false;
-function schedule(){if(!scheduled){scheduled=true;requestAnimationFrame(()=>{scheduled=false;tick()})}}
+function schedule(){if(!scheduled){scheduled=true;requestAnimationFrame((ts)=>{scheduled=false;observeFrameBudget(ts);tick()})}}
 async function start(){
  try{
   if(window.__assetManifest){manifest=window.__assetManifest;} else {
@@ -182,6 +230,7 @@ async function start(){
   // Require every src image to decode, not merely DOM presence.
   const imgs=[...doc.querySelectorAll('img')];
   await Promise.all(imgs.map(img=>img.decode()));
+  setupChapterNavigation();
   state.ready=true;updatePose(progressFromScroll());lastProgress=state.progress;
   addEventListener('scroll',schedule,{passive:true});
   addEventListener('resize',()=>{makeStars();schedule()},{passive:true});
