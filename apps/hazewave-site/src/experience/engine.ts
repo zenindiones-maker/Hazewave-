@@ -106,6 +106,7 @@ export function mountCosmos(canvas: HTMLCanvasElement, reduced: boolean): Cosmos
   let sceneScale = 0.5;
   let slowFrames = 0;
   let running = true;
+  let animationFrame = 0;
   let width = 1;
   let height = 1;
   let sceneW = 2;
@@ -167,7 +168,7 @@ export function mountCosmos(canvas: HTMLCanvasElement, reduced: boolean): Cosmos
   resize();
 
   const tick = (now: number) => {
-    if (!running) return;
+    if (!running || gl.isContextLost()) return;
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     if (dt > 0.028) slowFrames += 1;
@@ -179,9 +180,9 @@ export function mountCosmos(canvas: HTMLCanvasElement, reduced: boolean): Cosmos
     }
     time += reducedFlag ? 0 : dt;
     render();
-    requestAnimationFrame(tick);
+    animationFrame = requestAnimationFrame(tick);
   };
-  requestAnimationFrame(tick);
+  animationFrame = requestAnimationFrame(tick);
 
   const loadLogo = async () => {
     const response = await fetch(LOGO_URL);
@@ -197,6 +198,10 @@ export function mountCosmos(canvas: HTMLCanvasElement, reduced: boolean): Cosmos
     } catch {
       bitmap = await createImageBitmap(blob);
     }
+    if (!running || gl.isContextLost()) {
+      bitmap.close?.();
+      return;
+    }
     gl.bindTexture(gl.TEXTURE_2D, logoTex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
@@ -211,6 +216,7 @@ export function mountCosmos(canvas: HTMLCanvasElement, reduced: boolean): Cosmos
   void loadLogo().catch((error: unknown) => {
     console.error(error);
     document.body.dataset.logoReady = "no";
+    document.body.dataset.gl = "unavailable";
     document.getElementById("logo-plate")?.removeAttribute("hidden");
   });
 
@@ -231,8 +237,16 @@ export function mountCosmos(canvas: HTMLCanvasElement, reduced: boolean): Cosmos
     },
     destroy() {
       running = false;
+      cancelAnimationFrame(animationFrame);
       resizeObserver.disconnect();
-      gl.getExtension("WEBGL_lose_context")?.loseContext();
+      if (!gl.isContextLost()) {
+        gl.deleteTexture(sceneTex);
+        gl.deleteTexture(logoTex);
+        gl.deleteFramebuffer(sceneFbo);
+        gl.deleteProgram(sceneProgram);
+        gl.deleteProgram(compositeProgram);
+        if (vao) gl.deleteVertexArray(vao);
+      }
     },
   };
 }
