@@ -78,9 +78,10 @@ def test_same_material_and_unowned_paths_denied(tmp_path):
         evaluate_producer_render_pair(
             fixture_root=root,reference=original,candidate=external,
             reference_sha256=sha,candidate_sha256=eh,intent="REMOVE_DC_OFFSET")
+    synth(root/"other.wav",dc=0.)
     with pytest.raises(ProducerQualificationError,match="AUDIO_DIGEST_MISMATCH"):
         evaluate_producer_render_pair(
-            fixture_root=root,reference=original,candidate=external,
+            fixture_root=root,reference=original,candidate=(root/"other.wav"),
             reference_sha256=sha,candidate_sha256="f"*64,intent="REMOVE_DC_OFFSET")
 
 def test_unverified_external_agents_cannot_gain_harness_execution_authority():
