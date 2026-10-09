@@ -273,7 +273,8 @@ def test_dedicated_single_call_workflow_never_runs_full_cohort():
     w=path.read_text()
     assert "work/haze-actions-multicase-reliability-v1" in w
     assert "github.event.repository.private == false" in w
-    assert "[skip-slm-live]" in w
+    assert "[haze-diagnostic-onecall]" in w
+    assert "work/haze-semantic-intelligence-v5" in w
     assert "--diagnose-case gain_loss_12db" in w
     assert "--repetitions 1" in w
     assert "Qwen3-0.6B-Q4_K_M.gguf" in w
