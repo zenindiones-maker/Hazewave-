@@ -1,0 +1,189 @@
+{
+  "schema": "HazewaveSevenPublicSitesReverseEngineeringEvidence/v1",
+  "dated": "2026-10-09",
+  "repository": "zenindiones-maker/Hazewave-",
+  "authority": "NONE",
+  "harness": "HAZEWAVE_HARNESS",
+  "mode": "FIRST_PARTY_PUBLIC_SOURCE_AND_DOCUMENTATION_ANALYSIS_WITH_OWN_BROWSER_PROOF",
+  "live_external_browser_used": false,
+  "owner_site_browser_proof_performed_locally": true,
+  "private_artifact_handled": "OWNER_ART_NOT_COMMITTED",
+  "approved_for_site_copying": false,
+  "production_approved": false,
+  "source_count": 7,
+  "sources": [
+    {
+      "id": "nasa-prospect",
+      "title": "NASA Prospect",
+      "official": "https://nasaprospect.com/",
+      "source_class": "OPEN_MIT_LICENSE_REPOSITORY_DIRECT_CODE_INSPECTION",
+      "source_url": "https://github.com/collinhover/nasaprospect",
+      "license": "MIT",
+      "evidence_urls": [
+        "https://github.com/collinhover/nasaprospect/blob/master/LICENSE.md",
+        "https://github.com/collinhover/nasaprospect/blob/master/js/app/navigator.js",
+        "https://github.com/collinhover/nasaprospect/blob/master/js/app/section.js",
+        "https://github.com/collinhover/nasaprospect/blob/master/js/main.js"
+      ],
+      "verified_sha1_blobs": {
+        "navigator": "e3479a31ad7b3ea5f249252116361f8965f4ee91",
+        "section": "6981d4e9d5b52540f45a54422b1fae533fe3c2f0",
+        "main": "e6e436ef887a67efd27453a46cfde01874074f7f"
+      },
+      "observed_public_mechanism": [
+        "sorted directional scroll triggers",
+        "explicit section enter/exit and activation lifecycle",
+        "reverse resets persistent triggers",
+        "performance degradation detection and user override"
+      ],
+      "hazewave_transfer": [
+        "five-act reversible seek navigation",
+        "optional effects-only visual quality reduction"
+      ],
+      "transfer_state": "IMPLEMENTED_IN_V4_RESEARCH_EXTENSION",
+      "external_live_browser_inspected": false,
+      "external_artwork_reused": false,
+      "external_proprietary_code_reused": false,
+      "production_authorized": false
+    },
+    {
+      "id": "ponpon-mania",
+      "title": "Ponpon Mania",
+      "official": "https://ponpon-mania.com/",
+      "source_class": "FIRST_PARTY_AUTHORED_TECHNICAL_WRITEUP",
+      "source_url": "https://tympanus.net/codrops/2025/10/07/ponpon-mania-how-webgl-and-gsap-bring-a-comic-sheeps-dream-to-life/",
+      "evidence_urls": [
+        "https://ponpon-mania.com/legal",
+        "https://tympanus.net/codrops/2025/10/07/ponpon-mania-how-webgl-and-gsap-bring-a-comic-sheeps-dream-to-life/"
+      ],
+      "observed_public_mechanism": [
+        "separate artist illustration layers",
+        "texture atlas repacking and GPU compression",
+        "WebGL illustration planes and custom-shader scene blending",
+        "GSAP ScrollTrigger camera and uniform progress synchronization"
+      ],
+      "hazewave_transfer": [
+        "original-art rig and parallax camera",
+        "future atlas benchmark not yet proven"
+      ],
+      "transfer_state": "PARTIAL_V4_IMPLEMENTATION_ATLAS_UNPROVEN",
+      "external_live_browser_inspected": false,
+      "external_artwork_reused": false,
+      "external_proprietary_code_reused": false,
+      "production_authorized": false
+    },
+    {
+      "id": "sbs-the-boat",
+      "title": "SBS The Boat",
+      "official": "https://www.sbs.com.au/theboat/",
+      "source_class": "SBS_EDUCATIONAL_FIRST_PARTY_PLUS_SECONDARY_HISTORICAL",
+      "source_url": "https://www.sbs.com.au/learn/resources/a-refugee-story-the-boat/",
+      "evidence_urls": [
+        "https://www.sbs.com.au/learn/resources/a-refugee-story-the-boat/",
+        "https://scrollytelling.ai/famous-scrollytelling-examples/"
+      ],
+      "observed_public_mechanism": [
+        "narrative graphic novel using illustrated depth and atmosphere described in historical studies",
+        "sound cues as part of interactive narrative"
+      ],
+      "hazewave_transfer": [
+        "sound-controlled wave and foreground depth",
+        "music cue consent still unimplemented"
+      ],
+      "transfer_state": "HISTORICAL_INTERACTION_NOT_CURRENTLY_VERIFIED",
+      "external_live_browser_inspected": false,
+      "external_artwork_reused": false,
+      "external_proprietary_code_reused": false,
+      "production_authorized": false
+    },
+    {
+      "id": "nyt-tomato-can-blues",
+      "title": "NYT Tomato Can Blues / Attila Futaki",
+      "official": "https://www.nytimes.com/projects/2013/tomato-can-blues/",
+      "source_class": "HISTORICAL_EDITORIAL_FIRST_PARTY_INTERVIEW",
+      "source_url": "https://www.cjr.org/behind_the_news/qa_andrew_kueneman_and_steve_d.php",
+      "evidence_urls": [
+        "https://garciamedia.com/blog/pthe_happy_evolution_of_those_multimedia_story_packages_p/"
+      ],
+      "observed_public_mechanism": [
+        "parallax illustrated comic foreground/background scale",
+        "optional narrated story audio"
+      ],
+      "hazewave_transfer": [
+        "camera moves through foreground illustrated layers"
+      ],
+      "transfer_state": "V4_LAYERED_CAMERA_EXISTS_NOT_NYT_RUNTIME_VERIFIED",
+      "external_live_browser_inspected": false,
+      "external_artwork_reused": false,
+      "external_proprietary_code_reused": false,
+      "production_authorized": false
+    },
+    {
+      "id": "who-is-guilty",
+      "title": "Who Is Guilty",
+      "official": "https://promo.whoisguilty.com/",
+      "source_class": "CREATOR_STUDIO_POST_PLUS_PUBLIC_ORIGINAL_SITE",
+      "source_url": "https://www.linkedin.com/posts/rebooot_who-is-guilty-a-project-we-launched-to-activity-7449810975068712960-5gNf",
+      "evidence_urls": [
+        "https://www.cssdesignawards.com/sites/who-is-guilty/47321/"
+      ],
+      "observed_public_mechanism": [
+        "Lottie combined with custom code for intricate illustrated animations",
+        "chapter-by-chapter visual narrative with optional immersive sound"
+      ],
+      "hazewave_transfer": [
+        "rig component choreography and timeline-like 5-act progression",
+        "Lottie dependency not admitted"
+      ],
+      "transfer_state": "V4_CHOREOGRAPHY_IMPLEMENTED_NOT_LOTTIE_IMPORTED",
+      "external_live_browser_inspected": false,
+      "external_artwork_reused": false,
+      "external_proprietary_code_reused": false,
+      "production_authorized": false
+    },
+    {
+      "id": "genie-studio-app",
+      "title": "Genie Studio App",
+      "official": "https://geniestudio.app/",
+      "source_class": "PUBLIC_SITE_AND_CREATIVE_PORTFOLIO",
+      "source_url": "https://dribbble.com/shots/26612978-Unveiling-the-New-Genie-Website",
+      "evidence_urls": [
+        "https://geniestudio.app/"
+      ],
+      "observed_public_mechanism": [
+        "hover to reveal more information documented on official page",
+        "interactive motion described by design author"
+      ],
+      "hazewave_transfer": [
+        "keyboard-friendly scene navigation and disclosure"
+      ],
+      "transfer_state": "CHAPTER_NAV_IMPLEMENTED_SITE_JS_NOT_INSPECTED",
+      "external_live_browser_inspected": false,
+      "external_artwork_reused": false,
+      "external_proprietary_code_reused": false,
+      "production_authorized": false
+    },
+    {
+      "id": "esimple",
+      "title": "Esimple",
+      "official": "https://www.esimple.it/",
+      "source_class": "PUBLIC_COMPANY_SITE_CLAIM",
+      "source_url": "https://www.esimple.it/",
+      "evidence_urls": [
+        "https://www.esimple.it/marketing-3d/"
+      ],
+      "observed_public_mechanism": [
+        "agency explicitly offers Web3D scrollytelling",
+        "camera-path implementation and WebGL details not independently observed"
+      ],
+      "hazewave_transfer": [
+        "2.5D camera travel between independent illustrated regions"
+      ],
+      "transfer_state": "V4_CAMERA_IS_2_5D_TRUE_WEB3D_NOT_PROVEN",
+      "external_live_browser_inspected": false,
+      "external_artwork_reused": false,
+      "external_proprietary_code_reused": false,
+      "production_authorized": false
+    }
+  ]
+}
