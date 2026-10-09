@@ -431,6 +431,9 @@ def verify_repository_static(root: Path) -> dict[str, Any]:
     refs = validate_active_references(root, paths)
     hist = validate_deletion_history(root, policy)
     sha, tree = _git(root, "rev-parse", "HEAD"), _git(root, "rev-parse", "HEAD^{tree}")
+    # Static preflight must protect local WIP too; do not let pristine Git tree
+    # conceal unstaged/staged or untracked changes in the actual worktree.
+    verify_checkout(root, expected_commit=sha, expected_tree=tree)
     deleted = detect_protected_reintroductions(paths, policy, commit=sha, tree=tree)
     return {
         "STATIC_GOVERNANCE": "PASS",
