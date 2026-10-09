@@ -19,6 +19,7 @@ import zlib
 from hazewave.harness import HazewaveTask, issue_authorization, route_task, validate_authorization
 
 _FIXTURE = Path(__file__).resolve().parents[2] / "tests/fixtures/wave-scroll-owned.html"
+_APP_SCRIPT = _FIXTURE.parent / "wave-scroll-js-owned" / "main.js"
 _POSITIONS = (0.0, 0.15, 0.4, 0.7, 0.95, 1.0, 0.4, 0.0)
 _SHA256 = re.compile(r"^[a-f0-9]{64}$")
 _SHA40 = re.compile(r"^[a-f0-9]{40}$")
@@ -142,7 +143,7 @@ def verify_owned_scroll_capture(
 ) -> dict[str, Any]:
     _require(isinstance(repo_sha, str) and bool(_SHA40.fullmatch(repo_sha)), "REPO_SHA_INVALID")
     _require(isinstance(capture, Mapping), "CAPTURE_INVALID")
-    required = {"schema", "fixture_scope", "fixture_sha256", "browser", "browser_version",
+    required = {"schema", "fixture_scope", "fixture_sha256", "app_source_sha256", "browser", "browser_version",
                 "viewport", "samples", "network_request_count", "external_sites_analyzed"}
     _require(set(capture) == required, "CAPTURE_FIELDS_INVALID")
     _require(capture["schema"] == "HazewaveOwnedScrollBrowserCapture/v1",
@@ -158,6 +159,9 @@ def verify_owned_scroll_capture(
     _require(not _FIXTURE.is_symlink() and _FIXTURE.is_file()
              and capture["fixture_sha256"] == sha256(_FIXTURE.read_bytes()).hexdigest(),
              "SOURCE_DIGEST_MISMATCH")
+    _require(_APP_SCRIPT.is_file() and not _APP_SCRIPT.is_symlink()
+             and capture["app_source_sha256"] == sha256(_APP_SCRIPT.read_bytes()).hexdigest(),
+             "APP_SOURCE_DIGEST_MISMATCH")
     viewport = capture["viewport"]
     _require(isinstance(viewport, Mapping) and set(viewport) == {"width", "height"}
              and type(viewport["width"]) is int and type(viewport["height"]) is int
@@ -234,6 +238,7 @@ def verify_owned_scroll_capture(
         "capability": task.required_capability,
         "repo_sha_claimed_by_caller": repo_sha,
         "source_sha256": capture["fixture_sha256"],
+        "app_source_sha256": capture["app_source_sha256"],
         "browser": "chromium",
         "viewport": dict(viewport),
         "verified_frames": len(checked),
