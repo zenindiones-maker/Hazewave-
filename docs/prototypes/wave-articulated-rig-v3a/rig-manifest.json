@@ -1,0 +1,367 @@
+{
+  "schema": "HazewaveArticulatedRig/v1",
+  "source_image": "estação_de_música_cyberpunk_flutuante.png",
+  "source_sha256": "4d1cdcf38beb758d93a4c28483a00d8cd9bfa6616fbd0f5fc1b88f1ca8c39ddd",
+  "source_dimensions": [
+    1448,
+    1086
+  ],
+  "original_logo_hazewave_sha256": "05b3f4dc1b591041d4efa794c021b69ef8452d17283b2eb847783a90e63ab677",
+  "original_logo_indionesbala_sha256": "e9c4c00ab903cfc583138e333c594fc8c99c9c868c691454f4e17744193246e4",
+  "pieces": [
+    {
+      "id": "pad_00",
+      "type": "pad",
+      "file": "assets/pad_00.webp",
+      "energizedFile": "assets/pad_00_energized.webp",
+      "x": 572,
+      "y": 354,
+      "width": 143,
+      "height": 67,
+      "pivot": [
+        70.0,
+        29.0
+      ],
+      "activation": 0.1
+    },
+    {
+      "id": "pad_01",
+      "type": "pad",
+      "file": "assets/pad_01.webp",
+      "energizedFile": "assets/pad_01_energized.webp",
+      "x": 661,
+      "y": 380,
+      "width": 148,
+      "height": 73,
+      "pivot": [
+        73.25,
+        31.75
+      ],
+      "activation": 0.158
+    },
+    {
+      "id": "pad_02",
+      "type": "pad",
+      "file": "assets/pad_02.webp",
+      "energizedFile": "assets/pad_02_energized.webp",
+      "x": 774,
+      "y": 403,
+      "width": 134,
+      "height": 80,
+      "pivot": [
+        65.25,
+        35.75
+      ],
+      "activation": 0.216
+    },
+    {
+      "id": "pad_03",
+      "type": "pad",
+      "file": "assets/pad_03.webp",
+      "energizedFile": "assets/pad_03_energized.webp",
+      "x": 852,
+      "y": 436,
+      "width": 161,
+      "height": 87,
+      "pivot": [
+        81.25,
+        37.5
+      ],
+      "activation": 0.274
+    },
+    {
+      "id": "pad_04",
+      "type": "pad",
+      "file": "assets/pad_04.webp",
+      "energizedFile": "assets/pad_04_energized.webp",
+      "x": 495,
+      "y": 390,
+      "width": 152,
+      "height": 81,
+      "pivot": [
+        76.5,
+        37.25
+      ],
+      "activation": 0.332
+    },
+    {
+      "id": "pad_05",
+      "type": "pad",
+      "file": "assets/pad_05.webp",
+      "energizedFile": "assets/pad_05_energized.webp",
+      "x": 583,
+      "y": 422,
+      "width": 157,
+      "height": 81,
+      "pivot": [
+        78.75,
+        37.5
+      ],
+      "activation": 0.39
+    },
+    {
+      "id": "pad_06",
+      "type": "pad",
+      "file": "assets/pad_06.webp",
+      "energizedFile": "assets/pad_06_energized.webp",
+      "x": 702,
+      "y": 452,
+      "width": 136,
+      "height": 81,
+      "pivot": [
+        69.25,
+        36.0
+      ],
+      "activation": 0.448
+    },
+    {
+      "id": "pad_07",
+      "type": "pad",
+      "file": "assets/pad_07.webp",
+      "energizedFile": "assets/pad_07_energized.webp",
+      "x": 778,
+      "y": 484,
+      "width": 167,
+      "height": 91,
+      "pivot": [
+        79.5,
+        39.5
+      ],
+      "activation": 0.506
+    },
+    {
+      "id": "pad_08",
+      "type": "pad",
+      "file": "assets/pad_08.webp",
+      "energizedFile": "assets/pad_08_energized.webp",
+      "x": 410,
+      "y": 432,
+      "width": 161,
+      "height": 87,
+      "pivot": [
+        82.5,
+        41.75
+      ],
+      "activation": 0.564
+    },
+    {
+      "id": "pad_09",
+      "type": "pad",
+      "file": "assets/pad_09.webp",
+      "energizedFile": "assets/pad_09_energized.webp",
+      "x": 499,
+      "y": 464,
+      "width": 160,
+      "height": 93,
+      "pivot": [
+        78.5,
+        42.5
+      ],
+      "activation": 0.622
+    },
+    {
+      "id": "pad_10",
+      "type": "pad",
+      "file": "assets/pad_10.webp",
+      "energizedFile": "assets/pad_10_energized.webp",
+      "x": 594,
+      "y": 498,
+      "width": 168,
+      "height": 101,
+      "pivot": [
+        83.0,
+        44.0
+      ],
+      "activation": 0.68
+    },
+    {
+      "id": "pad_11",
+      "type": "pad",
+      "file": "assets/pad_11.webp",
+      "energizedFile": "assets/pad_11_energized.webp",
+      "x": 696,
+      "y": 534,
+      "width": 173,
+      "height": 101,
+      "pivot": [
+        84.5,
+        48.75
+      ],
+      "activation": 0.738
+    },
+    {
+      "id": "knob_00",
+      "type": "knob",
+      "file": "assets/knob_00.webp",
+      "x": 216,
+      "y": 402,
+      "width": 79,
+      "height": 79,
+      "pivot": [
+        39,
+        39
+      ],
+      "activation": 0.25
+    },
+    {
+      "id": "knob_01",
+      "type": "knob",
+      "file": "assets/knob_01.webp",
+      "x": 307,
+      "y": 377,
+      "width": 79,
+      "height": 79,
+      "pivot": [
+        39,
+        39
+      ],
+      "activation": 0.305
+    },
+    {
+      "id": "knob_02",
+      "type": "knob",
+      "file": "assets/knob_02.webp",
+      "x": 368,
+      "y": 347,
+      "width": 79,
+      "height": 79,
+      "pivot": [
+        39,
+        39
+      ],
+      "activation": 0.36
+    },
+    {
+      "id": "knob_03",
+      "type": "knob",
+      "file": "assets/knob_03.webp",
+      "x": 425,
+      "y": 314,
+      "width": 79,
+      "height": 79,
+      "pivot": [
+        39,
+        39
+      ],
+      "activation": 0.415
+    },
+    {
+      "id": "knob_04",
+      "type": "knob",
+      "file": "assets/knob_04.webp",
+      "x": 482,
+      "y": 292,
+      "width": 79,
+      "height": 79,
+      "pivot": [
+        39,
+        39
+      ],
+      "activation": 0.47
+    },
+    {
+      "id": "knob_05",
+      "type": "knob",
+      "file": "assets/knob_05.webp",
+      "x": 923,
+      "y": 512,
+      "width": 79,
+      "height": 79,
+      "pivot": [
+        39,
+        39
+      ],
+      "activation": 0.525
+    },
+    {
+      "id": "knob_06",
+      "type": "knob",
+      "file": "assets/knob_06.webp",
+      "x": 970,
+      "y": 614,
+      "width": 85,
+      "height": 85,
+      "pivot": [
+        42,
+        42
+      ],
+      "activation": 0.58
+    },
+    {
+      "id": "knob_07",
+      "type": "knob",
+      "file": "assets/knob_07.webp",
+      "x": 1018,
+      "y": 399,
+      "width": 109,
+      "height": 109,
+      "pivot": [
+        54,
+        54
+      ],
+      "activation": 0.635
+    },
+    {
+      "id": "speaker_00",
+      "type": "speaker",
+      "file": "assets/speaker_00.webp",
+      "x": 175,
+      "y": 117,
+      "width": 101,
+      "height": 101,
+      "pivot": [
+        50,
+        50
+      ],
+      "activation": 0.38
+    },
+    {
+      "id": "speaker_01",
+      "type": "speaker",
+      "file": "assets/speaker_01.webp",
+      "x": 174,
+      "y": 234,
+      "width": 105,
+      "height": 105,
+      "pivot": [
+        52,
+        52
+      ],
+      "activation": 0.5
+    },
+    {
+      "id": "speaker_02",
+      "type": "speaker",
+      "file": "assets/speaker_02.webp",
+      "x": 1172,
+      "y": 275,
+      "width": 97,
+      "height": 97,
+      "pivot": [
+        48,
+        48
+      ],
+      "activation": 0.62
+    },
+    {
+      "id": "speaker_03",
+      "type": "speaker",
+      "file": "assets/speaker_03.webp",
+      "x": 1170,
+      "y": 382,
+      "width": 105,
+      "height": 105,
+      "pivot": [
+        52,
+        52
+      ],
+      "activation": 0.74
+    }
+  ],
+  "artwork_discipline": "owner-approved hand-drawn cosmic 2D, mechanical parts from original illustration",
+  "risks": [
+    "automatic cleanplate inpainting around pad wells needs manual visual approval",
+    "rotated cap cutouts can reveal filled regions; restrict pivot range",
+    "initial proof is only one station, not five-act production site"
+  ]
+}
