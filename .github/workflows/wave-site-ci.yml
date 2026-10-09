@@ -143,11 +143,11 @@ jobs:
           if-no-files-found: warn
 
   wave-v4-source-candidate-delivery:
-    name: Auto-CD · reviewed WAVE V4 source only
+    name: Auto-CD · reviewed WAVE source only
     # Fail-closed: depends on BOTH Python governance and real site/browser CI.
     # No asset or executable may be promoted after a skipped/failed job.
     needs: [repository-contracts, build-and-browser-test]
-    if: ${{ startsWith(github.event.pull_request.head.ref || github.ref_name, 'work/wave-v4-') }}
+    if: ${{ startsWith(github.event.pull_request.head.ref || github.ref_name, 'work/wave-v') }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     permissions:
@@ -166,16 +166,16 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
-          mkdir -p "$RUNNER_TEMP/hazewave-v4-source-cd"
+          mkdir -p "$RUNNER_TEMP/hazewave-source-cd"
           python scripts/ci/wave_candidate_delivery.py package \
             --repo-root . \
-            --out "$RUNNER_TEMP/hazewave-v4-source-cd/wave-v4-source-candidate.zip" \
+            --out "$RUNNER_TEMP/hazewave-source-cd/wave-source-candidate.zip" \
             --expected-sha "$CANDIDATE_SHA"
           python scripts/ci/wave_candidate_delivery.py verify \
-            --package "$RUNNER_TEMP/hazewave-v4-source-cd/wave-v4-source-candidate.zip" \
+            --package "$RUNNER_TEMP/hazewave-source-cd/wave-source-candidate.zip" \
             --expected-sha "$CANDIDATE_SHA"
           {
-            echo "### WAVE V4 · automatic candidate delivery"
+            echo "### WAVE · automatic candidate delivery"
             echo ""
             echo "- **Exact reviewed HEAD:** \`$CANDIDATE_SHA\`"
             echo "- **Required CI:** repository contracts + browser/build passed"
@@ -188,8 +188,8 @@ jobs:
       - name: Deliver immutable source-only candidate for owner review
         uses: actions/upload-artifact@v4
         with:
-          name: wave-v4-source-candidate-${{ github.run_id }}
-          path: ${{ runner.temp }}/hazewave-v4-source-cd/
+          name: wave-source-candidate-${{ github.run_id }}
+          path: ${{ runner.temp }}/hazewave-source-cd/
           if-no-files-found: error
           retention-days: 14
           include-hidden-files: false
@@ -197,7 +197,7 @@ jobs:
   wave-v4-pipeline-report:
     name: Auto-CD · visible verdict, including blocked runs
     needs: [repository-contracts, build-and-browser-test, wave-v4-source-candidate-delivery]
-    if: ${{ always() && startsWith(github.event.pull_request.head.ref || github.ref_name, 'work/wave-v4-') }}
+    if: ${{ always() && startsWith(github.event.pull_request.head.ref || github.ref_name, 'work/wave-v') }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions:
