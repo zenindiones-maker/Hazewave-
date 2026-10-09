@@ -144,8 +144,16 @@ def scan_music_catalog(
             if role == "AUDIO" and 0 < stat.st_size <= hash_audio_up_to_bytes:
                 fingerprint = _sha_file(candidate)
             seen_projects.add(project)
+            relative_path = rel.as_posix()
+            # Source-path identity is distinct from audio-content identity. Two
+            # different compositions may share a generated title, while two
+            # distinct assets can also contain exactly the same bytes.
+            asset_id = sha256(
+                b"HAZE_ASSET_PATH_V1\0" + relative_path.encode("utf-8")
+            ).hexdigest()
             records.append({
-                "relative_path": rel.as_posix(),
+                "asset_id": f"PATH_SHA256_V1:{asset_id}",
+                "relative_path": relative_path,
                 "project": project,
                 "asset_role": role,
                 "size_bytes": stat.st_size,
@@ -156,9 +164,14 @@ def scan_music_catalog(
 
     records.sort(key=lambda x: x["relative_path"].casefold())
     duplicates: dict[str, list[str]] = defaultdict(list)
+    same_filenames: dict[str, list[str]] = defaultdict(list)
     for record in records:
-        if record["asset_role"] == "AUDIO" and record["sha256"]:
-            duplicates[record["sha256"]].append(record["relative_path"])
+        if record["asset_role"] == "AUDIO":
+            same_filenames[Path(record["relative_path"]).name.casefold()].append(
+                record["relative_path"]
+            )
+            if record["sha256"]:
+                duplicates[record["sha256"]].append(record["relative_path"])
     return {
         "schema": "HazePrivateCatalog/v1",
         "source_root": str(source),
@@ -169,10 +182,31 @@ def scan_music_catalog(
         "skipped_symlinks": skipped_symlinks,
         "projects": sorted(seen_projects, key=str.casefold),
         "items": records,
-        "exact_duplicate_groups": [
-            {"sha256":digest,"relative_paths":paths}
-            for digest, paths in sorted(duplicates.items()) if len(paths) > 1
+        # Neither filename collision nor exact byte equality authorizes
+        # deleting, merging, renaming or replacing any owner's files.
+        "same_filename_groups": [
+            {
+                "filename_casefold": name,
+                "relative_paths": paths,
+                "status": "NAME_COLLISION_NOT_EQUIVALENCE",
+                "action": "RETAIN_ALL",
+            }
+            for name, paths in sorted(same_filenames.items())
+            if len(paths) > 1
         ],
+        "exact_duplicate_groups": [
+            {
+                "sha256": digest,
+                "relative_paths": paths,
+                "status": "BYTE_IDENTICAL_NOT_DELETE_AUTHORITY",
+                "action": "RETAIN_ALL",
+            }
+            for digest, paths in sorted(duplicates.items())
+            if len(paths) > 1
+        ],
+        "preservation_policy": "RETAIN_ALL_NEVER_AUTO_DELETE",
+        "automated_delete_authorized": False,
+        "automated_merge_authorized": False,
         "genre_labels_are_owner_provided_only": True,
         "filesystem_changes": 0,
         "style_learned": False,
