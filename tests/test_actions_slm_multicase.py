@@ -324,3 +324,18 @@ def test_general_action_taxonomy_is_explicit_without_case_specific_oracle_answer
     assert "clipping_pcm16" not in system
     assert "reference_mean_dbfs=-21.1" not in system
     assert "measured_value=12.0" not in system
+
+def test_full_model_request_provenance_changes_with_system_guidance():
+    import copy
+    import re
+    from hazewave.actions_slm_multicase import _payload, hash_model_request
+    before=_payload("metric=attenuation_db", "hazewave-qwen3-0.6b",1000)
+    after=copy.deepcopy(before)
+    after["messages"][0]["content"] += " unrelated changed system guidance"
+    first=hash_model_request(before)
+    second=hash_model_request(after)
+    assert re.fullmatch(r"[a-f0-9]{64}",first)
+    assert first!=second
+    assert first==hash_model_request(before)
+    assert "request_sha256" in __import__("inspect").getsource(
+        __import__("hazewave.actions_slm_multicase",fromlist=["diagnose_single_case"]).diagnose_single_case)
