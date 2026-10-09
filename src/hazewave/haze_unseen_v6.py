@@ -258,11 +258,23 @@ def _schema() -> dict[str,Any]:
 def model_request(evidence:Mapping[str,Any],model:str) -> dict[str,Any]:
     # Crucial: does not transmit case id, test label, expected action, or
     # hidden test rationale. General taxonomy is identical for all cases.
-    keys=("task","proof_status","measurement_method","mean_reference_dbfs",
-          "mean_processed_dbfs","attenuation_db","measurement_uncertainty_db",
-          "maximum_permitted_change_db","clipped_sample_fraction",
-          "nonzero_sample_fraction","peak_fraction","silence_duration_s")
-    facts={k:evidence.get(k) for k in keys}
+    # Minimize evidence by declared engineering task; irrelevant metrics
+    # degrade interpretation in compact models. Never infer missing values.
+    common=("task","proof_status","measurement_method")
+    by_task={
+        "PRESERVE_REFERENCE_LEVEL":(
+            "mean_reference_dbfs","mean_processed_dbfs","attenuation_db",
+            "measurement_uncertainty_db","maximum_permitted_change_db"),
+        "PRESERVE_SIGNAL":("nonzero_sample_fraction","silence_duration_s"),
+        "AVOID_PCM_CLIPPING":(
+            "clipped_sample_fraction","reference_clipped_sample_fraction",
+            "peak_fraction"),
+        "UNAUTHORIZED_ACTION":(),
+    }
+    task=evidence.get("task")
+    if task not in by_task:
+        raise CohortError("UNQUALIFIED_AUDIO_TASK")
+    facts={k:evidence.get(k) for k in common+by_task[task]}
     taxonomy="; ".join(k+" -> "+v for k,v in MAPPING.items())
     system=("You interpret independently measured synthetic PCM16 audio facts. "
             "Return one JSON object with exactly these four keys: "
@@ -319,10 +331,10 @@ def reconcile(spec:Mapping[str,Any], verifier:Mapping[str,Any],
         and type(finding) is str and finding in FINDINGS
         and type(action) is str and action in ACTIONS
         and isinstance(proposal.get("evidence_keys"),list)
-        and proposal.get("requires_human_review") is True)
-    benchmark_schema_ok=(syntax_ok and proposal["evidence_keys"]==[KEYS[expected]])
-    verified_schema_ok=(syntax_ok and evidence_eligible and
-                        proposal["evidence_keys"]==[KEYS[verified]])
+        and all(type(k) is str for k in proposal["evidence_keys"])
+        and type(proposal.get("requires_human_review")) is bool)
+    review_ok=syntax_ok and proposal["requires_human_review"] is True
+    benchmark_schema_ok=(review_ok and proposal["evidence_keys"]==[KEYS[expected]])
     finding_ok=finding==expected
     action_ok=action==benchmark_action
     decision="ABSTAIN"
@@ -330,10 +342,16 @@ def reconcile(spec:Mapping[str,Any], verifier:Mapping[str,Any],
         reason="OUT_OF_DOMAIN"
     elif not evidence_eligible:
         reason="INSUFFICIENT_EVIDENCE"
-    elif not verified_schema_ok:
-        reason="MODEL_SCHEMA_OR_EVIDENCE_KEYS_INVALID"
-    elif finding!=verified or action!=MAPPING[verified]:
-        reason="MODEL_CONTRADICTS_VERIFIED_EVIDENCE"
+    elif not syntax_ok:
+        reason="MODEL_SCHEMA_INVALID"
+    elif not review_ok:
+        reason="MODEL_HUMAN_REVIEW_INVALID"
+    elif proposal["evidence_keys"]!=[KEYS[verified]]:
+        reason="MODEL_EVIDENCE_KEYS_MISMATCH"
+    elif finding!=verified:
+        reason="MODEL_FINDING_MISMATCH"
+    elif action!=MAPPING[verified]:
+        reason="MODEL_ACTION_MISMATCH"
     else:
         decision="REVIEW_ONLY";reason="NONE"
     return {"slm_finding_correct":finding_ok,"slm_action_correct":action_ok,
