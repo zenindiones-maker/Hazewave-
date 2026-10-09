@@ -330,6 +330,18 @@ def make_multicase_evidence(root: Path) -> dict[str, dict[str, Any]]:
     return out
 
 
+def hash_model_request(payload: Mapping[str, Any]) -> str:
+    """Hash the full model request including system guidance (not only user text)."""
+    try:
+        raw=json.dumps(payload,sort_keys=True,separators=(",",":"),
+                       ensure_ascii=False,allow_nan=False).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise MultiCaseError("MODEL_REQUEST_INVALID") from exc
+    if not 0<len(raw)<=32768:
+        raise MultiCaseError("MODEL_REQUEST_OVERSIZE")
+    return hashlib.sha256(raw).hexdigest()
+
+
 def _payload(prompt: str, model: str, seed: int) -> dict[str, Any]:
     return {
         "model": model, "stream": False, "temperature": 0.2, "seed": seed,
@@ -433,6 +445,7 @@ def perform_multicase(cases: Mapping[str, Mapping[str, Any]], *,
                 "model_json_shape":model_json_shape,
                 "model_response_char_count":len(raw_content),
                 "prompt_sha256":hashlib.sha256(prompt.encode()).hexdigest(),
+                "request_sha256":hash_model_request(payload),
                 "observed_finding_enum":(
                     parsed["decision"].get("finding")
                     if isinstance(parsed["decision"],dict) and
@@ -512,6 +525,7 @@ def diagnose_single_case(cases: Mapping[str, Mapping[str, Any]], *,
         "observed_finding_enum":finding,
         "model_response_char_count":len(content),
         "prompt_sha256":hashlib.sha256(prompt.encode()).hexdigest(),
+        "request_sha256":hash_model_request(payload),
         "knowledge_policy_sha256":policy["content_sha256"],
         "knowledge_source_ids":[r["source_id"] for r in policy["references"]],
         "evidence":dict(cases),
