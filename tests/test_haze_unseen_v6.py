@@ -149,3 +149,18 @@ def test_single_diagnostic_accepts_only_a_declared_development_case(tmp_path):
     assert result["transport_provenance"]=="INJECTED_TEST_DOUBLE"
     assert result["reserved_final_holdouts_executed"] is False
     assert result["metrics"]=={"UNATTESTED_TEST_DOUBLE":True}
+
+def test_model_request_explicitly_names_four_required_fields_independent_of_case():
+    from hazewave.haze_unseen_v6 import model_request
+    e={"task":"PRESERVE_REFERENCE_LEVEL","proof_status":"VERIFIED",
+       "attenuation_db":5.0,"mean_reference_dbfs":-20.0,
+       "mean_processed_dbfs":-25.0}
+    payload=model_request(e,"hazewave-qwen3-0.6b")
+    instruction=payload["messages"][0]["content"]
+    for field in ("finding","action","evidence_keys","requires_human_review"):
+        assert field in instruction
+    assert "exactly these four keys" in instruction
+    assert "additional keys" in instruction
+    assert "music_loss_5db" not in instruction
+    assert "5.0" not in instruction
+    assert payload["max_tokens"]>=190
