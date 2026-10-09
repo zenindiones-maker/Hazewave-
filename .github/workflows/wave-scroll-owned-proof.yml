@@ -7,6 +7,7 @@ on:
       - "src/hazewave/wave_scroll_evidence.py"
       - "scripts/research/scroll-owned-fixture.cjs"
       - "tests/fixtures/wave-scroll-owned.html"
+      - "tests/fixtures/wave-scroll-js-owned/**"
       - "tests/test_wave_scroll_evidence.py"
 
 permissions:
@@ -47,6 +48,28 @@ jobs:
           "$RUNNER_TEMP/wave-pw/node_modules/.bin/playwright" install --with-deps chromium
           echo "WAVE_BROWSER_PIN=PLAYWRIGHT_1_63_0"
 
+      - name: REA6 analyzes the exact JS used by the browser
+        shell: bash
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          npm_config_ignore_scripts=true npm install --prefix "$RUNNER_TEMP/wave-rea6" \
+            --no-audit --no-fund --ignore-scripts rea-agents@6.0.0
+          node -e 'const p=require(process.argv[1]);if(p.name!=="rea-agents"||p.version!=="6.0.0")process.exit(20)' \
+            "$RUNNER_TEMP/wave-rea6/node_modules/rea-agents/package.json"
+          folder="$GITHUB_WORKSPACE/tests/fixtures/wave-scroll-js-owned"
+          before="$(sha256sum "$folder/main.js" | cut -d' ' -f1)"
+          "$RUNNER_TEMP/wave-rea6/node_modules/.bin/rea" \
+            analyze-javascript-application "$folder" --json \
+            > "$RUNNER_TEMP/wave-rea-static-evidence.json"
+          python -m hazewave.rea6_provider_conformance validate-js-fixture \
+            --fixture "$folder" --evidence "$RUNNER_TEMP/wave-rea-static-evidence.json"
+          test "$before" = "$(sha256sum "$folder/main.js" | cut -d' ' -f1)"
+          test -z "$(git status --porcelain)"
+          echo "WAVE_REA6_STATIC_SAME_BROWSER_SOURCE=PASS"
+          echo "WAVE_REA6_DIRECT_AGENT_SESSION=NOT_TESTED"
+
       - name: Produce eight actual scroll screenshots per viewport
         shell: bash
         env:
@@ -78,7 +101,8 @@ jobs:
           echo "WAVE_SCROLL_REAL_BROWSER=PASS_3_VIEWPORTS"
           echo "WAVE_SCROLL_FRAME_COUNT=24"
           echo "WAVE_SCROLL_EXTERNAL_SITES=NOT_TESTED"
-          echo "WAVE_REA6_LINKED_SAME_TARGET=NOT_TESTED"
+          echo "WAVE_REA6_STATIC_SAME_BROWSER_SOURCE=PASS"
+          echo "WAVE_REA6_GUIDED_RECONSTRUCTION=NOT_PROVEN"
           echo "WAVE_CODESPACE_RUNTIME=NOT_TESTED"
           echo "WAVE_AGENT_MCP_CONNECTED=NOT_TESTED"
           echo "WAVE_PRODUCTION_APPROVED=FALSE"
