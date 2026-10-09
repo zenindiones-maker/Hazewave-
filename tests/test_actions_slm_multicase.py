@@ -305,3 +305,22 @@ def test_model_request_explains_each_required_key_without_leaking_correct_case()
       "finding":"NO_ISSUE_DETECTED","action":"NO_ACTION",
       "evidence_keys":["attenuation_db"],"requires_human_review":True
     })["grade"] == "FAIL"
+
+def test_general_action_taxonomy_is_explicit_without_case_specific_oracle_answers():
+    from hazewave.actions_slm_multicase import _payload
+    request = _payload("metric=attenuation_db\\nmeasured_value=12.0",
+                       "hazewave-qwen3-0.6b", 1000)
+    system = request["messages"][0]["content"]
+    pairs = {
+        "ATTENUATION_DETECTED": "REVIEW_GAIN_STAGE",
+        "SILENCE_DETECTED": "RESTORE_SIGNAL_PATH",
+        "CLIPPING_DETECTED": "REDUCE_GAIN_OR_LIMIT",
+        "NO_ISSUE_DETECTED": "NO_ACTION",
+    }
+    for finding, action in pairs.items():
+        assert f"{finding} -> {action}" in system
+    assert "gain_loss_12db" not in system
+    assert "silence_1s" not in system
+    assert "clipping_pcm16" not in system
+    assert "reference_mean_dbfs=-21.1" not in system
+    assert "measured_value=12.0" not in system
