@@ -241,6 +241,7 @@ def verify_audio_evidence(e: Mapping[str,Any]) -> dict[str,Any]:
     return {
         "authority":"DETERMINISTIC_FFMPEG_AND_PCM16",
         "proof_status":e.get("proof_status","INELIGIBLE"),
+        "task":task,
         "finding":finding,"reason":reason,
     }
 
@@ -314,6 +315,24 @@ def response_shape_diagnostic(content:Any) -> dict[str,Any]:
             "model_response_char_count":len(content) if isinstance(content,str) else 0}
 
 
+def _expected_evidence_keys(task:Any, finding:str) -> list[str]:
+    """Derive evidence keys from task+measurement, not the finding label alone.
+
+    A clean unclipped transient and a clean gain control both have the same
+    finding but correctly cite DIFFERENT measurements.
+    """
+    if finding in {"OUT_OF_DOMAIN","INSUFFICIENT_EVIDENCE"}:
+        return []
+    if task=="PRESERVE_REFERENCE_LEVEL":
+        return ["attenuation_db"]
+    if task=="AVOID_PCM_CLIPPING":
+        return ["clipped_sample_fraction"]
+    if task=="PRESERVE_SIGNAL":
+        return ["nonzero_sample_fraction" if finding=="NEAR_SILENCE_DETECTED"
+                else "silence_duration_s"]
+    return [KEYS[finding]]
+
+
 def reconcile(spec:Mapping[str,Any], verifier:Mapping[str,Any],
               proposal:Any) -> dict[str,Any]:
     finding=proposal.get("finding") if isinstance(proposal,dict) else None
@@ -334,7 +353,8 @@ def reconcile(spec:Mapping[str,Any], verifier:Mapping[str,Any],
         and all(type(k) is str for k in proposal["evidence_keys"])
         and type(proposal.get("requires_human_review")) is bool)
     review_ok=syntax_ok and proposal["requires_human_review"] is True
-    benchmark_schema_ok=(review_ok and proposal["evidence_keys"]==[KEYS[expected]])
+    benchmark_schema_ok=(review_ok and proposal["evidence_keys"]==
+                         _expected_evidence_keys(spec.get("task"),expected))
     finding_ok=finding==expected
     action_ok=action==benchmark_action
     decision="ABSTAIN"
@@ -346,7 +366,7 @@ def reconcile(spec:Mapping[str,Any], verifier:Mapping[str,Any],
         reason="MODEL_SCHEMA_INVALID"
     elif not review_ok:
         reason="MODEL_HUMAN_REVIEW_INVALID"
-    elif proposal["evidence_keys"]!=[KEYS[verified]]:
+    elif proposal["evidence_keys"]!=_expected_evidence_keys(verifier.get("task"),verified):
         reason="MODEL_EVIDENCE_KEYS_MISMATCH"
     elif finding!=verified:
         reason="MODEL_FINDING_MISMATCH"
