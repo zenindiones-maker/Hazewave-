@@ -1,0 +1,81 @@
+{
+  "schema": "HazewaveWaveApprovedArtRigReadiness/v1",
+  "authority": "NONE",
+  "source_location": "USER_PRIVATE_CHATGPT_LIBRARY",
+  "source_directory": "/Hazewave/Living-Universe/V3-CANONICAL-ASSETS/APPROVED_ILLUSTRATED_LAYERS",
+  "measurement_date": "2026-10-09",
+  "measurement_environment": "CHATGPT_CONTAINER_OWNER_LIBRARY_MATERIALIZED_FILES_NOT_CODESPACE",
+  "measurement_method": "SHA256 original bytes + PNG RGBA pixel alpha distribution",
+  "files_in_github": false,
+  "animation_rigs_ready": false,
+  "production_approved": false,
+  "human_art_style_approved": true,
+  "physical_articulation_approved": false,
+  "assets": [
+    {
+      "id": "A01",
+      "filename": "estação_de_música_cyberpunk_flutuante.png",
+      "sha256": "4d1cdcf38beb758d93a4c28483a00d8cd9bfa6616fbd0f5fc1b88f1ca8c39ddd",
+      "width": 1448,
+      "height": 1086,
+      "transparent_pct": 36.935,
+      "opaque_pct": 0.028,
+      "partial_pct": 63.038,
+      "independent_pads_ready": false,
+      "cleanplate_verified": false,
+      "mechanical_pieces_ready": false
+    },
+    {
+      "id": "A02",
+      "filename": "controlador_mpc_cyberpunk_neon.png",
+      "sha256": "460eaf43069e608fc959ca95dd7431330e98ace110752640145d5d711cb8be96",
+      "width": 1448,
+      "height": 1086,
+      "transparent_pct": 39.223,
+      "opaque_pct": 0.04,
+      "partial_pct": 60.737,
+      "independent_pads_ready": false,
+      "cleanplate_verified": false,
+      "mechanical_pieces_ready": false
+    },
+    {
+      "id": "A03",
+      "filename": "metrópole_musical_flutuante_neon.png",
+      "sha256": "9f8619db60c99e3ed1bf426c3a5838e6739df275dfe4c3294e5b8a274a9ed963",
+      "width": 1672,
+      "height": 941,
+      "transparent_pct": 61.248,
+      "opaque_pct": 0.032,
+      "partial_pct": 38.72,
+      "independent_pads_ready": false,
+      "cleanplate_verified": false,
+      "mechanical_pieces_ready": false
+    },
+    {
+      "id": "A04",
+      "filename": "fortaleza_dj_futurista_indionesbala.png",
+      "sha256": "2fdf7b8e4d7a7ad1c9ed3a99da31e16eefda0efc1b9d06a28a6032891934e72e",
+      "width": 1672,
+      "height": 941,
+      "transparent_pct": 38.056,
+      "opaque_pct": 0.041,
+      "partial_pct": 61.903,
+      "independent_pads_ready": false,
+      "cleanplate_verified": false,
+      "mechanical_pieces_ready": false
+    },
+    {
+      "id": "A05",
+      "filename": "nebulosa_roxa_em_camadas_transparente.png",
+      "sha256": "bc38da43aa8d21100ec116c7247a1613e75b6168e91d656f4be0b7b299320b51",
+      "width": 1672,
+      "height": 941,
+      "transparent_pct": 34.575,
+      "opaque_pct": 0.003,
+      "partial_pct": 65.422,
+      "independent_pads_ready": false,
+      "cleanplate_verified": false,
+      "mechanical_pieces_ready": false
+    }
+  ]
+}
