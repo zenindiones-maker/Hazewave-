@@ -119,19 +119,32 @@ def verify_checkout(root: Path, *, expected_commit: str, expected_tree: str) -> 
     }
 
 
+def verify_ancestry(root: Path, *, base_commit: str, candidate_commit: str) -> dict[str, str]:
+    """An actual Git ancestor is required; a shared ancestor is NOT enough."""
+    if not _sha(base_commit) or not _sha(candidate_commit):
+        raise SourceTruthError("MISSION_ANCESTRY_UNVERIFIED")
+    env={**os.environ, "GIT_NO_REPLACE_OBJECTS": "1", "GIT_OPTIONAL_LOCKS": "0"}
+    try:
+        result=subprocess.run(
+            ["git","-C",str(root),"merge-base","--is-ancestor",
+             base_commit,candidate_commit],
+            capture_output=True,text=True,check=False,timeout=12,env=env
+        )
+    except (OSError,subprocess.TimeoutExpired) as exc:
+        raise SourceTruthError("MISSION_ANCESTRY_UNVERIFIED") from exc
+    if result.returncode != 0:
+        raise SourceTruthError("MISSION_ANCESTRY_UNVERIFIED")
+    return {"ancestry":"PASS"}
+
+
 def validate_deletion_history(root: Path, policy: Mapping[str, Any]) -> dict[str, int]:
     count = 0
     for item in policy.get("protected_deletions", []):
         deletion_commit = item["deletion_commit"]
-        if _git(root, "merge-base", "--is-ancestor", deletion_commit, "HEAD",
-                allow_failure=True) != "":
-            # merge-base --is-ancestor prints no output when it succeeds:
-            # check the deletion object exists plus actual diff below.
-            pass
-        # Ensure deletion commit object is present in THIS candidate's lineage.
-        # rev-list HEAD contains all parents, not any unrelated branch history.
-        if not _git(root, "rev-list", "HEAD", "--max-count=10000").splitlines().__contains__(deletion_commit):
-            raise SourceTruthError("DELETION_COMMIT_NOT_IN_LINEAGE")
+        verify_ancestry(
+            root, base_commit=deletion_commit,
+            candidate_commit=_git(root, "rev-parse", "HEAD"),
+        )
         diff = _git(root, "diff-tree", "--no-commit-id", "--name-status", "-r",
                     "--no-renames", deletion_commit)
         if ("D\t" + item["path"]) not in diff.splitlines():
@@ -216,14 +229,18 @@ def validate_restoration_exception(
         raise SourceTruthError("RESTORATION_SCOPE_INVALID")
     # Only GitHub's fetched PR review objects may enter github_reviews.
     # An approval field in the authored request file is NEVER evidence.
-    if not any(
-        type(rv) is dict and rv.get("state") == "APPROVED"
-        and rv.get("commit_id") == commit
+    owner_reviews = [
+        rv for rv in github_reviews
+        if isinstance(rv, dict)
         and isinstance(rv.get("user"), dict)
         and rv["user"].get("login") == protected["review_owner"]
         and isinstance(rv.get("submitted_at"), str)
-        for rv in github_reviews
-    ):
+    ]
+    # A later CHANGES_REQUESTED/DISMISSED or a review of another SHA revokes
+    # any earlier APPROVED for this candidate.
+    latest = max(owner_reviews, key=lambda rv: rv["submitted_at"], default=None)
+    if (latest is None or latest.get("state") != "APPROVED"
+            or latest.get("commit_id") != commit):
         raise SourceTruthError("RESTORATION_REVIEW_REQUIRED")
     return {"approved": True, "review_binding": "LIVE_GITHUB_OWNER_REVIEW_EXACT_SHA"}
 
@@ -375,8 +392,7 @@ def _main_github(root: Path) -> dict[str, Any]:
         "/repos/" + REPOSITORY + "/git/commits/" + expected_commit, token)
     verify_remote_ref(remote_branch, remote_commit, expected_ref=head["ref"],
                       expected_commit=expected_commit, expected_tree=expected_tree)
-    if not _git(root, "merge-base", base["sha"], expected_commit):
-        raise SourceTruthError("MISSION_ANCESTRY_UNVERIFIED")
+    verify_ancestry(root,base_commit=base["sha"],candidate_commit=expected_commit)
     policy = load_deletion_policy(root / "config/source-of-truth-deletions-v1.json")
     paths = tracked_tree_paths(root)
     history = validate_deletion_history(root, policy)
