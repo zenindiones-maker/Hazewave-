@@ -131,3 +131,21 @@ def test_diagnostic_records_bounded_output_shape_not_untrusted_raw_text():
     assert r["model_response_char_count"]==15
     assert "raw" not in r and "content" not in r
     assert response_shape_diagnostic('{"finding":"NO_ISSUE_DETECTED"}')["model_json_shape"]=="MISSING_KEYS"
+
+def test_single_diagnostic_accepts_only_a_declared_development_case(tmp_path):
+    from hazewave.haze_unseen_v6 import run_evaluation, CohortError
+    def fake(payload):
+        return {"model":"hazewave-qwen3-0.6b","choices":[{"finish_reason":"stop",
+              "message":{"role":"assistant","content":
+                  '{"finding":"NO_ISSUE_DETECTED","action":"NO_ACTION","evidence_keys":["attenuation_db"],"requires_human_review":true}'}}],
+                "usage":{"prompt_tokens":10,"completion_tokens":15,"total_tokens":25}}
+    with pytest.raises(CohortError,match="UNKNOWN_DIAGNOSTIC_CASE"):
+        run_evaluation(tmp_path/"bad",model_caller=fake,live_required=False,
+                       case_ids=("made-up",))
+    result=run_evaluation(tmp_path/"good",model_caller=fake,
+                          live_required=False,case_ids=("music_loss_5db",))
+    assert result["evaluated_cases"]==1
+    assert len(result["rows"])==1
+    assert result["transport_provenance"]=="INJECTED_TEST_DOUBLE"
+    assert result["reserved_final_holdouts_executed"] is False
+    assert result["metrics"]=={"UNATTESTED_TEST_DOUBLE":True}
