@@ -18,9 +18,12 @@ async function at(page: Page, progress: number) {
     const start = stage.getBoundingClientRect().top + scrollY;
     scrollTo({ top: start + (stage.offsetHeight - innerHeight) * p, behavior: "instant" });
   }, progress);
-  await expect.poll(async () => page.evaluate(
+  // A one-sided >= predicate passes instantly when reversing from p=1
+  // to p=0, before the scroll listener and next animation frame run.
+  // Wait for actual proximity to the TARGET progress in both directions.
+  await expect.poll(async () => Math.abs(await page.evaluate(
     () => (window as unknown as Window & { __HAZEWAVE_RIG_V3: PhysicalState }).__HAZEWAVE_RIG_V3.progress
-  )).toBeGreaterThanOrEqual(progress - 0.018);
+  ) - progress), {timeout: 8000}).toBeLessThanOrEqual(.018);
 }
 async function measured(page: Page) {
   return page.evaluate(() => {
