@@ -2,8 +2,6 @@ name: Hazewave HAZE V6 First Unseen Measured Cohort
 on:
   push:
     branches:
-      - work/haze-actions-multicase-reliability-v1
-      - work/haze-governed-structure-probe-v2
       - work/haze-unseen-evaluation-v6
 permissions:
   contents: read
