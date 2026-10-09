@@ -108,7 +108,7 @@ test("all five original artist pages are directly navigable", async ({ page }) =
     await expect.poll(async () => page.locator(".artist-detail-art img").evaluate(
       (element) => (element as HTMLImageElement).naturalWidth,
     )).toBeGreaterThan(0);
-    await expect(page.locator('a[href="/#artists"]')).toHaveCount(1);
+    await expect(page.getByRole("link", { name: /Voltar aos artistas/i })).toBeVisible();
   }
 });
 
