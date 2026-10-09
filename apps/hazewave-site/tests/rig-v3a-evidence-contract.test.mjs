@@ -50,7 +50,7 @@ test("rejects nine pads even in true phone video",()=>{
  assert.throws(()=>validateRigReview(f),/V3A_PART_COUNT_MISMATCH/);
 });
 test("rejects fake video dimensions, wrong source commit and unlicensed proof claims",()=>{
- const f=fixture();f.receipt.viewport.width=360;
+ const f=fixture();f.video.streams[0].width=360;f.video.streams[0].height=800;
  assert.throws(()=>validateRigReview(f),/VIDEO_RESOLUTION_DOES_NOT_MATCH_BROWSER/);
  const s=fixture();s.receipt.reviewedSha="a".repeat(40);
  assert.throws(()=>validateRigReview(s),/EXACT_SHA_MISMATCH/);
