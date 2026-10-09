@@ -11,6 +11,7 @@ from hashlib import sha256
 import json
 from pathlib import Path
 import sys
+import shutil
 
 SOURCE_SHA = "460eaf43069e608fc959ca95dd7431330e98ace110752640145d5d711cb8be96"
 FOG_SHA = "bc38da43aa8d21100ec116c7247a1613e75b6168e91d656f4be0b7b299320b51"
@@ -120,8 +121,8 @@ def extract(source: Path, fog: Path, output: Path) -> dict:
     Image.fromarray(clean, mode="RGBA").save(
         out / "controller-cleanplate-EXPERIMENTAL.png", optimize=True
     )
-    src.save(out / "controller-original.png", optimize=True)
-    nebula.save(out / "fog-original.png", optimize=True)
+    shutil.copyfile(source, out / "controller-original.png")
+    shutil.copyfile(fog, out / "fog-original.png")
     manifest = {
         "schema": "HazewaveWaveRigPilot/v1",
         "authority": "NONE",
