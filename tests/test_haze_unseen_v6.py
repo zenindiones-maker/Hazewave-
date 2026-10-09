@@ -272,3 +272,35 @@ def test_same_no_issue_class_can_require_different_metric_by_task():
     proposal={"finding":"NO_ISSUE_DETECTED","action":"NO_ACTION",
               "evidence_keys":["attenuation_db"],"requires_human_review":True}
     assert reconcile(spec,measured,proposal)["safeguard_decision"]=="REVIEW_ONLY"
+
+def test_safeguard_reports_all_concurrent_evidence_finding_action_failures():
+    from hazewave.haze_unseen_v6 import reconcile
+    spec={"id":"music_loss_5db","kind":"signal","task":"PRESERVE_REFERENCE_LEVEL",
+          "expected":"ATTENUATION_DETECTED"}
+    measured={"proof_status":"VERIFIED","task":"PRESERVE_REFERENCE_LEVEL",
+              "finding":"ATTENUATION_DETECTED","reason":"NONE"}
+    # Mirrors observed failure structure without injecting the real response.
+    proposal={"finding":"NO_ISSUE_DETECTED","action":"NO_ACTION",
+              "evidence_keys":["clipped_sample_fraction"],
+              "requires_human_review":True}
+    out=reconcile(spec,measured,proposal)
+    assert out["safeguard_decision"]=="ABSTAIN"
+    assert out["abstention_reason"]=="MODEL_EVIDENCE_KEYS_MISMATCH"
+    assert out["safeguard_failure_classes"]==[
+        "MODEL_EVIDENCE_KEYS_MISMATCH","MODEL_FINDING_MISMATCH",
+        "MODEL_ACTION_MISMATCH"]
+    assert out["slm_finding_correct"] is False
+    assert out["slm_action_correct"] is False
+    assert out["model_output_overridden"] is False
+
+def test_valid_evidence_and_correct_model_have_no_safeguard_failures():
+    from hazewave.haze_unseen_v6 import reconcile
+    spec={"id":"music_loss_5db","kind":"signal","task":"PRESERVE_REFERENCE_LEVEL",
+          "expected":"ATTENUATION_DETECTED"}
+    measured={"proof_status":"VERIFIED","task":"PRESERVE_REFERENCE_LEVEL",
+              "finding":"ATTENUATION_DETECTED","reason":"NONE"}
+    proposal={"finding":"ATTENUATION_DETECTED","action":"REVIEW_GAIN_STAGE",
+              "evidence_keys":["attenuation_db"],"requires_human_review":True}
+    out=reconcile(spec,measured,proposal)
+    assert out["safeguard_decision"]=="REVIEW_ONLY"
+    assert out["safeguard_failure_classes"]==[]
