@@ -4,126 +4,114 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const appRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-
-async function travel(page: Page, progress: number) {
-  await page.evaluate((value) => {
+const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
+async function travel(page: Page, p: number) {
+  await page.evaluate((progress) => {
     document.documentElement.style.scrollBehavior = "auto";
-    const archive = document.getElementById("artists");
-    const max = archive
-      ? archive.offsetTop - window.innerHeight
-      : document.documentElement.scrollHeight - window.innerHeight;
-    window.scrollTo(0, Math.max(0, max) * value);
-  }, progress);
+    const film = document.getElementById("film");
+    if (!film) throw new Error("ILLUSTRATED_FILM_NOT_FOUND");
+    const top = film.getBoundingClientRect().top + scrollY;
+    const max = film.offsetHeight - innerHeight;
+    window.scrollTo(0, top + Math.max(0, max) * progress);
+  }, p);
 }
 
-test("owner artwork remains byte-for-byte unchanged", async () => {
-  const manifest = JSON.parse(readFileSync(resolve(appRoot, "owner-art-provenance.json"), "utf8"));
+test("six original owner visual assets remain byte-identical", async () => {
+  const manifest = JSON.parse(readFileSync(resolve(root,"owner-art-provenance.json"),"utf8"));
   expect(manifest.assets).toHaveLength(6);
   for (const item of manifest.assets) {
-    const bytes = readFileSync(resolve(appRoot, "public", item.asset.replace(/^\//, "")));
+    const bytes = readFileSync(resolve(root, "public", item.asset.replace(/^\//, "")));
     expect(bytes.length, item.asset).toBe(item.bytes);
     expect(createHash("sha256").update(bytes).digest("hex"), item.asset).toBe(item.sha256);
   }
 });
 
-test("cosmic home renders three acts and five original artists", async ({ page }, testInfo) => {
+test("opening is original illustrated universe, never the legacy giant poster", async ({ page }, testInfo) => {
   await page.goto("/");
-  await expect(page).toHaveTitle(/HAZEWAVE/);
-  await expect(page.locator("h1")).toContainText("universo");
-  await expect(page.locator("#cosmos")).toHaveCount(1);
-  await expect(page.locator("#origin")).toHaveCount(1);
-  await expect(page.locator("#crossing")).toHaveCount(1);
-  await expect(page.locator("#revelation")).toHaveCount(1);
-  await expect(page.locator(".artist-card")).toHaveCount(5);
-  await expect(page.locator("#listen")).toHaveAttribute("aria-pressed", "false");
-  const metrics = await page.evaluate(() => ({
-    documentWidth: document.documentElement.scrollWidth,
-    viewportWidth: innerWidth,
-    documentHeight: document.documentElement.scrollHeight,
-    viewportHeight: innerHeight,
-  }));
-  expect(metrics.documentWidth).toBeLessThanOrEqual(metrics.viewportWidth + 1);
-  expect(metrics.documentHeight).toBeGreaterThan(metrics.viewportHeight * 3);
-  await page.screenshot({ path: "test-results/cosmic-origin-" + testInfo.project.name + ".png", animations: "disabled" });
+  await expect(page).toHaveTitle(/Uma onda, muitos universos/i);
+  await expect(page.locator("body")).toHaveAttribute("data-phase","origin");
+  await expect(page.getByRole("heading", { name: /Antes da matéria/i })).toBeVisible();
+  await expect(page.locator("#interference-art .ink-landscape")).toHaveCount(3);
+  await expect(page.locator(".signal-core")).toHaveCount(1);
+  await expect(page.locator("#cosmos")).toHaveCount(0);
+  await expect(page.locator("#logo-plate")).toHaveCount(0);
+  await expect(page.locator(".artist-card")).toHaveCount(0);
+  await expect(page.locator(".identity-seal")).toHaveCSS("opacity","0");
+  await page.screenshot({ path: "test-results/illustrated-opening-"+testInfo.project.name+".png", animations:"disabled" });
 });
 
-test("scroll reveals and reverses the same narrative", async ({ page }, testInfo) => {
+test("scroll travels to ink wave, rupture and revelation — and reverses", async ({ page }, testInfo) => {
   await page.goto("/");
-  await expect(page.locator("body")).toHaveAttribute("data-act", "birth");
-  await travel(page, 0.5);
-  await expect(page.locator("body")).toHaveAttribute("data-act", "traversal");
-  await expect(page.locator("body")).toHaveAttribute("data-logo", "hidden");
-  await travel(page, 1);
-  await expect(page.locator("body")).toHaveAttribute("data-logo", "revealed");
-  await expect(page.locator("body")).toHaveAttribute("data-act", "revelation");
-  await expect(page.locator("#network")).toBeVisible();
-  await page.screenshot({ path: "test-results/cosmic-revelation-" + testInfo.project.name + ".png", animations: "disabled" });
-  await travel(page, 0);
-  await expect(page.locator("body")).toHaveAttribute("data-act", "birth");
-  await expect(page.locator("body")).toHaveAttribute("data-logo", "hidden");
-  await expect(page.locator("#network")).toBeHidden();
+  await travel(page,0.4);
+  await expect(page.locator("body")).toHaveAttribute("data-phase","crossing");
+  await expect(page.locator(".signal-engraving")).not.toHaveCSS("opacity","0");
+  await page.screenshot({ path:"test-results/illustrated-crossing-"+testInfo.project.name+".png", animations:"disabled" });
+  await travel(page,0.7);
+  await expect(page.locator("body")).toHaveAttribute("data-phase","rupture");
+  await page.screenshot({ path:"test-results/illustrated-rupture-"+testInfo.project.name+".png", animations:"disabled" });
+  await travel(page,1);
+  await expect(page.locator("body")).toHaveAttribute("data-phase","reveal");
+  await expect(page.locator(".identity-seal")).toHaveCSS("opacity","1");
+  await page.screenshot({ path:"test-results/illustrated-revelation-"+testInfo.project.name+".png", animations:"disabled" });
+  await travel(page,0);
+  await expect(page.locator("body")).toHaveAttribute("data-phase","origin");
+  await expect(page.locator(".identity-seal")).toHaveCSS("opacity","0");
 });
 
-test("original artwork and artist navigation remain accessible without JavaScript", async ({ browser }) => {
-  const context = await browser.newContext({ javaScriptEnabled: false });
+test("five artist worlds appear as constellations, not cards", async ({ page }, testInfo) => {
+  await page.goto("/#worlds");
+  await expect(page.locator("#worlds")).toBeVisible();
+  await expect(page.locator(".planet")).toHaveCount(5);
+  await expect(page.locator(".artist-card")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: /Cinco mundos/i })).toBeVisible();
+  await page.screenshot({ path:"test-results/illustrated-worlds-"+testInfo.project.name+".png", animations:"disabled", fullPage:false });
+});
+
+test("each artist destination uses authentic image inside orbital world", async ({ page }) => {
+  const artists = [
+    ["indionesbala","Indionesbala"],
+    ["barak-ozama-beats","Barak Ozama Beats"],
+    ["baazu","Baazü"],
+    ["aquaverno","Aquaverno"],
+    ["hemorragia-cosmica","Hemorragia Cósmica"],
+  ] as const;
+  for (const [slug,name] of artists) {
+    const response = await page.goto("/artists/"+slug+"/");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator("h1")).toHaveText(name);
+    await expect(page.locator(".artist-world-orb img")).toHaveAttribute("alt","Arte original de "+name);
+    await expect.poll(() => page.locator(".artist-world-orb img").evaluate((img)=> (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    await expect(page.locator(".world-switcher a")).toHaveCount(5);
+  }
+});
+
+test("mobile and desktop do not overflow the viewport", async ({ page }) => {
+  await page.goto("/");
+  const width = await page.evaluate(() => ({actual:document.documentElement.scrollWidth,expected:innerWidth}));
+  expect(width.actual).toBeLessThanOrEqual(width.expected+1);
+  await page.goto("/artists/aquaverno/");
+  const artistWidth = await page.evaluate(() => ({actual:document.documentElement.scrollWidth,expected:innerWidth}));
+  expect(artistWidth.actual).toBeLessThanOrEqual(artistWidth.expected+1);
+});
+
+test("reduced motion disables parallax without blocking scroll", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion:"reduce" });
+  await page.goto("/");
+  await expect(page.locator("body")).toHaveAttribute("data-motion","reduced");
+  await travel(page,.7);
+  await expect(page.locator("body")).toHaveAttribute("data-phase","rupture");
+  await expect.poll(() => page.locator("html").evaluate((root)=>root.style.getPropertyValue("--shift"))).toBe("0");
+});
+
+test("no JS retains artist navigation and illustration", async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled:false });
   try {
     const page = await context.newPage();
     await page.goto("/");
-    await expect(page.locator("#logo-plate img")).toBeVisible();
-    await expect(page.locator(".artist-card")).toHaveCount(5);
-    await expect(page.locator("noscript")).toHaveCount(1);
+    await expect(page.locator("#interference-art")).toBeVisible();
+    await expect(page.locator(".planet")).toHaveCount(5);
+    await expect(page.getByRole("heading", { name:/Antes da matéria/i })).toBeVisible();
   } finally {
     await context.close();
-  }
-});
-
-test("audio is opt-in and never claims to play an artist release", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator("body")).toHaveAttribute("data-audio", "off");
-  await expect(page.locator("#listen")).toHaveAttribute("aria-pressed", "false");
-  await expect(page.getByText(/SINAL SINTÉTICO/)).toHaveCount(1);
-  await expect(page.getByText(/Nenhum lançamento foi inventado/)).toHaveCount(1);
-});
-
-test("reduced motion keeps the journey navigable", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
-  await expect(page.locator("body")).toHaveAttribute("data-reduced", "yes");
-  await travel(page, 1);
-  await expect(page.locator("body")).toHaveAttribute("data-logo", "revealed");
-});
-
-
-test("all five original artist pages are directly navigable", async ({ page }) => {
-  const entries = [
-    ["indionesbala", "Indionesbala"],
-    ["barak-ozama-beats", "Barak Ozama Beats"],
-    ["baazu", "Baazü"],
-    ["aquaverno", "Aquaverno"],
-    ["hemorragia-cosmica", "Hemorragia Cósmica"],
-  ] as const;
-  for (const [slug, name] of entries) {
-    const response = await page.goto("/artists/" + slug + "/");
-    expect(response?.status()).toBe(200);
-    await expect(page.locator("h1")).toHaveText(name);
-    await expect(page.locator(".artist-detail-art img")).toHaveAttribute("alt", "Arte original de " + name);
-    await expect.poll(async () => page.locator(".artist-detail-art img").evaluate(
-      (element) => (element as HTMLImageElement).naturalWidth,
-    )).toBeGreaterThan(0);
-    await expect(page.getByRole("link", { name: /Voltar aos artistas/i })).toBeVisible();
-  }
-});
-
-test("canvas initializes or clearly exposes the original-art fallback", async ({ page }) => {
-  await page.goto("/");
-  await expect.poll(async () => page.locator("body").getAttribute("data-gl")).not.toBe("pending");
-  const graphicsState = await page.locator("body").getAttribute("data-gl");
-  expect(["live", "unavailable"]).toContain(graphicsState);
-  if (graphicsState === "live") {
-    await expect.poll(async () => page.locator("body").getAttribute("data-logo-ready")).toBe("yes");
-    await expect(page.locator("#cosmos")).toBeVisible();
-  } else {
-    await expect(page.locator("#logo-plate img")).toBeVisible();
   }
 });
