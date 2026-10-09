@@ -192,3 +192,56 @@ def test_safeguard_rejects_unverified_evidence_even_if_expected_label_matches():
     out=reconcile(spec,verifier,model)
     assert out["safeguard_decision"]=="ABSTAIN"
     assert out["human_review_required"] is True
+
+@pytest.mark.parametrize("finding,action,keys,review,reason", [
+    ("NO_ISSUE_DETECTED","NO_ACTION",["attenuation_db"],True,"MODEL_FINDING_MISMATCH"),
+    ("ATTENUATION_DETECTED","NO_ACTION",["attenuation_db"],True,"MODEL_ACTION_MISMATCH"),
+    ("ATTENUATION_DETECTED","REVIEW_GAIN_STAGE",["silence_duration_s"],True,"MODEL_EVIDENCE_KEYS_MISMATCH"),
+    ("ATTENUATION_DETECTED","REVIEW_GAIN_STAGE",["attenuation_db"],False,"MODEL_HUMAN_REVIEW_INVALID"),
+])
+def test_typed_safeguard_error_is_not_overwritten_by_hidden_oracle(finding,action,keys,review,reason):
+    from hazewave.haze_unseen_v6 import reconcile
+    spec={"id":"poisoned","expected":"NO_ISSUE_DETECTED","kind":"signal"}
+    measured={"finding":"ATTENUATION_DETECTED","proof_status":"VERIFIED","reason":"NONE"}
+    proposal={"finding":finding,"action":action,"evidence_keys":keys,
+              "requires_human_review":review}
+    out=reconcile(spec,measured,proposal)
+    assert out["safeguard_decision"]=="ABSTAIN"
+    assert out["abstention_reason"]==reason
+    assert out["model_output_overridden"] is False
+
+def test_gain_request_includes_only_task_relevant_evidence_no_oracle():
+    import json
+    from hazewave.haze_unseen_v6 import model_request
+    evidence={"task":"PRESERVE_REFERENCE_LEVEL","proof_status":"VERIFIED",
+              "measurement_method":"FFMPEG_VOLUMEDETECT_DBFS_PCM16",
+              "mean_reference_dbfs":-19.2,"mean_processed_dbfs":-24.2,
+              "attenuation_db":5.0,"measurement_uncertainty_db":0.1,
+              "maximum_permitted_change_db":1.0,
+              "clipped_sample_fraction":0.0,"nonzero_sample_fraction":0.999375,
+              "peak_fraction":0.3,"silence_duration_s":0}
+    req=model_request(evidence,"hazewave-qwen3-0.6b")
+    msg=json.loads(req["messages"][1]["content"])
+    assert msg["task"]=="PRESERVE_REFERENCE_LEVEL"
+    assert msg["mean_reference_dbfs"]==-19.2
+    assert msg["mean_processed_dbfs"]==-24.2
+    assert msg["attenuation_db"]==5.0
+    assert "measurement_uncertainty_db" in msg
+    assert "clipped_sample_fraction" not in msg
+    assert "nonzero_sample_fraction" not in msg
+    assert "peak_fraction" not in msg
+    assert "silence_duration_s" not in msg
+    assert "finding" not in msg and "expected" not in msg
+    assert "REVIEW_GAIN_STAGE" not in req["messages"][1]["content"]
+
+def test_missing_input_cannot_fabricate_measurements_in_model_request():
+    import json
+    from hazewave.haze_unseen_v6 import model_request
+    req=model_request({"task":"PRESERVE_REFERENCE_LEVEL",
+                       "proof_status":"INELIGIBLE"},
+                      "hazewave-qwen3-0.6b")
+    parsed=json.loads(req["messages"][1]["content"])
+    assert parsed["proof_status"]=="INELIGIBLE"
+    assert parsed["mean_reference_dbfs"] is None
+    assert parsed["mean_processed_dbfs"] is None
+    assert parsed["attenuation_db"] is None
