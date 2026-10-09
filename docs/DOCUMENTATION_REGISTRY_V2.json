@@ -360,6 +360,20 @@
         "deployment"
       ],
       "description": "Canonical story/world bible for the Hazewave site: persistent owner artwork, deterministic scroll conductor, physical artist media objects, original tactile player, content anti-hallucination rules, zero-cost asset/deployment gates, and premium owner-review boundary."
+    },
+    {
+      "id": "wave-v4-ci-cd-automatic",
+      "path": "docs/runbooks/WAVE_V4_AUTOMATIC_CI_CD.md",
+      "type": "RUNBOOK",
+      "authority": "OPERATIONAL",
+      "status": "ACTIVE",
+      "owner": "WAVE",
+      "applies_to": [
+        "WAVE",
+        "CI",
+        "CD"
+      ],
+      "description": "Unattended gated development CI, deterministic SHA-bound source-only delivery, automatic receipts and blocked-run reporting; no production deployment."
     }
   ]
 }
