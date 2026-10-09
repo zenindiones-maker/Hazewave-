@@ -357,26 +357,30 @@ def reconcile(spec:Mapping[str,Any], verifier:Mapping[str,Any],
                          _expected_evidence_keys(spec.get("task"),expected))
     finding_ok=finding==expected
     action_ok=action==benchmark_action
-    decision="ABSTAIN"
+    failures: list[str]=[]
     if verified=="OUT_OF_DOMAIN":
-        reason="OUT_OF_DOMAIN"
+        failures.append("OUT_OF_DOMAIN")
     elif not evidence_eligible:
-        reason="INSUFFICIENT_EVIDENCE"
+        failures.append("INSUFFICIENT_EVIDENCE")
     elif not syntax_ok:
-        reason="MODEL_SCHEMA_INVALID"
-    elif not review_ok:
-        reason="MODEL_HUMAN_REVIEW_INVALID"
-    elif proposal["evidence_keys"]!=_expected_evidence_keys(verifier.get("task"),verified):
-        reason="MODEL_EVIDENCE_KEYS_MISMATCH"
-    elif finding!=verified:
-        reason="MODEL_FINDING_MISMATCH"
-    elif action!=MAPPING[verified]:
-        reason="MODEL_ACTION_MISMATCH"
+        failures.append("MODEL_SCHEMA_INVALID")
     else:
-        decision="REVIEW_ONLY";reason="NONE"
+        # Record ALL concurrent semantic errors; the first reason is retained
+        # for backward compatibility but must never hide a second mismatch.
+        if not review_ok:
+            failures.append("MODEL_HUMAN_REVIEW_INVALID")
+        if proposal["evidence_keys"]!=_expected_evidence_keys(verifier.get("task"),verified):
+            failures.append("MODEL_EVIDENCE_KEYS_MISMATCH")
+        if finding!=verified:
+            failures.append("MODEL_FINDING_MISMATCH")
+        if action!=MAPPING[verified]:
+            failures.append("MODEL_ACTION_MISMATCH")
+    decision="ABSTAIN" if failures else "REVIEW_ONLY"
+    reason=failures[0] if failures else "NONE"
     return {"slm_finding_correct":finding_ok,"slm_action_correct":action_ok,
             "slm_joint_correct":bool(benchmark_schema_ok and finding_ok and action_ok),
             "safeguard_decision":decision,"abstention_reason":reason,
+            "safeguard_failure_classes":failures,
             "human_review_required":True,"model_output_overridden":False,
             "model_action_executed":False}
 
