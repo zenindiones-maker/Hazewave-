@@ -178,3 +178,44 @@ def test_existing_agents_directory_scope_refs_are_valid_not_missing(tmp_path):
     with pytest.raises(SourceTruthError,match="ACTIVE_REFERENCE_MISSING"):
         validate_active_references(tmp_path,
             {"AGENTS.md","src/hazewave/harness.py"},require_registry=False)
+
+
+def test_changed_review_revokes_earlier_exact_sha_approval():
+    from hazewave.source_truth_guard import validate_restoration_exception
+    req={"schema":"HazewaveDeletionException/v1",
+         "path":DELETED,"deletion_commit":REMOVAL,
+         "candidate_commit":"a"*40,"candidate_tree":"b"*40,
+         "reason":"Reviewed exact functional need with security and historical rationale",
+         "successor_comparison":"ADR-0007 alternative was verified as insufficient",
+         "security_review":"Restricted review of the complete change and tests",
+         "regression_tests":["tests/test_source_truth_guard.py"],
+         "owner":"zenindiones-maker"}
+    reviews=[
+        {"user":{"login":"zenindiones-maker"},"state":"APPROVED",
+         "commit_id":"a"*40,"submitted_at":"2026-10-08T12:00:00Z"},
+        {"user":{"login":"zenindiones-maker"},"state":"CHANGES_REQUESTED",
+         "commit_id":"a"*40,"submitted_at":"2026-10-08T13:00:00Z"}
+    ]
+    with pytest.raises(SourceTruthError,match="RESTORATION_REVIEW_REQUIRED"):
+        validate_restoration_exception(req,protected=fixture_policy()["protected_deletions"][0],
+           commit="a"*40,tree="b"*40,
+           tracked_files={"tests/test_source_truth_guard.py"},github_reviews=reviews)
+
+
+def test_common_ancestor_does_not_make_divergent_stale_base_authoritative(tmp_path):
+    from hazewave.source_truth_guard import verify_ancestry
+    root=fixture_repo(tmp_path)
+    original=git(root,"rev-parse","HEAD")
+    (root/"a.txt").write_text("a")
+    git(root,"add","a.txt")
+    git(root,"commit","-qm","first-branch")
+    other=git(root,"rev-parse","HEAD")
+    git(root,"checkout","-q","-b","parallel",original)
+    (root/"b.txt").write_text("b")
+    git(root,"add","b.txt")
+    git(root,"commit","-qm","second-branch")
+    current=git(root,"rev-parse","HEAD")
+    assert verify_ancestry(root,base_commit=original,
+                           candidate_commit=current)["ancestry"]=="PASS"
+    with pytest.raises(SourceTruthError,match="MISSION_ANCESTRY_UNVERIFIED"):
+        verify_ancestry(root,base_commit=other,candidate_commit=current)
