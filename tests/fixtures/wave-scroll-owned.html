@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HAZEWAVE WAVE — owned scroll forensic fixture</title>
+<style>
+  html,body { margin:0; background:#080c20; min-height:100%; overflow-x:hidden }
+  #spacer {height:520vh;}
+  #stage { position:fixed; inset:0; display:grid; place-items:center; overflow:hidden; background:#080c20 }
+  svg { width:min(94vw,1050px); height:min(82vh,650px); }
+  #trace { fill:none; stroke:#ce90ff; stroke-width:9; stroke-linecap:round; }
+  #pad { fill:#322343; stroke:#986cbf; stroke-width:3; }
+  #machine { fill:#5b639b; stroke:#e4d2ff; stroke-width:4; }
+  #backdrop { fill:#191f45; }
+</style>
+</head>
+<body>
+<div id="spacer" aria-hidden="true"></div>
+<div id="stage" aria-label="Owned reverse scroll fixture">
+<svg viewBox="0 0 1000 580" role="img" aria-label="Drawn signal activates the hand-built test machine">
+ <g id="camera">
+  <path id="backdrop" d="M0 140 Q300 40 550 140 T1100 120 V580 H0 Z"/>
+  <path id="trace" d="M70 305 Q240 190 390 305 T710 300 T950 300"/>
+  <g id="rig"><rect id="machine" x="650" y="280" width="185" height="145" rx="12"/>
+   <rect id="pad" x="680" y="316" width="45" height="42" rx="5"/>
+   <rect x="745" y="316" width="50" height="42" rx="5" fill="#242957"/>
+  </g>
+ </g>
+</svg></div>
+<script>
+(() => {
+ const trace=document.getElementById('trace');
+ const camera=document.getElementById('camera');
+ const rig=document.getElementById('rig');
+ const pad=document.getElementById('pad');
+ const length=trace.getTotalLength();
+ trace.style.strokeDasharray=String(length);
+ const clamp=(x)=>Math.max(0,Math.min(1,x));
+ function update(){
+   const total=Math.max(1,document.documentElement.scrollHeight-innerHeight);
+   const progress=clamp(scrollY/total);
+   const reveal=clamp(progress/0.4);
+   trace.style.strokeDashoffset=String(length*(1-reveal));
+   const padActive=progress>=0.3;
+   pad.style.fill=padActive?'#f2bdff':'#322343';
+   pad.setAttribute('data-active',String(padActive));
+   rig.setAttribute('transform',`translate(${(progress*32).toFixed(3)},0)`);
+   camera.setAttribute('transform',`translate(${(-progress*68).toFixed(3)},0)`);
+   document.body.dataset.scrollProgress=String(progress);
+ }
+ addEventListener('scroll',update,{passive:true});
+ addEventListener('resize',update);
+ update();
+})();
+</script>
+</body>
+</html>
