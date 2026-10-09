@@ -8,7 +8,8 @@ out vec4 outColor;
 uniform sampler2D uFrom,uTo,uPreview,uCanonical;
 uniform vec2 uFromSize,uToSize,uPreviewSize,uCanonicalSize,uResolution,uOrigin,uWaveOrigin,uPointer,uPreviewOrigin;
 uniform float uTime,uWaveAge,uProgress,uFromType,uToType,uPreviewType,uPreviewAmount,uEntryOpen;
-float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+// Arithmetic hash avoids transcendental work in every atmospheric noise sample.
+float hash(vec2 p){vec2 q=fract(p*vec2(.1031,.11369));q+=dot(q,q.yx+19.19);return fract(q.x*q.y*(q.x+q.y));}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+1.),f.x),f.y);}
 float haze(vec2 p){return noise(p)*.67+noise(p*2.03+3.1)*.33;}
 vec3 sampleWorld(sampler2D tex,vec2 uv){return texture(tex,clamp(uv,.001,.999)).rgb;}
@@ -77,11 +78,11 @@ vec3 scene(sampler2D tex,vec2 size,float kind,vec2 uv,float travel){
     float molten=(1.-smoothstep(.13,.30,coords.y))*(1.-near*.65);
     middle.x+=sin(coords.y*42.+uTime*.65)*.0021*molten;
   }
-  vec3 distant=sampleWorld(tex,sky);
-  vec3 mid=sampleWorld(tex,middle);
-  vec3 close=sampleWorld(tex,foreground);
-  vec3 color=mix(mid,distant,skyMask);
-  color=mix(color,close,near);
+  // All analytic planes sample the same artwork. Interpolate their bounded UVs
+  // before the fetch instead of filtering three copies of the entire image.
+  vec2 materialCoords=mix(middle,sky,skyMask);
+  materialCoords=mix(materialCoords,foreground,near);
+  vec3 color=sampleWorld(tex,materialCoords);
   if(kind<.5){
     // The canonical etched vortex is woven into the expanded environment.
     // Contact displaces these actual source pixels, then clears their haze.
@@ -125,12 +126,14 @@ void main(){
   vec2 destinationUv=mix(openingUv,vUv,smoothstep(.05,.78,p));
   if(uFromType<-.5||uFromType>.5)destinationUv=vUv;
   vec3 to=scene(uTo,uToSize,uToType,destinationUv,(1.-smoothstep(.25,.90,p))*.8);
-  float frontier=frontierFor(delta,uToType);
-  float reach=length(vec2(aspect,1.))*1.25;
-  float boundary=pow(eased,1.45)*reach+.16;
-  float blend=smoothstep(frontier-.07,frontier+.07,boundary);
-  if(uEntryOpen<.5)blend*=smoothstep(0.,.10,p);
-  if(p>=.999)blend=1.;
+  float blend=1.;
+  if(p<.999){
+    float frontier=frontierFor(delta,uToType);
+    float reach=length(vec2(aspect,1.))*1.25;
+    float boundary=pow(eased,1.45)*reach+.16;
+    blend=smoothstep(frontier-.07,frontier+.07,boundary);
+    if(uEntryOpen<.5)blend*=smoothstep(0.,.10,p);
+  }
   vec3 color=mix(from,to,blend);
   if(uToType<.5&&p>.999&&uPreviewAmount>.001){
     vec2 pd=(vUv-uPreviewOrigin)*vec2(aspect,1.);
