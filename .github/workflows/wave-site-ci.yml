@@ -38,9 +38,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout
+      - name: Checkout exact reviewed head
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
       - name: Set up Python
@@ -67,9 +68,10 @@ jobs:
       run:
         working-directory: apps/hazewave-site
     steps:
-      - name: Checkout
+      - name: Checkout exact reviewed head
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
       - name: Set up Node
@@ -86,6 +88,9 @@ jobs:
       - name: Validate A15 runtime proof script
         run: bash -n scripts/a15-runtime-proof.sh
 
+      - name: Evidence classification negative tests (reject V1 video as V3A)
+        run: node --test tests/rig-v3a-evidence-contract.test.mjs
+
       - name: Typecheck
         run: npx tsc --noEmit
 
@@ -100,6 +105,25 @@ jobs:
 
       - name: Browser tests
         run: npm test -- --workers=1 --project=chromium-desktop --project=chromium-mobile
+
+      - name: Verify two encoded portrait V3A videos against exact source SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v ffprobe
+          for dims in 393x852 360x800; do
+            width="${dims%%x*}"
+            receipt="$(find test-results -type f -name "v3a-portrait-${width}-receipt.json" -print -quit)"
+            video="$(find test-results -type f -name "v3a-portrait-${dims}.webm" -print -quit)"
+            test -n "$receipt" && test -s "$receipt"
+            test -n "$video" && test -s "$video"
+            node scripts/validate-rig-review.mjs \
+              --manifest ../../docs/prototypes/wave-articulated-rig-v3a/rig-manifest.json \
+              --receipt "$receipt" --video "$video" \
+              --output "test-results/verified-v3a-portrait-${dims}.json"
+          done
+          echo "V3A_RIG_UNIT_VIDEO=PASS_EXACT_SOURCE_PORTRAIT"
+          echo "V3A_CINEMATIC_WORLD=NOT_PROVEN"
 
       - name: Preserve static runtime
         if: success()

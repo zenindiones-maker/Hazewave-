@@ -64,7 +64,17 @@ test("five artist worlds appear as constellations, not cards", async ({ page }, 
   await expect(page.locator(".planet")).toHaveCount(5);
   await expect(page.locator(".artist-card")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /Cinco mundos/i })).toBeVisible();
-  await page.screenshot({ path:"test-results/illustrated-worlds-"+testInfo.project.name+".png", animations:"disabled", fullPage:false });
+  // Chromium may transiently lose the compositor surface after anchor navigation
+  // with the large illustrated world; never silently drop the visual proof.
+  const file = "test-results/illustrated-worlds-" + testInfo.project.name + ".png";
+  try {
+    await page.screenshot({ path:file, animations:"disabled", fullPage:false });
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("Unable to capture screenshot")) throw error;
+    await page.waitForTimeout(500);
+    // One bounded retry, still fail CI if screenshot cannot be captured.
+    await page.screenshot({ path:file, animations:"disabled", fullPage:false });
+  }
 });
 
 test("each artist destination uses authentic image inside orbital world", async ({ page }) => {
