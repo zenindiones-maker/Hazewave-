@@ -5,6 +5,7 @@ on:
     branches:
       - "work/wave-hazewave-site-v1"
       - "work/wave-cosmic-interference-v1"
+      - "work/wave-illustrated-interference-v2"
     paths:
       - "apps/hazewave-site/**"
       - "docs/wave/WAVE_SITE_DEPENDENCY_DECISIONS_V1.md"
