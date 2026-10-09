@@ -13,7 +13,7 @@ export const STORY_LINES: readonly StoryLine[] = [
   { at: 0.44, text: "Onde ela passa, as galáxias se deslocam." },
   { at: 0.58, text: "A matéria muda de ordem." },
   { at: 0.72, text: "O universo cede ao som." },
-  { at: 0.9, text: "Núcleo sonoro independente. Santos, 2021—." },
+  { at: 0.9, text: "A interferência revela a Hazewave. Muitos mundos, uma travessia." },
 ];
 
 /**
