@@ -398,14 +398,17 @@ def _call_real(payload:dict[str,Any]) -> dict[str,Any]:
         raise CohortError("MODEL_TRANSPORT_FAILED") from exc
 
 def run_evaluation(root:Path,*,model_caller:Callable[...,dict[str,Any]]|None=None,
-                   live_required:bool=True) -> dict[str,Any]:
+                   live_required:bool=True,case_ids:tuple[str,...]|None=None) -> dict[str,Any]:
     if live_required and model_caller is not None:
         raise CohortError("REAL_INFERENCE_REQUIRED")
+    allowed={x["id"] for x in CASES}
+    if case_ids is not None and (len(case_ids)!=1 or case_ids[0] not in allowed):
+        raise CohortError("UNKNOWN_DIAGNOSTIC_CASE")
     if model_caller is None:
         authorize_runner(os.environ)
     evidence=make_fixture_evidence(root)
     rows=[]
-    for spec in CASES:
+    for spec in (x for x in CASES if case_ids is None or x["id"] in case_ids):
         case_id=spec["id"]
         ver=verify_audio_evidence(evidence[case_id])
         if ver["finding"]!=spec["expected"]:
@@ -469,6 +472,7 @@ def run_evaluation(root:Path,*,model_caller:Callable[...,dict[str,Any]]|None=Non
             "rows":rows,"metrics":metrics,
             "evaluated_cases":len(rows),"reserved_final_holdout_count":len(RESERVED_HOLDOUTS),
             "reserved_final_holdouts_executed":False,
+            "diagnostic_only":case_ids is not None,
             "transport_provenance":source,
             "professional_audio":False,"reaper_competence":False,
             "production_approved":False,"human_review_pending":True}
@@ -478,6 +482,7 @@ def main(argv:list[str]|None=None)->int:
     parser.add_argument("--prove",action="store_true",required=True)
     parser.add_argument("--model",type=Path,required=True)
     parser.add_argument("--output",type=Path,required=True)
+    parser.add_argument("--diagnose-one",choices=tuple(x["id"] for x in CASES))
     args=parser.parse_args(argv)
     try:
         manifest=validate_model_manifest()
@@ -488,7 +493,8 @@ def main(argv:list[str]|None=None)->int:
             raise CohortError("RUNNER_MEMORY_HEADROOM_INSUFFICIENT")
         m=verify_model_bytes(args.model,manifest)
         begin=time.monotonic()
-        report=run_evaluation(args.output.parent/"v6-fixtures")
+        report=run_evaluation(args.output.parent/"v6-fixtures",
+               case_ids=(args.diagnose_one,) if args.diagnose_one else None)
         report.update({"model_id":manifest["model_id"],
             "model_revision":manifest["revision"],
             "model_sha256":m["model_sha256"],
@@ -501,6 +507,12 @@ def main(argv:list[str]|None=None)->int:
         digest=write_receipt(args.output,report)
         scores=report["metrics"]
         print("HAZE_V6_REAL_MODEL_CALLS="+str(report["evaluated_cases"]))
+        print("HAZE_V6_DIAGNOSTIC_ONLY="+str(report["diagnostic_only"]).upper())
+        if report["diagnostic_only"]:
+            row=report["rows"][0]
+            print("HAZE_V6_DIAGNOSTIC_SHAPE="+row["model_json_shape"])
+            print("HAZE_V6_DIAGNOSTIC_PREFIX_FORM="+row["model_output_prefix_form"])
+            print("HAZE_V6_DIAGNOSTIC_RESPONSE_CHARS="+str(row["model_response_char_count"]))
         print("HAZE_V6_SLMMODEL_FINDING_ACCURACY="+str(scores["in_domain_finding_accuracy"]))
         print("HAZE_V6_SLMMODEL_JOINT_ACCURACY="+str(scores["in_domain_joint_accuracy"]))
         print("HAZE_V6_OOD_ABSTENTION="+str(scores["ood_abstention_rate"]))
