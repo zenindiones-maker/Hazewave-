@@ -9,8 +9,11 @@ const appRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 async function travel(page: Page, progress: number) {
   await page.evaluate((value) => {
     document.documentElement.style.scrollBehavior = "auto";
-    const max = document.documentElement.scrollHeight - window.innerHeight;
-    window.scrollTo(0, max * value);
+    const archive = document.getElementById("artists");
+    const max = archive
+      ? archive.offsetTop - window.innerHeight
+      : document.documentElement.scrollHeight - window.innerHeight;
+    window.scrollTo(0, Math.max(0, max) * value);
   }, progress);
 }
 
