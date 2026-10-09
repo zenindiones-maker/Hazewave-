@@ -41,7 +41,12 @@ export function lineFor(progress: number): string {
 }
 
 export function scrollProgress(): number {
-  const max = document.documentElement.scrollHeight - window.innerHeight;
+  // End the film before the artist directory overlays the revealed original image.
+  // The archive/gallery remains scrollable after this point without remapping the climax.
+  const archive = document.getElementById("artists");
+  const max = archive
+    ? archive.offsetTop - window.innerHeight
+    : document.documentElement.scrollHeight - window.innerHeight;
   if (max <= 0) return 0;
   return Math.min(1, Math.max(0, window.scrollY / max));
 }
