@@ -77,6 +77,23 @@ Requires **2–64** independent audio SHA-256 values, exact path-to-receipt iden
 
 This is a **real non-neural fitted model** for the earliest auditory memory, not a foundation-model/LoRA fine-tune, music reconstruction, quality measure, or autonomous producer. A future generator may consult the learned representations only after an independent, owner-approved, per-style music benchmark. Never export private receipts or audio into CI or Git history.
 
+## Incremental V2: prova com um quinto áudio e crescimento imutável
+
+**No novo módulo** \`haze_incremental_learning.py\`, o HAZE usa os coeficientes e quatro protótipos já ajustados, sem reaprender ou modificar o modelo V1, para medir a distância da nova gravação. É uma **prova de generalização acústica por SHA-distinto**, *não* demonstra classificação de estilo nem independência de composição (regravações da mesma obra podem ter SHA diferente).
+
+Com \`probe\`: raiz de áudio privado existente, \`--prior\` apontando para o checkpoint de quatro músicas, \`--receipt\` apontando para o relatório da música realmente nova, \`--allow-private-corpus\` e \`--output\` novo fora de Git e fora do diretório de mídias. Essa ação **não treina**, apenas compara com modelo congelado, com relatório \`HazeAcousticHoldoutProbe/v1\`.
+
+Com \`grow\`: mesmos \`--root\` e \`--prior\`; passar \`--receipt\` **de cada um dos quatro registros históricos** e do(s) novo(s) áudio(s), \`--allow-private-corpus --allow-feature-learning\`, e um novo \`--output\`. O Harness:
+1. relê hash e identidade de todos os arquivos originais, rejeitando alteração ou ausência;
+2. reconstrói independentemente os parâmetros históricos dos quatro exemplos e reconcilia exatamente com o checkpoint anterior;
+3. compara o novo áudio contra o **modelo congelado antes do ajuste**;
+4. refaz o ajuste de coeficientes e protótipos sobre todos os exemplos autorizados, sem perda, deixando intactos áudios, recibos e modelos anteriores;
+5. grava \`HazeEarlyAudioLearning/v2\` com SHA-256 do modelo ancestral, contagem antiga/nova, revisão, prova pré-ajuste e os novos parâmetros.
+
+O output é privado e exclusivo (não sobrescreve). Crescimento V2→V3 também é permitido com novos recibos, exigindo replay completo da memória. Ao aumentar o acervo, agrupar famílias de versões por **curadoria humana de composição**, e reservá-las inteiramente fora de treino, conforme boas práticas de separação por grupo; identidade do título ou SHA diferente sozinhas não resolvem vazamento entre versões. Sem validação humana, \`style_prediction=null\`, \`heldout_examples=0\` no novo modelo de produção e \`generator_weights_updated=false\`.
+
+Não transferir ou treinar automaticamente a coleção inteira de 435 arquivos; a quinta gravação deve ter cópia privada com autorização, SHA de transporte validado e relatório \`HazeAudioListenReceipt/v1\` antes de \`probe\`. REAPER/Reflex e A15 continuam intocados.
+
 ## Research and producer-competence roadmap with measurable gates
 
 - **Corpus read:** bounded, resumable transfer by owner-approved subsets; SHA end-to-end; transport original names/path mapping, harden filenames, finite quotas; no bulk copy without confirmed quota. Catalog all without deletions. Audit true rights/labels and family boundaries.
