@@ -97,6 +97,8 @@ jobs:
               "$RUNNER_TEMP/wave-$viewport-validation.jsonl"
             grep -F '"status":"BOUNDED_REPRODUCED_BEHAVIOR"' \
               "$RUNNER_TEMP/wave-$viewport-validation.jsonl"
+            python -c 'import json,hashlib,sys;from pathlib import Path;d=json.loads(Path(sys.argv[1]).read_text());assert d["app_source_sha256"]==hashlib.sha256(Path(sys.argv[2]).read_bytes()).hexdigest()' \
+              "$root/browser-capture.json" "$GITHUB_WORKSPACE/tests/fixtures/wave-scroll-js-owned/main.js"
           done
           echo "WAVE_SCROLL_REAL_BROWSER=PASS_3_VIEWPORTS"
           echo "WAVE_SCROLL_FRAME_COUNT=24"
