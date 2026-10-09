@@ -53,7 +53,7 @@ function texture2d(gl: WebGL2RenderingContext): WebGLTexture {
 }
 
 export function mountCosmos(canvas: HTMLCanvasElement, reduced: boolean): CosmosEngine {
-  const gl = canvas.getContext("webgl2", {
+  const glOrNull = canvas.getContext("webgl2", {
     alpha: false,
     antialias: false,
     depth: false,
@@ -62,7 +62,8 @@ export function mountCosmos(canvas: HTMLCanvasElement, reduced: boolean): Cosmos
     preserveDrawingBuffer: true,
     powerPreference: "high-performance",
   });
-  if (!gl) throw new Error("HAZEWAVE_WEBGL2_UNAVAILABLE");
+  if (!glOrNull) throw new Error("HAZEWAVE_WEBGL2_UNAVAILABLE");
+  const gl: WebGL2RenderingContext = glOrNull;
 
   const sceneProgram = link(gl, SCENE);
   const compositeProgram = link(gl, COMPOSITE);
