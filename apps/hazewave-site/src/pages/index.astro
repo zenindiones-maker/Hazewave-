@@ -1,12 +1,6 @@
 ---
 import "../styles/cosmos.css";
-const artists = [
-  { name: "Indionesbala", id: "indionesbala", image: "/media/artists/indionesbala.webp" },
-  { name: "Barak Ozama Beats", id: "barak-ozama-beats", image: "/media/artists/barak-ozama-beats.png" },
-  { name: "Baazü", id: "baazu", image: "/media/artists/baazu.png" },
-  { name: "Aquaverno", id: "aquaverno", image: "/media/artists/aquaverno.jpg" },
-  { name: "Hemorragia Cósmica", id: "hemorragia-cosmica", image: "/media/artists/hemorragia-cosmica.jpg" },
-];
+import { PUBLIC_ARTISTS } from "../data/publicArtists";
 ---
 <!doctype html>
 <html lang="pt-BR">
@@ -68,13 +62,15 @@ const artists = [
           <p>Artistas reais, universos próprios, imagens originais preservadas.</p>
         </div>
         <div class="artist-grid">
-          {artists.map((artist, index) => (
-            <article class="artist-card" id={artist.id}>
-              <img src={artist.image} alt={"Arte original de " + artist.name} loading="lazy" decoding="async" />
-              <div class="artist-caption">
-                <span class="artist-index">{String(index + 1).padStart(2, "0")}</span>
-                <h3>{artist.name}</h3>
-              </div>
+          {PUBLIC_ARTISTS.map((artist, index) => (
+            <article class="artist-card" id={artist.slug}>
+              <a class="artist-card-link" href={"/artists/" + artist.slug + "/"} aria-label={"Entrar no universo de " + artist.name}>
+                <img src={artist.image} alt={"Arte original de " + artist.name} loading="lazy" decoding="async" />
+                <div class="artist-caption">
+                  <span class="artist-index">{String(index + 1).padStart(2, "0")}</span>
+                  <h3>{artist.name}</h3>
+                </div>
+              </a>
             </article>
           ))}
         </div>
