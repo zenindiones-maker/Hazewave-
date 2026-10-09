@@ -219,3 +219,15 @@ def test_common_ancestor_does_not_make_divergent_stale_base_authoritative(tmp_pa
                            candidate_commit=current)["ancestry"]=="PASS"
     with pytest.raises(SourceTruthError,match="MISSION_ANCESTRY_UNVERIFIED"):
         verify_ancestry(root,base_commit=other,candidate_commit=current)
+
+def test_static_harness_validator_rejects_wip_without_touching_it(tmp_path,monkeypatch):
+    from hazewave import source_truth_guard as guard
+    root=fixture_repo(tmp_path)
+    monkeypatch.setattr(guard,"load_deletion_policy",lambda *_: fixture_policy())
+    monkeypatch.setattr(guard,"validate_deletion_history",lambda *_: {"verified_tombstones":1})
+    monkeypatch.setattr(guard,"validate_active_references",lambda *args,**kw: {"active_refs_checked":1})
+    monkeypatch.setattr(guard,"detect_protected_reintroductions",lambda *args,**kw: {"reintroductions":0})
+    (root/"UNCOMMITTED_WIP").write_text("do not overwrite")
+    with pytest.raises(SourceTruthError,match="WIP_PRESENT"):
+        guard.verify_repository_static(root)
+    assert (root/"UNCOMMITTED_WIP").read_text()=="do not overwrite"
