@@ -1,6 +1,6 @@
 # HAZE — Acervo de produções do proprietário e curadoria privada (V1)
 
-**Estado:** DEVELOPMENT / PR draft; sem conexão comprovada às pastas do proprietário, sem curadoria real do catálogo privado executada.
+**Estado:** DEVELOPMENT / PR draft. Uma transferência e análise técnica de mídia do proprietário e inventário privado foram comprovados em sessão operacional independente do código deste PR; **o catalogador deste PR ainda não foi executado contra o acervo completo, e nenhuma memória musical qualificada foi aprovada**.
 **Autoridade:** HAZEWAVE_HARNESS. HAZE possui todo o áudio; WAVE permanece separada.
 **Escopo:** somente leitura do acervo, extração acústica local de faixas aprovadas, preparação de referências para decisões futuras de produção/REAPER.
 
@@ -16,6 +16,16 @@ O sistema registra, quando presentes:
 - etiquetas de gênero/estilo e função de referência **fornecidas pelo proprietário**;
 - sinais acústicos objetivos da fonte: EBU R128/true-peak do áudio completo, espectro/estéreo/transientes obtidos de **trecho central de no máximo 30 s**;
 - versões/mix/stem/master/rascunho aprovadas e suas notas por revisão humana futura.
+
+## Política obrigatória — nomes repetidos não significam músicas iguais
+
+O proprietário confirmou que o gerador atribui frequentemente **o mesmo título a composições diferentes**. Portanto, `Take`, `(1)`, `(2)`, `Final`, `Master`, `Mix`, ou uma correspondência exata do nome **não autorizam equivalência de obra ou preferência**. Esses marcadores são apenas texto do arquivo.
+
+- **Retenção integral / sem perdas:** nenhuma varredura, análise, sugestão de agrupamento ou rotina automatizada pode apagar, sobrescrever, renomear, mover, mesclar ou desconsiderar ativos do acervo. Mesmo cópias idênticas por SHA-256 permanecem como dois registros e dois arquivos.
+- O catálogo atribui `asset_id` baseado no **caminho relativo original** (identidade do registro da origem). Seu `sha256`, quando calculado, é uma segunda evidência distinta sobre os bytes; conteúdo igual não é licença para desduplicar, conteúdo diferente não implica canção distinta sem audição comparativa, e ID de caminho não substitui hash de conteúdo.
+- `same_filename_groups` marca somente colisões exatas do nome sem diferenciar maiúsculas/minúsculas, `NAME_COLLISION_NOT_EQUIVALENCE`. `exact_duplicate_groups` indica somente arquivos idênticos em bytes, `BYTE_IDENTICAL_NOT_DELETE_AUTHORITY`. Os dois tipos recebem `action=RETAIN_ALL`.
+- Similaridade acústica, versão, obra musical, derivação, reutilização de título, cover, sample ou parentesco entre arranjos só poderão ser classificados como relações **não destrutivas** após medições qualificadas e curadoria humana; nunca como deduplicação implícita.
+- Qualquer operação de limpeza da coleção privada exige fluxo separado de aprovação humana explícita por arquivo, prova de backup e restauração e política superior do Harness; este catalogador **não possui** essa capacidade.
 
 O Chromaprint pode ser candidato para quase-duplicatas e Essentia para descritores musicais em lote, mediante qualificação separada. O *fingerprint* não prova semelhança de gênero, e métricas de áudio não provam qualidade artística.
 
