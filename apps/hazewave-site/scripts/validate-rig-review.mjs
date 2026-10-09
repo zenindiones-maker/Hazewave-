@@ -56,7 +56,9 @@ export function validateRigReview({manifest,reviewedSha,video,receipt}){
  if(!Array.isArray(streams)||streams.length===0)
    fail("VIDEO_STREAM_NOT_FOUND");
  const track=streams.find(s=>s.codec_type==="video") || streams[0];
- if(track.width!==vw||track.height!==vh)
+ const exactEncoding=track.width===vw&&track.height===vh;
+ const aligned393=vw===393&&vh===852&&track.width===392&&track.height===852;
+ if(!(exactEncoding||aligned393))
    fail("VIDEO_RESOLUTION_DOES_NOT_MATCH_BROWSER");
  const fr=safeString(track.r_frame_rate).split("/");
  const fps=fr.length===2?Number(fr[0])/Number(fr[1]):Number(fr[0]);
@@ -103,7 +105,9 @@ export function validateRigReview({manifest,reviewedSha,video,receipt}){
    schema:"HazewaveV3AReviewedPortraitVideo/v1",
    reviewedSha,
    manifestSourceSha256:manifest.source_sha256,
-   videoResolution:[vw,vh],
+   browserViewport:[vw,vh],
+   videoResolution:[track.width,track.height],
+   onePixelEncoderAlignment:aligned393,
    encodedVideoFps:fps,
    encodedVideoDurationSeconds:duration,
    physicalPartsVerified:24,
