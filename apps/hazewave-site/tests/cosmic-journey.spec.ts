@@ -90,3 +90,37 @@ test("reduced motion keeps the journey navigable", async ({ page }) => {
   await travel(page, 1);
   await expect(page.locator("body")).toHaveAttribute("data-logo", "revealed");
 });
+
+
+test("all five original artist pages are directly navigable", async ({ page }) => {
+  const entries = [
+    ["indionesbala", "Indionesbala"],
+    ["barak-ozama-beats", "Barak Ozama Beats"],
+    ["baazu", "Baazü"],
+    ["aquaverno", "Aquaverno"],
+    ["hemorragia-cosmica", "Hemorragia Cósmica"],
+  ] as const;
+  for (const [slug, name] of entries) {
+    const response = await page.goto("/artists/" + slug + "/");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator("h1")).toHaveText(name);
+    await expect(page.locator(".artist-detail-art img")).toHaveAttribute("alt", "Arte original de " + name);
+    await expect.poll(async () => page.locator(".artist-detail-art img").evaluate(
+      (element) => (element as HTMLImageElement).naturalWidth,
+    )).toBeGreaterThan(0);
+    await expect(page.locator('a[href="/#artists"]')).toHaveCount(1);
+  }
+});
+
+test("canvas initializes or clearly exposes the original-art fallback", async ({ page }) => {
+  await page.goto("/");
+  await expect.poll(async () => page.locator("body").getAttribute("data-gl")).not.toBe("pending");
+  const graphicsState = await page.locator("body").getAttribute("data-gl");
+  expect(["live", "unavailable"]).toContain(graphicsState);
+  if (graphicsState === "live") {
+    await expect.poll(async () => page.locator("body").getAttribute("data-logo-ready")).toBe("yes");
+    await expect(page.locator("#cosmos")).toBeVisible();
+  } else {
+    await expect(page.locator("#logo-plate img")).toBeVisible();
+  }
+});
