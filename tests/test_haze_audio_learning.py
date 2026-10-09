@@ -126,3 +126,51 @@ def test_real_waveform_listen_decodes_ffmpeg_and_never_alters_source(tmp_path):
     assert result["training_started"] is False
     assert result["original_modified"] is False
     assert hashlib.sha256(song.read_bytes()).hexdigest() == before
+
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg") or not shutil.which("ffprobe"),
+                    reason="FFMPEG_REQUIRED")
+def test_listen_six_real_independent_waveforms_and_fit_heldout_style(tmp_path):
+    """End-to-end: actual audio bytes -> ffmpeg analysis -> fitted style model."""
+    corpus = tmp_path / "my_own_music"
+    corpus.mkdir()
+    refs = []
+    originals = {}
+    for genre, frequency in (("low-genre", 120), ("high-genre", 2800)):
+        for i in range(3):
+            song = corpus / genre / f"Same Generated Title {i}.wav"
+            song.parent.mkdir(parents=True, exist_ok=True)
+            hz = frequency + i * 7
+            sample_bytes = b"".join(
+                struct.pack("<hh", sample, sample)
+                for k in range(48000)
+                for sample in [int(.2 * math.sin(2 * math.pi * hz * k / 48000) * 32767)]
+            )
+            with wave.open(str(song), "wb") as stream:
+                stream.setnchannels(2)
+                stream.setsampwidth(2)
+                stream.setframerate(48000)
+                stream.writeframes(sample_bytes)
+            originals[song] = hashlib.sha256(song.read_bytes()).hexdigest()
+            rel = song.relative_to(corpus).as_posix()
+            heard = listen_audio(corpus, rel, authorized=True)
+            refs.append({
+                "relative_path": rel,
+                "source_sha256": heard["source_sha256"],
+                "owner_genre": genre,
+                "reference_role": "MIX_REFERENCE",
+                "status": "OWNER_REFERENCE_APPROVED_NOT_A_MODEL_TRAINING_GRANT",
+                "acoustic_profile": heard["acoustic_profile"],
+            })
+    learned = train_style_memory({
+        "schema": "HazeCuratedStyleMemory/v1",
+        "reference_count": len(refs),
+        "references": refs,
+    }, authorized_training=True)
+    assert learned["training_examples"] == 4
+    assert learned["heldout_examples"] == 2
+    assert learned["heldout_accuracy"] == 1.0
+    assert learned["generator_weights_updated"] is False
+    assert all(path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == digest
+               for path, digest in originals.items())
