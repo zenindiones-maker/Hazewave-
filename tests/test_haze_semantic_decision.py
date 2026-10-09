@@ -134,3 +134,12 @@ def test_metrics_keep_real_model_results_separate_from_test_doubles():
     assert results["false_negative_rate"]==0.5
     assert results["false_abstention_rate"]==0.25
     assert results["professional_certification"] is False
+
+@pytest.mark.parametrize("malformed_finding", [[], {}, 42, None])
+def test_malformed_model_field_can_never_crash_or_claim_pass(malformed_finding):
+    bad=proposed()
+    bad["finding"]=malformed_finding
+    report=reconcile_gain_decision(evidence(),bad)
+    assert report["haze_decision"]=="ABSTAIN"
+    assert report["slm_only_grade"]=="FAIL"
+    assert report["abstention_reason"]=="MODEL_SCHEMA_INVALID"
