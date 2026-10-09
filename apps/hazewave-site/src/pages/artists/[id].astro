@@ -1,48 +1,52 @@
 ---
-import "../../styles/cosmos.css";
+import "../../styles/illustrated-interference.css";
 import { PUBLIC_ARTISTS, type PublicArtist } from "../../data/publicArtists";
-
 export function getStaticPaths() {
-  return PUBLIC_ARTISTS.map((artist) => ({
-    params: { id: artist.slug },
-    props: { artist },
-  }));
+  return PUBLIC_ARTISTS.map((artist) => ({ params: { id: artist.slug }, props: { artist } }));
 }
-
 const { artist } = Astro.props as { artist: PublicArtist };
 ---
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#080713" />
-  <meta name="description" content={"Universo Hazewave — identidade visual original de " + artist.name + "."} />
-  <title>{artist.name} — Hazewave</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="theme-color" content="#090e18"/>
+  <meta name="description" content={"Hazewave — universo musical e arte original de "+artist.name}/>
+  <title>{artist.name} — Universo Hazewave</title>
 </head>
-<body class="artist-detail">
-  <a class="skip-link" href="#artist-main">Ir para o artista</a>
-  <header class="site-header">
-    <a class="site-name" href="/" aria-label="Voltar ao universo Hazewave">HAZE<span>WAVE</span><span class="signal-mark" aria-hidden="true">∿</span></a>
-    <span class="header-note">UM UNIVERSO EM FREQUÊNCIA</span>
-    <a class="header-link" href="/#artists">VOLTAR AO UNIVERSO <span aria-hidden="true">↗</span></a>
+<body class="constellation-detail">
+  <a class="skip" href="#artist-world">Ir para o artista</a>
+  <header class="masthead">
+    <a class="masthead-mark" href="/#beginning" aria-label="Voltar ao universo Hazewave">HAZE<span>WAVE</span><i aria-hidden="true">∿</i></a>
+    <span class="masthead-edition">UM MUNDO · MUITAS FREQUÊNCIAS</span>
+    <a class="masthead-link" href="/#worlds">VOLTAR À CONSTELAÇÃO ↗</a>
   </header>
-  <main id="artist-main" class="artist-detail-main">
-    <div class="artist-detail-copy">
-      <span class="chapter-number">ARTISTA / MUNDO HAZEWAVE</span>
-      <h1>{artist.name}</h1>
-      <p>A arte original é o ponto de entrada para este universo musical. Lançamentos e reprodução serão disponibilizados somente com conteúdo autorizado.</p>
-      <a class="return-link" href="/#artists">Voltar aos artistas <span aria-hidden="true">↗</span></a>
+  <main id="artist-world" class="artist-world">
+    <div class="artist-world-ink" aria-hidden="true">
+      <span class="world-ring world-ring-a"></span>
+      <span class="world-ring world-ring-b"></span>
+      <span class="world-ring world-ring-c"></span>
+      <span class="world-thread"></span>
     </div>
-    <figure class="artist-detail-art">
-      <img src={artist.image} alt={"Arte original de " + artist.name} decoding="async" />
-      <figcaption>IDENTIDADE VISUAL ORIGINAL · HAZEWAVE</figcaption>
-    </figure>
+    <div class="artist-world-art">
+      <div class="artist-world-orb">
+        <img src={artist.image} alt={"Arte original de "+artist.name} width="600" height="600"/>
+      </div>
+      <span class="eyebrow">ARTE ORIGINAL DO ARTISTA · PRESERVADA</span>
+    </div>
+    <div class="artist-world-type">
+      <span class="eyebrow">HAZEWAVE / CONSTELAÇÃO</span>
+      <h1>{artist.name}</h1>
+      <p>Um mundo singular na galáxia Hazewave. Aqui, a arte original é o ponto de partida — sem músicas, biografias ou lançamentos inventados.</p>
+      <a class="world-return" href="/#worlds">EXPLORAR OUTROS MUNDOS <span aria-hidden="true">↗</span></a>
+    </div>
   </main>
-  <nav class="artist-switcher" aria-label="Outros universos Hazewave">
-    {PUBLIC_ARTISTS.map((entry) => (
-      <a href={"/artists/" + entry.slug + "/"} aria-current={entry.slug === artist.slug ? "page" : undefined}>{entry.name}</a>
+  <nav class="world-switcher" aria-label="Outros mundos">
+    {PUBLIC_ARTISTS.map((entry, index) => (
+      <a href={"/artists/"+entry.slug+"/"} aria-current={entry.slug===artist.slug?"page":undefined}><span>0{index+1}</span>{entry.name}</a>
     ))}
   </nav>
+  <footer class="colophon"><span>HAZEWAVE — CADA ARTISTA, UM UNIVERSO</span><a href="/#beginning">INÍCIO ↑</a></footer>
 </body>
 </html>
