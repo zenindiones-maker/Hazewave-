@@ -1,0 +1,14 @@
+{
+  "schema": "HazewaveV6AuthorizedRun/v1",
+  "authority": "HAZEWAVE_HARNESS",
+  "branch": "work/haze-unseen-evaluation-v6",
+  "requested_scope": "FIRST_UNSEEN_DEVELOPMENT_COHORT",
+  "case_count": 10,
+  "model": "Qwen3-0.6B-Q4_K_M",
+  "calls_per_case": 1,
+  "unseen_holdouts_reserved": 4,
+  "production_approved": false,
+  "a15_inference_forbidden": true,
+  "paid_providers_forbidden": true,
+  "manual_action_authorized_by_owner": true
+}

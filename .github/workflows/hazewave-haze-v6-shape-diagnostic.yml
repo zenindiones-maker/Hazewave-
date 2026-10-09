@@ -1,0 +1,133 @@
+name: Hazewave HAZE V6 One-Case Output-Shape Diagnosis
+on:
+  push:
+    branches:
+      - work/haze-unseen-evaluation-v6
+permissions:
+  contents: read
+concurrency:
+  group: hazewave-v6-shape-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  compact_model_qa:
+    if: ${{ github.event.repository.private == false && contains(github.event.head_commit.message, '[haze-v6-diag]') && !contains(github.event.head_commit.message, '[skip-diagnostic]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HAZEWAVE_REPOSITORY_PUBLIC: "true"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      GIT_TERMINAL_PROMPT: "0"
+    steps:
+      - name: Checkout exact public branch SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init repo
+          cd repo
+          git remote add origin "https://github.com/$GITHUB_REPOSITORY.git"
+          git fetch --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_REPOSITORY" = "zenindiones-maker/Hazewave-"
+          echo "A15_INFERENCE=FORBIDDEN"
+          echo "CODESPACE_INFERENCE=NOT_REQUESTED"
+
+      - name: Inventory existing runner resources before model download
+        working-directory: repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v cmake
+          command -v g++
+          command -v git
+          command -v curl
+          python -V
+          free -h
+          df -h "$RUNNER_TEMP"
+          find "$RUNNER_TEMP" -maxdepth 1 -type f -name '*.gguf' -printf '%f\n' || true
+          python -m venv "$RUNNER_TEMP/hazewave-python"
+          "$RUNNER_TEMP/hazewave-python/bin/python" -m pip install             --quiet --no-cache-dir "httpx==0.28.1"
+          echo "$RUNNER_TEMP/hazewave-python/bin" >> "$GITHUB_PATH"
+          PYTHONPATH=src "$RUNNER_TEMP/hazewave-python/bin/python"             -m hazewave.actions_slm_runner --inventory
+
+      - name: Install only FFmpeg in ephemeral Actions runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          command -v ffmpeg
+          echo "FFMPEG_RUNNER_ONLY=PASS"
+          echo "A15_INSTALL=NONE"
+
+      - name: Fetch exact official GGUF and compile pinned CPU llama.cpp
+        working-directory: repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$HAZEWAVE_REPOSITORY_PUBLIC" = "true"
+          mkdir -p "$RUNNER_TEMP/hazewave-small-model"
+          MODEL_PATH="$RUNNER_TEMP/hazewave-small-model/Qwen3-0.6B-Q4_K_M.gguf"
+          MODEL_URL="https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/1208e45d782fe18602c5eaf10e5758d5b0f24c03/Qwen3-0.6B-Q4_K_M.gguf"
+          curl --fail --location --silent --show-error --retry 2 --connect-timeout 15 --max-time 150 \
+            --output "$MODEL_PATH" "$MODEL_URL"
+          echo "b0638f08417a2d3c8652760462eb5407c6e30173cf9608ad0820757a281eea0e  $MODEL_PATH" | sha256sum --check --status
+          git clone --quiet --depth 1 --branch v0.6.0 \
+            https://github.com/ggml-org/llama.cpp.git "$RUNNER_TEMP/hazewave-llama-src"
+          test "$(git -C "$RUNNER_TEMP/hazewave-llama-src" rev-parse HEAD)" = \
+            "d81235049384534c167caea52b85a694f6103d14"
+          cmake -S "$RUNNER_TEMP/hazewave-llama-src" \
+            -B "$RUNNER_TEMP/hazewave-llama-build" \
+            -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF \
+            -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF \
+            -DLLAMA_BUILD_SERVER=ON
+          cmake --build "$RUNNER_TEMP/hazewave-llama-build" \
+            --target llama-server --parallel 4
+          test -x "$RUNNER_TEMP/hazewave-llama-build/bin/llama-server"
+          echo "RUNNER_MODEL_BYTES_PINNED=PASS"
+          echo "RUNNER_LLAMA_SOURCE_PINNED=PASS"
+
+      - name: Real model reply plus independent FFmpeg verification
+        working-directory: repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          MODEL_PATH="$RUNNER_TEMP/hazewave-small-model/Qwen3-0.6B-Q4_K_M.gguf"
+          SERVER="$RUNNER_TEMP/hazewave-llama-build/bin/llama-server"
+          RECEIPT_DIR="$RUNNER_TEMP/hazewave-small-model/receipts"
+          mkdir -p "$RECEIPT_DIR"
+          timeout --signal=TERM --kill-after=5s 690s "$SERVER" \
+            -m "$MODEL_PATH" --alias hazewave-qwen3-0.6b \
+            --host 127.0.0.1 --port 18216 \
+            --ctx-size 1024 --threads 2 --n-gpu-layers 0 \
+            >"$RUNNER_TEMP/hazewave-small-model/server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          READY=0
+          for i in $(seq 1 45); do
+            if curl --fail --silent --max-time 2 \
+              http://127.0.0.1:18216/health >/dev/null; then
+              READY=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$READY" -ne 1 ]; then
+            echo "HAZE_ACTIONS_INFERENCE=BLOCKED:MODEL_SERVER_NOT_READY"
+            tail -n 30 "$RUNNER_TEMP/hazewave-small-model/server.log"
+            exit 20
+          fi
+          PYTHONPATH=src timeout --signal=TERM --kill-after=5s 570s \
+            python -m hazewave.haze_unseen_v6 --prove \
+              --model "$MODEL_PATH" \
+              --output "$RECEIPT_DIR/haze-v6-shape-diagnostic.json" \
+              --diagnose-one music_loss_5db
+          echo "HAZE_ACTIONS_FINAL_RECEIPT_SHA256=$(sha256sum "$RECEIPT_DIR/haze-v6-shape-diagnostic.json" | cut -d' ' -f1)"
+      - name: Retain small public synthetic receipt only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hazewave-haze-v6-shape-${{ github.run_id }}
+          retention-days: 7
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/hazewave-small-model/receipts/

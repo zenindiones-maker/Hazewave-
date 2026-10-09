@@ -1,0 +1,22 @@
+{
+  "schema": "HazewaveV6TaskScopedEvidenceProbe/v1",
+  "authority": "HAZEWAVE_HARNESS",
+  "experiment": "TASK_SCOPED_GAIN_MEASUREMENT_PRESENTATION_ONLY",
+  "case_id": "music_loss_5db",
+  "case_status": "SEEN_DEVELOPMENT_NOT_HOLDOUT",
+  "baseline_structured_but_wrong_run": 37871401675,
+  "baseline_prediction": "NO_ISSUE_DETECTED",
+  "baseline_action": "RESTORE_SIGNAL_PATH",
+  "pre_registered_hypothesis": "Removing unrelated clipping, silence, nonzero and peak metrics from gain reference comparison may improve model interpretation.",
+  "changed_model_input_only": "user evidence metric selection",
+  "unchanged_system_instruction": true,
+  "unchanged_model_and_runtime": true,
+  "unchanged_independent_expected_finding": true,
+  "unchanged_verifier": true,
+  "admitted_real_calls": 1,
+  "qualifying_holdout": false,
+  "no_retries": true,
+  "no_training": true,
+  "production_approved": false,
+  "a15_forbidden": true
+}

@@ -1,0 +1,15 @@
+{
+  "schema": "HazewaveV6SingleCaseDiagnosticAuthorization/v1",
+  "authority": "HAZEWAVE_HARNESS",
+  "case_id": "music_loss_5db",
+  "previous_run_id": 37870092550,
+  "previous_real_calls": 10,
+  "observation": "ALL_DECODED_MODEL_DECISIONS_NULL",
+  "diagnostic_goal": "CLASSIFY_RESPONSE_JSON_SHAPE_AND_BOUNDED_PREFIX_WITHOUT_RAW_TEXT",
+  "max_real_model_calls": 1,
+  "reuse_existing_dev_case": true,
+  "untouched_holdouts_used": false,
+  "model_id": "Qwen/Qwen3-0.6B-GGUF",
+  "production_approved": false,
+  "a15_inference_forbidden": true
+}
