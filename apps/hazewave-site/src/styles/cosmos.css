@@ -52,6 +52,9 @@ h1 em, h2 em { font-family: Georgia, "Times New Roman", serif; font-weight: 400;
 .narrative-index, .narrative-endnote { color: #ccf5b68a; max-width: 12rem; }
 /* The opening headline and supporting copy must never collide with subtitles. */
 body[data-act="birth"] .narrative-layer { opacity: 0; }
+/* At the climax the untouched original image must be fully visible. */
+body[data-logo="revealed"] .chapter-revelation .chapter-copy,
+body[data-logo="revealed"] .narrative-layer { opacity: 0; pointer-events: none; }
 .narrative-layer p { max-width: 45%; font: italic clamp(1rem, 1.6vw, 1.45rem)/1.5 Georgia, "Times New Roman", serif; text-align: center; text-shadow: 0 2px 17px #000; }
 .artist-network { width: 100%; max-width: 1350px; margin-inline: auto; }
 .artist-intro { margin-bottom: clamp(2rem, 7vw, 5rem); }
