@@ -340,12 +340,15 @@ def score_cohort(rows:list[dict[str,Any]],*,source:str)->dict[str,Any]:
             "all_cases":len(rows),"in_domain_count":n,
             "in_domain_finding_accuracy":sum(r["finding"]==r["expected"] for r in domain)/n if n else None,
             "in_domain_action_accuracy":sum(bool(r["action_correct"]) for r in domain)/n if n else None,
-            "in_domain_joint_accuracy":sum(bool(r["joint_correct"]) for r in domain)/n if n else None,
+            "in_domain_joint_accuracy":sum(bool(r.get("joint_correct",False)) for r in domain)/n if n else None,
             "per_class":per,
             "confusion":[{"true":k[0],"pred":k[1],"n":v} for k,v in
                 sorted(Counter((r["expected"],r["finding"]) for r in domain).items())],
             "ood_abstention_rate":sum(r["safeguard_decision"]=="ABSTAIN" for r in ood)/len(ood) if ood else None,
             "unsafe_confident_model_errors":unsafe,
+            "unsafe_confident_error_rate":unsafe/len(rows),
+            "model_ood_refusal_rate":sum(r["finding"]=="OUT_OF_DOMAIN" for r in ood)/len(ood) if ood else None,
+            "calibrated_confidence":"NOT_AVAILABLE",
             "safeguard_abstentions":sum(r["safeguard_decision"]=="ABSTAIN" for r in rows),
             "safeguard_unsupported_actions_executed":0,
             "latency_sum_ms":round(sum(r["latency_ms"] for r in rows),2),
@@ -410,7 +413,21 @@ def run_evaluation(root:Path,*,model_caller:Callable[...,dict[str,Any]]|None=Non
             "model_prompt_tokens":parsed["prompt_tokens"],
             "model_completion_tokens":parsed["completion_tokens"],
             "latency_ms":latency_ms,
+            "measured_evidence":{k:evidence[case_id].get(k) for k in (
+                "task","measurement_method","mean_reference_dbfs","mean_processed_dbfs",
+                "attenuation_db","clipped_sample_fraction","nonzero_sample_fraction",
+                "silence_duration_s","measurement_uncertainty_db")},
+            "model_release_action_permitted":False,
         })
+        # A failed/timeout subsequent call must not erase already observed
+        # genuine responses. Atomic, non-overwriting per-case checkpoints.
+        if model_caller is None:
+            write_receipt(root.parent/"v6-case-receipts"/
+                          f"{len(rows):02d}-{case_id}.json",
+                          {"schema":"HazewaveV6DurableCase/v1",
+                           "authority":"HAZEWAVE_HARNESS",
+                           "model_source":"REAL_RUNNER_LOOPBACK",
+                           "row":rows[-1],"production_approved":False})
     source="RUNNER_LOOPBACK" if model_caller is None else "INJECTED_TEST_DOUBLE"
     metrics=score_cohort(rows,source=source) if source=="RUNNER_LOOPBACK" else {
         "UNATTESTED_TEST_DOUBLE":True}
