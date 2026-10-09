@@ -114,8 +114,11 @@ def _valid_model_proposal(proposal: Any) -> bool:
         "finding", "action", "evidence_keys", "requires_human_review"
     }:
         return False
-    return (proposal["finding"] in _FINDINGS
+    return (type(proposal["finding"]) is str
+            and proposal["finding"] in _FINDINGS
+            and type(proposal["action"]) is str
             and proposal["action"] in _ACTIONS
+            and type(proposal["evidence_keys"]) is list
             and proposal["evidence_keys"] == ["attenuation_db"]
             and proposal["requires_human_review"] is True)
 
