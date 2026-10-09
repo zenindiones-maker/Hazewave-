@@ -53,7 +53,7 @@ export function bootCosmos(): void {
       line.textContent = text;
     }
     invitation.hidden = progress > 0.08;
-    network.hidden = progress < 0.9;
+    network.hidden = progress < 0.83;
   };
 
   const fadePointer = () => {
@@ -96,6 +96,7 @@ export function bootCosmos(): void {
       const enabled = voice.toggle();
       document.body.dataset.audio = enabled ? "on" : "off";
       listen.setAttribute("aria-pressed", String(enabled));
+      listen.setAttribute("aria-label", enabled ? "Silenciar demonstração sonora sintetizada" : "Ativar demonstração sonora sintetizada da interferência");
       listen.textContent = enabled ? "Silenciar" : "Ouvir a onda";
     },
     { signal },
@@ -106,7 +107,25 @@ export function bootCosmos(): void {
     (event) => {
       event.preventDefault();
       document.body.dataset.gl = "lost";
+      engine?.destroy();
+      engine = null;
       document.getElementById("logo-plate")?.removeAttribute("hidden");
+    },
+    { signal },
+  );
+
+  canvas.addEventListener(
+    "webglcontextrestored",
+    () => {
+      if (signal.aborted) return;
+      try {
+        engine = mountCosmos(canvas, reducedQuery.matches);
+        document.body.dataset.gl = "live";
+        paint();
+      } catch (error) {
+        console.error(error);
+        document.body.dataset.gl = "unavailable";
+      }
     },
     { signal },
   );
