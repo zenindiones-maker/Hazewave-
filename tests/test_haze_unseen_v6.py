@@ -149,6 +149,8 @@ def test_single_diagnostic_accepts_only_a_declared_development_case(tmp_path):
     assert result["transport_provenance"]=="INJECTED_TEST_DOUBLE"
     assert result["reserved_final_holdouts_executed"] is False
     assert result["metrics"]=={"UNATTESTED_TEST_DOUBLE":True}
+    assert result["rows"][0]["safeguard_failure_classes"]==[
+        "MODEL_FINDING_MISMATCH","MODEL_ACTION_MISMATCH"]
 
 def test_model_request_explicitly_names_four_required_fields_independent_of_case():
     from hazewave.haze_unseen_v6 import model_request
