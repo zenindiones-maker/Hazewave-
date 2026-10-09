@@ -1,0 +1,14 @@
+{
+  "schema": "HazewaveSourceOfTruthDeletions/v1",
+  "project_id": "HAZEWAVE",
+  "authority": "HAZEWAVE_HARNESS",
+  "protected_deletions": [
+    {
+      "path": "docs/architecture/decisions/ADR-0006-reverse-engineering-lab.md",
+      "deletion_commit": "8624e219882f11d39cd2c8cb893e984c3fcc86f5",
+      "reason": "Retired duplicate ADR-0006 identifier",
+      "successor": "docs/architecture/decisions/ADR-0007-reverse-engineering-lab.md",
+      "review_owner": "zenindiones-maker"
+    }
+  ]
+}

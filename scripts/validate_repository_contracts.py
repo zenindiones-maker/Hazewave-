@@ -423,6 +423,9 @@ def main() -> int:
     validate_freellmapi_provider_contract()
     validate_9router_sidecar_contract()
     validate_profile_migration()
+    # The existing validator integrates Harness source-of-truth protection.
+    from hazewave.source_truth_guard import verify_repository_static
+    verify_repository_static(ROOT)
     print(f"HAZEWAVE_JSON_SCHEMA_ENGINE=jsonschema/{version('jsonschema')}")
     print("HAZEWAVE_SCHEMA_PORTABLE_SUBSET=PASS")
     print("HAZEWAVE_SCHEMA_VALIDATION=PASS")
@@ -433,6 +436,7 @@ def main() -> int:
     print("HAZEWAVE_FREELLMAPI_PROVIDER_CONTRACT=PASS")
     print("HAZEWAVE_9ROUTER_SIDECAR_CONTRACT=PASS")
     print("HAZEWAVE_PROJECT_PROFILE_MIGRATION=PASS")
+    print("HAZEWAVE_SOURCE_TRUTH_STATIC=PASS")
     print("HAZEWAVE_REPOSITORY_CONTRACTS=PASS")
     return 0
 

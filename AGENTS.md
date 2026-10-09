@@ -30,6 +30,8 @@ Creative canon under `canon/` is authoritative for creative identity and domain 
 
 If two normative sources conflict, stop and report `HAZEWAVE_DOCUMENTATION_DRIFT`. Do not silently choose the more convenient rule.
 
+**Mandatory source-integrity preflight:** before recovery, source edits, branch or historical evidence reuse, read `docs/governance/source-of-truth.md` at the *same reviewed Git revision* and obey the current Harness/CI deletion and provenance gates. Historical branches and deleted components have no authority. Stop on uncommitted WIP, missing active references, incompatible SHA/tree receipts, or attempted protected-file resurrection; use only exact-bound reviewed restoration exceptions. This extends, and never overrides, the precedence above.
+
 ## Mandatory creative specialist contract
 
 Before any creative-production, tool-selection, Telegram-media, specialist-routing or continuous-learning work, agents MUST load and obey both:

@@ -406,6 +406,22 @@
         "reverse-engineering"
       ],
       "description": "Operational procedure for isolated installation, doctor checks, deep Ghidra proof and governed investigation planning."
+    },
+    {
+      "id": "source-of-truth-deletion-integrity-v1",
+      "path": "docs/governance/source-of-truth.md",
+      "type": "PROJECT_POLICY",
+      "authority": "NORMATIVE",
+      "status": "ACTIVE",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "harness",
+        "governance",
+        "agents",
+        "ci",
+        "recovery"
+      ],
+      "description": "Exact-source Git revision, intentional deletion protection, WIP preservation and verified receipt/exception gates."
     }
   ]
 }
