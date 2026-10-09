@@ -52,8 +52,8 @@ def test_invalid_crc_and_truncated_png_are_blocked():
 
 def test_rejects_bounded_png_decompression_expansion():
     # 2x2 RGBA IHDR, but many times the permitted 18 decompressed bytes.
-    rows=b"\\x00"+b"\\xff"*(6_000_000)
-    payload=(b"\\x89PNG\\r\\n\\x1a\\n"
+    rows=b"\x00"+b"\xff"*(6_000_000)
+    payload=(b"\x89PNG\r\n\x1a\n"
              +chunk(b"IHDR",struct.pack(">IIBBBBB",2,2,8,6,0,0,0))
              +chunk(b"IDAT",zlib.compress(rows))
              +chunk(b"IEND",b""))
