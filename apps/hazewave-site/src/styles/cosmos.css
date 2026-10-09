@@ -103,3 +103,23 @@ body[data-audio="on"] .sound-bars i:nth-child(3) { height: 9px; }
   #cosmos { transition: none; }
   .sound-bars { display: none; }
 }
+
+/* Direct artist routes — the original artwork is the hero, not a fabricated demo. */
+.artist-card-link { display: block; height: 100%; text-decoration: none; }
+.artist-card-link:hover .artist-caption h3, .artist-card-link:focus-visible .artist-caption h3 { color: #d6ff98; }
+.artist-card-link:hover img { filter: brightness(1.07); }
+.artist-detail { min-height: 100svh; background: radial-gradient(ellipse at 64% 30%, #291335 0%, #0f0c20 43%, #080713 84%); }
+.artist-detail-main { position: relative; display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); align-items: center; gap: clamp(2rem, 6vw, 7rem); min-height: 88svh; padding: 9rem clamp(1.6rem, 8vw, 10rem) 4rem; }
+.artist-detail-copy h1 { font-size: clamp(3.1rem, 6.5vw, 7.5rem); overflow-wrap: anywhere; }
+.artist-detail-copy p { max-width: 29rem; color: #eee8f0c7; font-size: clamp(.98rem,1.3vw,1.18rem); line-height: 1.65; margin-bottom: 2rem; }
+.artist-detail-art { margin: 0; padding: clamp(1rem,3vw,3rem); border: 1px solid #d2ff822f; background: #090911b3; box-shadow: 0 30px 100px #0008; }
+.artist-detail-art img { display: block; max-height: min(68svh, 900px); width: 100%; object-fit: contain; }
+.artist-detail-art figcaption { margin-top: .9rem; font: .67rem/1.5 "Courier New", monospace; letter-spacing: .13em; color: #bbffa295; }
+.artist-switcher { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: 1rem 2rem; justify-content: center; padding: 2rem clamp(1.6rem,8vw,10rem) 4rem; border-top: 1px solid #ffffff19; }
+.artist-switcher a { color: #d7d6d4; text-decoration: none; font-size: .82rem; }
+.artist-switcher a[aria-current="page"], .artist-switcher a:hover { color: #d4ff90; text-decoration: underline; text-underline-offset: .4rem; }
+@media (max-width: 900px) {
+  .artist-detail-main { grid-template-columns: 1fr; padding: 7rem 1.4rem 3rem; gap: 2.5rem; }
+  .artist-detail-art { max-width: 600px; width: 100%; margin: auto; }
+  .artist-detail-art img { max-height: 60svh; }
+}
