@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - work/haze-actions-multicase-reliability-v1
+      - work/haze-governed-structure-probe-v2
 permissions:
   contents: read
 concurrency:
