@@ -50,6 +50,8 @@ h1 em, h2 em { font-family: Georgia, "Times New Roman", serif; font-weight: 400;
 .scroll-invitation span { color: #c9ff82; font-size: 1.2rem; }
 .narrative-layer { position: fixed; z-index: 12; bottom: clamp(5.4rem, 11svh, 9rem); left: clamp(1.7rem, 8vw, 9rem); right: clamp(1.7rem, 8vw, 9rem); display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; pointer-events: none; }
 .narrative-index, .narrative-endnote { color: #ccf5b68a; max-width: 12rem; }
+/* The opening headline and supporting copy must never collide with subtitles. */
+body[data-act="birth"] .narrative-layer { opacity: 0; }
 .narrative-layer p { max-width: 45%; font: italic clamp(1rem, 1.6vw, 1.45rem)/1.5 Georgia, "Times New Roman", serif; text-align: center; text-shadow: 0 2px 17px #000; }
 .artist-network { width: 100%; max-width: 1350px; margin-inline: auto; }
 .artist-intro { margin-bottom: clamp(2rem, 7vw, 5rem); }
