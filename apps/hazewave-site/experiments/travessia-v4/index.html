@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070419"><meta name="robots" content="noindex,nofollow,noarchive">
+<title>HAZEWAVE — Travessia V4 | Protótipo privado</title>
+<link rel="stylesheet" href="travessia.css">
+</head>
+<body>
+<a class="skip" href="#end">Pular a animação</a>
+<main id="journey" aria-label="Travessia sonora ilustrada em cinco atos">
+<div class="stage" id="stage">
+  <div class="universe" aria-hidden="true">
+    <canvas id="stars"></canvas>
+    <div class="far-planet" id="far-planet"></div>
+    <img id="fog-back" class="far-art" src="assets/fog.webp" alt="">
+    <div class="cosmic-vortex" id="cosmic-vortex"></div>
+    <div class="city-scene" id="city-scene">
+      <img src="assets/city.webp" alt="">
+      <div class="city-flight" id="city-flight"><img src="assets/city.webp" alt=""></div>
+    </div>
+    <div class="hub-scene" id="hub-scene"><img src="assets/hub.webp" alt=""></div>
+    <div id="portal-window" class="portal-window">
+      <div class="portal-light"></div>
+      <img id="portal-world" src="assets/city.webp" alt="">
+      <div id="portal-inner-hub"><img src="assets/hub.webp" alt=""></div>
+    </div>
+    <svg id="portal-ring" viewBox="0 0 400 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <defs><filter id="neonGlow"><feGaussianBlur stdDeviation="6"/></filter></defs>
+      <ellipse id="portal-halo" cx="200" cy="300" rx="151" ry="225"/>
+      <ellipse id="portal-rim" cx="200" cy="300" rx="144" ry="218"/>
+      <path id="portal-tear" d="M63 193 Q195 60 348 193 M53 395 Q204 544 354 391"/>
+    </svg>
+    <div id="machine">
+      <img class="machine-chassis" id="chassis-left" src="assets/chassis.webp" alt="">
+      <img class="machine-chassis" id="chassis-right" src="assets/chassis.webp" alt="">
+      <div id="parts"></div>
+      <svg id="circuit" viewBox="0 0 1448 1086" aria-hidden="true">
+        <path id="trace-shadow" d="M95 755 C212 761 275 630 345 584 S460 401 585 384 S758 365 846 430 S1116 494 1112 598 S917 752 706 728"/>
+        <path id="trace" d="M95 755 C212 761 275 630 345 584 S460 401 585 384 S758 365 846 430 S1116 494 1112 598 S917 752 706 728"/>
+        <circle id="trace-head" r="9" cx="95" cy="755"/>
+      </svg>
+    </div>
+    <div class="moving-fog" id="fog-left"><img src="assets/fog.webp" alt=""></div>
+    <div class="moving-fog" id="fog-right"><img src="assets/fog.webp" alt=""></div>
+    <div class="front-debris" id="debris-a"></div>
+    <div class="front-debris" id="debris-b"></div>
+    <svg id="world-signal" viewBox="0 0 420 820" preserveAspectRatio="none" aria-hidden="true">
+      <path id="world-signal-blur" d="M-70 90 C130 160 10 260 240 285 S410 415 222 480 S10 610 250 730 S380 815 475 855"/>
+      <path id="world-signal-path" d="M-70 90 C130 160 10 260 240 285 S410 415 222 480 S10 610 250 730 S380 815 475 855"/>
+      <circle id="world-head" r="5"/>
+    </svg>
+  </div>
+  <div class="grain" aria-hidden="true"></div>
+  <header class="brand"><span class="wordmark">H A Z E W A V E</span><small>TRAVESSIA / LAB V4</small></header>
+  <div class="narrative" id="narrative" aria-live="off"><span id="chapter-num">01 / 05</span><h1 id="chapter-title">O silêncio tem profundidade.</h1><p id="chapter-copy">Desça para encontrar a primeira frequência.</p></div>
+  <div class="hud"><span>ROLE PARA ATRAVESSAR · SUBA PARA VOLTAR</span><span id="progress-text">00%</span><div class="rail"><div id="progress-bar"></div></div></div>
+  <span class="lab-stamp">PROTÓTIPO REAL · SEM APROVAÇÃO DE PRODUÇÃO</span>
+</div>
+</main>
+<footer id="end"><strong>HAZEWAVE</strong><p>A travessia começa a transformar o mundo. Estudo de engenharia física e visual, aguardando avaliação do proprietário.</p><a href="#journey">Voltar ao começo ↑</a></footer>
+<script src="travessia.js" defer></script>
+</body></html>
