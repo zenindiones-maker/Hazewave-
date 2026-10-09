@@ -306,30 +306,38 @@ def reconcile(spec:Mapping[str,Any], verifier:Mapping[str,Any],
               proposal:Any) -> dict[str,Any]:
     finding=proposal.get("finding") if isinstance(proposal,dict) else None
     action=proposal.get("action") if isinstance(proposal,dict) else None
+    # The benchmark answer is for reporting model accuracy ONLY. The safety
+    # gate must never consult a hidden evaluation label as decision authority.
     expected=spec["expected"]
-    correct_action=MAPPING[expected]
-    schema_ok=(isinstance(proposal,dict) and
+    benchmark_action=MAPPING[expected]
+    verified=verifier.get("finding")
+    evidence_eligible=(verifier.get("proof_status")=="VERIFIED"
+                       and verified in MAPPING
+                       and verified not in ("INSUFFICIENT_EVIDENCE","OUT_OF_DOMAIN"))
+    syntax_ok=(isinstance(proposal,dict) and
         set(proposal)==set(_schema()["required"])
         and type(finding) is str and finding in FINDINGS
         and type(action) is str and action in ACTIONS
         and isinstance(proposal.get("evidence_keys"),list)
-        and proposal.get("evidence_keys")==[KEYS[expected]]
         and proposal.get("requires_human_review") is True)
+    benchmark_schema_ok=(syntax_ok and proposal["evidence_keys"]==[KEYS[expected]])
+    verified_schema_ok=(syntax_ok and evidence_eligible and
+                        proposal["evidence_keys"]==[KEYS[verified]])
     finding_ok=finding==expected
-    action_ok=action==correct_action
+    action_ok=action==benchmark_action
     decision="ABSTAIN"
-    if spec["kind"]=="ood":
+    if verified=="OUT_OF_DOMAIN":
         reason="OUT_OF_DOMAIN"
-    elif spec["kind"]=="missing" or verifier.get("finding")=="INSUFFICIENT_EVIDENCE":
+    elif not evidence_eligible:
         reason="INSUFFICIENT_EVIDENCE"
-    elif not schema_ok:
+    elif not verified_schema_ok:
         reason="MODEL_SCHEMA_OR_EVIDENCE_KEYS_INVALID"
-    elif not finding_ok or not action_ok:
+    elif finding!=verified or action!=MAPPING[verified]:
         reason="MODEL_CONTRADICTS_VERIFIED_EVIDENCE"
     else:
         decision="REVIEW_ONLY";reason="NONE"
     return {"slm_finding_correct":finding_ok,"slm_action_correct":action_ok,
-            "slm_joint_correct":bool(schema_ok and finding_ok and action_ok),
+            "slm_joint_correct":bool(benchmark_schema_ok and finding_ok and action_ok),
             "safeguard_decision":decision,"abstention_reason":reason,
             "human_review_required":True,"model_output_overridden":False,
             "model_action_executed":False}
