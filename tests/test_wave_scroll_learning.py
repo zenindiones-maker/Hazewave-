@@ -6,7 +6,65 @@ import stat
 
 import pytest
 
-from test_wave_scroll_evidence import _report, REPO_SHA
+from hashlib import sha256
+import struct
+import zlib
+
+FIXTURE = Path(__file__).resolve().parent / "fixtures" / "wave-scroll-owned.html"
+APP_SCRIPT = FIXTURE.parent / "wave-scroll-js-owned" / "main.js"
+POSITIONS = (0.0, 0.15, 0.4, 0.7, 0.95, 1.0, 0.4, 0.0)
+REPO_SHA = "a" * 40
+
+
+def _chunk(marker: bytes, payload: bytes) -> bytes:
+    return struct.pack(">I", len(payload)) + marker + payload + struct.pack(
+        ">I", zlib.crc32(marker + payload) & 0xffffffff
+    )
+
+
+def _png_rgb(color: int) -> bytes:
+    # Real, decodable RGB PNG; no browser asserted by these unit tests.
+    width, height = 393, 852
+    scan = (b"\x00" + bytes((color, 30, 65)) * width) * height
+    return (b"\x89PNG\r\n\x1a\n"
+            + _chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+            + _chunk(b"IDAT", zlib.compress(scan))
+            + _chunk(b"IEND", b""))
+
+
+def _report(root: Path) -> dict:
+    root.mkdir(exist_ok=True, parents=True)
+    samples = []
+    for i, progress in enumerate(POSITIONS):
+        # Same physical pose must restore byte-identical frame on reversal.
+        color = 20 + round(progress * 100)
+        path = root / f"{i:02d}.png"
+        image = _png_rgb(color)
+        path.write_bytes(image)
+        samples.append({
+            "target": progress,
+            "progress": progress,
+            "stroke_reveal": min(1.0, progress / 0.4),
+            "pad_active": progress >= 0.3,
+            "rig_translate_x": round(progress * 32, 3),
+            "camera_translate_x": round(-progress * 68, 3),
+            "frame_name": path.name,
+            "frame_sha256": sha256(image).hexdigest(),
+        })
+    return {
+        "schema": "HazewaveOwnedScrollBrowserCapture/v1",
+        "fixture_scope": "LOCAL_FIRST_PARTY_ONLY",
+        "fixture_sha256": sha256(FIXTURE.read_bytes()).hexdigest(),
+        "app_source_sha256": sha256(APP_SCRIPT.read_bytes()).hexdigest(),
+        "browser": "chromium",
+        "browser_version": "test-fixture-only",
+        "viewport": {"width": 393, "height": 852},
+        "samples": samples,
+        "network_request_count": 0,
+        "external_sites_analyzed": False,
+    }
+
+
 from hazewave.wave_scroll_learning import (
     ScrollLearningError, learn_from_owned_scroll,
     load_rea_evidence, store_append_only_packet,
