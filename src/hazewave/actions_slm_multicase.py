@@ -397,7 +397,7 @@ def perform_multicase(cases: Mapping[str, Mapping[str, Any]], *,
         # The evidence supplies a measurement, never an oracle answer.
         # All cases receive the SAME factual glossary. Never disclose the
         # internal oracle case ID or its expected answer to the model.
-        prompt=build_specialist_audio_prompt(metric_key,value,comparison=cases[case] if case == "gain_loss_12db" else None)
+        prompt=build_specialist_audio_prompt(metric_key,value,comparison=cases[case] if case == "gain_loss_12db" and model_caller is None else None)
         for attempt in range(repetitions):
             nonce=secrets.token_hex(8)
             task=HazewaveTask(task_id=f"haze-multi-{case}-{nonce}",
@@ -469,7 +469,7 @@ def diagnose_single_case(cases: Mapping[str, Mapping[str, Any]], *,
     value=cases[case_id].get(metric_key)
     if isinstance(value,bool) or not isinstance(value,(float,int)) or not math.isfinite(value):
         raise MultiCaseError("CASE_METRIC_INVALID")
-    prompt=build_specialist_audio_prompt(metric_key,float(value),comparison=cases[case_id] if case_id == "gain_loss_12db" else None)
+    prompt=build_specialist_audio_prompt(metric_key,float(value),comparison=cases[case_id] if case_id == "gain_loss_12db" and model_caller is None else None)
     task=HazewaveTask(
         task_id="haze-shape-"+secrets.token_hex(8),
         goal="Read one synthetic instrument measurement and classify output structure",
