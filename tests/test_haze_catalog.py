@@ -176,3 +176,53 @@ def test_private_catalog_must_not_be_written_inside_repository(tmp_path):
     with pytest.raises(CatalogError,match="CATALOG_OUTPUT_IN_GIT_WORKTREE"):
         write_private_receipt(catalog,repo/"private"/"catalog.json",source_root=source)
     assert not (repo/"private"/"catalog.json").exists()
+
+
+
+def test_identically_named_different_songs_are_never_merged(tmp_path):
+    root = tmp_path / "owner-music"
+    a = root / "session-one" / "Repeated Title.mp3"
+    b = root / "session-two" / "Repeated Title.mp3"
+    a.parent.mkdir(parents=True)
+    b.parent.mkdir(parents=True)
+    a.write_bytes(b"owner composition A with its own musical content")
+    b.write_bytes(b"owner composition B with different musical content")
+    before = {a: a.read_bytes(), b: b.read_bytes()}
+
+    catalog = scan_music_catalog(root, authorized=True, hash_audio_up_to_bytes=1024)
+    assert catalog["file_count"] == 2
+    assert catalog["preservation_policy"] == "RETAIN_ALL_NEVER_AUTO_DELETE"
+    assert len({record["asset_id"] for record in catalog["items"]}) == 2
+    assert len({record["sha256"] for record in catalog["items"]}) == 2
+    assert len(catalog["same_filename_groups"]) == 1
+    group = catalog["same_filename_groups"][0]
+    assert group["status"] == "NAME_COLLISION_NOT_EQUIVALENCE"
+    assert group["action"] == "RETAIN_ALL"
+    assert set(group["relative_paths"]) == {
+        "session-one/Repeated Title.mp3",
+        "session-two/Repeated Title.mp3",
+    }
+    assert not catalog["exact_duplicate_groups"]
+    assert all(path.read_bytes() == content for path, content in before.items())
+
+
+def test_even_byte_identical_recordings_keep_distinct_asset_identity(tmp_path):
+    root = tmp_path / "owner-music"
+    a = root / "genre-one" / "Song.wav"
+    b = root / "genre-two" / "Song.wav"
+    a.parent.mkdir(parents=True)
+    b.parent.mkdir(parents=True)
+    a.write_bytes(b"audio bytes for both source files")
+    b.write_bytes(a.read_bytes())
+
+    catalog = scan_music_catalog(root, authorized=True, hash_audio_up_to_bytes=1024)
+    assert catalog["file_count"] == 2
+    assert len({item["asset_id"] for item in catalog["items"]}) == 2
+    assert len(catalog["same_filename_groups"]) == 1
+    exact = catalog["exact_duplicate_groups"][0]
+    assert exact["action"] == "RETAIN_ALL"
+    assert exact["status"] == "BYTE_IDENTICAL_NOT_DELETE_AUTHORITY"
+    assert set(exact["relative_paths"]) == {
+        "genre-one/Song.wav", "genre-two/Song.wav"
+    }
+    assert a.exists() and b.exists()
