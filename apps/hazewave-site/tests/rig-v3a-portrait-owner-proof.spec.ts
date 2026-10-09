@@ -19,12 +19,12 @@ async function toProgress(page:Page, p:number) {
     window.scrollTo({top:top+Math.max(1,travel)*value,behavior:"instant"});
   },p);
   await expect.poll(async()=>page.evaluate(
-    ()=>(window as Window & {__HAZEWAVE_RIG_V3:Rig}).__HAZEWAVE_RIG_V3.progress),
+    ()=>(window as unknown as Window & {__HAZEWAVE_RIG_V3:Rig}).__HAZEWAVE_RIG_V3.progress),
     {timeout:6000}).toBeGreaterThanOrEqual(Math.max(0,p-.018));
 }
 async function snapshot(page:Page){
   return page.evaluate(()=>{
-    const r=(window as Window & {__HAZEWAVE_RIG_V3:Rig}).__HAZEWAVE_RIG_V3;
+    const r=(window as unknown as Window & {__HAZEWAVE_RIG_V3:Rig}).__HAZEWAVE_RIG_V3;
     const machine=document.getElementById("machine");
     const knob=document.querySelector<HTMLElement>('img[data-rig-id="knob_00"]');
     const speaker=document.querySelector<HTMLElement>('img[data-rig-id="speaker_00"]');
