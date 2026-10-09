@@ -165,3 +165,14 @@ def test_curation_rejects_symlink_swap_and_bad_manual_genre(tmp_path):
     song.symlink_to(outside)
     with pytest.raises(CatalogError,match="CURATION_UNOWNED_SOURCE"):
         curate_style_references(catalog,[selection],root=root,authorized=True)
+
+
+def test_private_catalog_must_not_be_written_inside_repository(tmp_path):
+    source=tmp_path/"music";source.mkdir()
+    _wave(source/"Jazz"/"song.wav")
+    catalog=scan_music_catalog(source,authorized=True)
+    repo=tmp_path/"workspace";repo.mkdir()
+    (repo/".git").mkdir()
+    with pytest.raises(CatalogError,match="CATALOG_OUTPUT_IN_GIT_WORKTREE"):
+        write_private_receipt(catalog,repo/"private"/"catalog.json",source_root=source)
+    assert not (repo/"private"/"catalog.json").exists()
