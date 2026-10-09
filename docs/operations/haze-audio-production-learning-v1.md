@@ -62,6 +62,21 @@ python -m hazewave.haze_audio_learning learn \
 
 The explicit feature-learning flag is for this non-neural training only; it is **not** authorization for ACE-Step LoRA, remote models, sharing data, copying songs or production actions. Do not label a held-out SHA as an unseen *composition* until a human verifies it is not a variation of a train track.
 
+
+## Immediate owner training from four already-listened private MP3s
+
+**Decision:** User explicitly requested to begin learning immediately, not to wait until the whole library is ingested. Use the already-private four \`HazeAudioListenReceipt/v1\` records as **cold-start, unsupervised acoustic feature fitting**. This mode does not require manually assigned genres, but cannot assert a genre or produce music. One unique SHA-256 per example must match its current physical source bytes, and each asset remains independent.
+
+New CLI mode: \`python -m hazewave.haze_audio_learning bootstrap\`. Specify the actual private media \`--root\`, \`--output\` outside Git/media, \`--allow-private-corpus\`, \`--allow-feature-learning\`, and repeat \`--receipt\` for each exact path:
+- \`$HOME/.local/state/hazewave/owner-audio-learning/aquaverno-004-listen-v1.json\`
+- \`$HOME/.local/state/hazewave/owner-audio-learning/haze-hemorragia-cosmica-001.mp3.listen-v1.json\`
+- \`$HOME/.local/state/hazewave/owner-audio-learning/haze-afro-samba-drift.mp3.listen-v1.json\`
+- \`$HOME/.local/state/hazewave/owner-audio-learning/haze-iron-murk.mp3.listen-v1.json\`
+
+Requires **2–64** independent audio SHA-256 values, exact path-to-receipt identity, declared FFmpeg reference-profile analyzer, intact audio files, and valid finite acoustic metrics. Returns \`HazeEarlyAudioLearning/v1\` with actually fitted feature centering/scaling coefficients and one prototype per source; nearest neighbours are **acoustic proximity only**, not same composition/genre. No labels or held-out performance are claimed from four examples: \`heldout_examples=0\`, \`evaluation_status=NO_INDEPENDENT_HOLDOUT_YET\`. The training is CPU-light and replayable; new examples require a new versioned receipt and refit on all valid prior receipts, with no overwrite of historical artifacts.
+
+This is a **real non-neural fitted model** for the earliest auditory memory, not a foundation-model/LoRA fine-tune, music reconstruction, quality measure, or autonomous producer. A future generator may consult the learned representations only after an independent, owner-approved, per-style music benchmark. Never export private receipts or audio into CI or Git history.
+
 ## Research and producer-competence roadmap with measurable gates
 
 - **Corpus read:** bounded, resumable transfer by owner-approved subsets; SHA end-to-end; transport original names/path mapping, harden filenames, finite quotas; no bulk copy without confirmed quota. Catalog all without deletions. Audit true rights/labels and family boundaries.
