@@ -164,3 +164,31 @@ def test_model_request_explicitly_names_four_required_fields_independent_of_case
     assert "music_loss_5db" not in instruction
     assert "5.0" not in instruction
     assert payload["max_tokens"]>=190
+
+def test_safeguard_uses_verified_measurement_not_hidden_evaluation_label():
+    from hazewave.haze_unseen_v6 import reconcile
+    # Poison the private benchmark label deliberately: the safeguard must
+    # independently follow the verified physics rather than the answer key.
+    spec={"id":"test-poisoned-label","expected":"NO_ISSUE_DETECTED","kind":"signal"}
+    verifier={"authority":"DETERMINISTIC_FFMPEG_AND_PCM16",
+              "proof_status":"VERIFIED","finding":"ATTENUATION_DETECTED","reason":"NONE"}
+    proposed={"finding":"ATTENUATION_DETECTED","action":"REVIEW_GAIN_STAGE",
+              "evidence_keys":["attenuation_db"],"requires_human_review":True}
+    result=reconcile(spec,verifier,proposed)
+    assert result["slm_finding_correct"] is False  # independent score still FAIL
+    assert result["safeguard_decision"]=="REVIEW_ONLY"  # guard follows measured evidence
+    assert result["model_output_overridden"] is False
+    reversed_model={**proposed,"finding":"NO_ISSUE_DETECTED","action":"NO_ACTION"}
+    blocked=reconcile(spec,verifier,reversed_model)
+    assert blocked["safeguard_decision"]=="ABSTAIN"
+
+def test_safeguard_rejects_unverified_evidence_even_if_expected_label_matches():
+    from hazewave.haze_unseen_v6 import reconcile
+    spec={"id":"unverified","expected":"ATTENUATION_DETECTED","kind":"signal"}
+    verifier={"finding":"ATTENUATION_DETECTED","proof_status":"INELIGIBLE",
+              "reason":"INSUFFICIENT_EVIDENCE"}
+    model={"finding":"ATTENUATION_DETECTED","action":"REVIEW_GAIN_STAGE",
+           "evidence_keys":["attenuation_db"],"requires_human_review":True}
+    out=reconcile(spec,verifier,model)
+    assert out["safeguard_decision"]=="ABSTAIN"
+    assert out["human_review_required"] is True
