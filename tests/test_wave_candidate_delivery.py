@@ -53,7 +53,7 @@ def test_source_package_delivers_exact_head_bytes_without_owner_media(repo, tmp_
         names = zipfile.namelist()
         assert len(names) == len(mod.FILES) + 1
         assert names[0] == "manifest.json"
-        assert all(name.endswith((".html", ".css", ".js", ".py", ".md", ".json"))
+        assert all(name.endswith((".html", ".css", ".js", ".py", ".md", ".json", ".ts"))
                    for name in names)
         meta = json.loads(zipfile.read("manifest.json"))
         assert meta["media_bytes_embedded"] == 0
@@ -126,4 +126,4 @@ def test_source_script_cannot_execute_deployment_or_import_network():
                       "aws s3", "kubectl", "deploy_prod", "gh release create",
                       "npm publish", "gh pages"):
         assert forbidden not in code
-    assert len(mod.FILES) == 9
+    assert len(mod.FILES) == 13
