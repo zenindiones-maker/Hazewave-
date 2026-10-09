@@ -11,11 +11,11 @@ Após abrir a PR de desenvolvimento uma vez, cada novo commit sincroniza automat
 3. **Auto-CD · reviewed WAVE V4 source only** só começa se **ambos** os jobs obrigatórios do WAVE Site CI terminarem `success`. Essa etapa empacota código original e manifestos, verifica SHA-256 e publica um **GitHub Actions artifact privado do run**, disponível na própria página do run por 14 dias.
 4. **Auto-CD · visible verdict** exibe automaticamente resultados `success` / `failure` / `skipped` e bloqueios no **GitHub Actions → Summary**. Falhas ficam visíveis para correção. Não há retries cegos nem promoção de artefato baseado só em texto.
 
-A PR #64 V4 é a base; a automação fica em uma PR empilhada. Nenhum merge é efetuado automaticamente. A branch pode receber commits sem recriar PR ou reescrever scripts de CI.
+A PR #64 V4 é a base; a automação foi estendida na PR #66 V5. A regra `work/wave-v*` aceita próximas versões em PR e mantém o empacotador restrito a arquivos explicitamente autorizados. Nenhum merge é efetuado automaticamente. A branch pode receber commits sem recriar PR ou reescrever scripts de CI.
 
 ## O que será entregue a cada sucesso
 
-O ZIP `wave-v4-source-candidate.zip`, e o `*.receipt.json`, contém exclusivamente os **nove arquivos** revisados da travessia V4: HTML, CSS, motor JS, scripts Python de reconstrução/previsualização/teste, README e teste de contrato. O manifesto inclui:
+O ZIP `wave-source-candidate.zip`, e o `*.receipt.json`, contém exclusivamente código, testes e documentação da travessia versionados na lista imutável do validador. Na V5 são **13 arquivos**: fontes V4, testes e os relatórios/recibos de investigação das sete referências. Nenhuma mídia privada é adicionada. O manifesto inclui:
 
 - `reviewed_sha` e `reviewed_tree` exatos do Git;
 - SHA-256 de cada arquivo fonte; verificação de igualdade entre bytes do working tree e blobs `HEAD:path`;
@@ -43,7 +43,7 @@ O ZIP `wave-v4-source-candidate.zip`, e o `*.receipt.json`, contém exclusivamen
 - Validador CD: `scripts/ci/wave_candidate_delivery.py`
 - Testes negativos do CD: `tests/test_wave_candidate_delivery.py`
 - GitHub → **Actions → WAVE Site CI**; selecionar a execução pelo SHA da branch.
-- Em sucesso: abrir **Artifacts → wave-v4-source-candidate-RUN_ID**. Verificar o ZIP localmente por `python scripts/ci/wave_candidate_delivery.py verify --package wave-v4-source-candidate.zip --expected-sha SHA` (com o recibo ao lado).
+- Em sucesso: abrir **Artifacts → wave-source-candidate-RUN_ID**. Verificar o ZIP localmente por `python scripts/ci/wave_candidate_delivery.py verify --package wave-source-candidate.zip --expected-sha SHA` (com o recibo ao lado).
 - Em falha: abrir **Summary**, consultar o job identificado como bloqueado e corrigir a causa. Nunca usar um artefato antigo para representar HEAD novo.
 
 ## Critérios de promoção futura
