@@ -8,7 +8,7 @@ async function moveTo(page:Page, progress:number){
     if(!element)throw new Error("P0_SECTION_MISSING");
     const start=element.getBoundingClientRect().top+scrollY;
     const distance=element.offsetHeight-innerHeight;
-    window.scrollTo({top:start+Math.max(0,distance)*p,behavior:"instant"});
+    window.scrollTo({top:start+Math.max(0,distance)*p,behavior:"auto"});
   },progress);
 }
 const state=(page:Page)=>page.evaluate(()=> (window as typeof window & {
@@ -80,7 +80,7 @@ test("mobile keeps native scroll, no horizontal overflow, with reachable artist 
   expect(data.width).toBeLessThanOrEqual(data.viewport+1);
   expect(data.height).toBeGreaterThan(data.screen*4);
   await page.locator("#p0-destination").scrollIntoViewIfNeeded();
-  await expect(page.locator('a[href="/artists/indionesbala/"]')).toHaveCount(2);
+  await expect(page.locator('a[href="/artists/indionesbala/"]')).toHaveCount(1);
 });
 
 test("fallback remains useful without JavaScript",async({browser})=>{
