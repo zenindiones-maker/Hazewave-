@@ -333,6 +333,10 @@ def write_private_receipt(
         raise CatalogError("CATALOG_OUTPUT_INSIDE_SOURCE")
     if destination.exists() or destination.is_symlink():
         raise CatalogError("CATALOG_OUTPUT_EXISTS")
+    parent = destination.parent.resolve(strict=False)
+    for ancestor in (parent, *parent.parents):
+        if ancestor.name == ".git" or (ancestor / ".git").exists():
+            raise CatalogError("CATALOG_OUTPUT_IN_GIT_WORKTREE")
     destination.parent.mkdir(parents=True,exist_ok=True)
     fd, temporary = tempfile.mkstemp(
         prefix=".haze-private-",suffix=".tmp",dir=destination.parent
