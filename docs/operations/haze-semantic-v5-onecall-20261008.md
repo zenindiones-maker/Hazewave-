@@ -23,3 +23,20 @@ Pinned SHA `9c2691073e12e8d34ae15b379c575e8687d21381`, genuine runner loopback, 
 The one real model response was `SCHEMA_KEYS_AND_TYPES_VALID`, `observed_finding_enum=ATTENUATION_DETECTED`, but `verifier_result=FAIL`, `verifier_failure_class=ACTION_MISMATCH`. The actual incorrect action enum is not retained by this minimized receipt and must not be invented. The safeguarded result was `haze_decision=ABSTAIN`, `abstention_reason=MODEL_CONTRADICTS_MEASUREMENT`. Audit receipt hash `54a5df398645cb4192590bf9aa14588ae876e2e84af5ff3b376ba96f0203c62f`; retained artifact ID `11588558427` from run `37866993358`. **Real 1-case model accuracy = 0/1 for the combined finding+action contract; finding alone matched in 1/1, but neither estimate generalizes to unseen audio.** No held-out benchmark.
 
 An isolated improvement experiment changes just the general `finding -> action` taxonomy instruction for **all four classes equally**, without encoding the observed case's correct label. This is guided schema adherence and does not demonstrate independent mastering expertise even if it succeeds.
+
+## Controlled generic-action-taxonomy experiment — REAL PASS (run 37867500580)
+
+Exactly one real Qwen3-0.6B loopback inference at SHA `5fb1ad0375ebf9021d324f17ba2d2aee07d2de9e` on the same synthetic `gain_loss_12db` task. No threshold, model, quantization, independent grading or FFmpeg oracle changes. CI at SHA `5fb1ad0` was green (run `37867503927`).
+
+The only intentional intervention was **generic mapping between ALL four findings and safe action enums** in the system instruction. One observed response: `model_json_shape=SCHEMA_KEYS_AND_TYPES_VALID`, `observed_finding_enum=ATTENUATION_DETECTED`, `verifier_result=PASS`, `verifier_failure_class=NONE`, `slm_only_semantic_grade=PASS`; safeguard `haze_decision=REVIEW_ONLY`, `professional_audio=false`. Independent measured levels unchanged at -21.1 and -33.1 dBFS. Pin: model SHA256 `b0638f08417a2d3c8652760462eb5407c6e30173cf9608ad0820757a281eea0e`; llama.cpp `d81235049384534c167caea52b85a694f6103d14`. Receipt SHA256 `8c74ba358896f3e53cf76612e02eeabf86b760d19612d17701d5830ac8178540`, artifact `11589385683`.
+
+**Evidence limitation:** This is a *seen, controlled* gain example with explicitly guided action taxonomy. There is no untouched model holdout and no claim of general accuracy or REAPER/mixing/mastering expertise. Baseline V5 run 37866993358 was FAIL on same case due ACTION_MISMATCH; post-intervention was PASS (1/1). These are individual observations, not a statistical benchmark.
+
+**Provenance gap found:** historical `prompt_sha256=74488cc4592566c9a5ffea07f2461a2f830089fac1481ae45c04a4ea2b8198d3` was unchanged between runs because it hashed only the user message. A new code fix adds `request_sha256` of canonical complete JSON payload including system instructions. It is prospective: **do not invent a request hash for either already-published receipt**, do not imply the latest instrumentation SHA was exercised by the past inference.
+
+## Remaining release gates
+
+- Unseen stratified holdouts, distinct level change signs, amplitudes, silence, clipping, transients, musical/speech-like material and out-of-domain abstention: NOT_RUN.
+- Domain accuracy, classwise precision and recall, calibration, resource variation, unsafe confident error-rate: NOT_ESTABLISHED.
+- Protected main ruleset and independently reviewed full baseline adoption: BLOCKED.
+- Human review/production promotion: NOT_ATTEMPTED.
