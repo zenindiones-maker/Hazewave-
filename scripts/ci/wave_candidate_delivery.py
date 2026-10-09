@@ -26,7 +26,11 @@ FILES = tuple(
         "integrate_private_astro.py",
         "README.md",
     )
-) + ("tests/test_wave_v4_traversal_sources.py",)
+) + ("tests/test_wave_v4_traversal_sources.py",
+     "tests/test_wave_seven_site_forensics_v5.py",
+     "knowledge/wave-seven-site-forensics-v5.json",
+     "docs/research/WAVE_SEVEN_SITES_REVERSE_ENGINEERING_V5.md",
+     "apps/hazewave-site/tests/wave-v4-seven-site-technique-regression.spec.ts")
 SCHEMA = "HazewaveWaveSourceOnlyDelivery/v1"
 RECEIPT_SCHEMA = "HazewaveWaveSourceOnlyDeliveryReceipt/v1"
 SHA = re.compile(r"^[0-9a-f]{40}$")

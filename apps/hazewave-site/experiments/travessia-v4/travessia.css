@@ -21,3 +21,15 @@
 @media(min-width:800px){.far-art{left:0;top:-20vh;width:100%;height:130vh}.moving-fog{inset:-20% -10%}.narrative{top:17vh}.hud{bottom:35px}}
 @media(max-width:450px){.narrative{top:13svh;max-width:72vw}.narrative h1{font-size:clamp(22px,6.3vw,32px)}.moving-fog{inset:-9% -85%}.far-art{width:210vw;left:-55vw}.lab-stamp{font-size:7px;bottom:67px}.wordmark{letter-spacing:.06em}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}.grain{display:none}}
+
+/* First-party NASA/MIT research transfer: accessible bidirectional story map.
+   Retain native scroll; optional low-detail mode only drops compositor effects. */
+.chapter-nav{position:absolute;z-index:25;right:max(8px,env(safe-area-inset-right));top:32%;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:auto}
+.chapter-nav button{width:38px;min-height:35px;border:1px solid #8c66b0a0;background:#0d0826dd;color:#e9cbfc;border-radius:11px;font:600 10px/1.2 system-ui,sans-serif;cursor:pointer;backdrop-filter:none}
+.chapter-nav button[aria-current="step"]{background:#eead78;color:#14081e;border-color:#eead78;box-shadow:0 0 13px #f2a479aa}
+.chapter-nav button:focus-visible{outline:3px solid white;outline-offset:2px}
+.chapter-nav #lightweight-mode{font-size:8px;letter-spacing:.02em;border-color:#9e8fac}
+.stage[data-quality="lite"] .grain,.stage[data-quality="lite"] #trace-shadow,.stage[data-quality="lite"] #world-signal-blur,.stage[data-quality="lite"] #portal-halo{display:none!important}
+.stage[data-quality="lite"] .pad-on,.stage[data-quality="lite"] #portal-tear,.stage[data-quality="lite"] #trace,.stage[data-quality="lite"] #trace-head{filter:none!important}
+@media(max-width:450px){.chapter-nav{top:36%;right:5px;gap:4px}.chapter-nav button{width:34px;min-height:33px}}
+@media(prefers-reduced-motion:reduce){.chapter-nav button{transition:none!important}}

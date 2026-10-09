@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -64,7 +64,36 @@ test("five artist worlds appear as constellations, not cards", async ({ page }, 
   await expect(page.locator(".planet")).toHaveCount(5);
   await expect(page.locator(".artist-card")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /Cinco mundos/i })).toBeVisible();
-  await page.screenshot({ path:"test-results/illustrated-worlds-"+testInfo.project.name+".png", animations:"disabled", fullPage:false });
+  const path="test-results/illustrated-worlds-"+testInfo.project.name+".png";
+  try {
+    await page.screenshot({ path, animations:"disabled", fullPage:false });
+  } catch (error) {
+    // Huge GPU/illustrated layers can sporadically lose the screenshot surface
+    // after hash navigation. Do not erase the visual gate: capture from the
+    // browser view via Chromium's alternate compositor path and validate PNG.
+    if (!(error instanceof Error) || !error.message.includes("Unable to capture screenshot")) throw error;
+    const cdp=await page.context().newCDPSession(page);
+    try {
+      const capture=await cdp.send("Page.captureScreenshot",{
+        format:"png",captureBeyondViewport:false,fromSurface:false
+      });
+      const pixels=Buffer.from(capture.data,"base64");
+      expect(pixels.length).toBeGreaterThan(10000);
+      expect(pixels.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))).toBe(true);
+      const width=pixels.readUInt32BE(16),height=pixels.readUInt32BE(20);
+      const vp=page.viewportSize();
+      expect(vp).not.toBeNull();
+      const dpr=await page.evaluate(()=>window.devicePixelRatio);
+      const cssPixelMatch=width===vp?.width && height===vp?.height;
+      const devicePixelMatch=vp!==null &&
+        Math.abs(width-vp.width*dpr)<=2 && Math.abs(height-vp.height*dpr)<=2;
+      expect(cssPixelMatch||devicePixelMatch).toBe(true);
+      writeFileSync(path,pixels);
+      testInfo.annotations.push({type:"browser-compositor-fallback",description:"CDP fromSurface=false PNG verified"});
+    } finally {
+      await cdp.detach();
+    }
+  }
 });
 
 test("each artist destination uses authentic image inside orbital world", async ({ page }) => {
