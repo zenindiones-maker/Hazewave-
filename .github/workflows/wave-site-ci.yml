@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "work/wave-hazewave-site-v1"
+      - "work/wave-cosmic-interference-v1"
     paths:
       - "apps/hazewave-site/**"
       - "docs/wave/WAVE_SITE_DEPENDENCY_DECISIONS_V1.md"
