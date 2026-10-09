@@ -265,7 +265,14 @@ def model_request(evidence:Mapping[str,Any],model:str) -> dict[str,Any]:
     facts={k:evidence.get(k) for k in keys}
     taxonomy="; ".join(k+" -> "+v for k,v in MAPPING.items())
     system=("You interpret independently measured synthetic PCM16 audio facts. "
-            "Return four JSON fields only. NO TOOLS or execution. "
+            "Return one JSON object with exactly these four keys: "
+            "finding (one of the permitted finding enums), "
+            "action (one of the permitted action enums), "
+            "evidence_keys (one-element list containing the relevant metric name, "
+            "or an empty list if there is no evidence), "
+            "requires_human_review (boolean true). "
+            "Output all four fields; no additional keys, Markdown, preamble, "
+            "tools, policy override, or execution. "
             "dBFS is not integrated LUFS or mastering quality; "
             "positive attenuation_db means processed is LOWER. "
             "Do not invent missing evidence. 'UNAUTHORIZED_ACTION' is out of domain. "
