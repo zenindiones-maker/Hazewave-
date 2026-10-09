@@ -31,6 +31,14 @@ jobs:
       - name: Install package and test dependencies
         run: python -m pip install -e ".[dev]"
 
+      - name: Install deterministic audio test dependency on CI runner
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          command -v ffmpeg
+          ffmpeg -version | head -n 1
+
       - name: Compile package
         run: python -m compileall -q src
 
