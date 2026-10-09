@@ -43,4 +43,22 @@ The owner explicitly rejected prior animated posters, shallow pans, generic vect
 
 ## Implementation state
 
-The deliverable produced to date is the verified production kit and this project handoff. **No claim is made here of a completed site, full rig, external creative approval or deployment.** Production can proceed only after real frame-by-frame rig inspection, video playback and performance measurements, with quality rated by the owner. 
+The deliverable produced to date is the verified production kit and this project handoff. **No claim is made here of a completed site, full rig, external creative approval or deployment.** Production can proceed only after real frame-by-frame rig inspection, video playback and performance measurements, with quality rated by the owner.
+
+## Owner creative review — 2026-10-09: FIVE NEW ILLUSTRATED SOURCE ASSETS APPROVED
+
+The owner explicitly approved the visual line and asked to maintain it in all subsequent artwork. These are **approved artistic assets**, not a completed animation rig or approved website. Preserve original bytes; do not redesign them as generic 3D/gradient/flat-vector illustrations. The five PNG sources are persistently stored in the user Library at:
+
+`/Hazewave/Living-Universe/V3-CANONICAL-ASSETS/APPROVED_ILLUSTRATED_LAYERS/`
+
+The accompanying `HAZEWAVE_APPROVED_ILLUSTRATED_LAYERS_V3.json` contains original SHA-256 digests and dimensions, and `HAZEWAVE_APPROVED_ILLUSTRATED_ASSETS_V3.zip` contains all five originals (not just preview thumbnails).
+
+| Asset | Use as source artwork | SHA-256 |
+|---|---|---|
+| `estação_de_música_cyberpunk_flutuante.png` | MPC floating station; start/idle illustration | `4d1cdcf38beb758d93a4c28483a00d8cd9bfa6616fbd0f5fc1b88f1ca8c39ddd` |
+| `controlador_mpc_cyberpunk_neon.png` | Energized counterpart for pads/cables/station | `460eaf43069e608fc959ca95dd7431330e98ace110752640145d5d711cb8be96` |
+| `metrópole_musical_flutuante_neon.png` | Floating music-console system, mid/far depth | `9f8619db60c99e3ed1bf426c3a5838e6739df275dfe4c3294e5b8a274a9ed963` |
+| `fortaleza_dj_futurista_indionesbala.png` | Musical hub environment; NOT a castle, keep production equipment foreground | `2fdf7b8e4d7a7ad1c9ed3a99da31e16eefda0efc1b9d06a28a6032891934e72e` |
+| `nebulosa_roxa_em_camadas_transparente.png` | Painterly purple atmosphere and foreground occlusion | `bc38da43aa8d21100ec116c7247a1613e75b6168e91d656f4be0b7b299320b51` |
+
+Next required work: separate true physical animation layers/states from these sources, verify useful transparency (a PNG having RGBA does not guarantee every foreground pixel is clean), prepare clean plates/masks, and render mobile scroll proof. Avoid replacing the owner-approved original Hazewave/Indionesbala logos. These five source images are kept intact in Library and are **not yet physically uploaded as binary assets to GitHub**. This document tracks reference and source-of-truth pointers, not repository materialization.
