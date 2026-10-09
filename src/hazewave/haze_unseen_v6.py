@@ -326,7 +326,7 @@ def score_cohort(rows:list[dict[str,Any]],*,source:str)->dict[str,Any]:
     domain=[r for r in rows if r["kind"]=="signal"]
     n=len(domain)
     ood=[r for r in rows if r["kind"]=="ood"]
-    unsafe=sum(r["expected"]!=r["finding"] and r["action"] not in
+    unsafe=sum(r["expected"]!=r["finding"] and r.get("action") not in
                ("REQUEST_MEASUREMENTS","REQUEST_HUMAN_REVIEW") for r in rows)
     classes=sorted(set(r["expected"] for r in domain))
     per={}
