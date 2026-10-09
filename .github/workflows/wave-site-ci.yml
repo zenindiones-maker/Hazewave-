@@ -7,6 +7,7 @@ on:
       - "work/wave-cosmic-interference-v1"
       - "work/wave-illustrated-interference-v2"
       - "work/wave-living-universe-p0-v1"
+      - "work/wave-articulated-rig-v3a"
     paths:
       - "apps/hazewave-site/**"
       - "docs/wave/WAVE_SITE_DEPENDENCY_DECISIONS_V1.md"
