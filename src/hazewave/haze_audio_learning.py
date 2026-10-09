@@ -17,7 +17,7 @@ from typing import Any, Mapping, Sequence
 
 from hazewave.haze_catalog import (
     CatalogError, _bounded_pcm_decoder, _checked_owned_audio, _root_path,
-    write_private_receipt,
+    _sha_file, write_private_receipt,
 )
 from hazewave.reference_profile import ReferenceProfileError, build_reference_profile
 
@@ -241,13 +241,129 @@ def train_style_memory(
     }
 
 
+def bootstrap_owner_memory(
+    receipts: Sequence[Mapping[str, Any]], *,
+    root: Path | str, authorized_training: bool,
+) -> dict[str, Any]:
+    """Learn a private acoustic retrieval representation from listened audio.
+
+    The fitted centering/scaling parameters and prototypes are learned from
+    *actual authenticated-by-SHA private sources*, not inferred song titles.
+    No genre labels, neural/generator training, hidden DAW actions, or held-out
+    artistic quality claims. Every source remains physically untouched.
+    """
+    if authorized_training is not True:
+        raise AudioLearningError("FEATURE_LEARNING_NOT_AUTHORIZED")
+    if not isinstance(receipts, (list, tuple)) or not 2 <= len(receipts) <= 64:
+        raise AudioLearningError("BOOTSTRAP_INSUFFICIENT_SOURCES")
+    source_root = _root_path(root)
+    examples: list[dict[str, Any]] = []
+    seen_paths: set[str] = set()
+    seen_shas: set[str] = set()
+    for receipt in receipts:
+        if not isinstance(receipt, dict) or receipt.get("schema") != "HazeAudioListenReceipt/v1":
+            raise AudioLearningError("LISTEN_RECEIPT_SCHEMA_INVALID")
+        if receipt.get("analyzer") != "REAL_FFMPEG_WITH_EXISTING_REFERENCE_PROFILE":
+            raise AudioLearningError("LISTEN_RECEIPT_ANALYZER_UNTRUSTED")
+        rel = receipt.get("relative_path")
+        if not isinstance(rel, str) or not rel or rel in seen_paths:
+            raise AudioLearningError("BOOTSTRAP_PATH_DUPLICATE_OR_INVALID")
+        seen_paths.add(rel)
+        try:
+            real_source = _checked_owned_audio(source_root, rel)
+        except CatalogError as exc:
+            raise AudioLearningError("BOOTSTRAP_UNOWNED_SOURCE") from exc
+        expected_asset = "PATH_SHA256_V1:" + sha256(
+            b"HAZE_ASSET_PATH_V1\0" + rel.encode("utf-8")
+        ).hexdigest()
+        if receipt.get("asset_id") != expected_asset:
+            raise AudioLearningError("BOOTSTRAP_ASSET_ID_MISMATCH")
+        digest = receipt.get("source_sha256")
+        if not isinstance(digest, str) or not _HEX.fullmatch(digest):
+            raise AudioLearningError("SOURCE_DIGEST_INVALID")
+        profile = receipt.get("acoustic_profile")
+        if not isinstance(profile, dict) or profile.get("source_sha256") != digest:
+            raise AudioLearningError("ACOUSTIC_SHA_MISMATCH")
+        if _sha_file(real_source) != digest:
+            raise AudioLearningError("SOURCE_SHA_MISMATCH")
+        if digest in seen_shas:
+            # A duplicate source recording is *retained*, but excluded from
+            # this training run to avoid counting it as independent evidence.
+            raise AudioLearningError("INDEPENDENT_SOURCE_REQUIRED")
+        seen_shas.add(digest)
+        examples.append({
+            "asset_id": expected_asset,
+            "relative_path": rel,
+            "source_sha256": digest,
+            "vector": _features(profile),
+        })
+
+    vectors = [example["vector"] for example in examples]
+    means = tuple(statistics.mean(row[j] for row in vectors)
+                  for j in range(len(vectors[0])))
+    standard_deviations = tuple(statistics.pstdev(row[j] for row in vectors)
+                                 for j in range(len(vectors[0])))
+    scales = tuple(max(0.05, d) for d in standard_deviations)
+    normalized = [
+        tuple((value - center) / scale for value, center, scale
+              in zip(row, means, scales))
+        for row in vectors
+    ]
+    prototypes = []
+    neighbours = []
+    for index, example in enumerate(examples):
+        prototypes.append({
+            "asset_id": example["asset_id"],
+            "relative_path": example["relative_path"],
+            "source_sha256": example["source_sha256"],
+            "fitted_acoustic_vector": [round(v, 7) for v in normalized[index]],
+        })
+        candidates = sorted(
+            ((_dist(normalized[index], normalized[j]), examples[j]["source_sha256"])
+             for j in range(len(examples)) if j != index),
+            key=lambda pair: (pair[0], pair[1]),
+        )
+        neighbours.append({
+            "source_sha256": example["source_sha256"],
+            "neighbour_sha256": candidates[0][1],
+            "scaled_acoustic_distance": round(candidates[0][0], 7),
+            "similarity_is_not_same_composition": True,
+        })
+    return {
+        "schema": "HazeEarlyAudioLearning/v1",
+        "model_kind": "NON_NEURAL_ACOUSTIC_RETRIEVAL_FIT",
+        "training_started": True,
+        "training_examples": len(examples),
+        "independent_source_count": len(seen_shas),
+        "heldout_examples": 0,
+        "evaluation_status": "NO_INDEPENDENT_HOLDOUT_YET",
+        "feature_names": [name for name, _ in _FEATURES] + ["section_energy_variability"],
+        "feature_mean": [round(v, 7) for v in means],
+        "feature_scales": [round(v, 7) for v in scales],
+        "learned_audio_prototypes": prototypes,
+        "nearest_acoustic_neighbours": neighbours,
+        "learning_scope": "PRIVATE_LISTEN_RECEIPTS_ACOUSTIC_FEATURES_ONLY",
+        "style_labels_inferred": False,
+        "name_based_deduplication": False,
+        "automatic_delete_authorized": False,
+        "original_audio_modified": False,
+        "generator_weights_updated": False,
+        "reaper_changes": 0,
+        "producer_competence_proven": False,
+        "requires_human_style_labels_for_supervised_training": True,
+        "replay_required_for_incremental_update": True,
+        "authority": "NONE",
+    }
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m hazewave.haze_audio_learning")
-    parser.add_argument("command", choices=("listen", "learn"))
+    parser.add_argument("command", choices=("listen", "learn", "bootstrap"))
     parser.add_argument("--root", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--relative-path", type=str)
     parser.add_argument("--input", type=Path)
+    parser.add_argument("--receipt", type=Path, action="append")
     parser.add_argument("--allow-private-corpus", action="store_true")
     parser.add_argument("--allow-feature-learning", action="store_true")
     args = parser.parse_args(argv)
@@ -258,6 +374,27 @@ def main(argv: Sequence[str] | None = None) -> int:
             result = listen_audio(
                 args.root, args.relative_path,
                 authorized=args.allow_private_corpus,
+            )
+        elif args.command == "bootstrap":
+            if not args.allow_private_corpus:
+                raise AudioLearningError("PRIVATE_CORPUS_NOT_AUTHORIZED")
+            if not args.receipt or not 2 <= len(args.receipt) <= 64:
+                raise AudioLearningError("BOOTSTRAP_INSUFFICIENT_SOURCES")
+            root = _root_path(args.root)
+            loaded = []
+            for entry in args.receipt:
+                # Explicitly passed receipts only: never scan arbitrary home/media.
+                if entry.is_symlink():
+                    raise AudioLearningError("BOOTSTRAP_RECEIPT_SYMLINK_FORBIDDEN")
+                source = entry.expanduser().resolve(strict=True)
+                if source.is_relative_to(root) or source.stat().st_size > 1_000_000:
+                    raise AudioLearningError("BOOTSTRAP_RECEIPT_INVALID")
+                for ancestor in (source.parent, *source.parent.parents):
+                    if (ancestor / ".git").exists() or ancestor.name == ".git":
+                        raise AudioLearningError("BOOTSTRAP_RECEIPT_INSIDE_REPOSITORY")
+                loaded.append(json.loads(source.read_text(encoding="utf-8")))
+            result = bootstrap_owner_memory(
+                loaded, root=root, authorized_training=args.allow_feature_learning,
             )
         else:
             if args.input is None:
