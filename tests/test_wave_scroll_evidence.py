@@ -12,6 +12,7 @@ import pytest
 from hazewave.wave_scroll_evidence import ScrollResearchError, verify_owned_scroll_capture
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "wave-scroll-owned.html"
+APP_SCRIPT = FIXTURE.parent / "wave-scroll-js-owned" / "main.js"
 POSITIONS = (0.0, 0.15, 0.4, 0.7, 0.95, 1.0, 0.4, 0.0)
 REPO_SHA = "a" * 40
 
@@ -55,6 +56,7 @@ def _report(root: Path) -> dict:
         "schema": "HazewaveOwnedScrollBrowserCapture/v1",
         "fixture_scope": "LOCAL_FIRST_PARTY_ONLY",
         "fixture_sha256": sha256(FIXTURE.read_bytes()).hexdigest(),
+        "app_source_sha256": sha256(APP_SCRIPT.read_bytes()).hexdigest(),
         "browser": "chromium",
         "browser_version": "test-fixture-only",
         "viewport": {"width": 393, "height": 852},
@@ -135,6 +137,13 @@ def test_refuses_wrong_source_and_sha(tmp_path):
     capture = _report(tmp_path)
     with pytest.raises(ScrollResearchError, match="REPO_SHA_INVALID"):
         verify_owned_scroll_capture(capture, capture_root=tmp_path, repo_sha="not-a-sha")
+
+
+def test_refuses_static_analysis_source_mismatch(tmp_path):
+    capture = _report(tmp_path)
+    capture["app_source_sha256"] = "d" * 64
+    with pytest.raises(ScrollResearchError, match="APP_SOURCE_DIGEST_MISMATCH"):
+        verify_owned_scroll_capture(capture, capture_root=tmp_path, repo_sha=REPO_SHA)
 
 
 def test_refuses_merely_repeated_poster_frames(tmp_path):

@@ -27,6 +27,10 @@ async function main() {
   if (fixture !== expected || fs.lstatSync(fixture).isSymbolicLink())
     throw new Error("ONLY_REPOSITORY_OWNED_FIXTURE_ADMITTED");
   const source = fs.readFileSync(fixture);
+  const appSourcePath=path.resolve(process.cwd(), "tests/fixtures/wave-scroll-js-owned/main.js");
+  if (fs.lstatSync(appSourcePath).isSymbolicLink()) throw new Error("OWNED_JS_SYMLINK_FORBIDDEN");
+  const appSource=fs.readFileSync(appSourcePath);
+  if (appSource.length > 64_000) throw new Error("OWNED_JS_TOO_LARGE");
   if (source.length > 250_000) throw new Error("FIXTURE_TOO_LARGE");
   const html = source.toString("utf8");
   fs.mkdirSync(root, { recursive: true, mode: 0o700 });
@@ -52,6 +56,7 @@ async function main() {
       const page = await context.newPage();
       try {
         await page.setContent(html, {waitUntil: "load"});
+        await page.addScriptTag({content: appSource.toString("utf8")});
         await page.waitForFunction(() =>
           document.querySelector("#trace") &&
           document.querySelector("#trace").getTotalLength() > 1 &&
@@ -93,6 +98,7 @@ async function main() {
           schema:"HazewaveOwnedScrollBrowserCapture/v1",
           fixture_scope:"LOCAL_FIRST_PARTY_ONLY",
           fixture_sha256:sha(source),
+          app_source_sha256:sha(appSource),
           browser:"chromium",
           browser_version:browser.version(),
           viewport:{width:profile.width,height:profile.height},
