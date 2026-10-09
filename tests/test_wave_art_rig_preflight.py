@@ -50,6 +50,17 @@ def test_invalid_crc_and_truncated_png_are_blocked():
         inspect_rgba_png(bytes(bad))
 
 
+def test_rejects_bounded_png_decompression_expansion():
+    # 2x2 RGBA IHDR, but many times the permitted 18 decompressed bytes.
+    rows=b"\\x00"+b"\\xff"*(6_000_000)
+    payload=(b"\\x89PNG\\r\\n\\x1a\\n"
+             +chunk(b"IHDR",struct.pack(">IIBBBBB",2,2,8,6,0,0,0))
+             +chunk(b"IDAT",zlib.compress(rows))
+             +chunk(b"IEND",b""))
+    with pytest.raises(RigPreflightError,match="PNG_DECOMPRESS_SIZE_INVALID"):
+        inspect_rgba_png(payload)
+
+
 def test_source_integrity_and_alpha_do_not_authorize_individual_part_rig(tmp_path):
     img=image_png()
     filename="owned.png"
