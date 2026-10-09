@@ -4,6 +4,7 @@ on:
     branches:
       - work/haze-actions-multicase-reliability-v1
       - work/haze-governed-structure-probe-v2
+      - work/haze-semantic-intelligence-v5
 permissions:
   contents: read
 concurrency:
@@ -11,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   compact_model_qa:
-    if: ${{ github.event.repository.private == false && contains(github.event.head_commit.message, '[skip-slm-live]') && !contains(github.event.head_commit.message, '[skip-diagnostic]') }}
+    if: ${{ github.event.repository.private == false && contains(github.event.head_commit.message, '[haze-diagnostic-onecall]') && !contains(github.event.head_commit.message, '[skip-diagnostic]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
