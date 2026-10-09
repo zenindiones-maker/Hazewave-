@@ -1,0 +1,167 @@
+{
+  "schema": "HazewaveWavePublicReferenceDiscovery/v1",
+  "authority": "NONE",
+  "harness_authority": "HAZEWAVE_HARNESS",
+  "collected_date": "2026-10-09",
+  "knowledge_use": "INFORMATIONAL_ONLY",
+  "browser_observation_proven": false,
+  "external_reverse_engineering_performed": false,
+  "approved_for_visual_reproduction": false,
+  "production_approved": false,
+  "references": [
+    {
+      "id": "nasa-prospect",
+      "name": "NASA: Prospect",
+      "url": "https://nasaprospect.com/",
+      "status": "PUBLIC_TEXT_ONLY",
+      "evidence_basis": "SITE_PUBLIC_PAGE",
+      "source_urls": [
+        "https://nasaprospect.com/"
+      ],
+      "public_technique_hypotheses": [
+        "narrative-scrolling",
+        "illustrated-character-drift",
+        "scene-depth-pan"
+      ],
+      "research_priority": "HIGH",
+      "live_browser_scroll_observed": false,
+      "script_or_illustration_copied": false,
+      "rights": "NO_UNLICENSED_ASSET_OR_SOURCE_REUSE",
+      "owner_signed_target_grant": false,
+      "mechanisms_proven_by_our_browser": []
+    },
+    {
+      "id": "nyt-tomato-can-blues",
+      "name": "The New York Times: Tomato Can Blues / Attila Futaki",
+      "url": "https://www.nytimes.com/projects/2013/tomato-can-blues/",
+      "status": "HISTORICAL_SOURCE_UNVERIFIED",
+      "evidence_basis": "HISTORICAL_SOURCE_CITATION",
+      "source_urls": [
+        "https://www.niemanlab.org/2013/09/the-new-york-times-tomato-can-blues-lovely-editorial-design-kinda-boring-ads/",
+        "https://www.cjr.org/behind_the_news/qa_andrew_kueneman_and_steve_d.php"
+      ],
+      "public_technique_hypotheses": [
+        "illustrated-editorial-parallax",
+        "scroll-paced-comic-panels",
+        "optional-audio-narration"
+      ],
+      "research_priority": "MEDIUM",
+      "live_browser_scroll_observed": false,
+      "script_or_illustration_copied": false,
+      "rights": "NO_UNLICENSED_ASSET_OR_SOURCE_REUSE",
+      "owner_signed_target_grant": false,
+      "mechanisms_proven_by_our_browser": []
+    },
+    {
+      "id": "who-is-guilty",
+      "name": "Who's Guilty",
+      "url": "https://promo.whoisguilty.com/",
+      "status": "PUBLIC_TEXT_ONLY",
+      "evidence_basis": "SITE_PUBLIC_PAGE",
+      "source_urls": [
+        "https://promo.whoisguilty.com/",
+        "https://www.cssdesignawards.com/sites/who-is-guilty/47321/"
+      ],
+      "public_technique_hypotheses": [
+        "hand-drawn-storytelling",
+        "sequential-animated-panels",
+        "diegetic-sound"
+      ],
+      "research_priority": "HIGH",
+      "live_browser_scroll_observed": false,
+      "script_or_illustration_copied": false,
+      "rights": "NO_UNLICENSED_ASSET_OR_SOURCE_REUSE",
+      "owner_signed_target_grant": false,
+      "mechanisms_proven_by_our_browser": []
+    },
+    {
+      "id": "ponpon-mania",
+      "name": "Ponpon Mania",
+      "url": "https://ponpon-mania.com/",
+      "status": "PUBLIC_TEXT_ONLY",
+      "evidence_basis": "CREATOR_TECHNICAL_WRITEUP",
+      "source_urls": [
+        "https://tympanus.net/codrops/2025/10/07/ponpon-mania-how-webgl-and-gsap-bring-a-comic-sheeps-dream-to-life/",
+        "https://ponpon-mania.com/legal"
+      ],
+      "public_technique_hypotheses": [
+        "export-separate-illustrated-layers",
+        "texture-atlas-composition",
+        "gsap-scrolltrigger-webgl-scene-sync",
+        "reversible-scene-transition"
+      ],
+      "research_priority": "HIGH",
+      "live_browser_scroll_observed": false,
+      "script_or_illustration_copied": false,
+      "rights": "NO_UNLICENSED_ASSET_OR_SOURCE_REUSE",
+      "owner_signed_target_grant": false,
+      "mechanisms_proven_by_our_browser": []
+    },
+    {
+      "id": "genie-studio-app",
+      "name": "Genie Studio App",
+      "url": "https://geniestudio.app/",
+      "status": "PUBLIC_TEXT_ONLY",
+      "evidence_basis": "SITE_PUBLIC_PAGE",
+      "source_urls": [
+        "https://geniestudio.app/",
+        "https://dribbble.com/shots/26612978-Unveiling-the-New-Genie-Website"
+      ],
+      "public_technique_hypotheses": [
+        "playful-illustrated-interface",
+        "hover-reveal",
+        "illustrated-visual-hierarchy"
+      ],
+      "research_priority": "MEDIUM",
+      "live_browser_scroll_observed": false,
+      "script_or_illustration_copied": false,
+      "rights": "NO_UNLICENSED_ASSET_OR_SOURCE_REUSE",
+      "owner_signed_target_grant": false,
+      "mechanisms_proven_by_our_browser": []
+    },
+    {
+      "id": "esimple-3d",
+      "name": "Esimple 3D Scrollytelling",
+      "url": "https://www.esimple.it/",
+      "status": "PUBLIC_TEXT_ONLY",
+      "evidence_basis": "SITE_PUBLIC_PAGE",
+      "source_urls": [
+        "https://www.esimple.it/",
+        "https://www.esimple.it/marketing-3d/"
+      ],
+      "public_technique_hypotheses": [
+        "continuous-3d-storytelling",
+        "camera-transitions",
+        "world-navigation-by-scroll"
+      ],
+      "research_priority": "MEDIUM",
+      "live_browser_scroll_observed": false,
+      "script_or_illustration_copied": false,
+      "rights": "NO_UNLICENSED_ASSET_OR_SOURCE_REUSE",
+      "owner_signed_target_grant": false,
+      "mechanisms_proven_by_our_browser": []
+    },
+    {
+      "id": "sbs-the-boat",
+      "name": "SBS: The Boat",
+      "url": "https://www.sbs.com.au/theboat/",
+      "status": "HISTORICAL_SOURCE_UNVERIFIED",
+      "evidence_basis": "HISTORICAL_SOURCE_CITATION",
+      "source_urls": [
+        "https://www.sbs.com.au/learn/resources/a-refugee-story-the-boat/",
+        "https://onepagelove.com/the-boat"
+      ],
+      "public_technique_hypotheses": [
+        "hand-drawn-parallax-comic",
+        "ambience-integrated-into-visual-story",
+        "optional-guided-autoscroll"
+      ],
+      "research_priority": "HIGH",
+      "live_browser_scroll_observed": false,
+      "script_or_illustration_copied": false,
+      "rights": "NO_UNLICENSED_ASSET_OR_SOURCE_REUSE",
+      "owner_signed_target_grant": false,
+      "mechanisms_proven_by_our_browser": []
+    }
+  ]
+}
