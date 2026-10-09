@@ -1,0 +1,48 @@
+---
+import "../../styles/cosmos.css";
+import { PUBLIC_ARTISTS, type PublicArtist } from "../../data/publicArtists";
+
+export function getStaticPaths() {
+  return PUBLIC_ARTISTS.map((artist) => ({
+    params: { id: artist.slug },
+    props: { artist },
+  }));
+}
+
+const { artist } = Astro.props as { artist: PublicArtist };
+---
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#080713" />
+  <meta name="description" content={"Universo Hazewave — identidade visual original de " + artist.name + "."} />
+  <title>{artist.name} — Hazewave</title>
+</head>
+<body class="artist-detail">
+  <a class="skip-link" href="#artist-main">Ir para o artista</a>
+  <header class="site-header">
+    <a class="site-name" href="/" aria-label="Voltar ao universo Hazewave">HAZE<span>WAVE</span><span class="signal-mark" aria-hidden="true">∿</span></a>
+    <span class="header-note">UM UNIVERSO EM FREQUÊNCIA</span>
+    <a class="header-link" href="/#artists">VOLTAR AO UNIVERSO <span aria-hidden="true">↗</span></a>
+  </header>
+  <main id="artist-main" class="artist-detail-main">
+    <div class="artist-detail-copy">
+      <span class="chapter-number">ARTISTA / MUNDO HAZEWAVE</span>
+      <h1>{artist.name}</h1>
+      <p>A arte original é o ponto de entrada para este universo musical. Lançamentos e reprodução serão disponibilizados somente com conteúdo autorizado.</p>
+      <a class="return-link" href="/#artists">Voltar aos artistas <span aria-hidden="true">↗</span></a>
+    </div>
+    <figure class="artist-detail-art">
+      <img src={artist.image} alt={"Arte original de " + artist.name} decoding="async" />
+      <figcaption>IDENTIDADE VISUAL ORIGINAL · HAZEWAVE</figcaption>
+    </figure>
+  </main>
+  <nav class="artist-switcher" aria-label="Outros universos Hazewave">
+    {PUBLIC_ARTISTS.map((entry) => (
+      <a href={"/artists/" + entry.slug + "/"} aria-current={entry.slug === artist.slug ? "page" : undefined}>{entry.name}</a>
+    ))}
+  </nav>
+</body>
+</html>
