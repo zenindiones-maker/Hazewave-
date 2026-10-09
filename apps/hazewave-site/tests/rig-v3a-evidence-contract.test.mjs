@@ -35,6 +35,13 @@ test("V3A unit proof accepts 12/8/4 on true 393x852 portrait but DENIES cinemati
  assert.equal(r.productionApproved,false);
  assert.equal(r.reviewedSha,sha);
 });
+test("browser 393px may encode VP8 392px wide but must disclose both",()=>{
+ const f=fixture();f.video.streams[0].width=392;
+ const report=validateRigReview(f);
+ assert.deepEqual(report.videoResolution,[392,852]);
+ assert.deepEqual(report.browserViewport,[393,852]);
+ assert.equal(report.onePixelEncoderAlignment,true);
+});
 test("second phone portrait 360x800 is also a distinct real capture",()=>{
  const r=validateRigReview(fixture(360,800));
  assert.equal(r.physicalPartsVerified,24);
