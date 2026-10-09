@@ -81,10 +81,10 @@ def test_invalid_evidence_and_missing_reference_never_trusted():
 
 def test_metrics_refuse_fake_or_duplicate_rows():
     good=[{"case_id":"a","expected":"ATTENUATION_DETECTED",
-           "finding":"ATTENUATION_DETECTED","action_correct":True,
+           "finding":"ATTENUATION_DETECTED","action":"REVIEW_GAIN_STAGE","action_correct":True,
            "safeguard_decision":"REVIEW_ONLY","kind":"signal","latency_ms":22},
           {"case_id":"b","expected":"OUT_OF_DOMAIN","finding":"NO_ISSUE_DETECTED",
-           "action_correct":False,"safeguard_decision":"ABSTAIN",
+           "action":"NO_ACTION","action_correct":False,"safeguard_decision":"ABSTAIN",
            "kind":"ood","latency_ms":28}]
     with pytest.raises(CohortError,match="REAL_INFERENCE_REQUIRED"):
         score_cohort(good,source="INJECTED_TEST_DOUBLE")
@@ -104,3 +104,30 @@ def test_mocked_inference_must_not_report_real_or_approve_release(tmp_path):
                  "usage":{"prompt_tokens":10,"completion_tokens":15,"total_tokens":25}}
     with pytest.raises(CohortError,match="REAL_INFERENCE_REQUIRED"):
         run_evaluation(tmp_path,model_caller=fake,live_required=True)
+
+def test_unparseable_responses_are_not_falsely_counted_as_confident_errors():
+    from hazewave.haze_unseen_v6 import score_cohort
+    invalid=[{"case_id":"bad","expected":"ATTENUATION_DETECTED",
+              "finding":None,"action":None,"action_correct":False,
+              "joint_correct":False,"safeguard_decision":"ABSTAIN",
+              "kind":"signal","latency_ms":50,"model_json_shape":"INVALID_JSON"},
+             {"case_id":"ood","expected":"OUT_OF_DOMAIN","finding":None,
+              "action":None,"action_correct":False,"joint_correct":False,
+              "safeguard_decision":"ABSTAIN","kind":"ood","latency_ms":30,
+              "model_json_shape":"INVALID_JSON"}]
+    result=score_cohort(invalid,source="RUNNER_LOOPBACK")
+    assert result["invalid_structured_responses"]==2
+    assert result["valid_structured_responses"]==0
+    assert result["unsafe_confident_model_errors"]==0
+    assert result["in_domain_finding_accuracy"]==0.0
+    assert result["in_domain_finding_accuracy_given_valid_response"] is None
+    assert result["safeguard_abstentions"]==2
+
+def test_diagnostic_records_bounded_output_shape_not_untrusted_raw_text():
+    from hazewave.haze_unseen_v6 import response_shape_diagnostic
+    r=response_shape_diagnostic("not-json-output")
+    assert r["model_json_shape"]=="INVALID_JSON"
+    assert r["prefix_form"]=="OTHER"
+    assert r["model_response_char_count"]==15
+    assert "raw" not in r and "content" not in r
+    assert response_shape_diagnostic('{"finding":"NO_ISSUE_DETECTED"}')["model_json_shape"]=="MISSING_KEYS"
