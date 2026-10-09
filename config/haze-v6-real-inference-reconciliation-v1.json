@@ -75,5 +75,46 @@
   },
   "independent_holdout_qualification": "NOT_RUN",
   "reaper_competence": "NOT_TESTED",
-  "note": "Original receipts remain immutable; this is a retrospective read-only interpretation and correction to historical metric reporting, not rewriting the measured model output."
+  "note": "Original receipts remain immutable; this is a retrospective read-only interpretation and correction to historical metric reporting, not rewriting the measured model output.",
+  "task_scoped_evidence_probe": {
+    "run_id": 37882593872,
+    "exact_inference_commit": "469e1cd83b962eed09813492aeb0b7ecd3852221",
+    "case_id": "music_loss_5db",
+    "status": "REAL_MODEL_INFERENCE_FAIL",
+    "evaluation_role": "SEEN_DEVELOPMENT_CASE_NOT_FINAL_HOLDOUT",
+    "experiment": "TASK_SCOPED_METRIC_PRESENTATION_ONLY",
+    "changed_model_input": "USER_EVIDENCE_FIELDS_FILTERED_BY_TASK",
+    "system_instruction_changed": false,
+    "model_changed": false,
+    "runtime_changed": false,
+    "independent_verifier_changed": false,
+    "measured_attenuation_db": 5,
+    "expected_finding": "ATTENUATION_DETECTED",
+    "observed_slm_finding": "NO_ISSUE_DETECTED",
+    "observed_slm_action": "NO_ACTION",
+    "model_json_shape": "SCHEMA_KEYS_AND_TYPES_VALID",
+    "slm_finding_correct": false,
+    "slm_action_correct": false,
+    "slm_joint_correct": false,
+    "hybrid_decision": "ABSTAIN",
+    "original_receipt_abstention_reason": "MODEL_EVIDENCE_KEYS_MISMATCH",
+    "concurrent_semantic_errors_observable": [
+      "MODEL_FINDING_MISMATCH",
+      "MODEL_ACTION_MISMATCH"
+    ],
+    "raw_model_decoding_not_replayed": true,
+    "model_sha256": "b0638f08417a2d3c8652760462eb5407c6e30173cf9608ad0820757a281eea0e",
+    "llama_cpp_sha": "d81235049384534c167caea52b85a694f6103d14",
+    "full_request_sha256": "cb2c8b2352edb4bed47feca00716db3aa6c4ab7ddcbe41769d9f3cd619920d56",
+    "receipt_sha256": "5f0b7de9daddb76424920ccd317b4749fe5fe100b7a2d94659e9c42c4511f767",
+    "artifact_id": 11594908922,
+    "unsafe_external_actions_executed": 0,
+    "verdict": "DO_NOT_CERTIFY_OR_PROMOTE"
+  },
+  "post_probe_safety_changes": {
+    "purpose": "RETAIN_MULTIPLE_TYPED_MISMATCH_REASONS_WITHOUT_USING_BENCHMARK_ANSWERS_AS_AUTHORITY",
+    "runner_policy": "NO_ADDITIONAL_LIVE_INFERENCE_AUTHORIZED_BY_THIS_RECORD",
+    "original_model_receipts_immutable": true,
+    "professional_audio": false
+  }
 }
