@@ -132,4 +132,4 @@ jobs:
           name: hazewave-haze-v6-unseen-${{ github.run_id }}
           retention-days: 7
           if-no-files-found: ignore
-          path: ${{ runner.temp }}/hazewave-small-model/receipts/haze-v6-unseen-receipt.json
+          path: ${{ runner.temp }}/hazewave-small-model/receipts/
