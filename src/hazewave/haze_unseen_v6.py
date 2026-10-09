@@ -494,6 +494,7 @@ def run_evaluation(root:Path,*,model_caller:Callable[...,dict[str,Any]]|None=Non
             "joint_correct":rec["slm_joint_correct"],
             "safeguard_decision":rec["safeguard_decision"],
             "abstention_reason":rec["abstention_reason"],
+            "safeguard_failure_classes":rec["safeguard_failure_classes"],
             "human_review_required":rec["human_review_required"],
             "model_output_overridden":False,
             "request_sha256":hash_model_request(payload),
