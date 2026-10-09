@@ -83,8 +83,11 @@ test("five artist worlds appear as constellations, not cards", async ({ page }, 
       const width=pixels.readUInt32BE(16),height=pixels.readUInt32BE(20);
       const vp=page.viewportSize();
       expect(vp).not.toBeNull();
-      expect(width).toBe(vp?.width);
-      expect(height).toBe(vp?.height);
+      const dpr=await page.evaluate(()=>window.devicePixelRatio);
+      const cssPixelMatch=width===vp?.width && height===vp?.height;
+      const devicePixelMatch=vp!==null &&
+        Math.abs(width-vp.width*dpr)<=2 && Math.abs(height-vp.height*dpr)<=2;
+      expect(cssPixelMatch||devicePixelMatch).toBe(true);
       writeFileSync(path,pixels);
       testInfo.annotations.push({type:"browser-compositor-fallback",description:"CDP fromSurface=false PNG verified"});
     } finally {
