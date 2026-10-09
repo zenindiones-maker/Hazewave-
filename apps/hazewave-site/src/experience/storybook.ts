@@ -83,9 +83,9 @@ export function mountStorybook(): void {
   // Re-entrant hot-reload or client-side navigation must not install extra handlers.
   const globalState = window as Window & { __hazewaveStoryStop?: () => void };
   const old = globalState.__hazewaveStoryStop;
+  if (old) old();
   globalState.__hazewaveStoryStop = () => {
     abort.abort();
     globalState.__hazewaveStoryStop = undefined;
   };
-  if (old) old();
 }
