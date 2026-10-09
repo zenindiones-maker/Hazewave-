@@ -1,0 +1,119 @@
+/* HAZEWAVE — illustrated sound-interference film V2.
+   The composition is original vector artwork, not a shader over the historic poster. */
+:root {
+ color-scheme:dark;
+ font-family:"Arial", "Helvetica Neue", sans-serif;
+ background:#080c16; color:#f6f0df;
+ --origin:1; --crossing:0; --rupture:0; --reveal:0;
+ --dash:100; --signal:0; --shift:0; --parallax:0;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;min-width:320px;background:#080c16;overflow-x:clip}
+button,a{ -webkit-tap-highlight-color:transparent }
+a{color:inherit}
+a:focus-visible{outline:2px solid #e7d3a6;outline-offset:5px}
+.skip{position:fixed;top:-10rem;left:1rem;z-index:95;background:#f5e1b4;color:#091224;padding:.7rem 1.2rem}
+.skip:focus{top:1rem}
+.masthead{position:fixed;left:0;right:0;top:0;z-index:31;display:flex;gap:1rem;align-items:center;justify-content:space-between;padding:1.3rem clamp(1.1rem,4.5vw,5rem);min-height:83px;background:linear-gradient(#080d18da,#080d1880 68%,transparent)}
+.masthead-mark{font-size:clamp(.92rem,1.4vw,1.1rem);font-weight:900;letter-spacing:.12em;text-decoration:none}
+.masthead-mark span{color:#e4bb92}
+.masthead-mark i{font:1.4rem Georgia,serif;margin-left:.6rem;color:#cddcce}
+.masthead-edition,.masthead-link,.eyebrow,.planet-number,.planet-action,.progress-caption,.skip-film,.corner-index,.identity-seal>span,.colophon{font:.64rem/1.4 "Courier New",monospace;letter-spacing:.18em}
+.masthead-edition{color:#d0dbddab}
+.masthead-link{text-decoration:none;border-bottom:1px solid #e1d3ba7f;padding-bottom:.5rem;white-space:nowrap}
+.masthead-link:hover{color:#e8cc9a}
+.film{position:relative;height:550svh;background:#090e18;isolation:isolate}
+.film-reel{position:sticky;top:0;width:100%;height:100svh;overflow:hidden;background:#090e18}
+.illustrated-sky{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.night-horizon{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,#1f3b4e 0,#111e32 34%,#070c1b 77%);transform:scale(1.1)}
+.interference-art{display:block;width:100%;height:100%;transform:translate3d(calc(var(--parallax) * -1px),calc(var(--shift) * 1px),0) scale(1.025);transform-origin:center;will-change:transform}
+.art-origin{opacity:var(--origin)}
+.art-crossing{opacity:var(--crossing);transform:translate3d(0,calc(var(--shift) * -1.7px),0)}
+.art-rupture{opacity:var(--rupture);transform:rotate(calc(var(--shift) * .015deg));transform-origin:50% 50%}
+.signal-engraving{opacity:var(--signal)}
+.signal-core,.signal-shadow,.signal-echo{stroke-dasharray:100;stroke-dashoffset:var(--dash)}
+.universe-stars{transform:translate3d(calc(var(--shift) * -.6px),calc(var(--shift) * .15px),0)}
+.vertical-filigree{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0,transparent 75px,#eff6ef08 75px,#eff6ef08 76px);mask-image:linear-gradient(90deg,transparent,#000 20% 80%,transparent)}
+.film-shade{position:absolute;inset:0;background:linear-gradient(90deg,#030916ca,transparent 52%),linear-gradient(0deg,#030916d4,transparent 24% 73%,#03091687)}
+.film-copy{position:absolute;inset:0;z-index:3;pointer-events:none}
+.film-line{position:absolute;left:clamp(1.5rem,9vw,11rem);right:clamp(1.5rem,7vw,8rem);bottom:clamp(15svh,20svh,25svh);max-width:970px;opacity:0;transform:translate3d(0,calc((1 - var(--origin)) * 25px),0);filter:drop-shadow(0 2px 20px #040a14);pointer-events:none}
+.line-origin{opacity:var(--origin)}
+.line-crossing{opacity:var(--crossing);left:auto;right:clamp(1.5rem,8vw,9rem);width:min(58%,800px);bottom:24svh}
+.line-rupture{opacity:var(--rupture);width:min(80%,900px)}
+.line-reveal{opacity:var(--reveal);bottom:clamp(11svh,15svh,19svh)}
+.eyebrow{display:block;color:#e5c8a0;margin-bottom:1.1rem;white-space:normal}
+.film-line h1,.film-line h2,.worlds-entrance h2{font-size:clamp(3.4rem,8vw,9.2rem);font-weight:540;line-height:.97;letter-spacing:-.075em;margin:0 0 1.2rem}
+.film-line h1 em,.film-line h2 em,.worlds-entrance h2 em{font-family:Georgia,"Times New Roman",serif;font-weight:400;color:#f0d2a9;letter-spacing:-.057em}
+.film-line p{font-size:clamp(.95rem,1.5vw,1.25rem);max-width:32rem;line-height:1.62;color:#edf5f1d8;margin:0}
+.line-reveal h2{font-size:clamp(3.8rem,9vw,9.5rem)}
+.identity-seal{position:absolute;z-index:4;right:clamp(1.5rem,11vw,13rem);top:50%;transform:translate(0,-50%) scale(calc(.88 + var(--reveal) * .12));width:clamp(120px,18vw,260px);opacity:var(--reveal);display:flex;flex-direction:column;align-items:center;gap:.8rem;pointer-events:none}
+.identity-seal img{max-width:100%;max-height:38svh;object-fit:contain;display:block;border:1px solid #dbd5bc60;box-shadow:0 16px 70px #050711c0}
+.identity-seal>span{text-align:center;color:#e8d9c3b0;font-size:.56rem}
+.film-bottom{position:absolute;z-index:12;bottom:clamp(1.25rem,3.6svh,2.4rem);left:clamp(1.5rem,4.5vw,5rem);right:clamp(1.5rem,4.5vw,5rem);display:flex;align-items:center;gap:1.5rem;justify-content:space-between}
+.progress-rail{height:2px;background:#a6bbc263;flex:1;max-width:220px;position:relative}
+.progress-line{height:2px;width:var(--line-width,0%);display:block;background:#e6d1ae}
+.progress-caption{color:#e8e4d6bb}
+.progress-caption b{font-size:1rem;margin-left:.6rem;color:#efc894}
+.skip-film{text-decoration:none;white-space:nowrap;border-bottom:1px solid #e1cda882;padding-bottom:.3rem}
+.corner-index{position:absolute;z-index:11;top:50%;right:clamp(1.5rem,4.5vw,5rem);transform:rotate(90deg) translateX(50%);transform-origin:right center;color:#dce1d0a3}
+.worlds{position:relative;z-index:3;background:radial-gradient(ellipse 65% 36% at 51% 44%,#15283c 0%,#0b1529 46%,#090d19 100%);padding:clamp(7rem,15svh,12rem) clamp(1.5rem,8vw,10rem) 6rem;overflow:hidden}
+.worlds::before{content:"";position:absolute;inset:0;opacity:.5;pointer-events:none;background-image:radial-gradient(#b5cbd1 1px,transparent 1px);background-size:87px 97px;mask-image:radial-gradient(ellipse,#000,transparent 75%)}
+.worlds-entrance,.worlds-outro{position:relative;z-index:1;max-width:1150px;margin:auto}
+.worlds-entrance h2{font-size:clamp(3.5rem,9vw,10rem)}
+.worlds-entrance>p{max-width:31rem;color:#d6d7d8bc;font:clamp(1rem,1.4vw,1.25rem)/1.65 Georgia,serif}
+.orbital-map{position:relative;max-width:1000px;min-height:2600px;margin:5rem auto 8rem}
+.orbit-lines{position:absolute;inset:5% 0;width:100%;height:88%;pointer-events:none}
+.planet{position:absolute;z-index:2;width:min(34%,340px);display:flex;flex-direction:column;gap:.7rem;align-items:flex-start;text-decoration:none;transform:translateZ(0)}
+.planet-1{top:1%;left:5%}.planet-2{top:18%;right:1%}.planet-3{top:36%;left:14%}.planet-4{top:55%;right:5%}.planet-5{top:74%;left:10%}
+.planet-halo{position:relative;display:grid;place-items:center;aspect-ratio:1; width:100%;border-radius:47% 53% 57% 43% / 43% 60% 40% 57%;padding:12%;background:radial-gradient(circle at 31% 29%,#7896a0ad,#23384e 48%,#060e1e 75%);border:1px solid #f3dbc254;box-shadow:0 0 0 13px #d9dac80c,0 0 0 34px #e1ddd307,0 26px 83px #020c17bb;transition:transform .5s ease,box-shadow .5s ease}
+.planet-halo img{display:block;width:100%;height:100%;object-fit:contain;border-radius:50%;filter:contrast(1.04) saturate(.9);background:#06060c}
+.planet:hover .planet-halo,.planet:focus-visible .planet-halo{transform:scale(1.04) rotate(-2deg);box-shadow:0 0 0 15px #d9dac816,0 0 0 38px #e1ddd30e,0 30px 95px #020c17c9}
+.planet-number{font-size:.6rem;color:#d3c9b5a6;margin-top:1rem}
+.planet strong{font-size:clamp(1.5rem,2.7vw,3rem);font-weight:500;letter-spacing:-.05em;line-height:1.05}
+.planet-action{font-size:.64rem;color:#ead3a8}
+.worlds-outro{display:flex;align-items:flex-start;gap:3rem;justify-content:space-between;border-top:1px solid #d8d7c448;padding-top:2.5rem}
+.worlds-outro p{max-width:39rem;font-size:.86rem;color:#c7d0c8c7;line-height:1.7;margin:0}
+.worlds-outro a{font:.7rem/1.4 "Courier New",monospace;text-decoration:none;letter-spacing:.13em;border-bottom:1px solid #e1cda882;padding-bottom:.6rem;white-space:nowrap}
+.colophon{display:flex;gap:2rem;justify-content:space-between;flex-wrap:wrap;padding:2rem clamp(1.5rem,8vw,10rem);background:#080c16;color:#c2c9c8a3}
+@media(max-width:900px){
+ .masthead-edition,.corner-index,.progress-caption{display:none}
+ .film-shade{background:linear-gradient(0deg,#030916ed 0,transparent 42%),linear-gradient(90deg,#050a18a1,transparent 58%)}
+ .film-line{left:clamp(1.4rem,6vw,3rem);right:clamp(1.4rem,6vw,3rem);bottom:17svh;width:auto;max-width:600px}
+ .film-line h1,.film-line h2{font-size:clamp(3.4rem,10.5vw,6.6rem)}
+ .line-crossing{bottom:19svh}
+ .line-reveal{bottom:13svh}
+ .identity-seal{top:36%;right:clamp(1.1rem,7vw,3rem);width:min(25vw,185px)}
+ .planet strong{font-size:clamp(1.45rem,3.5vw,2.7rem)}
+ .orbital-map{min-height:2350px}
+}
+@media(max-width:560px){
+ .masthead{padding:1rem 1.2rem;min-height:68px}
+ .masthead-mark{font-size:.83rem}
+ .masthead-link{font-size:.59rem}
+ .film{height:510svh}
+ .film-line{left:1.5rem;right:1.5rem;bottom:15svh}
+ .film-line h1,.film-line h2{font-size:clamp(3.1rem,12.2vw,4.7rem);line-height:.99}
+ .film-line p{max-width:22rem;font-size:.95rem}
+ .line-reveal h2{font-size:clamp(3.7rem,14vw,5.5rem)}
+ .identity-seal{right:1.5rem;top:31%;width:min(36vw,160px)}
+ .identity-seal>span{font-size:.46rem}
+ .interference-art{width:135%;max-width:none;margin-left:-16%;height:100%}
+ .progress-rail{max-width:120px}
+ .skip-film{font-size:.59rem}
+ .film-bottom{left:1.5rem;right:1.5rem}
+ .worlds{padding:7rem 1.5rem 4rem}
+ .worlds-entrance h2{font-size:clamp(3.5rem,13vw,5.3rem)}
+ .orbital-map{margin-top:4rem;min-height:1950px}
+ .planet{width:57%}
+ .planet-1{top:1%;left:1%}.planet-2{top:19%;right:0}.planet-3{top:38%;left:1%}.planet-4{top:57%;right:0}.planet-5{top:77%;left:1%}
+ .planet strong{font-size:clamp(1.5rem,6.2vw,2.1rem)}
+ .orbit-lines{inset:3% -18%;width:136%;height:94%}
+ .worlds-outro{flex-direction:column;gap:2rem}
+ .colophon{flex-direction:column;font-size:.6rem}
+}
+@media(prefers-reduced-motion:reduce){
+ html{scroll-behavior:auto}
+ .interference-art{will-change:auto}
+ .planet-halo{transition:none}
+}
