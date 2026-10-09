@@ -84,7 +84,6 @@ def inspect_rgba_png(data: bytes) -> dict[str, float | int]:
     try:
         decoder=zlib.decompressobj()
         raw=decoder.decompress(b"".join(idat),total+1)
-        raw+=decoder.flush()
     except (zlib.error, MemoryError) as exc:
         raise RigPreflightError("PNG_DECOMPRESS_FAILED") from exc
     _check(len(raw)==total and decoder.eof and not decoder.unused_data
