@@ -1,0 +1,227 @@
+[
+  {
+    "device": "mobile393",
+    "res": [
+      393,
+      852
+    ],
+    "overflow": 0,
+    "errors": [],
+    "states": [
+      {
+        "progress": 0,
+        "activePads": 0,
+        "activeKnobs": 0,
+        "activeSpeakers": 0,
+        "stroke": 0,
+        "mounted": 24,
+        "phase": 0
+      },
+      {
+        "progress": 0.2,
+        "activePads": 2,
+        "activeKnobs": 0,
+        "activeSpeakers": 0,
+        "stroke": 0.058,
+        "mounted": 24,
+        "phase": 1
+      },
+      {
+        "progress": 0.45,
+        "activePads": 6,
+        "activeKnobs": 4,
+        "activeSpeakers": 1,
+        "stroke": 0.427,
+        "mounted": 24,
+        "phase": 2
+      },
+      {
+        "progress": 0.7,
+        "activePads": 11,
+        "activeKnobs": 8,
+        "activeSpeakers": 3,
+        "stroke": 0.85,
+        "mounted": 24,
+        "phase": 3
+      },
+      {
+        "progress": 1,
+        "activePads": 12,
+        "activeKnobs": 8,
+        "activeSpeakers": 4,
+        "stroke": 1,
+        "mounted": 24,
+        "phase": 4
+      },
+      {
+        "progress": 0.45,
+        "activePads": 6,
+        "activeKnobs": 4,
+        "activeSpeakers": 1,
+        "stroke": 0.427,
+        "mounted": 24,
+        "phase": 2
+      },
+      {
+        "progress": 0,
+        "activePads": 0,
+        "activeKnobs": 0,
+        "activeSpeakers": 0,
+        "stroke": 0,
+        "mounted": 24,
+        "phase": 0
+      }
+    ],
+    "ambient_pixel_delta": 3.9456
+  },
+  {
+    "device": "mobile360",
+    "res": [
+      360,
+      800
+    ],
+    "overflow": 0,
+    "errors": [],
+    "states": [
+      {
+        "progress": 0,
+        "activePads": 0,
+        "activeKnobs": 0,
+        "activeSpeakers": 0,
+        "stroke": 0,
+        "mounted": 24,
+        "phase": 0
+      },
+      {
+        "progress": 0.2,
+        "activePads": 2,
+        "activeKnobs": 0,
+        "activeSpeakers": 0,
+        "stroke": 0.058,
+        "mounted": 24,
+        "phase": 1
+      },
+      {
+        "progress": 0.45,
+        "activePads": 6,
+        "activeKnobs": 4,
+        "activeSpeakers": 1,
+        "stroke": 0.427,
+        "mounted": 24,
+        "phase": 2
+      },
+      {
+        "progress": 0.7,
+        "activePads": 11,
+        "activeKnobs": 8,
+        "activeSpeakers": 3,
+        "stroke": 0.851,
+        "mounted": 24,
+        "phase": 3
+      },
+      {
+        "progress": 1,
+        "activePads": 12,
+        "activeKnobs": 8,
+        "activeSpeakers": 4,
+        "stroke": 1,
+        "mounted": 24,
+        "phase": 4
+      },
+      {
+        "progress": 0.45,
+        "activePads": 6,
+        "activeKnobs": 4,
+        "activeSpeakers": 1,
+        "stroke": 0.427,
+        "mounted": 24,
+        "phase": 2
+      },
+      {
+        "progress": 0,
+        "activePads": 0,
+        "activeKnobs": 0,
+        "activeSpeakers": 0,
+        "stroke": 0,
+        "mounted": 24,
+        "phase": 0
+      }
+    ],
+    "ambient_pixel_delta": 4.021
+  },
+  {
+    "device": "desktop",
+    "res": [
+      1280,
+      800
+    ],
+    "overflow": 0,
+    "errors": [],
+    "states": [
+      {
+        "progress": 0,
+        "activePads": 0,
+        "activeKnobs": 0,
+        "activeSpeakers": 0,
+        "stroke": 0,
+        "mounted": 24,
+        "phase": 0
+      },
+      {
+        "progress": 0.2,
+        "activePads": 2,
+        "activeKnobs": 0,
+        "activeSpeakers": 0,
+        "stroke": 0.058,
+        "mounted": 24,
+        "phase": 1
+      },
+      {
+        "progress": 0.45,
+        "activePads": 6,
+        "activeKnobs": 4,
+        "activeSpeakers": 1,
+        "stroke": 0.427,
+        "mounted": 24,
+        "phase": 2
+      },
+      {
+        "progress": 0.7,
+        "activePads": 11,
+        "activeKnobs": 8,
+        "activeSpeakers": 3,
+        "stroke": 0.851,
+        "mounted": 24,
+        "phase": 3
+      },
+      {
+        "progress": 1,
+        "activePads": 12,
+        "activeKnobs": 8,
+        "activeSpeakers": 4,
+        "stroke": 1,
+        "mounted": 24,
+        "phase": 4
+      },
+      {
+        "progress": 0.45,
+        "activePads": 6,
+        "activeKnobs": 4,
+        "activeSpeakers": 1,
+        "stroke": 0.427,
+        "mounted": 24,
+        "phase": 2
+      },
+      {
+        "progress": 0,
+        "activePads": 0,
+        "activeKnobs": 0,
+        "activeSpeakers": 0,
+        "stroke": 0,
+        "mounted": 24,
+        "phase": 0
+      }
+    ],
+    "ambient_pixel_delta": 5.0962
+  }
+]
