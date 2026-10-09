@@ -1,0 +1,15 @@
+{
+  "schema": "HazewaveV6SchemaGuidanceSingleCall/v1",
+  "authority": "HAZEWAVE_HARNESS",
+  "experiment": "GENERAL_FOUR_REQUIRED_KEYS_IN_SYSTEM_PROMPT",
+  "previous_format_diagnostic_run": 37870934248,
+  "previous_format_diagnostic_observation": "MISSING_KEYS",
+  "case_id": "music_loss_5db",
+  "classification": "SEEN_DEVELOPMENT_CASE_NOT_HOLDOUT",
+  "max_calls": 1,
+  "unchanged_grader": true,
+  "unchanged_model_checksum": true,
+  "unchanged_runtime_commit": true,
+  "production_approved": false,
+  "unseen_final_holdouts_used": false
+}
