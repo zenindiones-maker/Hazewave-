@@ -3,7 +3,7 @@ import { test, expect, type Page } from "@playwright/test";
 const URL = "/experimental/articulated-rig-v3a.html";
 type RigState = { ready: boolean; mounted: number; progress: number; activePads: number; activeKnobs: number; activeSpeakers: number; stroke: number; ambient: number };
 async function state(page: Page): Promise<RigState> {
-  return page.evaluate(() => (window as Window & { __HAZEWAVE_RIG_V3: RigState }).__HAZEWAVE_RIG_V3);
+  return page.evaluate(() => (window as unknown as Window & { __HAZEWAVE_RIG_V3: RigState }).__HAZEWAVE_RIG_V3);
 }
 async function toProgress(page: Page, p: number) {
   await page.evaluate((value) => {
@@ -37,6 +37,7 @@ test("real approved MPC cutouts are present and reverse to idle", async ({ page 
   expect(end.stroke).toBeGreaterThan(.98);
   await page.screenshot({ path: `test-results/rig-v3a-end-${testInfo.project.name}.png`, animations: "disabled" });
   await toProgress(page, 0);
+  await expect.poll(async () => (await state(page)).progress).toBeLessThan(.02);
   const reset = await state(page);
   expect(reset.activePads).toBe(0);
   expect(reset.activeKnobs).toBe(0);
