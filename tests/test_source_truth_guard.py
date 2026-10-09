@@ -165,3 +165,16 @@ def test_remote_branch_and_commit_tree_are_independently_checked():
     with pytest.raises(SourceTruthError,match="REMOTE_TREE_MISMATCH"):
         verify_remote_ref(remote,{**commit,"tree":{"sha":"c"*40}},
          expected_ref="work/current",expected_commit="a"*40,expected_tree="b"*40)
+
+
+def test_existing_agents_directory_scope_refs_are_valid_not_missing(tmp_path):
+    tick=chr(96)
+    (tmp_path/"AGENTS.md").write_text(
+        "## Path expectations\nRead "+tick+"docs/wave/"+tick+" and "+
+        tick+"src/hazewave/"+tick+" as directory scopes.\n")
+    paths={"AGENTS.md","docs/wave/LIVING_RESONANCE.md","src/hazewave/harness.py"}
+    assert validate_active_references(tmp_path,paths,
+        require_registry=False)["active_refs_checked"]==2
+    with pytest.raises(SourceTruthError,match="ACTIVE_REFERENCE_MISSING"):
+        validate_active_references(tmp_path,
+            {"AGENTS.md","src/hazewave/harness.py"},require_registry=False)

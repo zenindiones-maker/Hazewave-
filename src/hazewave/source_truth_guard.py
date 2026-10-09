@@ -172,10 +172,18 @@ def validate_active_references(root: Path, tracked_files: set[str],
         active_refs.update(mandatory)
     checked = 0
     for ref in active_refs:
-        if not isinstance(ref, str) or not _path_ok(ref) and ref != "AGENTS.md":
+        # AGENTS has legitimate scope headings like `src/hazewave/`.
+        # A directory reference must resolve to an actual tracked prefix.
+        if not isinstance(ref, str) or (
+            not _path_ok(ref.rstrip("/")) and ref != "AGENTS.md"
+        ):
             raise SourceTruthError("ACTIVE_REFERENCE_INVALID")
-        # Backticked references to a directory are allowed if that prefix exists.
-        if ref not in tracked_files and not any(x.startswith(ref.rstrip("/") + "/") for x in tracked_files):
+        if ref.endswith("/"):
+            if not any(x.startswith(ref) for x in tracked_files):
+                raise SourceTruthError(f"ACTIVE_REFERENCE_MISSING:{ref}")
+        elif ref not in tracked_files and not any(
+            x.startswith(ref + "/") for x in tracked_files
+        ):
             raise SourceTruthError(f"ACTIVE_REFERENCE_MISSING:{ref}")
         checked += 1
     return {"active_refs_checked": checked}
