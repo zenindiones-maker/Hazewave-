@@ -245,3 +245,30 @@ def test_missing_input_cannot_fabricate_measurements_in_model_request():
     assert parsed["mean_reference_dbfs"] is None
     assert parsed["mean_processed_dbfs"] is None
     assert parsed["attenuation_db"] is None
+
+def test_clean_transient_uses_clipping_metric_even_when_finding_is_no_issue():
+    from hazewave.haze_unseen_v6 import reconcile
+    spec={"id":"clean_transient","task":"AVOID_PCM_CLIPPING",
+          "kind":"signal","expected":"NO_ISSUE_DETECTED"}
+    measured={"task":"AVOID_PCM_CLIPPING","finding":"NO_ISSUE_DETECTED",
+              "proof_status":"VERIFIED","reason":"NONE"}
+    proposal={"finding":"NO_ISSUE_DETECTED","action":"NO_ACTION",
+              "evidence_keys":["clipped_sample_fraction"],
+              "requires_human_review":True}
+    report=reconcile(spec,measured,proposal)
+    assert report["slm_joint_correct"] is True
+    assert report["safeguard_decision"]=="REVIEW_ONLY"
+    incorrect={**proposal,"evidence_keys":["attenuation_db"]}
+    report_bad=reconcile(spec,measured,incorrect)
+    assert report_bad["slm_joint_correct"] is False
+    assert report_bad["abstention_reason"]=="MODEL_EVIDENCE_KEYS_MISMATCH"
+
+def test_same_no_issue_class_can_require_different_metric_by_task():
+    from hazewave.haze_unseen_v6 import reconcile
+    spec={"id":"loud_clean","task":"PRESERVE_REFERENCE_LEVEL",
+          "kind":"signal","expected":"NO_ISSUE_DETECTED"}
+    measured={"task":"PRESERVE_REFERENCE_LEVEL","finding":"NO_ISSUE_DETECTED",
+              "proof_status":"VERIFIED","reason":"NONE"}
+    proposal={"finding":"NO_ISSUE_DETECTED","action":"NO_ACTION",
+              "evidence_keys":["attenuation_db"],"requires_human_review":True}
+    assert reconcile(spec,measured,proposal)["safeguard_decision"]=="REVIEW_ONLY"
