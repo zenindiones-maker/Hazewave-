@@ -122,8 +122,7 @@ jobs:
           PYTHONPATH=src timeout --signal=TERM --kill-after=5s 570s \
             python -m hazewave.haze_unseen_v6 --prove \
               --model "$MODEL_PATH" \
-              --output "$RECEIPT_DIR/haze-v6-unseen-receipt.json" \
-
+              --output "$RECEIPT_DIR/haze-v6-unseen-receipt.json"
           echo "HAZE_ACTIONS_FINAL_RECEIPT_SHA256=$(sha256sum "$RECEIPT_DIR/haze-v6-unseen-receipt.json" | cut -d' ' -f1)"
       - name: Retain small public synthetic receipt only
         if: always()
