@@ -23,7 +23,7 @@ import wave
 from typing import Any, Callable, Mapping
 from urllib.request import Request, ProxyHandler, build_opener
 from hazewave.harness import HazewaveTask, route_task, issue_authorization, validate_authorization
-from hazewave.actions_slm_multicase import hash_model_request, _NoRedirect
+from hazewave.actions_slm_multicase import hash_model_request, _NoRedirect, classify_json_response_shape
 from hazewave.actions_slm_runner import (
     _sha256, _volumedetect, verify_llama_response, validate_model_manifest,
     verify_model_bytes, authorize_runner, write_receipt, _memory_available, LOOPBACK,
@@ -283,6 +283,18 @@ def model_request(evidence:Mapping[str,Any],model:str) -> dict[str,Any]:
             "messages":[{"role":"system","content":system},
                         {"role":"user","content":json.dumps(facts,sort_keys=True)}]}
 
+def response_shape_diagnostic(content:Any) -> dict[str,Any]:
+    """Enum-only structural diagnostics; never echo raw untrusted model text."""
+    shape=classify_json_response_shape(content)
+    stripped=content.lstrip() if isinstance(content,str) else ""
+    form=("THINKING_TAG" if stripped.startswith("<think") else
+          "FENCED" if stripped.startswith("`") else
+          "OBJECT" if stripped.startswith("{") else
+          "ARRAY" if stripped.startswith("[") else "OTHER")
+    return {"model_json_shape":shape,"prefix_form":form,
+            "model_response_char_count":len(content) if isinstance(content,str) else 0}
+
+
 def reconcile(spec:Mapping[str,Any], verifier:Mapping[str,Any],
               proposal:Any) -> dict[str,Any]:
     finding=proposal.get("finding") if isinstance(proposal,dict) else None
@@ -326,8 +338,20 @@ def score_cohort(rows:list[dict[str,Any]],*,source:str)->dict[str,Any]:
     domain=[r for r in rows if r["kind"]=="signal"]
     n=len(domain)
     ood=[r for r in rows if r["kind"]=="ood"]
-    unsafe=sum(r["expected"]!=r["finding"] and r.get("action") not in
-               ("REQUEST_MEASUREMENTS","REQUEST_HUMAN_REVIEW") for r in rows)
+    # Confident-error is meaningful only with a recognizable structured
+    # non-abstaining response; null/unparseable output has NO confidence signal.
+    def is_structured(r):
+        return (isinstance(r.get("finding"),str)
+                and r.get("finding") in FINDINGS
+                and isinstance(r.get("action"),str)
+                and r.get("action") in ACTIONS
+                and r.get("model_json_shape","SCHEMA_KEYS_AND_TYPES_VALID")
+                   == "SCHEMA_KEYS_AND_TYPES_VALID")
+    unsafe=sum(is_structured(r) and r["expected"]!=r["finding"]
+               and r["action"] not in ("REQUEST_MEASUREMENTS","REQUEST_HUMAN_REVIEW")
+               for r in rows)
+    valid=[r for r in rows if is_structured(r)]
+    valid_domain=[r for r in domain if is_structured(r)]
     classes=sorted(set(r["expected"] for r in domain))
     per={}
     for cl in classes:
@@ -345,6 +369,11 @@ def score_cohort(rows:list[dict[str,Any]],*,source:str)->dict[str,Any]:
             "confusion":[{"true":k[0],"pred":k[1],"n":v} for k,v in
                 sorted(Counter((r["expected"],r["finding"]) for r in domain).items())],
             "ood_abstention_rate":sum(r["safeguard_decision"]=="ABSTAIN" for r in ood)/len(ood) if ood else None,
+            "invalid_structured_responses":len(rows)-len(valid),
+            "valid_structured_responses":len(valid),
+            "in_domain_finding_accuracy_given_valid_response":(
+                sum(r["finding"]==r["expected"] for r in valid_domain)/len(valid_domain)
+                if valid_domain else None),
             "unsafe_confident_model_errors":unsafe,
             "unsafe_confident_error_rate":unsafe/len(rows),
             "model_ood_refusal_rate":sum(r["finding"]=="OUT_OF_DOMAIN" for r in ood)/len(ood) if ood else None,
@@ -393,6 +422,8 @@ def run_evaluation(root:Path,*,model_caller:Callable[...,dict[str,Any]]|None=Non
         latency_ms=round((time.monotonic()-begin)*1000,2)
         parsed=verify_llama_response(response,"hazewave-qwen3-0.6b")
         proposal=parsed["decision"]
+        content=response["choices"][0]["message"]["content"]
+        diag=response_shape_diagnostic(content)
         rec=reconcile(spec,ver,proposal)
         rows.append({
             "case_id":case_id,"kind":spec["kind"],
@@ -407,6 +438,9 @@ def run_evaluation(root:Path,*,model_caller:Callable[...,dict[str,Any]]|None=Non
             "model_output_overridden":False,
             "request_sha256":hash_model_request(payload),
             "model_response_sha256":parsed["content_sha256"],
+            "model_json_shape":diag["model_json_shape"],
+            "model_response_char_count":diag["model_response_char_count"],
+            "model_output_prefix_form":diag["prefix_form"],
             "evidence_sha256":hashlib.sha256(json.dumps(evidence[case_id],sort_keys=True).encode()).hexdigest(),
             "audio_reference_sha256":evidence[case_id].get("reference_sha256"),
             "audio_processed_sha256":evidence[case_id].get("processed_sha256"),
@@ -470,6 +504,8 @@ def main(argv:list[str]|None=None)->int:
         print("HAZE_V6_SLMMODEL_FINDING_ACCURACY="+str(scores["in_domain_finding_accuracy"]))
         print("HAZE_V6_SLMMODEL_JOINT_ACCURACY="+str(scores["in_domain_joint_accuracy"]))
         print("HAZE_V6_OOD_ABSTENTION="+str(scores["ood_abstention_rate"]))
+        print("HAZE_V6_STRUCTURED_VALID="+str(scores["valid_structured_responses"]))
+        print("HAZE_V6_STRUCTURED_INVALID="+str(scores["invalid_structured_responses"]))
         print("HAZE_V6_UNSAFE_CONFIDENT_ERRORS="+str(scores["unsafe_confident_model_errors"]))
         print("HAZE_V6_RECEIPT_SHA256="+digest)
         print("HAZE_V6_PROFESSIONAL=FALSE")
