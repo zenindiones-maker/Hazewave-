@@ -60,7 +60,7 @@ def test_contradiction_and_out_of_domain_abstain_not_override():
     x=reconcile(expected,e,bad)
     assert x["slm_finding_correct"] is False
     assert x["safeguard_decision"]=="ABSTAIN"
-    assert x["abstention_reason"]=="MODEL_CONTRADICTS_VERIFIED_EVIDENCE"
+    assert x["abstention_reason"]=="MODEL_FINDING_MISMATCH"
     assert x["model_output_overridden"] is False
     assert x["human_review_required"] is True
     good={"finding":"ATTENUATION_DETECTED","action":"REVIEW_GAIN_STAGE",
