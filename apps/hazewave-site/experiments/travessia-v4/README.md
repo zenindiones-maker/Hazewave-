@@ -73,3 +73,19 @@ O projeto **não** afirma ter inspecionado bundles privados de terceiros nem fei
 - Promoção para `apps/hazewave-site/public/`, `main`, GitHub Pages, domínio público ou publicação: **FORBIDDEN without owner approval**.
 
 **Owner's original resources remain immutable. V4 is a genuine experimental traversal but not a professionally accepted site.**
+
+## Integração executada em um build Astro real (somente cópia privada)
+
+A integração não é mais apenas um HTML independente: `integrate_private_astro.py` recompôs **78 arquivos** em um diretório de prévia privada, partindo do ZIP de build exato `5cff7ae24fc0461dbaa70827d8a16b21b0a3bade792a16c37c1d705e2c871de4`. A saída preserva `artists/indionesbala/index.html`, contém `/experimental/travessia-v4/index.html`, 43 texturas originais derivadas, a folha CSS, motor JS e manifesto, e coloca um link de entrada na **cópia** da homepage. O site de origem não foi escrito, implantado ou publicado.
+
+Com a árvore de mídia privada já reconstruída, execute:
+
+```bash
+python integrate_private_astro.py \\
+  --astro-dist-zip /private/v3a-site-static-exact.zip \\
+  --engine . \\
+  --private-media /private/new-wave-v4-media \\
+  --output /private/new-wave-v4-astro-preview
+```
+
+O pacote executado é `HAZEWAVE_V4_PRIVATE_ASTRO_INTEGRATED_SITE.zip` na Biblioteca privada `/Hazewave/Living-Universe/V4-TRAVESSIA-ENGENHARIA/`. É preciso abri-lo **somente em localhost dentro do Codespace autorizado ou ambiente de revisão equivalente**, jamais em host público. Não há upload automático de arte para Git ou infra paga. `productionApproved=false` e `codespaceHostAttested=false` permanecem.
