@@ -35,18 +35,36 @@ export function bootLivingField(): void {
   const reduced = () => motion.matches || manualReduced;
   const renderer = new FieldRenderer(field, canvas, reduced());
   field.dataset.motion = reduced() ? "reduced" : "full";
-  let discoveredIndex = 3;
-  let journeyIndex = 3;
+  const descentOrder = [2, 0, 1, 3, 4];
+  let discoveredIndex = descentOrder[0];
+  let journeyIndex = discoveredIndex;
+  let journeySequence = [...descentOrder];
   let current: RealArtistId | null = null;
   let journey = false;
   let journeyFrame = 0;
-  let journeyWorld = false;
+  let journeyHistoryOwned = false;
   const journeyControls =
     document.querySelector<HTMLElement>(".journey-controls")!;
   const journeyDistance =
     document.querySelector<HTMLElement>("#journey-distance")!;
   const journeyStage = document.querySelector<HTMLElement>("#journey-stage")!;
   const journeyArtist = document.querySelector<HTMLElement>("#journey-artist");
+  // Keep a short native-scroll runway armed at the origin, before any interaction.
+  // Reduced motion, direct artist routes and dialogs retain a single viewport.
+  const syncScrollSurface = () => {
+    const armed =
+      journey ||
+      (!current &&
+        !reduced() &&
+        !search.open &&
+        field.dataset.fieldRuntime === "webgl2");
+    journeyDistance.hidden = !armed;
+    journeyDistance.style.height = `${Math.max(180, journeySequence.length * 130)}svh`;
+    field.dataset.scrollReady = String(armed);
+    field.style.position = armed ? "sticky" : "";
+    field.style.top = armed ? "0px" : "";
+    field.style.touchAction = armed ? "pan-y" : "";
+  };
   const stopJourney = () => {
     if (!journey) return;
     journey = false;
@@ -57,6 +75,10 @@ export function bootLivingField(): void {
     journeyControls.hidden = true;
     journeyDistance.hidden = true;
     field.dataset.journey = "false";
+    delete field.dataset.journeyAct;
+    delete field.dataset.journeyChapter;
+    delete field.dataset.journeyPhase;
+    syncScrollSurface();
     document.querySelector<HTMLElement>(".signal-field")!.inert =
       Boolean(current);
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -88,6 +110,15 @@ export function bootLivingField(): void {
     });
   const reveal = (button: HTMLButtonElement) => {
     discoveredIndex = signals.indexOf(button);
+    if (journey && field.dataset.journeyAct === "discover") {
+      journeyIndex = discoveredIndex;
+      journeySequence = descentOrder.slice(
+        descentOrder.indexOf(discoveredIndex),
+      );
+      syncScrollSurface();
+      if (journeyArtist)
+        journeyArtist.textContent = realArtists[journeyIndex].name;
+    }
     signals.forEach((s) => (s.dataset.revealed = String(s === button)));
     const r = field.getBoundingClientRect(),
       b = button.getBoundingClientRect();
@@ -98,11 +129,13 @@ export function bootLivingField(): void {
     );
     field.dataset.signalDiscovered = "true";
     clearTimeout(revealTimer);
-    revealTimer = window.setTimeout(() => {
-      signals.forEach((s) => (s.dataset.revealed = "false"));
-      renderer.clearPreview();
-      field.dataset.signalDiscovered = "false";
-    }, 8000);
+    revealTimer = journey
+      ? 0
+      : window.setTimeout(() => {
+          signals.forEach((s) => (s.dataset.revealed = "false"));
+          renderer.clearPreview();
+          field.dataset.signalDiscovered = "false";
+        }, 8000);
     status.textContent = `${getRealArtist(button.dataset.artistSignal!)?.name}. Selecione o sinal para entrar.`;
   };
   const wave = (clientX: number, clientY: number) => {
@@ -140,6 +173,7 @@ export function bootLivingField(): void {
   };
   const setUrl = (id: RealArtistId | null, mode: "push" | "replace") => {
     const url = new URL(location.href);
+    url.pathname = url.pathname.includes("/artists/") ? "/" : url.pathname;
     if (id) url.searchParams.set("artist", id);
     else url.searchParams.delete("artist");
     const state = { ...(history.state ?? {}), hazewave: true, artist: id };
@@ -157,6 +191,7 @@ export function bootLivingField(): void {
     id = artist?.materializedWorld ? artist.id : null;
     const token = ++transitionToken;
     current = id;
+    syncScrollSurface();
     field.dataset.signalDiscovered = "false";
     field.dataset.worldActive = String(Boolean(id));
     field.dataset.worldReady = "false";
@@ -190,7 +225,7 @@ export function bootLivingField(): void {
         field.dataset.worldReady = "true";
         field.dataset.transitioning = "false";
         worlds.forEach(
-          (world) => (world.inert = world.dataset.artistWorld !== current),
+          (world) => (world.inert = world.dataset.artistWorld !== current || (journey && field.dataset.journeyPhase !== "hold")),
         );
         status.textContent = artist
           ? `Você entrou no universo de ${artist.name}.`
@@ -236,6 +271,7 @@ export function bootLivingField(): void {
     searchResults.forEach((b) => (b.hidden = false));
     document.querySelector<HTMLElement>("#search-empty")!.hidden = true;
     search.showModal();
+    syncScrollSurface();
     query.focus();
   };
   signals.forEach((button) => {
@@ -244,14 +280,16 @@ export function bootLivingField(): void {
     button.addEventListener(
       "pointerenter",
       () => {
-        if (!current && !journey) reveal(button);
+        if (!current && (!journey || field.dataset.journeyAct === "discover"))
+          reveal(button);
       },
       options,
     );
     button.addEventListener(
       "focus",
       () => {
-        if (!current && !journey) reveal(button);
+        if (!current && (!journey || field.dataset.journeyAct === "discover"))
+          reveal(button);
       },
       options,
     );
@@ -292,79 +330,131 @@ export function bootLivingField(): void {
     },
     { ...options, passive: true },
   );
-  document.querySelector('[data-primary-action="explore"]')!.addEventListener(
-    "click",
-    () => {
-      journeyIndex = discoveredIndex;
-      if (reduced() || field.dataset.fieldRuntime !== "webgl2") {
-        signals[journeyIndex].focus({ preventScroll: true });
-        return;
-      }
-      setUrl(null, "push");
-      journey = true;
-      document.querySelector<HTMLElement>(".signal-field")!.inert = true;
-      journeyWorld = false;
-      journeyControls.hidden = false;
-      journeyDistance.hidden = false;
-      field.dataset.journey = "true";
-      field.style.setProperty("--journey-progress", "0");
-      const artist = realArtists[journeyIndex];
-      if (journeyArtist) journeyArtist.textContent = artist.name;
-      const b = signals[journeyIndex].getBoundingClientRect();
-      wave(b.x + b.width / 2, b.y + b.height / 2);
-      clearTimeout(arrivalTimer);
-      reveal(signals[journeyIndex]);
-      clearTimeout(revealTimer);
-      journeyStage.textContent = "01 / DESCUBRA O SINAL";
-      field.dataset.journeyAct = "discover";
+  const startJourney = (deliberate: boolean) => {
+    if (journey || current || disposed) return;
+    journeyIndex = discoveredIndex;
+    journeySequence = descentOrder.slice(descentOrder.indexOf(discoveredIndex));
+    if (reduced() || field.dataset.fieldRuntime !== "webgl2") {
+      if (deliberate) signals[journeyIndex].focus({ preventScroll: true });
+      return;
+    }
+    journey = true;
+    journeyHistoryOwned = false;
+    journeyControls.hidden = false;
+    field.dataset.journey = "true";
+    field.dataset.journeyAct = "discover";
+    syncScrollSurface();
+    field.style.setProperty("--journey-progress", "0");
+    if (journeyArtist)
+      journeyArtist.textContent = realArtists[journeyIndex].name;
+    const b = signals[journeyIndex].getBoundingClientRect();
+    wave(b.x + b.width / 2, b.y + b.height / 2);
+    clearTimeout(arrivalTimer);
+    reveal(signals[journeyIndex]);
+    clearTimeout(revealTimer);
+    journeyStage.textContent = "01 / ENCONTRE O SINAL";
+    // Native scrolling never steals focus from the visitor's current control.
+    if (deliberate)
       document
         .querySelector<HTMLButtonElement>("#journey-exit")!
         .focus({ preventScroll: true });
-    },
-    options,
-  );
+  };
+  document
+    .querySelector('[data-primary-action="explore"]')!
+    .addEventListener("click", () => startJourney(true), options);
   const updateJourney = () => {
     journeyFrame = 0;
     if (!journey) return;
     const progress = clamp(scrollY / Math.max(1, journeyDistance.offsetHeight));
-    const p = clamp((progress - 0.12) / 0.78);
-    const reached = p >= 0.999;
-    if (reached !== journeyWorld) {
-      journeyWorld = reached;
+    const discovering = progress <= 0.045;
+    // Equal chapter lengths, each with a real arrival hold. The scene is a pure
+    // function of native scroll, so reversing never depends on animation history.
+    const chapterPosition =
+      clamp((progress - 0.045) / 0.955) * journeySequence.length;
+    const chapter = Math.min(
+      journeySequence.length - 1,
+      Math.floor(chapterPosition),
+    );
+    const local = clamp(chapterPosition - chapter);
+    const p = discovering ? 0 : clamp(local / 0.68);
+    journeyIndex = journeySequence[chapter];
+    const fromIndex = chapter === 0 ? 0 : journeySequence[chapter - 1] + 1;
+    const toIndex = journeyIndex + 1;
+    const arrival = !discovering && p >= 1;
+    const displayId = discovering
+      ? null
+      : arrival
+        ? realArtists[journeyIndex].id
+        : fromIndex
+          ? realArtists[fromIndex - 1].id
+          : null;
+    if (current !== displayId) {
       show(
-        reached ? realArtists[journeyIndex].id : null,
-        "replace",
+        displayId,
+        displayId && !journeyHistoryOwned
+          ? "push"
+          : journeyHistoryOwned
+            ? "replace"
+            : "none",
         [0.5, 0.5],
         true,
       );
+      if (displayId) journeyHistoryOwned = true;
     }
-    document.querySelector<HTMLElement>(".signal-field")!.inert = true;
+    document.querySelector<HTMLElement>(".signal-field")!.inert = !discovering;
     const [x, y] =
       innerWidth <= 700
         ? realArtists[journeyIndex].signal.mobile
         : realArtists[journeyIndex].signal.desktop;
-    if (p <= 0) {
+    if (discovering) {
       renderer.transition(0, x, y, () => {}, true);
-      renderer.preview(journeyIndex + 1, x, y);
-      signals[journeyIndex].dataset.revealed = "true";
+      renderer.preview(toIndex, x, y);
+      signals.forEach(
+        (s, i) => (s.dataset.revealed = String(i === journeyIndex)),
+      );
     } else {
-      renderer.scrub(journeyIndex + 1, x, y, p);
+      renderer.scrubBetween(fromIndex, toIndex, x, y, p);
       signals.forEach((s) => (s.dataset.revealed = "false"));
     }
     field.style.setProperty("--journey-progress", String(progress));
-    journeyStage.textContent =
-      progress < 0.12
-        ? "01 / DESCUBRA O SINAL"
-        : progress < 0.9
-          ? "02 / ATRAVESSE A ONDA"
-          : "03 / CHEGADA";
-    field.dataset.journeyAct =
-      progress < 0.12 ? "discover" : progress < 0.9 ? "traverse" : "arrival";
-    field.dataset.signalDiscovered = "true";
+    field.style.setProperty("--chapter-progress", String(local));
+    field.style.setProperty("--world-takeover", arrival ? "1" : "0");
+    if (journeyArtist)
+      journeyArtist.textContent = realArtists[journeyIndex].name;
+    const chapterLabel = `${String(chapter + 1).padStart(2, "0")} / ${String(journeySequence.length).padStart(2, "0")}`;
+    journeyStage.textContent = discovering
+      ? "ORIGEM / ROLE PARA DESCER"
+      : arrival
+        ? `${chapterLabel} / ${chapter === journeySequence.length - 1 ? "NÚCLEO PROFUNDO" : "PERMANEÇA · CONTINUE DESCENDO"}`
+        : `${chapterLabel} / ATRAVESSE A RESSONÂNCIA`;
+    field.dataset.journeyAct = discovering
+      ? "discover"
+      : arrival
+        ? "arrival"
+        : "traverse";
+    field.dataset.journeyChapter = String(chapter + 1);
+    field.dataset.journeyPhase = discovering
+      ? "origin"
+      : arrival
+        ? "hold"
+        : "transition";
+    field.dataset.signalDiscovered = String(discovering);
+    // CSS also uses visibility:hidden during crossing. Keep semantic interactivity
+    // aligned so a previous world's controls never remain keyboard destinations.
+    const focusedWorld = worlds.find((world) => world.contains(document.activeElement));
+    worlds.forEach((world) => (world.inert = !arrival || world.dataset.artistWorld !== current));
+    if (!arrival && focusedWorld) document.querySelector<HTMLButtonElement>("#journey-exit")!.focus({ preventScroll: true });
   };
   window.addEventListener(
     "scroll",
     () => {
+      if (
+        !journey &&
+        scrollY > 2 &&
+        field.dataset.scrollReady === "true" &&
+        !search.open
+      )
+        startJourney(false);
       if (journey && !journeyFrame)
         journeyFrame = requestAnimationFrame(updateJourney);
     },
@@ -395,6 +485,7 @@ export function bootLivingField(): void {
   document
     .querySelector("[data-search-close]")!
     .addEventListener("click", () => search.close(), options);
+  search.addEventListener("close", syncScrollSurface, options);
   search.addEventListener(
     "click",
     (event) => {
@@ -460,7 +551,7 @@ export function bootLivingField(): void {
       stopJourney();
       if (search.open) search.close();
       const id =
-        getRealArtist(new URL(location.href).searchParams.get("artist"))?.id ??
+        getRealArtist(new URL(location.href).searchParams.get("artist") ?? location.pathname.split("/artists/")[1]?.split("/")[0])?.id ??
         null;
       show(id, "none");
       (id
@@ -502,6 +593,7 @@ export function bootLivingField(): void {
   field.addEventListener(
     "fieldfallback",
     () => {
+      syncScrollSurface();
       if (journey) {
         stopJourney();
         show(current, "none", [0.5, 0.5], true);
@@ -530,6 +622,7 @@ export function bootLivingField(): void {
           ))!.focus();
     }
     field.dataset.motion = reduced() ? "reduced" : "full";
+    syncScrollSurface();
     if (motionToggle) {
       motionToggle.setAttribute("aria-pressed", String(reduced()));
       motionToggle.textContent = reduced()
@@ -546,6 +639,7 @@ export function bootLivingField(): void {
     }
     void renderer
       .setReduced(reduced(), images)
+      .then(syncScrollSurface)
       .catch(() => (field.dataset.fieldRuntime = "css-fallback"));
   };
   motion.addEventListener("change", applyMotion, options);
@@ -564,7 +658,7 @@ export function bootLivingField(): void {
       : "PAUSAR MOVIMENTO";
   }
   const initial =
-    getRealArtist(new URL(location.href).searchParams.get("artist"))?.id ??
+    getRealArtist(new URL(location.href).searchParams.get("artist") ?? location.pathname.split("/artists/")[1]?.split("/")[0])?.id ??
     null;
   if (initial)
     discoveredIndex = realArtists.findIndex((artist) => artist.id === initial);
@@ -578,6 +672,7 @@ export function bootLivingField(): void {
       field.dataset.fieldRuntime = "css-fallback";
       field.dataset.worldReady = "true";
       field.dataset.transitioning = "false";
+      syncScrollSurface();
       console.warn("Field fallback:", error);
     });
   // The fallback is retained after a GPU loss. Restored BFCache pages reload to rebind resources.

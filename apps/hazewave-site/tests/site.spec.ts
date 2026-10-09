@@ -140,7 +140,7 @@ async function settled(page: Page) {
   );
 }
 
-test("original artwork renders and all real artist signals are reachable", async ({
+test("conceptual worlds render and all real artist signals are reachable", async ({
   page,
 }, info) => {
   const errors: string[] = [];
@@ -162,7 +162,7 @@ test("original artwork renders and all real artist signals are reachable", async
         .locator("#living-field")
         .getAttribute("data-field-texture-bytes"),
     ),
-  ).toBeLessThan(3_000_000);
+  ).toBeLessThan(6_000_000); // Origin plus required canonical source, both capped at 1024px.
   for (const name of ["EXPLORE", "LISTEN", "SEARCH"])
     await expect(
       page.getByRole("button", { name: new RegExp(name) }),
@@ -297,7 +297,7 @@ test("search filters accents, empty results and switches between worlds", async 
   await expect(page.locator("#world-back")).toBeFocused();
 });
 
-test("all worlds keep original artwork and working direct navigation", async ({
+test("all artist worlds preserve identity and working direct navigation", async ({
   page,
 }) => {
   for (const id of ids) {
@@ -420,7 +420,7 @@ test("mobile touch, readable targets and no horizontal overflow", async ({
   await page.screenshot({ path: info.outputPath("mobile-touch.png") });
 });
 
-test("without JavaScript the original artist gallery is accessible", async ({
+test("without JavaScript the conceptual artist gallery is accessible", async ({
   browser,
 }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
@@ -461,7 +461,8 @@ test("native scroll traversal reverses, retains its origin and exits accessibly"
     "data-journey",
     "true",
   );
-  await expect(page.locator(".signal-field")).toHaveAttribute("inert", "");
+  // Discovery remains interactive so visitors can choose a different signal.
+  await expect(page.locator(".signal-field")).not.toHaveAttribute("inert", "");
   await page.evaluate(() =>
     scrollTo(
       0,
@@ -471,7 +472,7 @@ test("native scroll traversal reverses, retains its origin and exits accessibly"
   );
   await expect(page.locator("#living-field")).toHaveAttribute(
     "data-traversal-progress",
-    /^0\.4/,
+    /^0\.5/,
   );
   const p = await page
     .locator("#living-field")
@@ -487,7 +488,7 @@ test("native scroll traversal reverses, retains its origin and exits accessibly"
       document.querySelector<HTMLElement>("#journey-distance")!.offsetHeight,
     ),
   );
-  await expect(page).toHaveURL(/artist=aquaverno/);
+  await expect(page).toHaveURL(/artist=hemorragia-cosmica/);
   await page.evaluate(() =>
     scrollTo(
       0,
@@ -497,9 +498,9 @@ test("native scroll traversal reverses, retains its origin and exits accessibly"
   );
   await expect(page.locator("#living-field")).toHaveAttribute(
     "data-traversal-progress",
-    /^0\.25/,
+    /^0\.6/,
   );
-  expect(new URL(page.url()).searchParams.has("artist")).toBe(false);
+  await expect(page).toHaveURL(/artist=baazu/);
   await page.keyboard.press("Escape");
   await expect(page.locator("#living-field")).toHaveAttribute(
     "data-journey",
@@ -540,4 +541,17 @@ test("scroll journey stops cleanly for motion preference and GPU loss", async ({
       () => document.documentElement.scrollHeight <= innerHeight,
     ),
   ).toBe(true);
+});
+
+test("all five static artist routes survive refresh and return to origin", async ({ page }) => {
+  for (const id of ["baazu", "barak-ozama-beats", "indionesbala", "aquaverno", "hemorragia-cosmica"]) {
+    await page.goto(`/artists/${id}/`);
+    await expect(page.locator("#living-field")).toHaveAttribute("data-world-ready", "true");
+    await expect(page.locator(`[data-artist-world="${id}"]`)).toHaveAttribute("data-active", "true");
+    await page.reload();
+    await expect(page.locator(`[data-artist-world="${id}"]`)).toHaveAttribute("data-active", "true");
+    await page.locator("#world-back").click();
+    await expect(page.locator("#living-field")).toHaveAttribute("data-world-active", "false");
+    await expect(page).toHaveURL(/\/$/);
+  }
 });

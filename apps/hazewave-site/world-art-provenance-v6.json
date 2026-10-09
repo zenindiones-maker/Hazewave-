@@ -1,0 +1,67 @@
+{
+  "ownerDirection": "Original artworks are conceptual references. Preserve original Hazewave and artist lettering; rebuild all environmental art.",
+  "typography": "Original owner-supplied image bytes and glyphs remain unchanged; source masks compose lettering in DOM.",
+  "environmentArt": "AI-created conceptual scenography, authorized for this creative candidate. No biography, music, lore or production publication is implied.",
+  "assets": [
+    {
+      "asset": "/media/worlds/aquaverno-v6.webp",
+      "sourceSha256": "5656cc35dcfe17dbfa7c73919211a54d7d14c402bcf8eb9e33f65d71d56f0fc2",
+      "sha256": "389d218f8533caec688d3f23acba8e963dcfe8891a52b6d7078b59528c178132",
+      "bytes": 388392,
+      "width": 1672,
+      "height": 941,
+      "creation": "built-in image_gen; reference concepts only",
+      "encoding": "WebP quality88; original dimensions; no art compositing or retouching"
+    },
+    {
+      "asset": "/media/worlds/baazu-v6.webp",
+      "sourceSha256": "e11bc7c2e7ca592860ac37ccdc0dd87132b77819805040893c1a868b4b71bd84",
+      "sha256": "25443f8cc941ab0da3c3b9f547083c0f2f798352694557d94137cba2abe0b26c",
+      "bytes": 326688,
+      "width": 1672,
+      "height": 941,
+      "creation": "built-in image_gen; reference concepts only",
+      "encoding": "WebP quality88; original dimensions; no art compositing or retouching"
+    },
+    {
+      "asset": "/media/worlds/barak-ozama-beats-v6.webp",
+      "sourceSha256": "4f4f40108c8a95d3203476a7bb6c839a15a5e9b379e0d15e391748a5c8742d48",
+      "sha256": "1637d6aadccd39106be84500a09c1fc8dd5d50c03a6d4cda2b73f42e70cb70cf",
+      "bytes": 322726,
+      "width": 1672,
+      "height": 941,
+      "creation": "built-in image_gen; reference concepts only",
+      "encoding": "WebP quality88; original dimensions; no art compositing or retouching"
+    },
+    {
+      "asset": "/media/worlds/hazewave-v6.webp",
+      "sourceSha256": "b134b822a83db54c8f86bbc4eae253cc0f2536012f633aabe2f8045edfa56357",
+      "sha256": "d5ff701d6805452d42188e33486a528bdb2c1e2348c659460ccd54a84898c341",
+      "bytes": 274984,
+      "width": 1672,
+      "height": 941,
+      "creation": "built-in image_gen; reference concepts only",
+      "encoding": "WebP quality88; original dimensions; no art compositing or retouching"
+    },
+    {
+      "asset": "/media/worlds/hemorragia-cosmica-v6.webp",
+      "sourceSha256": "cc421ce57086957ddece4e411b3cf32c434f719d410380dcf91a2718899c5751",
+      "sha256": "c0f6bfecd5167d8603a79e07d309676a80835670ba5a2fe7d353140e211e757b",
+      "bytes": 427090,
+      "width": 1672,
+      "height": 941,
+      "creation": "built-in image_gen; reference concepts only",
+      "encoding": "WebP quality88; original dimensions; no art compositing or retouching"
+    },
+    {
+      "asset": "/media/worlds/indionesbala-v6.webp",
+      "sourceSha256": "ba87880f57dcb0fe7b3fd631cf170a8c5e77334847ca207c1b1847806379ce93",
+      "sha256": "34770764bf88d17e382a74401d641c7ecd5b9c2ec2a6db8d26054a3d85a2c0af",
+      "bytes": 338590,
+      "width": 1672,
+      "height": 941,
+      "creation": "built-in image_gen; reference concepts only",
+      "encoding": "WebP quality88; original dimensions; no art compositing or retouching"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import { fieldFragment, FIELD_WAVE_SPEED } from "./fieldShader";
 export { FIELD_WAVE_SPEED };
 
-/** Original artwork is sampled directly. No generated artwork or particle proxy. */
+/** Scene textures and the canonical owner artwork remain separately sampled materials. */
 export class FieldRenderer {
   private gl: WebGL2RenderingContext | null = null;
   private program: WebGLProgram | null = null;
@@ -42,7 +42,11 @@ export class FieldRenderer {
   private hasFrame = false;
   private qualityScale = 1;
   private slowFrames = 0;
+  private severeFrames = 0;
   private fenceStarted = 0;
+  private fencePressureValid = false;
+  private lastFrameProbe = 0;
+  private previousDraw = 0;
   constructor(
     private host: HTMLElement,
     private canvas: HTMLCanvasElement,
@@ -100,9 +104,16 @@ export class FieldRenderer {
     if (!gl.getProgramParameter(this.program, gl.LINK_STATUS))
       throw new Error(gl.getProgramInfoLog(this.program) ?? "Link failed");
     this.vao = gl.createVertexArray();
-    this.images = images;
+    this.images = images.slice();
+    // The original is a required material in the field, independent of its expanded environment.
+    const canonical = this.canvas.ownerDocument.createElement("img");
+    canonical.src = this.canvas.ownerDocument.querySelector(".hazewave-lettering image")?.getAttribute("href") ?? "/media/hazewave-world.jpg";
+    canonical.loading = "eager";
+    this.images[6] = canonical;
     if (!(await this.ensureAsset(0)))
       throw new Error("Origin artwork unavailable");
+    this.host.dataset.canonicalAssetUnavailable = String(!(await this.ensureAsset(6)));
+    if (this.from > 0) await this.ensureAsset(this.from);
     if (this.to)
       this.host.dataset.assetUnavailable = String(
         !(await this.ensureAsset(this.to)),
@@ -129,6 +140,8 @@ export class FieldRenderer {
     if (reduced) {
       cancelAnimationFrame(this.raf);
       this.raf = 0;
+      this.fencePressureValid = false;
+      this.slowFrames = this.severeFrames = 0;
       this.host.dataset.fieldRuntime = "css-fallback";
       this.progress = 1;
       this.completion?.();
@@ -162,12 +175,21 @@ export class FieldRenderer {
   private visibility = () => {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
+    // A pending fence may complete while the page is suspended. Its wall time
+    // cannot establish rendering pressure after resuming.
+    this.fencePressureValid = false;
+    this.lastFrameProbe = 0;
+    this.previousDraw = 0;
+    this.slowFrames = this.severeFrames = 0;
     if (!document.hidden && !this.disposed)
       this.raf = requestAnimationFrame(this.frame);
   };
   private async ensureAsset(index: number): Promise<boolean> {
     if (this.assets.has(index)) return true;
     if (this.loading.has(index)) return this.loading.get(index)!;
+    // A scrub can precede initialization; a transient lack of resources must not
+    // permanently cache a failed warm and prevent the eventual texture upload.
+    if (!this.images[index] || !this.gl || this.disposed) return false;
     const pending = (async () => {
       const image = this.images[index];
       if (!image || !this.gl || this.disposed) return false;
@@ -222,7 +244,11 @@ export class FieldRenderer {
       }
     })();
     this.loading.set(index, pending);
-    return pending;
+    try {
+      return await pending;
+    } finally {
+      if (this.loading.get(index) === pending) this.loading.delete(index);
+    }
   }
   private resize = () => {
     if (!this.gl) return;
@@ -274,6 +300,7 @@ export class FieldRenderer {
     );
     this.host.dataset.fieldQuality =
       this.qualityScale < 1 ? "economy" : "balanced";
+    this.host.dataset.fieldQualityScale = this.qualityScale.toFixed(3);
   };
   private retainComposition() {
     if (!this.gl || !this.targetBuffer || !this.hasFrame) return false;
@@ -304,18 +331,34 @@ export class FieldRenderer {
     return true;
   }
   scrub(index: number, x: number, y: number, progress: number) {
-    void this.ensureAsset(index).then((ready) => {
-      if (this.to === index)
-        this.host.dataset.assetUnavailable = String(!ready);
-    });
+    this.scrubBetween(0, index, x, y, progress);
+  }
+  /** Native scroll owns a deterministic pair; asset decode never writes a late scene. */
+  scrubBetween(fromIndex: number, toIndex: number, x: number, y: number, progress: number) {
+    if (this.disposed) return;
+    const from = Number.isInteger(fromIndex) && fromIndex >= 0 && fromIndex <= 5 ? fromIndex : 0;
+    const to = Number.isInteger(toIndex) && toIndex >= 0 && toIndex <= 5 ? toIndex : 0;
+    const changed = !this.manualProgress || this.from !== from || this.to !== to;
+    if (changed) this.request++;
     this.manualProgress = true;
-    this.entryOpen = true;
+    this.entryOpen = from === 0;
     this.completion = null;
-    this.from = 0;
-    this.to = index;
-    this.origin = [x, 1 - y];
-    this.progress = Math.max(0, Math.min(1, progress));
+    this.previewTarget = 0;
+    this.from = from;
+    this.to = to;
+    this.origin = [Number.isFinite(x) ? Math.max(0, Math.min(1, x)) : 0.5,
+      Number.isFinite(y) ? 1 - Math.max(0, Math.min(1, y)) : 0.5];
+    this.progress = Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : 0;
     this.host.dataset.traversalProgress = this.progress.toFixed(3);
+    if (changed) {
+      const request = this.request;
+      this.host.dataset.assetLoading = String(!this.assets.has(from) || !this.assets.has(to));
+      void Promise.all([this.ensureAsset(from), this.ensureAsset(to)]).then(([fromReady, toReady]) => {
+        if (this.disposed || request !== this.request || !this.manualProgress) return;
+        this.host.dataset.assetLoading = "false";
+        this.host.dataset.assetUnavailable = String(!fromReady || !toReady);
+      });
+    }
   }
   prepare(index: number) {
     void this.ensureAsset(index);
@@ -388,6 +431,13 @@ export class FieldRenderer {
   }
   private frame = (time: number) => {
     this.raf = 0;
+    // Ignore resumed/frozen or long-blocked main-thread intervals when adapting.
+    // Fence latency is a conservative completion probe, not a hardware GPU timer.
+    if (this.lastFrameProbe && time - this.lastFrameProbe > 250) {
+      this.fencePressureValid = false;
+      this.slowFrames = this.severeFrames = 0;
+    }
+    this.lastFrameProbe = time;
     if (
       !this.gl ||
       !this.program ||
@@ -404,14 +454,18 @@ export class FieldRenderer {
         this.raf = requestAnimationFrame(this.frame);
         return;
       }
-      if (time - this.fenceStarted > 65) this.slowFrames++;
-      else this.slowFrames = Math.max(0, this.slowFrames - 1);
+      const latency = time - this.fenceStarted;
+      this.host.dataset.fieldFenceLatencyMs = latency.toFixed(1);
+      if (this.fencePressureValid && fenceState !== this.gl.WAIT_FAILED) {
+        this.slowFrames = latency > 65 ? this.slowFrames + 1 : 0;
+        this.severeFrames = latency > 120 ? this.severeFrames + 1 : 0;
+      }
       this.gl.deleteSync(this.frameFence);
       this.frameFence = null;
     }
-    if (this.slowFrames >= 3 && this.qualityScale > 0.5) {
-      this.qualityScale = Math.max(0.5, this.qualityScale * 0.75);
-      this.slowFrames = 0;
+    if ((this.slowFrames >= 3 || this.severeFrames >= 2) && this.qualityScale > 0.25) {
+      this.qualityScale = Math.max(0.25, this.qualityScale * (this.severeFrames >= 2 ? 0.65 : 0.75));
+      this.slowFrames = this.severeFrames = 0;
       this.resize();
     }
     const active = this.progress < 1 || time - this.waveStart < 3100;
@@ -451,6 +505,11 @@ export class FieldRenderer {
     gl.uniform1i(this.uniform("uTo"), 1);
     gl.uniform2f(this.uniform("uFromSize"), from.width, from.height);
     gl.uniform2f(this.uniform("uToSize"), to.width, to.height);
+    const canonical = this.assets.get(6) ?? this.assets.get(0)!;
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, canonical.texture);
+    gl.uniform1i(this.uniform("uCanonical"), 3);
+    gl.uniform2f(this.uniform("uCanonicalSize"), canonical.width, canonical.height);
     gl.uniform2f(
       this.uniform("uResolution"),
       this.canvas.width,
@@ -494,6 +553,11 @@ export class FieldRenderer {
       this.assets.has(this.to) ? this.to : 0,
     );
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.targetBuffer);
+    const drawTime = performance.now();
+    if (this.previousDraw) {
+      this.host.dataset.fieldDrawIntervalMs = (drawTime - this.previousDraw).toFixed(1);
+    }
+    this.previousDraw = drawTime;
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.targetBuffer);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
@@ -512,6 +576,7 @@ export class FieldRenderer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     this.hasFrame = true;
     this.fenceStarted = time;
+    this.fencePressureValid = true;
     this.frameFence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
     this.raf = requestAnimationFrame(this.frame);
   };

@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("a missing artist texture preserves the origin and reports the missing art", async ({
   page,
 }) => {
-  await page.route("**/media/artists/hemorragia-cosmica.jpg", (route) =>
+  await page.route("**/media/worlds/hemorragia-cosmica-v6.webp", (route) =>
     route.abort(),
   );
   await page.goto("/?artist=hemorragia-cosmica");
@@ -55,5 +55,5 @@ test("the drawing buffer stays within its pixel budget on large high density dis
         .locator("#living-field")
         .getAttribute("data-field-texture-bytes"),
     ),
-  ).toBeLessThan(3_000_000);
+  ).toBeLessThan(6_000_000);
 });

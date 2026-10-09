@@ -132,3 +132,89 @@ test("resuming movement loads a world selected while movement was paused", async
     ),
   ).toBeGreaterThan(3_000_000);
 });
+
+test("native scrolling starts the journey without an Explore click or focus steal", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await ready(page);
+  const field = page.locator("#living-field");
+  await expect(field).toHaveAttribute("data-scroll-ready", "true");
+  await expect(page.locator("#journey-distance")).toBeVisible();
+  const searchButton = page.locator('[data-primary-action="search"]');
+  await searchButton.focus();
+  const before = await page.evaluate(() => history.length);
+  await scrub(page, 0.08);
+  await expect(field).toHaveAttribute("data-journey", "true");
+  await expect(field).toHaveAttribute("data-journey-act", "traverse");
+  await expect(searchButton).toBeFocused();
+  expect(await page.evaluate(() => history.length)).toBe(before);
+  await scrub(page, 1);
+  await expect(page).toHaveURL(/artist=hemorragia-cosmica/);
+  expect(await page.evaluate(() => history.length)).toBe(before + 1);
+  await scrub(page, 0);
+  await expect(page).not.toHaveURL(/artist=/);
+  expect(
+    await page
+      .locator(".signal-field")
+      .evaluate((element) => (element as HTMLElement).inert),
+  ).toBe(false);
+  await expect(page.locator('[data-artist-signal="baazu"]')).toHaveAttribute(
+    "data-revealed",
+    "true",
+  );
+  await page.locator('[data-artist-signal="hemorragia-cosmica"]').focus();
+  await expect(page.locator("#journey-artist")).toHaveText(
+    "Hemorragia Cósmica",
+  );
+  await scrub(page, 1);
+  await expect(page).toHaveURL(/artist=hemorragia-cosmica/);
+  expect(await page.evaluate(() => history.length)).toBe(before + 1);
+});
+
+test("native descent holds five distinct worlds and reverses through the same chapters", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await ready(page);
+  const order = [
+    "baazu",
+    "barak-ozama-beats",
+    "indionesbala",
+    "aquaverno",
+    "hemorragia-cosmica",
+  ];
+  const historyBefore = await page.evaluate(() => history.length);
+  for (const [chapter, id] of order.entries()) {
+    await scrub(page, 0.045 + ((chapter + 0.84) / order.length) * 0.955);
+    await expect(page.locator("#living-field")).toHaveAttribute(
+      "data-journey-phase",
+      "hold",
+    );
+    await expect(page.locator("#living-field")).toHaveAttribute(
+      "data-journey-chapter",
+      String(chapter + 1),
+    );
+    await expect(page).toHaveURL(new RegExp(`artist=${id}`));
+    await expect(page.locator(`[data-artist-world="${id}"]`)).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+  }
+  expect(await page.evaluate(() => history.length)).toBe(historyBefore + 1);
+  for (let chapter = order.length - 1; chapter >= 0; chapter--) {
+    await scrub(page, 0.045 + ((chapter + 0.84) / order.length) * 0.955);
+    await expect(page).toHaveURL(new RegExp(`artist=${order[chapter]}`));
+    await expect(page.locator("#living-field")).toHaveAttribute(
+      "data-journey-phase",
+      "hold",
+    );
+  }
+  await scrub(page, 0);
+  await expect(page).not.toHaveURL(/artist=/);
+  await expect(page.locator("#living-field")).toHaveAttribute(
+    "data-journey-phase",
+    "origin",
+  );
+  expect(await page.evaluate(() => history.length)).toBe(historyBefore + 1);
+});

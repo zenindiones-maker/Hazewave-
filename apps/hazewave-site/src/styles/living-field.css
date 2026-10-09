@@ -1261,6 +1261,575 @@ input:focus-visible {
 }
 
 /* Composite the supplied lettering into the environment, retaining the original glyphs. */
-.hazewave-lettering,.aquaverno-lettering { mix-blend-mode: screen; }
-.world-caption .eyebrow { font-size:12px; text-shadow:0 1px 5px #000,0 1px 12px #000; }
-@media(max-width:700px){.motion-toggle { font-size:12px; max-width:150px; white-space:nowrap; }}
+.hazewave-lettering,
+.aquaverno-lettering {
+  mix-blend-mode: screen;
+}
+.world-caption .eyebrow {
+  font-size: 12px;
+  text-shadow:
+    0 1px 5px #000,
+    0 1px 12px #000;
+}
+@media (max-width: 700px) {
+  .motion-toggle {
+    font-size: 12px;
+    max-width: 150px;
+    white-space: nowrap;
+  }
+}
+/* V6 — panoramic worlds, source lettering, and a shared cinematic chapter grammar. */
+:root {
+  --edge: clamp(28px, 4.8vw, 76px);
+  --acid: #d6e8bd;
+}
+.lettering-definitions {
+  position: absolute;
+  pointer-events: none;
+  overflow: hidden;
+}
+.field-origin img {
+  object-position: 74% 50%;
+}
+.living-field::after {
+  background:
+    linear-gradient(90deg, #03060c58, transparent 65%),
+    linear-gradient(#03060c50, transparent 25%, transparent 65%, #03060cb0);
+}
+.field-header {
+  top: 32px;
+  align-items: center;
+  min-height: 44px;
+}
+.field-location {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  line-height: 1.5;
+  color: #dce3e0;
+  text-shadow: 0 1px 6px #000;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.field-location i {
+  font-style: normal;
+  color: #7e938e;
+}
+.field-brand {
+  position: absolute;
+  left: 0;
+  top: calc(33svh - 32px);
+  width: min(440px, 40vw);
+}
+.hazewave-lettering {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 3px 16px #0005);
+}
+.field-brand p {
+  font-size: 13px;
+  line-height: 1.6;
+  letter-spacing: 0.075em;
+  margin: 20px 0 0;
+  max-width: none;
+  color: #d5dfdb;
+}
+.motion-toggle {
+  position: absolute;
+  top: 58px;
+  left: 0;
+  max-width: none;
+  color: #cad5d0;
+  font-size: 12px;
+  opacity: 0.86;
+  padding: 0;
+}
+.primary-paths {
+  top: 32px;
+  gap: 32px;
+}
+.primary-paths button {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+}
+.field-intro {
+  left: var(--edge);
+  bottom: 46px;
+}
+.field-intro .eyebrow {
+  writing-mode: initial;
+  transform: none;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+}
+.field-index {
+  bottom: 46px;
+  font-size: 11px;
+  letter-spacing: 0.07em;
+}
+.field-invitation {
+  left: var(--edge);
+  bottom: 116px;
+  transform: none;
+  flex-direction: row;
+  align-items: flex-start;
+  text-align: left;
+  gap: 20px;
+}
+.touch-mark {
+  font:
+    24px/1.4 Arial,
+    Helvetica,
+    sans-serif;
+  color: #e7ece1;
+}
+.field-invitation p {
+  font:
+    15px/1.6 Arial,
+    Helvetica,
+    sans-serif;
+  letter-spacing: 0.02em;
+  white-space: normal;
+}
+.field-invitation p span {
+  display: block;
+  font:
+    12px/1.7 Arial,
+    Helvetica,
+    sans-serif;
+  letter-spacing: 0.02em;
+  color: #c9d4ce;
+  margin-top: 7px;
+}
+.artist-signal[data-artist-signal="aquaverno"]:not([data-revealed="true"])
+  .signal-label
+  strong {
+  font-size: 17px;
+  letter-spacing: 0.015em;
+}
+.signal-label strong {
+  font-weight: 400;
+  font-size: 22px;
+  letter-spacing: 0.015em;
+}
+.world-fallback-art {
+  object-fit: cover;
+  object-position: 50% 50%;
+}
+.world-caption,
+[data-world-system="tidal-depth"] .world-caption,
+[data-world-system="pressure-wire"] .world-caption,
+[data-world-system="blue-illustration"] .world-caption,
+[data-world-system="pressure-type"] .world-caption,
+[data-world-system="heat-type"] .world-caption {
+  left: var(--edge);
+  right: auto;
+  top: auto;
+  bottom: 138px;
+  max-width: min(52vw, 660px);
+}
+.world-caption .eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  margin-bottom: 24px;
+  color: #d7e1d8;
+}
+.artist-lettering {
+  display: block;
+  width: 440px;
+  max-width: 100%;
+  height: auto;
+  filter: drop-shadow(0 4px 16px #0007);
+}
+.aquaverno-lettering {
+  width: 500px;
+}
+.hemorragia-cosmica-lettering {
+  width: 450px;
+}
+.baazu-lettering {
+  width: 320px;
+}
+.indionesbala-lettering {
+  width: 620px;
+}
+.barak-ozama-beats-lettering {
+  width: 230px;
+}
+[data-world-system="pressure-type"] .world-caption {
+  bottom: 115px;
+}
+.world-arrival-actions,
+[data-world-system="pressure-wire"] .world-arrival-actions {
+  left: var(--edge);
+  right: var(--edge);
+  bottom: 36px;
+  gap: 36px;
+  justify-content: flex-start;
+}
+.world-listen {
+  min-width: 150px;
+}
+.world-switch {
+  margin-left: auto;
+  letter-spacing: 0.08em;
+}
+.living-field[data-world-active="true"] .field-location {
+  display: none;
+}
+.living-field[data-world-active="true"] .field-header {
+  right: var(--edge);
+}
+.living-field[data-world-active="true"] .motion-toggle {
+  top: 0;
+  left: 260px;
+}
+.journey-controls {
+  bottom: 34px;
+  gap: 28px;
+  font-size: 12px;
+}
+.journey-copy strong {
+  font-size: 18px;
+  letter-spacing: 0.015em;
+}
+.journey-copy > span {
+  font-size: 12px;
+  letter-spacing: 0.075em;
+}
+.journey-track {
+  height: 2px;
+  background: #c4d8c944;
+}
+.journey-track i {
+  height: 2px;
+}
+#journey-exit {
+  font-size: 12px;
+  letter-spacing: 0.055em;
+}
+.living-field[data-journey="true"] .world-caption {
+  bottom: 215px;
+}
+.living-field[data-journey="true"] .world-arrival-actions {
+  bottom: 120px;
+}
+@media (max-width: 700px) {
+  :root {
+    --edge: 22px;
+  }
+  .field-header {
+    top: max(16px, env(safe-area-inset-top));
+    min-height: 44px;
+    align-items: flex-start;
+  }
+  .field-location {
+    max-width: 170px;
+    font-size: 10px;
+    line-height: 1.6;
+    letter-spacing: 0.085em;
+    display: block;
+  }
+  .field-location i {
+    padding: 0 5px;
+  }
+  .motion-toggle {
+    top: 0;
+    left: auto;
+    right: 0;
+    max-width: 105px;
+    font-size: 12px;
+    opacity: 0.9;
+  }
+  .field-brand {
+    left: 50%;
+    top: calc(18svh - 16px);
+    transform: translateX(-50%);
+    width: min(290px, calc(100vw - 44px));
+    text-align: center;
+  }
+  .hazewave-lettering {
+    width: 100%;
+  }
+  .field-brand p {
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    margin: 13px auto 0;
+    max-width: 250px;
+  }
+  .primary-paths {
+    top: auto;
+    bottom: max(18px, env(safe-area-inset-bottom));
+    gap: 0;
+  }
+  .primary-paths button {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    min-width: 78px;
+  }
+  .field-intro,
+  .field-index {
+    display: none;
+  }
+  .field-invitation {
+    left: 22px;
+    right: 22px;
+    bottom: 104px;
+    gap: 12px;
+  }
+  .field-invitation p {
+    font-size: 14px;
+    line-height: 1.4;
+    width: auto;
+    white-space: normal;
+  }
+  .field-invitation p span {
+    font-size: 12px;
+    line-height: 1.5;
+    letter-spacing: 0;
+    margin-top: 5px;
+  }
+  .touch-mark {
+    display: block;
+    font-size: 22px;
+  }
+  .world-caption,
+  [data-world-system="tidal-depth"] .world-caption,
+  [data-world-system="pressure-wire"] .world-caption,
+  [data-world-system="blue-illustration"] .world-caption,
+  [data-world-system="pressure-type"] .world-caption,
+  [data-world-system="heat-type"] .world-caption {
+    left: 22px;
+    right: 22px;
+    top: auto;
+    bottom: 220px;
+    max-width: calc(100% - 44px);
+  }
+  .world-caption .eyebrow {
+    font-size: 11px;
+    margin-bottom: 16px;
+    letter-spacing: 0.1em;
+  }
+  .artist-lettering {
+    width: 280px;
+    max-width: 100%;
+  }
+  .aquaverno-lettering {
+    width: 310px;
+  }
+  .hemorragia-cosmica-lettering {
+    width: 290px;
+  }
+  .baazu-lettering {
+    width: 250px;
+  }
+  .indionesbala-lettering {
+    width: 340px;
+  }
+  .barak-ozama-beats-lettering {
+    width: 150px;
+  }
+  [data-world-system="pressure-type"] .world-caption {
+    bottom: 214px;
+  }
+  .world-arrival-actions,
+  [data-world-system="pressure-wire"] .world-arrival-actions {
+    left: 22px;
+    right: 22px;
+    bottom: 104px;
+    gap: 10px;
+  }
+  .world-listen {
+    min-width: 0;
+  }
+  .world-switch {
+    max-width: 145px;
+    margin-left: auto;
+    font-size: 12px;
+    letter-spacing: 0;
+  }
+  .living-field[data-world-active="true"] .motion-toggle {
+    top: 0;
+    left: auto;
+    right: 0;
+  }
+  .world-back {
+    max-width: 180px;
+    font-size: 12px;
+  }
+  .journey-controls {
+    bottom: 99px;
+    gap: 10px;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .journey-copy strong {
+    font-size: 16px;
+  }
+  .journey-copy > span {
+    font-size: 11px;
+    letter-spacing: 0;
+  }
+  #journey-exit {
+    font-size: 12px;
+    letter-spacing: 0;
+  }
+  .living-field[data-journey="true"] .world-caption {
+    bottom: 300px;
+  }
+  .living-field[data-journey="true"] .world-arrival-actions {
+    bottom: 190px;
+  }
+}
+@media (max-width: 700px) and (max-height: 650px) {
+  .field-brand {
+    top: calc(17svh - 16px);
+    width: min(250px, calc(100vw - 52px));
+  }
+  .field-brand p {
+    margin-top: 10px;
+    font-size: 11px;
+  }
+  .field-invitation {
+    bottom: 99px;
+    gap: 10px;
+  }
+  .field-invitation p {
+    font-size: 13px;
+  }
+  .field-invitation p span {
+    font-size: 12px;
+  }
+  .world-caption,
+  [data-world-system="tidal-depth"] .world-caption,
+  [data-world-system="pressure-wire"] .world-caption,
+  [data-world-system="blue-illustration"] .world-caption,
+  [data-world-system="pressure-type"] .world-caption,
+  [data-world-system="heat-type"] .world-caption {
+    bottom: 210px;
+  }
+  .artist-lettering {
+    width: 245px;
+  }
+  .barak-ozama-beats-lettering {
+    width: 115px;
+  }
+  .indionesbala-lettering {
+    width: 275px;
+  }
+  .world-caption .eyebrow {
+    margin-bottom: 9px;
+  }
+  .living-field[data-journey="true"] .world-caption {
+    bottom: 285px;
+  }
+}
+@media (max-height: 600px) and (orientation: landscape) {
+  .field-header {
+    top: 12px;
+  }
+  .field-brand {
+    top: calc(24svh - 12px);
+    left: 0;
+    transform: none;
+    width: 260px;
+    text-align: left;
+  }
+  .field-brand p {
+    display: block;
+    font-size: 11px;
+    margin-top: 8px;
+  }
+  .field-location {
+    font-size: 10px;
+  }
+  .motion-toggle {
+    top: 40px;
+    left: 0;
+    right: auto;
+  }
+  .primary-paths {
+    top: 12px;
+    bottom: auto;
+  }
+  .field-invitation {
+    display: flex;
+    bottom: 62px;
+  }
+  .field-invitation p {
+    font-size: 12px;
+  }
+  .field-invitation p span {
+    font-size: 11px;
+  }
+  .field-intro,
+  .field-index {
+    display: none;
+  }
+  .artist-lettering {
+    width: 260px;
+  }
+  .barak-ozama-beats-lettering {
+    width: 120px;
+  }
+  .world-caption,
+  [data-world-system="tidal-depth"] .world-caption {
+    bottom: 100px;
+  }
+  .world-arrival-actions {
+    bottom: 14px;
+  }
+  .journey-controls {
+    bottom: 15px;
+  }
+  .living-field[data-journey="true"] .world-caption {
+    bottom: 165px;
+  }
+}
+
+/* Native discovery remains selectable at the origin of the camera journey. */
+.living-field[data-journey="true"][data-journey-act="discover"] .signal-mark {
+  opacity: 0.9;
+}
+.living-field[data-journey="true"][data-journey-act="discover"]
+  .artist-signal[data-revealed="true"]
+  .signal-mark {
+  opacity: 0;
+}
+
+/* The origin identity yields to the approaching artist during traversal. */
+.living-field[data-journey-act="traverse"] .field-brand {
+  opacity: clamp(0, calc(1 - var(--chapter-progress, 0) * 5), 1);
+  transform: translateY(calc(var(--world-takeover, 0) * -32px));
+}
+.living-field[data-journey-act="traverse"] .signal-field {
+  opacity: 0;
+}
+@media (max-width: 700px) {
+  .living-field[data-journey-act="traverse"] .field-brand {
+    transform: translate(-50%, calc(var(--world-takeover, 0) * -24px));
+  }
+  [data-world-system="tidal-depth"] .world-fallback-art {
+    object-position: 74% 50%;
+  }
+}
+
+@media (max-width: 700px) and (min-height: 651px) {
+  .field-brand {
+    top: calc(12svh - 16px);
+  }
+}
+
+.living-field[data-journey-phase="transition"] .world-caption,
+.living-field[data-journey-phase="transition"] .world-arrival-actions {
+ opacity:0; pointer-events:none; visibility:hidden;
+}
+.living-field[data-journey-phase="hold"] .world-caption {opacity:1;}
+.living-field[data-journey="true"] .journey-copy > span {max-width:300px;}
+@media(max-width:700px) {
+ .living-field[data-journey="true"] .journey-copy > span {max-width:190px;font-size:10px;}
+}
+
+/* A discovered signal takes authority over the origin's default invitation. */
+.living-field[data-signal-discovered="true"] .artist-signal[data-artist-signal="aquaverno"]:not([data-revealed="true"]):not(:focus-visible) .signal-label {
+  opacity:0; visibility:hidden; pointer-events:none;
+}

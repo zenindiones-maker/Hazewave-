@@ -1,0 +1,9 @@
+---
+import FieldPage from "../index.astro";
+import { realArtists } from "../../data/realArtists";
+export function getStaticPaths() {
+ return realArtists.map(artist => ({ params: {id: artist.id}, props: {artistId: artist.id} }));
+}
+const {artistId} = Astro.props;
+---
+<FieldPage artistId={artistId} />
