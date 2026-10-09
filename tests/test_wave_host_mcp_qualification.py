@@ -87,7 +87,7 @@ def test_existing_codespace_only_gate_has_no_install_or_stock_mutation():
         "hazewave-zero-cost-4jxp45676rq6279xx",
         "work/wave-host-mcp-qualification-v1",
         "HAZEWAVE_RESEARCH_EXPECTED_SHA",
-        "worktree", "--inventory", "--prove", "--client-probe",
+        "--is-inside-work-tree", "--inventory", "--prove", "--client-probe",
         "CODESPACES", "harness_research_execution",
         "wave_mcp_client_probe", "NO_EXTERNAL_TARGETS",
     ):
