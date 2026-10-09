@@ -9,3 +9,9 @@ The real diagnostic is admitted only by a single push commit carrying `[haze-dia
 Prior genuine runs: 37860280849 (MISSING_KEYS, FAIL), subsequent user-observed 12 dB semantic NO_ISSUE_DETECTED (FAIL); PR51 latest diagnostic was skipped. The V5 CI (37866458564) passed source_truth plus Python 3.12/3.14 tests, but is not real model inference.
 
 No authority to master audio, publish, merge or certify HAZE. No A15 runtime changes, paid provider, new Codespace, or Colibri/Reflex restart. Independent unseen holdout evaluation remains a separate requirement.
+
+## Non-inference cancellation observed and remediated
+
+Initial V5 run [37866566261](https://github.com/zenindiones-maker/Hazewave-/actions/runs/37866566261) was **CANCELLED during pinned llama.cpp build**. Its real-model inference step was SKIPPED. This is not an accuracy result and produces no successful model receipt. Root cause: workflow-level `concurrency.group` was by Git ref and `cancel-in-progress: true`, so an ordinary later branch push, whose live job was itself skipped, could still cancel an authorized live execution.
+
+V5 remediation commit `a548c9368cec9de1932caccb76675811ed316aeb` scopes concurrency by immutable `github.sha` with `cancel-in-progress: false`; the explicit marker remains required, so unmarked commits do not initiate model inference. This fix is a separate operational correction, not a semantic model PASS.
