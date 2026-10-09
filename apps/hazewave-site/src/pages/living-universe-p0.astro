@@ -1,0 +1,63 @@
+---
+import "../styles/living-p0.css";
+---
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="theme-color" content="#050817"/>
+  <meta name="description" content="HAZEWAVE — demonstração técnica isolada do universo musical 2D vivo com rolagem reversível e estação MPC."/>
+  <title>HAZEWAVE — Living Universe P0 | Prova interativa</title>
+</head>
+<body data-p0-status="loading" data-p0-phase="sleep">
+  <a class="skip-to" href="#p0-destination">Pular animação</a>
+  <header class="p0-header">
+    <div class="p0-brand">HAZEWAVE <span aria-hidden="true">∿</span></div>
+    <span class="p0-build">WAVE / LIVING UNIVERSE — PROTÓTIPO P0</span>
+    <a href="#p0-destination">INDIONESBALA ↘</a>
+  </header>
+  <main>
+    <section id="living-p0-scroll" class="p0-scroll" aria-label="Travessia interativa do universo musical">
+      <div id="living-p0-stage" class="p0-stage">
+        <div id="living-p0-canvas" class="p0-canvas">
+          <div class="p0-fallback" aria-hidden="true"></div>
+        </div>
+        <div class="p0-composition-shade" aria-hidden="true"></div>
+        <div id="living-p0-artist-logo" class="p0-artist-logo" aria-hidden="true">
+          <img src="/media/artists/indionesbala.webp" alt="" width="900" height="400"/>
+        </div>
+        <div class="p0-copy" aria-hidden="true">
+          <span class="p0-label p0-sleep">ANTES DA FREQUÊNCIA</span>
+          <span class="p0-label p0-signal">A ONDA TOCA AS MÁQUINAS</span>
+          <span class="p0-label p0-traverse">ENTRE OS CONTROLES DO UNIVERSO</span>
+          <span class="p0-label p0-hub">A ESTAÇÃO COMEÇA A RESPONDER</span>
+          <span class="p0-label p0-awake">INDIONESBALA — O UNIVERSO DESPERTO</span>
+        </div>
+        <div class="p0-bottom">
+          <span class="p0-guide">ROLE PARA ATRAVESSAR · SUBA PARA REVERTER</span>
+          <div class="p0-track" aria-hidden="true"><div id="living-p0-progress"></div></div>
+          <span class="p0-status">TRAVESSIA 2D / PROVA</span>
+        </div>
+        <noscript>
+          <div class="p0-noscript">JavaScript é necessário para a travessia animada. O mundo Indionesbala continua acessível: <a href="/artists/indionesbala/">abrir artista</a>.</div>
+        </noscript>
+      </div>
+    </section>
+    <section id="p0-destination" class="p0-destination" aria-labelledby="p0-destination-title">
+      <div class="p0-end-ornament" aria-hidden="true">∿</div>
+      <span>HAZEWAVE · P0 / DEMONSTRAÇÃO NÃO PUBLICADA</span>
+      <h1 id="p0-destination-title">A frequência<br/>ganhou <em>vida.</em></h1>
+      <p>Esta é somente uma prova técnica de camadas, câmera, onda causal e movimento contínuo. Os sprites finais ilustrados ainda precisam ser produzidos e aprovados.</p>
+      <a href="/artists/indionesbala/">CONHECER INDIONESBALA <span aria-hidden="true">↗</span></a>
+    </section>
+  </main>
+  <script>
+    import {mountLivingP0} from "../experience/living-p0";
+    mountLivingP0().catch((error)=>{
+      console.error(error);
+      document.body.dataset.p0Status="fallback";
+    });
+  </script>
+</body>
+</html>
