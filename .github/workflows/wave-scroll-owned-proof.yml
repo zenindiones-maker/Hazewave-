@@ -1,0 +1,84 @@
+name: WAVE Owned Scroll Forensic Proof
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wave-scroll-owned-proof.yml"
+      - "src/hazewave/wave_scroll_evidence.py"
+      - "scripts/research/scroll-owned-fixture.cjs"
+      - "tests/fixtures/wave-scroll-owned.html"
+      - "tests/test_wave_scroll_evidence.py"
+
+permissions:
+  contents: read
+
+jobs:
+  browser-owned-scroll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Test fail-closed evidence validator
+        shell: bash
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python -m pip install pytest==8.4.2
+          python -m pytest -q tests/test_wave_scroll_evidence.py
+
+      - name: Install pinned browser test tool in disposable runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm_config_ignore_scripts=true npm install --prefix "$RUNNER_TEMP/wave-pw" \
+            --no-audit --no-fund --ignore-scripts playwright@1.63.0
+          node -e 'const p=require(process.argv[1]);if(p.name!=="playwright"||p.version!=="1.63.0")process.exit(20)' \
+            "$RUNNER_TEMP/wave-pw/node_modules/playwright/package.json"
+          "$RUNNER_TEMP/wave-pw/node_modules/.bin/playwright" install --with-deps chromium
+          echo "WAVE_BROWSER_PIN=PLAYWRIGHT_1_63_0"
+
+      - name: Produce eight actual scroll screenshots per viewport
+        shell: bash
+        env:
+          NODE_PATH: ${{ runner.temp }}/wave-pw/node_modules
+        run: |
+          set -euo pipefail
+          node scripts/research/scroll-owned-fixture.cjs \
+            "$RUNNER_TEMP/wave-scroll-owned" \
+            "$GITHUB_WORKSPACE/tests/fixtures/wave-scroll-owned.html"
+
+      - name: Validate PNG pixels and physically causal reversible drawing
+        shell: bash
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          for viewport in mobile393 mobile360 desktop; do
+            root="$RUNNER_TEMP/wave-scroll-owned/$viewport"
+            python -m hazewave.wave_scroll_evidence \
+              --input "$root/browser-capture.json" \
+              --capture-root "$root" \
+              --repo-sha "$(git rev-parse HEAD)" \
+              > "$RUNNER_TEMP/wave-$viewport-validation.jsonl"
+            grep -F "WAVE_SCROLL_OWNED_BROWSER_EVIDENCE=PASS" \
+              "$RUNNER_TEMP/wave-$viewport-validation.jsonl"
+            grep -F '"status":"BOUNDED_REPRODUCED_BEHAVIOR"' \
+              "$RUNNER_TEMP/wave-$viewport-validation.jsonl"
+          done
+          echo "WAVE_SCROLL_REAL_BROWSER=PASS_3_VIEWPORTS"
+          echo "WAVE_SCROLL_FRAME_COUNT=24"
+          echo "WAVE_SCROLL_EXTERNAL_SITES=NOT_TESTED"
+          echo "WAVE_REA6_LINKED_SAME_TARGET=NOT_TESTED"
+          echo "WAVE_CODESPACE_RUNTIME=NOT_TESTED"
+          echo "WAVE_AGENT_MCP_CONNECTED=NOT_TESTED"
+          echo "WAVE_PRODUCTION_APPROVED=FALSE"
