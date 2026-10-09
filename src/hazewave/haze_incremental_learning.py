@@ -160,10 +160,7 @@ def grow_early_memory(
         raise AudioLearningError("FEATURE_LEARNING_NOT_AUTHORIZED")
     source_root = _root_path(root)
     existing = _model_prototypes(memory)
-    if not isinstance(receipts, (list, tuple)) or not len(existing) + 1 <= len(receipts) <= 64:
-        # Report a specific missing/new set below for feasible cardinalities.
-        if isinstance(receipts, (list, tuple)) and len(receipts) == len(existing):
-            raise AudioLearningError("NO_NEW_AUDIO_EVIDENCE")
+    if not isinstance(receipts, (list, tuple)) or not 2 <= len(receipts) <= 64:
         raise AudioLearningError("PARENT_SOURCES_INCOMPLETE")
     by_key: dict[tuple[str, str], Mapping[str, Any]] = {}
     for receipt in receipts:
