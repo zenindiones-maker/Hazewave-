@@ -15,7 +15,10 @@ on:
       - "docs/wave/WAVE_HAZEWAVE_WORLD_BIBLE_V1.md"
       - "docs/wave/WAVE_HAZEWAVE_INTERACTIVE_MUSIC_SITE_V1.md"
       - "docs/DOCUMENTATION_REGISTRY_V2.json"
+      - "scripts/ci/wave_candidate_delivery.py"
+      - "tests/test_wave_candidate_delivery.py"
       - ".github/workflows/wave-site-ci.yml"
+  # V4 branches run on PR synchronization: avoid duplicate push + PR runners.
   pull_request:
     paths:
       - "apps/hazewave-site/**"
@@ -24,6 +27,8 @@ on:
       - "docs/wave/WAVE_HAZEWAVE_WORLD_BIBLE_V1.md"
       - "docs/wave/WAVE_HAZEWAVE_INTERACTIVE_MUSIC_SITE_V1.md"
       - "docs/DOCUMENTATION_REGISTRY_V2.json"
+      - "scripts/ci/wave_candidate_delivery.py"
+      - "tests/test_wave_candidate_delivery.py"
       - ".github/workflows/wave-site-ci.yml"
 
 concurrency:
@@ -38,9 +43,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout
+      - name: Checkout immutable reviewed commit
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
       - name: Set up Python
@@ -67,9 +73,10 @@ jobs:
       run:
         working-directory: apps/hazewave-site
     steps:
-      - name: Checkout
+      - name: Checkout immutable reviewed commit
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
       - name: Set up Node
@@ -85,6 +92,15 @@ jobs:
 
       - name: Validate A15 runtime proof script
         run: bash -n scripts/a15-runtime-proof.sh
+
+      - name: V4 source JavaScript syntax (no owner media)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f experiments/travessia-v4/travessia.js ]; then
+            node --check experiments/travessia-v4/travessia.js
+            echo "WAVE_V4_JS_STATIC_SYNTAX=PASS"
+          fi
 
       - name: Typecheck
         run: npx tsc --noEmit
@@ -125,3 +141,94 @@ jobs:
           name: hazewave-site-visual-proof
           path: apps/hazewave-site/test-results
           if-no-files-found: warn
+
+  wave-v4-source-candidate-delivery:
+    name: Auto-CD · reviewed WAVE V4 source only
+    # Fail-closed: depends on BOTH Python governance and real site/browser CI.
+    # No asset or executable may be promoted after a skipped/failed job.
+    needs: [repository-contracts, build-and-browser-test]
+    if: ${{ startsWith(github.event.pull_request.head.ref || github.ref_name, 'work/wave-v4-') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact candidate SHA (no persisted credentials)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact source and build deterministic staging artifact
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          mkdir -p "$RUNNER_TEMP/hazewave-v4-source-cd"
+          python scripts/ci/wave_candidate_delivery.py package \
+            --repo-root . \
+            --out "$RUNNER_TEMP/hazewave-v4-source-cd/wave-v4-source-candidate.zip" \
+            --expected-sha "$CANDIDATE_SHA"
+          python scripts/ci/wave_candidate_delivery.py verify \
+            --package "$RUNNER_TEMP/hazewave-v4-source-cd/wave-v4-source-candidate.zip" \
+            --expected-sha "$CANDIDATE_SHA"
+          {
+            echo "### WAVE V4 · automatic candidate delivery"
+            echo ""
+            echo "- **Exact reviewed HEAD:** \`$CANDIDATE_SHA\`"
+            echo "- **Required CI:** repository contracts + browser/build passed"
+            echo "- **Delivered:** SHA-bound source-only archive and signed-by-hash receipt"
+            echo "- **Owner media in artifact:** NO"
+            echo "- **Deployment/merge:** NOT ATTEMPTED"
+            echo "- **Production and artistic approval:** PENDING"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Deliver immutable source-only candidate for owner review
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave-v4-source-candidate-${{ github.run_id }}
+          path: ${{ runner.temp }}/hazewave-v4-source-cd/
+          if-no-files-found: error
+          retention-days: 14
+          include-hidden-files: false
+
+  wave-v4-pipeline-report:
+    name: Auto-CD · visible verdict, including blocked runs
+    needs: [repository-contracts, build-and-browser-test, wave-v4-source-candidate-delivery]
+    if: ${{ always() && startsWith(github.event.pull_request.head.ref || github.ref_name, 'work/wave-v4-') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    steps:
+      - name: Write pipeline verdict to GitHub run summary
+        shell: bash
+        env:
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CONTRACTS: ${{ needs.repository-contracts.result }}
+          WEB_BROWSER: ${{ needs.build-and-browser-test.result }}
+          SOURCE_CD: ${{ needs.wave-v4-source-candidate-delivery.result }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### HAZEWAVE WAVE · unattended CI/CD gate"
+            echo
+            echo "| Gate | Result |"
+            echo "| --- | --- |"
+            echo "| Source and governance tests | $CONTRACTS |"
+            echo "| Astro build and actual browser tests | $WEB_BROWSER |"
+            echo "| Exact-HEAD source-only staged delivery | $SOURCE_CD |"
+            echo
+            echo "Reviewed commit: $SHA"
+            echo
+            if [[ "$CONTRACTS" == "success" && "$WEB_BROWSER" == "success" && "$SOURCE_CD" == "success" ]]; then
+              echo "**DEVELOPMENT CANDIDATE READY FOR HUMAN REVIEW**"
+            else
+              echo "**BLOCKED; NO CANDIDATE DELIVERED FOR THIS COMMIT**"
+              echo "Inspect the failed job and its logs. Do not automatically rerun or bypass."
+            fi
+            echo
+            echo "Production=BLOCKED; Human artistic approval=PENDING; Codespace/A15=UNTOUCHED"
+          } >> "$GITHUB_STEP_SUMMARY"
