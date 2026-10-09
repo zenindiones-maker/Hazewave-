@@ -35,7 +35,7 @@ export function bootLivingField(): void {
   const reduced = () => motion.matches || manualReduced;
   const renderer = new FieldRenderer(field, canvas, reduced());
   field.dataset.motion = reduced() ? "reduced" : "full";
-  const descentOrder = [2, 0, 1, 3, 4];
+  const descentOrder = [0];
   let discoveredIndex = descentOrder[0];
   let journeyIndex = discoveredIndex;
   let journeySequence = [...descentOrder];
@@ -59,7 +59,7 @@ export function bootLivingField(): void {
         !search.open &&
         field.dataset.fieldRuntime === "webgl2");
     journeyDistance.hidden = !armed;
-    journeyDistance.style.height = `${Math.max(180, journeySequence.length * 130)}svh`;
+    journeyDistance.style.height = `${Math.max(280, journeySequence.length * 280)}svh`;
     field.dataset.scrollReady = String(armed);
     field.style.position = armed ? "sticky" : "";
     field.style.top = armed ? "0px" : "";
@@ -68,6 +68,7 @@ export function bootLivingField(): void {
   const stopJourney = () => {
     if (!journey) return;
     journey = false;
+    renderer.setScrollDepth(null);
     cancelAnimationFrame(journeyFrame);
     journeyFrame = 0;
     clearTimeout(arrivalTimer);
@@ -225,7 +226,10 @@ export function bootLivingField(): void {
         field.dataset.worldReady = "true";
         field.dataset.transitioning = "false";
         worlds.forEach(
-          (world) => (world.inert = world.dataset.artistWorld !== current || (journey && field.dataset.journeyPhase !== "hold")),
+          (world) =>
+            (world.inert =
+              world.dataset.artistWorld !== current ||
+              (journey && field.dataset.journeyPhase !== "hold")),
         );
         status.textContent = artist
           ? `Você entrou no universo de ${artist.name}.`
@@ -366,6 +370,7 @@ export function bootLivingField(): void {
     journeyFrame = 0;
     if (!journey) return;
     const progress = clamp(scrollY / Math.max(1, journeyDistance.offsetHeight));
+    renderer.setScrollDepth(progress);
     const discovering = progress <= 0.045;
     // Equal chapter lengths, each with a real arrival hold. The scene is a pure
     // function of native scroll, so reversing never depends on animation history.
@@ -425,7 +430,7 @@ export function bootLivingField(): void {
     journeyStage.textContent = discovering
       ? "ORIGEM / ROLE PARA DESCER"
       : arrival
-        ? `${chapterLabel} / ${chapter === journeySequence.length - 1 ? "NÚCLEO PROFUNDO" : "PERMANEÇA · CONTINUE DESCENDO"}`
+        ? `${chapterLabel} / ${chapter === journeySequence.length - 1 ? "SINAL REVELADO" : "PERMANEÇA · CONTINUE DESCENDO"}`
         : `${chapterLabel} / ATRAVESSE A RESSONÂNCIA`;
     field.dataset.journeyAct = discovering
       ? "discover"
@@ -441,9 +446,17 @@ export function bootLivingField(): void {
     field.dataset.signalDiscovered = String(discovering);
     // CSS also uses visibility:hidden during crossing. Keep semantic interactivity
     // aligned so a previous world's controls never remain keyboard destinations.
-    const focusedWorld = worlds.find((world) => world.contains(document.activeElement));
-    worlds.forEach((world) => (world.inert = !arrival || world.dataset.artistWorld !== current));
-    if (!arrival && focusedWorld) document.querySelector<HTMLButtonElement>("#journey-exit")!.focus({ preventScroll: true });
+    const focusedWorld = worlds.find((world) =>
+      world.contains(document.activeElement),
+    );
+    worlds.forEach(
+      (world) =>
+        (world.inert = !arrival || world.dataset.artistWorld !== current),
+    );
+    if (!arrival && focusedWorld)
+      document
+        .querySelector<HTMLButtonElement>("#journey-exit")!
+        .focus({ preventScroll: true });
   };
   window.addEventListener(
     "scroll",
@@ -529,7 +542,7 @@ export function bootLivingField(): void {
   );
   document
     .querySelectorAll("[data-world-switch]")
-    .forEach((button) => button.addEventListener("click", openSearch, options));
+    .forEach((button) => button.addEventListener("click", () => back.click(), options));
   // Explicit home navigation works from direct links and never assumes a previous in-app entry.
   back.addEventListener(
     "click",
@@ -551,8 +564,10 @@ export function bootLivingField(): void {
       stopJourney();
       if (search.open) search.close();
       const id =
-        getRealArtist(new URL(location.href).searchParams.get("artist") ?? location.pathname.split("/artists/")[1]?.split("/")[0])?.id ??
-        null;
+        getRealArtist(
+          new URL(location.href).searchParams.get("artist") ??
+            location.pathname.split("/artists/")[1]?.split("/")[0],
+        )?.id ?? null;
       show(id, "none");
       (id
         ? back
@@ -658,8 +673,10 @@ export function bootLivingField(): void {
       : "PAUSAR MOVIMENTO";
   }
   const initial =
-    getRealArtist(new URL(location.href).searchParams.get("artist") ?? location.pathname.split("/artists/")[1]?.split("/")[0])?.id ??
-    null;
+    getRealArtist(
+      new URL(location.href).searchParams.get("artist") ??
+        location.pathname.split("/artists/")[1]?.split("/")[0],
+    )?.id ?? null;
   if (initial)
     discoveredIndex = realArtists.findIndex((artist) => artist.id === initial);
   show(initial, "replace", [0.5, 0.5], true);

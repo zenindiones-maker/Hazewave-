@@ -3,7 +3,7 @@ import "../styles/living-field.css";
 import { realArtists } from "../data/realArtists";
 const selectedArtist = realArtists.find(artist => artist.id === Astro.props.artistId);
 const pageTitle = selectedArtist ? `${selectedArtist.name} — HAZEWAVE` : "Hazewave — Living Resonance Field";
-const pageDescription = selectedArtist ? `${selectedArtist.name} no universo Hazewave. Explore sua identidade visual e encontre outros artistas.` : "Hazewave. Núcleo Sonoro Independente, Santos. Atravesse a névoa e encontre o universo de cada artista.";
+const pageDescription = selectedArtist ? `${selectedArtist.name} no universo Hazewave. Explore sua identidade visual e encontre outros artistas.` : "Hazewave. Núcleo sonoro. Atravesse a névoa e encontre o universo de cada artista.";
 const lettering = {
   "aquaverno": { box: "55 28 1426 305", width: 1536, height: 1536, mask: "lettering-light" },
   "hemorragia-cosmica": { box: "205 430 735 310", width: 1140, height: 1536, mask: "lettering-yellow" },
@@ -19,15 +19,15 @@ const lettering = {
     <meta name="theme-color" content="#070908" />
     <meta name="description" content={pageDescription} />
     <meta property="og:title" content={pageTitle} />
-    <meta property="og:image" content={selectedArtist ? `/media/worlds/${selectedArtist.id}-v6.webp` : "/media/worlds/hazewave-v6.webp"} />
+    <meta property="og:image" content={selectedArtist ? selectedArtist.artwork! : "/media/worlds/living-illustrated-v7.webp"} />
     <meta property="og:type" content="website" />
-    <link rel="preload" as="image" href="/media/worlds/hazewave-v6.webp" fetchpriority="high" />
+    <link rel="preload" as="image" href="/media/worlds/living-illustrated-v7.webp" fetchpriority="high" />
     <title>{pageTitle}</title>
   </head>
   <body>
     <main id="living-field" class="living-field" data-field-runtime="initializing" data-world-active="false" data-wave-active="false" data-world-ready="true" aria-label="Hazewave Living Resonance Field">
       <div class="field-origin" aria-hidden="true">
-        <img id="hazewave-world-source" src="/media/worlds/hazewave-v6.webp" alt="" fetchpriority="high" />
+        <img id="hazewave-world-source" src="/media/worlds/living-illustrated-v7.webp" alt="" fetchpriority="high" />
       </div>
       <canvas id="living-field-canvas" aria-hidden="true"></canvas>
       <div class="field-grain" aria-hidden="true"></div>
@@ -38,8 +38,8 @@ const lettering = {
         <filter id="lettering-glow"><feColorMatrix type="luminanceToAlpha"/><feComponentTransfer><feFuncA type="linear" slope="7" intercept="-0.45"/></feComponentTransfer><feMorphology operator="dilate" radius="55"/><feMorphology operator="erode" radius="55"/><feComposite in="SourceGraphic" operator="in"/></filter>
       </defs></svg>
       <header class="field-header">
-        <span class="field-location">SANTOS <i aria-hidden="true">/</i> NÚCLEO SONORO INDEPENDENTE</span>
-        <div class="field-brand"><h1 class="sr-only">HAZEWAVE</h1><svg class="hazewave-lettering" viewBox="70 62 884 410" aria-hidden="true"><defs><filter id="owner-lettering-mask"><feColorMatrix in="SourceGraphic" type="luminanceToAlpha" result="luminance"/><feComponentTransfer in="luminance" result="lettering"><feFuncA type="linear" slope="4" intercept="-2.5"/></feComponentTransfer><feComposite in="SourceGraphic" in2="lettering" operator="in"/></filter></defs><image href="/media/hazewave-world.jpg" width="1024" height="1536" filter="url(#owner-lettering-mask)" /></svg><p>Núcleo Sonoro Independente <span>· Santos</span></p></div>
+
+        <div class="field-brand"><h1 class="sr-only">HAZEWAVE</h1><svg class="hazewave-lettering" viewBox="70 62 884 410" aria-hidden="true"><defs><filter id="owner-lettering-mask"><feColorMatrix in="SourceGraphic" type="luminanceToAlpha" result="luminance"/><feComponentTransfer in="luminance" result="lettering"><feFuncA type="linear" slope="4" intercept="-2.5"/></feComponentTransfer><feComposite in="SourceGraphic" in2="lettering" operator="in"/></filter></defs><image href="/media/hazewave-world.jpg" width="1024" height="1536" filter="url(#owner-lettering-mask)" /></svg><p>Núcleo sonoro</p></div>
         <button id="motion-toggle" class="motion-toggle" type="button" aria-pressed="false"><span aria-hidden="true">Ⅱ</span> <span>Pausar movimento</span></button>
         <button id="world-back" class="world-back" type="button" hidden>← <span>VOLTAR AO CAMPO</span></button>
       </header>
@@ -52,19 +52,19 @@ const lettering = {
       <div class="signal-field" aria-label="Sinais de artistas">
         {realArtists.map((artist, index) => <button type="button" class="artist-signal" data-artist-signal={artist.id} data-materialized={String(artist.materializedWorld)} aria-label={`Entrar no sinal de ${artist.name}`} style={`--signal-color:${artist.color}`}>
           <span class="signal-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-          <span class="signal-label"><small>0{index + 1}</small><strong>{artist.name}</strong><b aria-hidden="true">{artist.id === "aquaverno" && <span class="signal-discover">descobrir ↗</span>}<span class="signal-enter">ENTRAR ↗</span></b></span>
-          <span class="signal-preview" aria-hidden="true"><img src={`/media/worlds/${artist.id}-v6.webp`} alt="" loading="lazy" /><span>ENTRAR NO MUNDO ↗</span></span>
+          <span class="signal-label"><small>0{index + 1}</small><strong>{artist.name}</strong><b aria-hidden="true">{artist.id === "indionesbala" && <span class="signal-discover">descobrir ↗</span>}<span class="signal-enter">ENTRAR ↗</span></b></span>
+          <span class="signal-preview" aria-hidden="true"><img src={artist.artwork!} alt="" loading="lazy" /><span>ENTRAR NO MUNDO ↗</span></span>
         </button>)}
       </div>
-      <div class="field-invitation"><span class="touch-mark" aria-hidden="true">↓</span><p>Siga a ressonância.<span>Role para iniciar a travessia.<br />Toque a névoa para encontrar outros sinais.</span></p></div>
-      <div class="journey-controls" hidden><div class="journey-copy"><strong id="journey-artist">Aquaverno</strong><span id="journey-stage">01 / ENCONTRE O SINAL</span></div><span class="journey-track"><i></i></span><button type="button" id="journey-exit">SAIR DA TRAVESSIA ×</button></div>
-      <div class="field-index" aria-hidden="true"><span>01 — CAMPO</span><span class="index-line"></span><span>05 UNIVERSOS</span></div>
+      <div class="field-invitation"><span class="touch-mark" aria-hidden="true">↓</span><p>Atravesse a névoa.<span>Desça para mover o campo.</span></p></div>
+      <div class="journey-controls" hidden><div class="journey-copy"><strong id="journey-artist">Indionesbala</strong><span id="journey-stage">01 / ENCONTRE O SINAL</span></div><span class="journey-track"><i></i></span><button type="button" id="journey-exit">SAIR DA TRAVESSIA ×</button></div>
+      <div class="field-index" aria-hidden="true"><span>01 — CAMPO</span><span class="index-line"></span><span>01 SINAL</span></div>
       <p id="world-art-error" role="status">A arte deste sinal está indisponível. Explore outro artista.</p>
       <div class="artist-world-shell">
         {realArtists.map((artist, index) => <section class="artist-world" data-artist-world={artist.id} data-world-system={artist.worldSystem} data-active="false" aria-label={`Mundo visual de ${artist.name}`} inert>
-          <img class="world-fallback-art" src={`/media/worlds/${artist.id}-v6.webp`} alt={`Cenário conceitual de ${artist.name}`} decoding="async" loading="lazy" />
+          <img class="world-fallback-art" src={artist.artwork!} alt={`Identidade oficial de ${artist.name}`} decoding="async" loading="lazy" />
           <div class="world-caption"><span class="eyebrow">HAZEWAVE / 0{index + 1}</span><h2 class="sr-only">{artist.name}</h2><svg class={`artist-lettering ${artist.id}-lettering`} viewBox={lettering[artist.id].box} aria-hidden="true"><image href={artist.artwork!} width={lettering[artist.id].width} height={lettering[artist.id].height} filter={`url(#${lettering[artist.id].mask})`} /></svg></div>
-          <div class="world-arrival-actions"><button type="button" class="world-listen" data-world-listen><span>OUVIR <b aria-hidden="true">↗</b></span><small>Áudio indisponível</small></button><button type="button" class="world-switch" data-world-switch>EXPLORAR OUTRO SINAL <span aria-hidden="true">↗</span></button></div>
+          <div class="world-arrival-actions"><button type="button" class="world-listen" data-world-listen><span>OUVIR <b aria-hidden="true">↗</b></span><small>Áudio indisponível</small></button><button type="button" class="world-switch" data-world-switch>RETORNAR AO CAMPO <span aria-hidden="true">↗</span></button></div>
         </section>)}
       </div>
       <section id="persistent-transport" class="persistent-transport" tabindex="-1" aria-label="Player Hazewave" data-expanded="false">
@@ -77,18 +77,18 @@ const lettering = {
         <label class="transport-volume"><span class="sr-only">Volume</span><span aria-hidden="true">◖</span><input type="range" min="0" max="100" value="70" disabled aria-label="Volume" /></label>
         <button type="button" id="transport-close" aria-label="Recolher player" hidden>×</button>
       </section>
-      <p id="field-status" class="sr-only" role="status" aria-live="polite">Explore os cinco artistas pelo campo ou pela busca.</p>
+      <p id="field-status" class="sr-only" role="status" aria-live="polite">Explore Indionesbala pelo campo ou pela busca.</p>
       <dialog id="artist-search" class="artist-search" aria-label="Buscar artista">
         <header class="search-head"><span class="eyebrow">ENCONTRE SEU PRÓXIMO UNIVERSO</span><button type="button" data-search-close aria-label="Fechar busca">×</button></header>
         <label class="search-input-label"><span class="sr-only">Nome do artista</span><input id="artist-query" type="search" placeholder="Qual sinal você procura?" autocomplete="off" /></label>
-        <div class="search-list">{realArtists.map((artist, index) => <button type="button" data-search-artist={artist.id}><span class="search-art"><img src={`/media/worlds/${artist.id}-v6.webp`} alt="" loading="lazy" /></span><span>{artist.name}</span><small>0{index + 1}</small><b aria-hidden="true">↗</b></button>)}</div>
+        <div class="search-list">{realArtists.map((artist, index) => <button type="button" data-search-artist={artist.id}><span class="search-art"><img src={artist.artwork!} alt="" loading="lazy" /></span><span>{artist.name}</span><small>0{index + 1}</small><b aria-hidden="true">↗</b></button>)}</div>
         <p id="search-empty" hidden>Nenhum artista encontrado. Tente outro nome.</p>
       </dialog>
       <noscript>
         <section class="static-gallery" aria-label="Artistas Hazewave">
-          <h2>Hazewave · Núcleo Sonoro Independente</h2><p>Explore as artes dos nossos artistas. Ative JavaScript para atravessar o campo interativo.</p>
-          <figure><img src="/media/worlds/hazewave-v6.webp" alt="Universo Hazewave: farol entre o mar e a névoa" /><figcaption>HAZEWAVE — Santos</figcaption></figure>
-          {realArtists.map(artist=><figure><a href={`/artists/${artist.id}/`}><img src={`/media/worlds/${artist.id}-v6.webp`} alt={`Mundo visual de ${artist.name}`} /></a><figcaption>{artist.name}</figcaption></figure>)}
+          <h2>Hazewave · Núcleo sonoro</h2><p>Explore as artes dos nossos artistas. Ative JavaScript para atravessar o campo interativo.</p>
+          <figure><img src="/media/worlds/living-illustrated-v7.webp" alt="Universo Hazewave: farol entre o mar e a névoa" /><figcaption>HAZEWAVE — Núcleo sonoro</figcaption></figure>
+          {realArtists.map(artist=><figure><a href={`/artists/${artist.id}/`}><img src={artist.artwork!} alt={`Mundo visual de ${artist.name}`} /></a><figcaption>{artist.name}</figcaption></figure>)}
         </section>
         <style>.living-field::after{display:none}.living-field{height:auto;overflow:visible}.field-origin,#living-field-canvas,.field-header,.field-intro,.primary-paths,.signal-field,.artist-world-shell,.field-invitation,.field-index,.persistent-transport,#world-art-error{display:none}.static-gallery{padding:28px;max-width:800px;margin:auto}.static-gallery figure{margin:35px 0}.static-gallery img{max-width:100%;max-height:80svh;object-fit:contain}.static-gallery p{line-height:1.6}</style>
       </noscript>

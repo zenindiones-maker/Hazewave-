@@ -1833,3 +1833,20 @@ input:focus-visible {
 .living-field[data-signal-discovered="true"] .artist-signal[data-artist-signal="aquaverno"]:not([data-revealed="true"]):not(:focus-visible) .signal-label {
   opacity:0; visibility:hidden; pointer-events:none;
 }
+
+/* V7 single-artist experiment: one drawn environment, one continuous traversal. */
+.field-location,.field-intro,.field-index {display:none;}
+.field-brand p {font-size:14px;letter-spacing:.04em;}
+.field-origin img {object-position:62% 50%;}
+.field-brand {width:min(400px,35vw);top:calc(31svh - 32px);}
+.field-invitation {max-width:300px;}
+.signal-preview {display:none !important;}
+.living-field[data-field-runtime="webgl2"] .world-fallback-art {visibility:hidden;}
+.world-fallback-art {object-fit:contain;object-position:center;}
+.living-field[data-world-active="true"] .field-origin img {filter:sepia(.65) saturate(1.15);}
+@media(max-width:700px){
+ .field-brand {width:min(300px,78vw);left:0;top:calc(11svh - 22px);}
+ .field-brand p {font-size:12px;margin-top:10px;}
+ .field-invitation {bottom:100px;max-width:260px;}
+ .motion-toggle {top:0;right:0;left:auto;font-size:10px;}
+}

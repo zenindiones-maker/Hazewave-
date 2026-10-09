@@ -1,0 +1,28 @@
+{
+  "status": "CREATIVE_EXPERIMENT_NOT_APPROVED",
+  "public_artist_slice": [
+    "indionesbala"
+  ],
+  "creation": "Built-in image_gen, generated master plus non-destructive illustrated style-transfer. Public scope only Indionesbala. Prior photographic experiment preserved separately.",
+  "original_logo": "Original hazewave-world.jpg bytes and lettering remain unchanged.",
+  "source_assets": [
+    "/media/hazewave-world.jpg",
+    "/media/artists/aquaverno.jpg"
+  ],
+  "source_role": "Conceptual wave/sea/light references only; Aquaverno is not part of the public V7 slice.",
+  "asset": "/media/worlds/living-illustrated-v7.webp",
+  "sha256": "1023c9955b37deed08abd351f0db64a015228073546176c1a0c49dd43ee5a6a7",
+  "bytes": 505634,
+  "rendering": "Single environmental sampler, reversible scroll-driven camera projection, fluid refraction and atmospheric clearing. Not a 3D geometric reconstruction.",
+  "higgsfield": {
+    "job_id": "010d5cb7-e018-48da-9f90-4a888a752dd9",
+    "model": "hf_mult_motion_control",
+    "use_free_gens": true,
+    "quoted_credits": 0,
+    "resolution": "480p",
+    "duration_seconds": 6,
+    "status_at_checkpoint": "waiting",
+    "integrated": false,
+    "driver": "Original authored dolly from the same illustrated master; no competitor media used."
+  }
+}

@@ -1,7 +1,7 @@
 import { fieldFragment, FIELD_WAVE_SPEED } from "./fieldShader";
 export { FIELD_WAVE_SPEED };
 
-/** Scene textures and the canonical owner artwork remain separately sampled materials. */
+/** One continuous environment; navigation changes climate and camera depth. */
 export class FieldRenderer {
   private gl: WebGL2RenderingContext | null = null;
   private program: WebGLProgram | null = null;
@@ -19,14 +19,12 @@ export class FieldRenderer {
   private transitionStart = 0;
   private transitionDuration = 2400;
   private manualProgress = false;
-  private previewIndex = 4;
-  private previewOrigin = [0.5, 0.5];
+  private previewIndex = 1;
+  private scrollDepth: number | null = null;
   private previewAmount = 0;
   private previewTarget = 0;
   private smoothPointer = [0.5, 0.5];
-  private origin = [0.5, 0.5];
   private waveOrigin = [0.5, 0.5];
-  private entryOpen = false;
   private pointer = [0.5, 0.5];
   private waveStart = -10000;
   private previousFrame = 0;
@@ -35,11 +33,8 @@ export class FieldRenderer {
   private initialization: Promise<void> | null = null;
   private images: HTMLImageElement[] = [];
   private loading = new Map<number, Promise<boolean>>();
-  private request = 0;
   private targetBuffer: WebGLFramebuffer | null = null;
   private targetTexture: WebGLTexture | null = null;
-  private snapshot: WebGLTexture | null = null;
-  private hasFrame = false;
   private qualityScale = 1;
   private slowFrames = 0;
   private severeFrames = 0;
@@ -104,20 +99,10 @@ export class FieldRenderer {
     if (!gl.getProgramParameter(this.program, gl.LINK_STATUS))
       throw new Error(gl.getProgramInfoLog(this.program) ?? "Link failed");
     this.vao = gl.createVertexArray();
-    this.images = images.slice();
-    // The original is a required material in the field, independent of its expanded environment.
-    const canonical = this.canvas.ownerDocument.createElement("img");
-    canonical.src = this.canvas.ownerDocument.querySelector(".hazewave-lettering image")?.getAttribute("href") ?? "/media/hazewave-world.jpg";
-    canonical.loading = "eager";
-    this.images[6] = canonical;
+    this.images = images.length ? [images[0]] : [];
     if (!(await this.ensureAsset(0)))
-      throw new Error("Origin artwork unavailable");
-    this.host.dataset.canonicalAssetUnavailable = String(!(await this.ensureAsset(6)));
-    if (this.from > 0) await this.ensureAsset(this.from);
-    if (this.to)
-      this.host.dataset.assetUnavailable = String(
-        !(await this.ensureAsset(this.to)),
-      );
+      throw new Error("Continuous environment unavailable");
+    this.host.dataset.assetUnavailable = "false";
     if (this.disposed) return;
     window.addEventListener("resize", this.resize, { passive: true });
     document.addEventListener("visibilitychange", this.visibility);
@@ -152,10 +137,8 @@ export class FieldRenderer {
     if (this.reduced || this.disposed) return;
     if (this.gl && !this.gl.isContextLost() && this.assets.has(0)) {
       cancelAnimationFrame(this.raf);
-      const selected = this.to;
-      const ready = await this.ensureAsset(selected);
+      const ready = await this.ensureAsset(0);
       if (this.reduced || this.disposed || this.gl.isContextLost()) return;
-      if (selected !== this.to) return this.setReduced(false, images);
       this.host.dataset.assetUnavailable = String(!ready);
       cancelAnimationFrame(this.raf);
       this.host.dataset.fieldRuntime = "webgl2";
@@ -185,6 +168,8 @@ export class FieldRenderer {
       this.raf = requestAnimationFrame(this.frame);
   };
   private async ensureAsset(index: number): Promise<boolean> {
+    // Climate identities never select another panorama or GPU sampler.
+    index = 0;
     if (this.assets.has(index)) return true;
     if (this.loading.has(index)) return this.loading.get(index)!;
     // A scrub can precede initialization; a transient lack of resources must not
@@ -200,7 +185,8 @@ export class FieldRenderer {
         const gl = this.gl;
         const ratio = Math.min(
           1,
-          1024 / Math.max(image.naturalWidth, image.naturalHeight),
+          (innerWidth < 700 ? 1536 : 2048) /
+            Math.max(image.naturalWidth, image.naturalHeight),
         );
         const bitmap = await createImageBitmap(image, {
           imageOrientation: "flipY",
@@ -294,7 +280,6 @@ export class FieldRenderer {
     if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE)
       throw new Error("Field framebuffer unavailable");
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    this.hasFrame = false;
     this.host.dataset.fieldPixelCount = String(
       this.canvas.width * this.canvas.height,
     );
@@ -302,72 +287,60 @@ export class FieldRenderer {
       this.qualityScale < 1 ? "economy" : "balanced";
     this.host.dataset.fieldQualityScale = this.qualityScale.toFixed(3);
   };
-  private retainComposition() {
-    if (!this.gl || !this.targetBuffer || !this.hasFrame) return false;
-    const gl = this.gl;
-    this.snapshot ??= gl.createTexture();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.targetBuffer);
-    gl.bindTexture(gl.TEXTURE_2D, this.snapshot);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.copyTexImage2D(
-      gl.TEXTURE_2D,
-      0,
-      gl.RGBA,
-      0,
-      0,
-      this.canvas.width,
-      this.canvas.height,
-      0,
-    );
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    this.assets.set(-1, {
-      texture: this.snapshot!,
-      width: this.canvas.width,
-      height: this.canvas.height,
-    });
-    return true;
+  private climate(time: number): number {
+    const progress =
+      this.manualProgress || this.progress >= 1
+        ? this.progress
+        : Math.max(
+            0,
+            Math.min(
+              1,
+              (time - this.transitionStart) / this.transitionDuration,
+            ),
+          );
+    const eased = progress * progress * (3 - 2 * progress);
+    return this.from + (this.to - this.from) * eased;
+  }
+  setScrollDepth(progress: number | null) {
+    this.scrollDepth =
+      progress === null
+        ? null
+        : Number.isFinite(progress)
+          ? Math.max(0, Math.min(1, progress))
+          : 0;
   }
   scrub(index: number, x: number, y: number, progress: number) {
     this.scrubBetween(0, index, x, y, progress);
   }
-  /** Native scroll owns a deterministic pair; asset decode never writes a late scene. */
-  scrubBetween(fromIndex: number, toIndex: number, x: number, y: number, progress: number) {
+  /** Reversible scalar climate, sampled from the same master environment. */
+  scrubBetween(
+    fromIndex: number,
+    toIndex: number,
+    _x: number,
+    _y: number,
+    progress: number,
+  ) {
     if (this.disposed) return;
-    const from = Number.isInteger(fromIndex) && fromIndex >= 0 && fromIndex <= 5 ? fromIndex : 0;
-    const to = Number.isInteger(toIndex) && toIndex >= 0 && toIndex <= 5 ? toIndex : 0;
-    const changed = !this.manualProgress || this.from !== from || this.to !== to;
-    if (changed) this.request++;
     this.manualProgress = true;
-    this.entryOpen = from === 0;
     this.completion = null;
     this.previewTarget = 0;
-    this.from = from;
-    this.to = to;
-    this.origin = [Number.isFinite(x) ? Math.max(0, Math.min(1, x)) : 0.5,
-      Number.isFinite(y) ? 1 - Math.max(0, Math.min(1, y)) : 0.5];
-    this.progress = Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : 0;
+    this.from = Number.isFinite(fromIndex) && fromIndex > 0 ? 1 : 0;
+    this.to = Number.isFinite(toIndex) && toIndex > 0 ? 1 : 0;
+    this.progress = Number.isFinite(progress)
+      ? Math.max(0, Math.min(1, progress))
+      : 0;
     this.host.dataset.traversalProgress = this.progress.toFixed(3);
-    if (changed) {
-      const request = this.request;
-      this.host.dataset.assetLoading = String(!this.assets.has(from) || !this.assets.has(to));
-      void Promise.all([this.ensureAsset(from), this.ensureAsset(to)]).then(([fromReady, toReady]) => {
-        if (this.disposed || request !== this.request || !this.manualProgress) return;
-        this.host.dataset.assetLoading = "false";
-        this.host.dataset.assetUnavailable = String(!fromReady || !toReady);
-      });
-    }
+    this.host.dataset.assetLoading = "false";
+    this.host.dataset.assetUnavailable = String(
+      this.gl !== null && !this.assets.has(0),
+    );
   }
-  prepare(index: number) {
-    void this.ensureAsset(index);
+  prepare(_index: number) {
+    void this.ensureAsset(0);
   }
-  preview(index: number, x: number, y: number) {
-    void this.ensureAsset(index);
-    this.previewIndex = index;
-    this.previewOrigin = [x, 1 - y];
-    this.previewTarget = 1;
+  preview(index: number, _x: number, _y: number) {
+    this.previewIndex = Number.isFinite(index) && index > 0 ? 1 : 0;
+    this.previewTarget = this.previewIndex;
   }
   clearPreview() {
     this.previewTarget = 0;
@@ -381,42 +354,30 @@ export class FieldRenderer {
   }
   transition(
     index: number,
-    x: number,
-    y: number,
+    _x: number,
+    _y: number,
     complete: () => void,
     instant = false,
   ) {
-    const request = ++this.request;
-    if (this.gl && !this.assets.has(index) && !instant && !this.reduced) {
-      void this.ensureAsset(index).then((ready) => {
-        if (request !== this.request || this.disposed) return;
-        this.host.dataset.assetUnavailable = String(!ready);
-        if (!ready) {
-          complete();
-          return;
-        }
-        this.transition(index, x, y, complete, instant);
-      });
-      return;
-    }
+    if (this.disposed) return;
+    const now = performance.now();
+    const previousClimate = this.climate(now);
     this.host.dataset.assetUnavailable = String(
-      index > 0 && this.gl !== null && !this.assets.has(index),
+      this.gl !== null && !this.assets.has(0),
     );
     this.completion = null;
     this.manualProgress = false;
-    this.entryOpen = this.previewTarget > 0 && this.to === 0;
     this.previewTarget = 0;
-    const interrupted = this.progress < 1 && this.retainComposition();
-    this.from = interrupted ? -1 : this.to;
-    this.to = index;
-    this.origin = [x, 1 - y];
+    this.from = previousClimate;
+    this.to = Number.isFinite(index) && index > 0 ? 1 : 0;
     this.progress = instant ? 1 : 0;
-    this.transitionStart = performance.now();
+    this.transitionStart = now;
     if (
       this.reduced ||
       !this.gl ||
       this.host.dataset.fieldRuntime !== "webgl2" ||
-      instant
+      instant ||
+      Math.abs(this.from - this.to) < 0.001
     ) {
       this.progress = 1;
       complete();
@@ -463,8 +424,14 @@ export class FieldRenderer {
       this.gl.deleteSync(this.frameFence);
       this.frameFence = null;
     }
-    if ((this.slowFrames >= 3 || this.severeFrames >= 2) && this.qualityScale > 0.25) {
-      this.qualityScale = Math.max(0.25, this.qualityScale * (this.severeFrames >= 2 ? 0.65 : 0.75));
+    if (
+      (this.slowFrames >= 3 || this.severeFrames >= 2) &&
+      this.qualityScale > 0.25
+    ) {
+      this.qualityScale = Math.max(
+        0.25,
+        this.qualityScale * (this.severeFrames >= 2 ? 0.65 : 0.75),
+      );
       this.slowFrames = this.severeFrames = 0;
       this.resize();
     }
@@ -492,70 +459,46 @@ export class FieldRenderer {
       }
     }
     const gl = this.gl;
-    const from = this.assets.get(this.from) ?? this.assets.get(0),
-      to = this.assets.get(this.to) ?? this.assets.get(0);
-    if (!from || !to) return;
+    const world = this.assets.get(0);
+    if (!world) {
+      this.raf = requestAnimationFrame(this.frame);
+      return;
+    }
     gl.useProgram(this.program);
     gl.bindVertexArray(this.vao);
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, from.texture);
-    gl.uniform1i(this.uniform("uFrom"), 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, to.texture);
-    gl.uniform1i(this.uniform("uTo"), 1);
-    gl.uniform2f(this.uniform("uFromSize"), from.width, from.height);
-    gl.uniform2f(this.uniform("uToSize"), to.width, to.height);
-    const canonical = this.assets.get(6) ?? this.assets.get(0)!;
-    gl.activeTexture(gl.TEXTURE3);
-    gl.bindTexture(gl.TEXTURE_2D, canonical.texture);
-    gl.uniform1i(this.uniform("uCanonical"), 3);
-    gl.uniform2f(this.uniform("uCanonicalSize"), canonical.width, canonical.height);
+    gl.bindTexture(gl.TEXTURE_2D, world.texture);
+    gl.uniform1i(this.uniform("uWorld"), 0);
+    gl.uniform2f(this.uniform("uWorldSize"), world.width, world.height);
+    const climate = this.climate(time);
+    gl.uniform1f(this.uniform("uClimate"), climate);
+    gl.uniform1f(this.uniform("uTravel"), this.scrollDepth ?? climate);
     gl.uniform2f(
       this.uniform("uResolution"),
       this.canvas.width,
       this.canvas.height,
     );
-    gl.uniform2f(this.uniform("uOrigin"), this.origin[0], this.origin[1]);
     gl.uniform2f(
       this.uniform("uWaveOrigin"),
       this.waveOrigin[0],
       this.waveOrigin[1],
     );
-    gl.uniform1f(this.uniform("uEntryOpen"), this.entryOpen ? 1 : 0);
     gl.uniform2f(
       this.uniform("uPointer"),
       this.smoothPointer[0],
       this.smoothPointer[1],
     );
-    const preview = this.assets.get(this.previewIndex) ?? to;
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, preview.texture);
-    gl.uniform1i(this.uniform("uPreview"), 2);
-    gl.uniform2f(this.uniform("uPreviewSize"), preview.width, preview.height);
-    gl.uniform2f(
-      this.uniform("uPreviewOrigin"),
-      ...(this.previewOrigin as [number, number]),
-    );
-    gl.uniform1f(this.uniform("uPreviewType"), this.previewIndex);
-    gl.uniform1f(
-      this.uniform("uPreviewAmount"),
-      this.assets.has(this.previewIndex) ? this.previewAmount : 0,
-    );
+    gl.uniform1f(this.uniform("uPreviewAmount"), this.previewAmount);
     gl.uniform1f(this.uniform("uTime"), time / 1000);
     gl.uniform1f(this.uniform("uWaveAge"), (time - this.waveStart) / 1000);
-    gl.uniform1f(this.uniform("uProgress"), this.progress);
-    gl.uniform1f(
-      this.uniform("uFromType"),
-      this.assets.has(this.from) ? this.from : 0,
-    );
-    gl.uniform1f(
-      this.uniform("uToType"),
-      this.assets.has(this.to) ? this.to : 0,
-    );
+    this.host.dataset.fieldClimate = climate.toFixed(3);
+    this.host.dataset.fieldTravel = (this.scrollDepth ?? climate).toFixed(3);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.targetBuffer);
     const drawTime = performance.now();
     if (this.previousDraw) {
-      this.host.dataset.fieldDrawIntervalMs = (drawTime - this.previousDraw).toFixed(1);
+      this.host.dataset.fieldDrawIntervalMs = (
+        drawTime - this.previousDraw
+      ).toFixed(1);
     }
     this.previousDraw = drawTime;
     gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -574,7 +517,6 @@ export class FieldRenderer {
       gl.NEAREST,
     );
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    this.hasFrame = true;
     this.fenceStarted = time;
     this.fencePressureValid = true;
     this.frameFence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);

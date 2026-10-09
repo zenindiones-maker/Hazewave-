@@ -34,7 +34,7 @@ export interface RealArtistVisualAuthority {
  * biography, release, track, event, collaboration, merch or social mapping.
  * Missing factual surfaces remain absent until owner-authorized.
  */
-export const realArtists: readonly RealArtistVisualAuthority[] = [
+export const ownerArtistRegistry: readonly RealArtistVisualAuthority[] = [
   {
     id: "barak-ozama-beats",
     name: "Barak Ozama Beats",
@@ -49,7 +49,7 @@ export const realArtists: readonly RealArtistVisualAuthority[] = [
   {
     id: "indionesbala",
     name: "Indionesbala",
-    signal: { desktop: [0.83, 0.7], mobile: [0.77, 0.28] },
+    signal: { desktop: [0.70, 0.62], mobile: [0.64, 0.56] },
     worldSystem: "heat-type",
     color: "#ffa22c",
     artwork: "/media/artists/indionesbala.webp",
@@ -92,6 +92,11 @@ export const realArtists: readonly RealArtistVisualAuthority[] = [
     materializedWorld: true,
   },
 ] as const;
+
+// V7 public slice: one real artist. Keep the owner registry intact for later work.
+export const realArtists: readonly RealArtistVisualAuthority[] = ownerArtistRegistry.filter(
+  artist => artist.id === "indionesbala",
+);
 
 export const materializedWorldArtists = realArtists.filter(
   (artist) => artist.materializedWorld,

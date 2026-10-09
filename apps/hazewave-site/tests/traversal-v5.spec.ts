@@ -23,13 +23,11 @@ test("Explore traverses the discovered real artist and reverses to its signal", 
 }) => {
   await page.goto("/");
   await ready(page);
-  const signal = page.locator('[data-artist-signal="hemorragia-cosmica"]');
+  const signal = page.locator('[data-artist-signal="indionesbala"]');
   await signal.focus();
   await expect(signal).toHaveAttribute("data-revealed", "true");
   await page.locator('[data-primary-action="explore"]').click();
-  await expect(page.locator("#journey-artist")).toHaveText(
-    "Hemorragia Cósmica",
-  );
+  await expect(page.locator("#journey-artist")).toHaveText("Indionesbala");
   await expect(page.locator("#living-field")).toHaveAttribute(
     "data-journey-act",
     "discover",
@@ -41,13 +39,13 @@ test("Explore traverses the discovered real artist and reverses to its signal", 
   );
   await expect(page).not.toHaveURL(/artist=/);
   await scrub(page, 1);
-  await expect(page).toHaveURL(/artist=hemorragia-cosmica/);
+  await expect(page).toHaveURL(/artist=indionesbala/);
   await expect(page.locator("#living-field")).toHaveAttribute(
     "data-journey-act",
     "arrival",
   );
   await expect(
-    page.locator('[data-artist-world="hemorragia-cosmica"]'),
+    page.locator('[data-artist-world="indionesbala"]'),
   ).toHaveAttribute("data-active", "true");
   await scrub(page, 0);
   await expect(page).not.toHaveURL(/artist=/);
@@ -116,8 +114,8 @@ test("resuming movement loads a world selected while movement was paused", async
     "css-fallback",
   );
   await page.locator('[data-primary-action="search"]').click();
-  await page.locator('[data-search-artist="hemorragia-cosmica"]').click();
-  await expect(page).toHaveURL(/artist=hemorragia-cosmica/);
+  await page.locator('[data-search-artist="indionesbala"]').click();
+  await expect(page).toHaveURL(/artist=indionesbala/);
   await page.locator("#motion-toggle").click();
   await ready(page);
   await expect(page.locator("#living-field")).toHaveAttribute(
@@ -150,7 +148,7 @@ test("native scrolling starts the journey without an Explore click or focus stea
   await expect(searchButton).toBeFocused();
   expect(await page.evaluate(() => history.length)).toBe(before);
   await scrub(page, 1);
-  await expect(page).toHaveURL(/artist=hemorragia-cosmica/);
+  await expect(page).toHaveURL(/artist=indionesbala/);
   expect(await page.evaluate(() => history.length)).toBe(before + 1);
   await scrub(page, 0);
   await expect(page).not.toHaveURL(/artist=/);
@@ -159,31 +157,22 @@ test("native scrolling starts the journey without an Explore click or focus stea
       .locator(".signal-field")
       .evaluate((element) => (element as HTMLElement).inert),
   ).toBe(false);
-  await expect(page.locator('[data-artist-signal="baazu"]')).toHaveAttribute(
-    "data-revealed",
-    "true",
-  );
-  await page.locator('[data-artist-signal="hemorragia-cosmica"]').focus();
-  await expect(page.locator("#journey-artist")).toHaveText(
-    "Hemorragia Cósmica",
-  );
+  await expect(
+    page.locator('[data-artist-signal="indionesbala"]'),
+  ).toHaveAttribute("data-revealed", "true");
+  await page.locator('[data-artist-signal="indionesbala"]').focus();
+  await expect(page.locator("#journey-artist")).toHaveText("Indionesbala");
   await scrub(page, 1);
-  await expect(page).toHaveURL(/artist=hemorragia-cosmica/);
+  await expect(page).toHaveURL(/artist=indionesbala/);
   expect(await page.evaluate(() => history.length)).toBe(before + 1);
 });
 
-test("native descent holds five distinct worlds and reverses through the same chapters", async ({
+test("native descent holds the public artist and reverses through the same chapter", async ({
   page,
 }) => {
   await page.goto("/");
   await ready(page);
-  const order = [
-    "baazu",
-    "barak-ozama-beats",
-    "indionesbala",
-    "aquaverno",
-    "hemorragia-cosmica",
-  ];
+  const order = ["indionesbala"];
   const historyBefore = await page.evaluate(() => history.length);
   for (const [chapter, id] of order.entries()) {
     await scrub(page, 0.045 + ((chapter + 0.84) / order.length) * 0.955);
@@ -217,4 +206,60 @@ test("native descent holds five distinct worlds and reverses through the same ch
     "origin",
   );
   expect(await page.evaluate(() => history.length)).toBe(historyBefore + 1);
+});
+
+test("the continuous environment moves with native depth and returns to the same climate without another texture", async ({
+  page,
+}) => {
+  // Suppress ambient time so the two canvas captures isolate scroll-driven travel.
+  await page.addInitScript(() => {
+    const names = new WeakMap<WebGLUniformLocation, string>();
+    const get = WebGL2RenderingContext.prototype.getUniformLocation;
+    const set = WebGL2RenderingContext.prototype.uniform1f;
+    WebGL2RenderingContext.prototype.getUniformLocation = function (
+      program,
+      name,
+    ) {
+      const location = get.call(this, program, name);
+      if (location) names.set(location, name);
+      return location;
+    };
+    WebGL2RenderingContext.prototype.uniform1f = function (location, value) {
+      set.call(
+        this,
+        location,
+        location && names.get(location) === "uTime" ? 0 : value,
+      );
+    };
+  });
+  await page.goto("/");
+  await ready(page);
+  const field = page.locator("#living-field");
+  const bytes = await field.getAttribute("data-field-texture-bytes");
+  await page.locator('[data-primary-action="explore"]').click();
+  await scrub(page, 0.2);
+  await expect
+    .poll(async () => Number(await field.getAttribute("data-field-travel")))
+    .toBeCloseTo(0.2, 2);
+  const initialClimate = Number(await field.getAttribute("data-field-climate"));
+  const before = await page.locator("#living-field-canvas").screenshot();
+  await scrub(page, 0.55);
+  await expect
+    .poll(async () => Number(await field.getAttribute("data-field-travel")))
+    .toBeCloseTo(0.55, 2);
+  await expect
+    .poll(async () => Number(await field.getAttribute("data-field-climate")))
+    .toBeGreaterThan(initialClimate + 0.1);
+  const after = await page.locator("#living-field-canvas").screenshot();
+  expect(before.equals(after)).toBe(false);
+  await expect(field).toHaveAttribute("data-field-texture-bytes", bytes!);
+  await scrub(page, 0.2);
+  await expect
+    .poll(async () => Number(await field.getAttribute("data-field-travel")))
+    .toBeCloseTo(0.2, 2);
+  await expect
+    .poll(async () => Number(await field.getAttribute("data-field-climate")))
+    .toBeCloseTo(initialClimate, 2);
+  await expect(field).toHaveAttribute("data-field-texture-bytes", bytes!);
+  await expect(page).not.toHaveURL(/artist=/);
 });

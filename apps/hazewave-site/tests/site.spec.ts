@@ -1,12 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const ids = [
-  "barak-ozama-beats",
-  "indionesbala",
-  "baazu",
-  "aquaverno",
-  "hemorragia-cosmica",
-];
+const ids = ["indionesbala"];
 
 test("motion preference changed during decode never restarts the field", async ({
   page,
@@ -140,7 +134,7 @@ async function settled(page: Page) {
   );
 }
 
-test("conceptual worlds render and all real artist signals are reachable", async ({
+test("continuous field renders with the sole public artist signal", async ({
   page,
 }, info) => {
   const errors: string[] = [];
@@ -150,7 +144,7 @@ test("conceptual worlds render and all real artist signals are reachable", async
   await expect(
     page.getByRole("heading", { name: "HAZEWAVE", exact: true }),
   ).toBeVisible();
-  await expect(page.locator("[data-artist-signal]")).toHaveCount(5);
+  await expect(page.locator("[data-artist-signal]")).toHaveCount(1);
   expect(
     await page
       .locator("#hazewave-world-source")
@@ -162,7 +156,7 @@ test("conceptual worlds render and all real artist signals are reachable", async
         .locator("#living-field")
         .getAttribute("data-field-texture-bytes"),
     ),
-  ).toBeLessThan(6_000_000); // Origin plus required canonical source, both capped at 1024px.
+  ).toBeLessThanOrEqual(2048 * 2048 * 4); // One master texture; dedicated suite verifies its exact capped dimensions.
   for (const name of ["EXPLORE", "LISTEN", "SEARCH"])
     await expect(
       page.getByRole("button", { name: new RegExp(name) }),
@@ -226,22 +220,25 @@ test("artist entry, browser back and forward preserve route and world", async ({
 }, info) => {
   await page.goto("/");
   await ready(page);
-  await page.locator('[data-artist-signal="aquaverno"]').click();
-  await expect(page).toHaveURL(/artist=aquaverno/);
+  await page.locator('[data-artist-signal="indionesbala"]').click();
+  await expect(page).toHaveURL(/artist=indionesbala/);
   await expect(page.locator("#living-field")).toHaveAttribute(
     "data-transitioning",
     "true",
   );
-  await page.screenshot({ path: info.outputPath("aquaverno-transition.png") });
+  await page.screenshot({
+    path: info.outputPath("indionesbala-transition.png"),
+  });
   await settled(page);
-  await page.screenshot({ path: info.outputPath("aquaverno-world.png") });
-  await expect(page.locator('[data-artist-world="aquaverno"]')).toHaveAttribute(
-    "data-active",
-    "true",
-  );
+  await page.screenshot({ path: info.outputPath("indionesbala-world.png") });
+  await expect(
+    page.locator('[data-artist-world="indionesbala"]'),
+  ).toHaveAttribute("data-active", "true");
   await page.goBack();
   await settled(page);
-  await expect(page.locator('[data-artist-signal="aquaverno"]')).toBeFocused();
+  await expect(
+    page.locator('[data-artist-signal="indionesbala"]'),
+  ).toBeFocused();
   await expect(page.locator("#living-field")).toHaveAttribute(
     "data-world-active",
     "false",
@@ -250,19 +247,19 @@ test("artist entry, browser back and forward preserve route and world", async ({
   await settled(page);
   await expect(page.locator("html")).toHaveAttribute(
     "data-active-artist",
-    "aquaverno",
+    "indionesbala",
   );
 });
 
 test("direct artist link returns to the field without leaving the site", async ({
   page,
 }, info) => {
-  await page.goto("/?artist=hemorragia-cosmica");
+  await page.goto("/?artist=indionesbala");
   await ready(page);
   await settled(page);
   await expect(
-    page.locator('[data-artist-world="hemorragia-cosmica"]'),
-  ).toHaveAttribute("data-world-system", "pressure-wire");
+    page.locator('[data-artist-world="indionesbala"]'),
+  ).toHaveAttribute("data-world-system", "heat-type");
   await page.screenshot({ path: info.outputPath("hemorragia-world.png") });
   await page.locator("#world-back").click();
   await settled(page);
@@ -273,31 +270,31 @@ test("direct artist link returns to the field without leaving the site", async (
   );
 });
 
-test("search filters accents, empty results and switches between worlds", async ({
+test("search normalizes accents, handles empty results and enters the public artist", async ({
   page,
 }) => {
-  await page.goto("/?artist=aquaverno");
+  await page.goto("/");
   await ready(page);
   await page.getByRole("button", { name: /SEARCH/ }).click();
   const input = page.getByRole("searchbox");
-  await input.fill("cosmica");
+  await input.fill("índionesbála");
   await expect(page.locator("[data-search-artist]:visible")).toHaveCount(1);
   await expect(
-    page.locator('[data-search-artist="hemorragia-cosmica"]'),
+    page.locator('[data-search-artist="indionesbala"]'),
   ).toBeVisible();
   await input.fill("xyz-unlisted");
   await expect(page.locator("#search-empty")).toBeVisible();
-  await input.fill("baazu");
-  await page.locator('[data-search-artist="baazu"]').click();
+  await input.fill("indionesbala");
+  await page.locator('[data-search-artist="indionesbala"]').click();
   await settled(page);
   await expect(page.locator("html")).toHaveAttribute(
     "data-active-artist",
-    "baazu",
+    "indionesbala",
   );
   await expect(page.locator("#world-back")).toBeFocused();
 });
 
-test("all artist worlds preserve identity and working direct navigation", async ({
+test("the public artist preserves identity and working direct navigation", async ({
   page,
 }) => {
   for (const id of ids) {
@@ -340,10 +337,10 @@ test("reduced motion and WebGL loss retain navigation and artwork", async ({
     "data-field-runtime",
     "css-fallback",
   );
-  await page.locator('[data-artist-signal="aquaverno"]').click();
+  await page.locator('[data-artist-signal="indionesbala"]').click();
   await settled(page);
   await expect(
-    page.locator('[data-artist-world="aquaverno"] img'),
+    page.locator('[data-artist-world="indionesbala"] img'),
   ).toBeVisible();
   await page.locator("#world-back").click();
   await settled(page);
@@ -368,7 +365,7 @@ test("reduced motion and WebGL loss retain navigation and artwork", async ({
     "data-field-runtime",
     "css-fallback",
   );
-  await page.locator('[data-artist-signal="hemorragia-cosmica"]').click();
+  await page.locator('[data-artist-signal="indionesbala"]').click();
   await settled(page);
 });
 
@@ -382,13 +379,15 @@ test("keyboard hides inactive worlds and dialog restores focus", async ({
   await expect(page.getByRole("searchbox")).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: /SEARCH/ })).toBeFocused();
-  await page.locator('[data-artist-signal="aquaverno"]').focus();
+  await page.locator('[data-artist-signal="indionesbala"]').focus();
   await page.keyboard.press("Enter");
   await settled(page);
   await expect(page.locator(".signal-field")).toHaveAttribute("inert", "");
   await page.keyboard.press("Escape");
   await settled(page);
-  await expect(page.locator('[data-artist-signal="aquaverno"]')).toBeFocused();
+  await expect(
+    page.locator('[data-artist-signal="indionesbala"]'),
+  ).toBeFocused();
 });
 
 test("mobile touch, readable targets and no horizontal overflow", async ({
@@ -429,8 +428,8 @@ test("without JavaScript the conceptual artist gallery is accessible", async ({
   await expect(
     page.getByRole("region", { name: "Artistas Hazewave" }),
   ).toBeVisible();
-  await expect(page.locator(".static-gallery a")).toHaveCount(5);
-  await expect(page.locator(".static-gallery img")).toHaveCount(6);
+  await expect(page.locator(".static-gallery a")).toHaveCount(1);
+  await expect(page.locator(".static-gallery img")).toHaveCount(2);
   await context.close();
 });
 
@@ -470,10 +469,15 @@ test("native scroll traversal reverses, retains its origin and exits accessibly"
         0.5,
     ),
   );
-  await expect(page.locator("#living-field")).toHaveAttribute(
-    "data-traversal-progress",
-    /^0\.5/,
-  );
+  await expect
+    .poll(async () =>
+      Number(
+        await page
+          .locator("#living-field")
+          .getAttribute("data-traversal-progress"),
+      ),
+    )
+    .toBeCloseTo((0.5 - 0.045) / 0.955 / 0.68, 2);
   const p = await page
     .locator("#living-field")
     .getAttribute("data-traversal-progress");
@@ -488,7 +492,7 @@ test("native scroll traversal reverses, retains its origin and exits accessibly"
       document.querySelector<HTMLElement>("#journey-distance")!.offsetHeight,
     ),
   );
-  await expect(page).toHaveURL(/artist=hemorragia-cosmica/);
+  await expect(page).toHaveURL(/artist=indionesbala/);
   await page.evaluate(() =>
     scrollTo(
       0,
@@ -496,11 +500,16 @@ test("native scroll traversal reverses, retains its origin and exits accessibly"
         0.32,
     ),
   );
-  await expect(page.locator("#living-field")).toHaveAttribute(
-    "data-traversal-progress",
-    /^0\.6/,
-  );
-  await expect(page).toHaveURL(/artist=baazu/);
+  await expect
+    .poll(async () =>
+      Number(
+        await page
+          .locator("#living-field")
+          .getAttribute("data-traversal-progress"),
+      ),
+    )
+    .toBeCloseTo((0.32 - 0.045) / 0.955 / 0.68, 2);
+  await expect(page).not.toHaveURL(/artist=/);
   await page.keyboard.press("Escape");
   await expect(page.locator("#living-field")).toHaveAttribute(
     "data-journey",
@@ -543,15 +552,29 @@ test("scroll journey stops cleanly for motion preference and GPU loss", async ({
   ).toBe(true);
 });
 
-test("all five static artist routes survive refresh and return to origin", async ({ page }) => {
-  for (const id of ["baazu", "barak-ozama-beats", "indionesbala", "aquaverno", "hemorragia-cosmica"]) {
+test("the public static artist route survives refresh and returns to origin", async ({
+  page,
+}) => {
+  for (const id of ids) {
     await page.goto(`/artists/${id}/`);
-    await expect(page.locator("#living-field")).toHaveAttribute("data-world-ready", "true");
-    await expect(page.locator(`[data-artist-world="${id}"]`)).toHaveAttribute("data-active", "true");
+    await expect(page.locator("#living-field")).toHaveAttribute(
+      "data-world-ready",
+      "true",
+    );
+    await expect(page.locator(`[data-artist-world="${id}"]`)).toHaveAttribute(
+      "data-active",
+      "true",
+    );
     await page.reload();
-    await expect(page.locator(`[data-artist-world="${id}"]`)).toHaveAttribute("data-active", "true");
+    await expect(page.locator(`[data-artist-world="${id}"]`)).toHaveAttribute(
+      "data-active",
+      "true",
+    );
     await page.locator("#world-back").click();
-    await expect(page.locator("#living-field")).toHaveAttribute("data-world-active", "false");
+    await expect(page.locator("#living-field")).toHaveAttribute(
+      "data-world-active",
+      "false",
+    );
     await expect(page).toHaveURL(/\/$/);
   }
 });
