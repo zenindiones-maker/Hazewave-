@@ -18,9 +18,9 @@ async function toProgress(page:Page, p:number) {
     document.documentElement.style.scrollBehavior="auto";
     window.scrollTo({top:top+Math.max(1,travel)*value,behavior:"instant"});
   },p);
-  await expect.poll(async()=>page.evaluate(
-    ()=>(window as unknown as Window & {__HAZEWAVE_RIG_V3:Rig}).__HAZEWAVE_RIG_V3.progress),
-    {timeout:6000}).toBeGreaterThanOrEqual(Math.max(0,p-.018));
+  await expect.poll(async()=>Math.abs(await page.evaluate(
+    ()=>(window as unknown as Window & {__HAZEWAVE_RIG_V3:Rig}).__HAZEWAVE_RIG_V3.progress) - p),
+    {timeout:6000}).toBeLessThanOrEqual(.018);
 }
 async function snapshot(page:Page){
   return page.evaluate(()=>{
