@@ -1,40 +1,40 @@
-# Hazewave — Living Resonance Field
+# Hazewave — Cosmic Interference (candidate)
 
-**Owner rejected V3 as a final product (2026-10-08).** The [V4 critical audit](review/creative-audit-v4.md) supersedes the earlier readiness assessment. The current corrections address three reproduced defects only; spatial art direction, traversal interruption, adaptive quality and authorized audio remain open. Do not treat passing tests as creative approval.
+**Status: technical candidate implemented; not owner-approved or published.**
 
-Candidate creative reset, based on site HEAD `9873973e79df670ff29e31fff08b1cc38c41c3ee`.
+This is a creative rebuild from the interrupted Grok Build worktree, not a continuation of the former cassette/player direction. [The Boat (SBS)](https://www.sbs.com.au/theboat/) is a conceptual interaction reference; its proprietary source and visual assets were not copied.
 
-The first screen samples the owner's lighthouse artwork as an interactive WebGL2 field. Contact emits a radial refraction through the image; signal selection replaces the material with the selected artist artwork using the same spatial aperture that revealed it. EXPLORE starts a short optional native-scroll journey into Aquaverno: advance, pause and reverse the texture takeover before entering its world. Direct artist selection and SEARCH remain available without the journey. Aquaverno uses tidal displacement and close ocean framing on mobile. Hemorragia Cósmica uses asymmetric compression, skeletal texture and wire tension. The original five artists are searchable and have direct `?artist=` links.
+## Implemented
 
-The six image files are byte-identical to the owner submissions. `owner-art-provenance.json` records their SHA-256 values. Older infrastructure and historical art derivatives remain in the repository, but the cassette/player wheel and synthetic demo catalog are absent from the entry point's dependency graph.
+- Native-scroll, reversible three-act journey: birth, traversal and identity reveal.
+- Original procedural WebGL2 interference field with nebula, depth layers and optional pointer motion.
+- The owner-supplied original Hazewave art is not modified; interference masks reveal its original texture.
+- The film completes before the artist directory to keep the final reveal unobscured.
+- Five static routes use owner-supplied artist images: Indionesbala, Barak Ozama Beats, Baazü, Aquaverno and Hemorragia Cósmica.
+- Optional opt-in synthetic interference audio. No published track, release or artist biography is invented.
+- Accessible semantic navigation and non-JavaScript/non-WebGL artwork fallback.
 
-## Run
+## Run and verify (Node 24)
 
-Node 24:
+From apps/hazewave-site, run:
 
-```sh
-npm ci --ignore-scripts
-npm run build
-npm run preview -- --host 127.0.0.1 --port 4321
-```
+    npm ci --ignore-scripts --no-audit --no-fund
+    node scripts/verify-owner-art.mjs
+    npx tsc --noEmit
+    npm run build
+    node scripts/verify-owner-art.mjs --dist
+    node scripts/check-bundle-budget.mjs
+    npx playwright install chromium
+    npm test -- --workers=1
 
-Open the reported preview URL. A standard static HTTP server can serve `dist/` as well.
+Preview the built site:
 
-## Verify
+    npm run preview -- --host 0.0.0.0 --port 4321
 
-```sh
-npx tsc --noEmit
-node scripts/check-bundle-budget.mjs
-npx playwright install chromium
-npm test -- --workers=1
-```
+WAVE Site CI runs repository contracts, Python suite, TypeScript, Astro build, bundle budget and desktop/Pixel 7 Playwright. Verified runs retain the static dist and visual proof as artifacts.
 
-If a compatible Chromium is already installed, set `PLAYWRIGHT_EXECUTABLE_PATH` to its executable. This disables Playwright's optional video recording; tests still produce screenshots and failure traces. Desktop and Pixel 7 projects cover source-image decoding, actual canvas changes, transitions, URL/history navigation, accent-insensitive search, direct entry/return, disabled audio, reduced motion changes, GPU loss, keyboard focus, no-JavaScript access and a 360×640 layout, scroll reversal and journey teardown after motion/GPU changes. Draws are gated by a non-blocking GPU fence and settled scenes sample only their active texture.
+## Still not proven
 
-## Scope and limitations
+This is analytic **2.5D WebGL2**, not a geometric 3D reconstruction, nor a completed illustrated production comparable in artistic sophistication to The Boat. Automated screenshots prove browser execution, not final creative quality. Real Android/Safari hardware tests, frame-time profiling, comprehensive accessibility review and authorized artist tracks remain pending. The site has no owner approval and must not be published or merged into main.
 
-- This is a visual/interaction candidate, not a production publication or owner approval.
-- No authorized tracks were supplied: LISTEN presents an explicit unavailable state. There is no invented track, synthetic replacement, autoplay or playback-success claim. The prior internal audio infrastructure is preserved for later authorized integration.
-- Tested with headless Chromium and software WebGL. Physical A15, Safari and hardware frame-rate/power profiling are not yet proven.
-- Static fallback retains the source artwork and artist navigation. Without JavaScript an accessible original-art gallery replaces inactive controls.
-- The repository-wide Python suite has an unchanged supervisor process-recovery failure in this execution environment (`test_boot_recovers_after_supervisor_sigkill_with_stale_pid_and_lock`, installer exit 3). Repository contracts pass. No HAZE/Termux runtime code was modified for this WAVE task.
+Historical WAVE reviews remain evidence, not current design authority. Respect repository AGENTS.md and owner-art-provenance.json; preserve all original artwork.
