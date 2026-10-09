@@ -19,12 +19,12 @@ async function at(page: Page, progress: number) {
     scrollTo({ top: start + (stage.offsetHeight - innerHeight) * p, behavior: "instant" });
   }, progress);
   await expect.poll(async () => page.evaluate(
-    () => (window as Window & { __HAZEWAVE_RIG_V3: PhysicalState }).__HAZEWAVE_RIG_V3.progress
+    () => (window as unknown as Window & { __HAZEWAVE_RIG_V3: PhysicalState }).__HAZEWAVE_RIG_V3.progress
   )).toBeGreaterThanOrEqual(progress - 0.018);
 }
 async function measured(page: Page) {
   return page.evaluate(() => {
-    const state = (window as Window & { __HAZEWAVE_RIG_V3: PhysicalState }).__HAZEWAVE_RIG_V3;
+    const state = (window as unknown as Window & { __HAZEWAVE_RIG_V3: PhysicalState }).__HAZEWAVE_RIG_V3;
     const node = (selector: string) => document.querySelector<HTMLElement>(selector);
     return {
       state: { ...state },
