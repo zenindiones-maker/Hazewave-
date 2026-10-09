@@ -149,7 +149,7 @@ def test_prompt_never_exposes_answer_bearing_oracle_case_ids():
     from hazewave import actions_slm_multicase as mod
     src=inspect.getsource(mod.perform_multicase)
     assert 'prompt=f"case_id={case}' not in src
-    assert "build_specialist_audio_prompt(metric_key,value)" in src
+    assert "build_specialist_audio_prompt(metric_key,value,comparison=" in src
 
 
 def test_generic_ci_skips_only_real_media_fixture_if_ffmpeg_not_installed():
@@ -273,7 +273,10 @@ def test_dedicated_single_call_workflow_never_runs_full_cohort():
     w=path.read_text()
     assert "work/haze-actions-multicase-reliability-v1" in w
     assert "github.event.repository.private == false" in w
-    assert "[skip-slm-live]" in w
+    assert "[haze-diagnostic-onecall]" in w
+    assert "group: hazewave-structural-diagnosis-${{ github.sha }}" in w
+    assert "cancel-in-progress: false" in w
+    assert "work/haze-semantic-intelligence-v5" in w
     assert "--diagnose-case gain_loss_12db" in w
     assert "--repetitions 1" in w
     assert "Qwen3-0.6B-Q4_K_M.gguf" in w
@@ -302,3 +305,37 @@ def test_model_request_explains_each_required_key_without_leaking_correct_case()
       "finding":"NO_ISSUE_DETECTED","action":"NO_ACTION",
       "evidence_keys":["attenuation_db"],"requires_human_review":True
     })["grade"] == "FAIL"
+
+def test_general_action_taxonomy_is_explicit_without_case_specific_oracle_answers():
+    from hazewave.actions_slm_multicase import _payload
+    request = _payload("metric=attenuation_db\\nmeasured_value=12.0",
+                       "hazewave-qwen3-0.6b", 1000)
+    system = request["messages"][0]["content"]
+    pairs = {
+        "ATTENUATION_DETECTED": "REVIEW_GAIN_STAGE",
+        "SILENCE_DETECTED": "RESTORE_SIGNAL_PATH",
+        "CLIPPING_DETECTED": "REDUCE_GAIN_OR_LIMIT",
+        "NO_ISSUE_DETECTED": "NO_ACTION",
+    }
+    for finding, action in pairs.items():
+        assert f"{finding} -> {action}" in system
+    assert "gain_loss_12db" not in system
+    assert "silence_1s" not in system
+    assert "clipping_pcm16" not in system
+    assert "reference_mean_dbfs=-21.1" not in system
+    assert "measured_value=12.0" not in system
+
+def test_full_model_request_provenance_changes_with_system_guidance():
+    import copy
+    import re
+    from hazewave.actions_slm_multicase import _payload, hash_model_request
+    before=_payload("metric=attenuation_db", "hazewave-qwen3-0.6b",1000)
+    after=copy.deepcopy(before)
+    after["messages"][0]["content"] += " unrelated changed system guidance"
+    first=hash_model_request(before)
+    second=hash_model_request(after)
+    assert re.fullmatch(r"[a-f0-9]{64}",first)
+    assert first!=second
+    assert first==hash_model_request(before)
+    assert "request_sha256" in __import__("inspect").getsource(
+        __import__("hazewave.actions_slm_multicase",fromlist=["diagnose_single_case"]).diagnose_single_case)
