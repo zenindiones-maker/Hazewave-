@@ -206,7 +206,8 @@ void main() {
   float rad = length(q);
   float ripple = sin(logoUv.y * 48.0 - t * 2.0 + rad * 9.0) * (1.0 - open) * 0.035;
   float reached = rad - mix(0.0, 1.5, open) + ripple;
-  float mask = (1.0 - smoothstep(-0.008, 0.03, reached)) * inside * step(0.5, uLogoReady);
+  // The untouched source must be fully occluded until the interference actually arrives.
+  float mask = (1.0 - smoothstep(-0.008, 0.03, reached)) * smoothstep(0.015, 0.14, open) * inside * step(0.5, uLogoReady);
 
   vec3 logo = texture(uLogo, clamp(logoUv, 0.0, 1.0)).rgb;
   float core = smoothstep(0.4, 0.56, mask);
