@@ -146,7 +146,7 @@ window.__HAZEWAVE_TRAVERSAL_V4=state;
   const lite=vars.stage.dataset.quality==='lite' ||
      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(!fxCanvas){state.effectcraftFrame=-1;return}
-  const fxOpacity=fxReadiness==='READY'&&!lite?alpha*.43:0;
+  const fxOpacity=fxReadiness==='READY'&&!lite?alpha*.60:0;
   fxCanvas.style.opacity=fxOpacity.toFixed(4);
   fxCanvas.style.transform='translate(-50%,-50%) scale('+(0.70+0.38*t).toFixed(4)+') rotate('+(8*t).toFixed(2)+'deg)';
   // Only retain GPU layer budget while the effect is visible; owner art remains unchanged.
@@ -207,14 +207,14 @@ function updatePose(p){
  const W=innerWidth,H=innerHeight,phone=W<700;
  // ARC ONE: far approach. ARC TWO: fly THROUGH machine. ARC THREE: break into new world.
  const approach=smooth(.035,.31,p),through=smooth(.30,.625,p),rupture=smooth(.54,.77,p),arrival=smooth(.74,.98,p);
- const rigSize=Math.min((phone?W*1.7:W*.87)/1448,(H*(phone?.87:1.1))/1086);
- const scale=rigSize*lerp(.30,1.22,approach)*lerp(1,3.9,through);
- const camX=lerp(phone?W*.42:W*.23,0,approach) + lerp(0,phone?-W*.96:-W*.55,through);
- const camY=lerp(-H*.28,H*.19,approach)+lerp(0,-H*.52,through);
+ const rigSize=Math.min((phone?W*1.02:W*.76)/1448,(H*(phone?.70:.98))/1086);
+ const scale=rigSize*lerp(.38,1.18,approach)*lerp(1,2.65,through);
+ const camX=lerp(phone?W*.32:W*.19,0,approach) + lerp(0,phone?-W*.30:-W*.31,through);
+ const camY=lerp(-H*.18,H*.08,approach)+lerp(0,-H*.19,through);
  const twist=lerp(-6,0,approach)+lerp(0,-18,through);
  moveImage(vars.machine,camX,camY,scale,twist);
- vars.machine.style.opacity=String(clamp((1-smooth(.65,.81,p))*.97));
- const split=85*smooth(.43,.66,p); // true separated source-painted halves
+ vars.machine.style.opacity=String(clamp((1-smooth(.56,.76,p))*.99));
+ const split=180*smooth(.40,.67,p); // true separated source-painted halves
  vars.left.style.transform=`translate3d(${-split.toFixed(2)}px,${-14*through}px,0) rotate(${-3*through}deg)`;
  vars.right.style.transform=`translate3d(${split.toFixed(2)}px,${14*through}px,0) rotate(${3*through}deg)`;
  const pulse=(p>=.185)?smooth(.185,.49,p):0;
@@ -247,7 +247,7 @@ function updatePose(p){
  vars.worldHead.setAttribute('cx',worldPosition.x.toFixed(2));vars.worldHead.setAttribute('cy',worldPosition.y.toFixed(2));
  vars.worldHead.style.opacity=String(signalValue>.01&&signalValue<.99?.85:0);
  // Separate fog planes are pushed APART by the causal wave, never merely faded.
- const fogPush=rupture*(phone?W*.95:W*.78);
+ const fogPush=rupture*(phone?W*1.15:W*.98);
  vars.fogLeft.style.transform=`translate3d(${-fogPush.toFixed(2)}px,${(-H*.23*rupture).toFixed(2)}px,0) rotate(${-17*rupture}deg)`;
  vars.fogRight.style.transform=`translate3d(${fogPush.toFixed(2)}px,${(H*.22*rupture).toFixed(2)}px,0) rotate(${15*rupture}deg)`;
  vars.fogLeft.style.opacity=String(.65*(1-.63*arrival));
@@ -262,7 +262,7 @@ function updatePose(p){
  vars.city.style.opacity=String(band(.35,.53,.76,.98,p));
  vars.cityFlight.style.transform=`translate3d(${(-W*.16*rupture).toFixed(2)}px,${(H*.22*rupture).toFixed(2)}px,120px) scale(${(1+.6*rupture).toFixed(3)})`;
  // A physical aperture in the fog, fully clipping the new illustrated region.
- const portalRadius=lerp(0,69,smooth(.47,.80,p));
+ const portalRadius=lerp(0,75,smooth(.43,.76,p));
  renderArtcraftEffect(p);
  vars.window.style.clipPath=`circle(${portalRadius.toFixed(3)}% at 50% 50%)`;
  // Keep the painterly portal open during the reveal, then hand off to
@@ -274,14 +274,14 @@ function updatePose(p){
  moveImage(vars.window,0,H*.07*portalMove,lerp(.72,2.15,portalMove));
  vars.portalWorld.style.opacity=String(1-smooth(.78,.95,p));
  vars.portalWorld.style.transform=`translate3d(${(-W*.25*arrival).toFixed(2)}px,${(-H*.18*arrival).toFixed(2)}px,0) scale(${lerp(.88,1.35,arrival).toFixed(3)})`;
- vars.innerHub.style.opacity=String(band(.74,.86,.89,.98,p));
+ vars.innerHub.style.opacity=String(band(.72,.81,.85,.89,p)*.38);
  vars.innerHub.style.transform=`translate3d(0,${(-H*.11*arrival).toFixed(2)}px,0) scale(${lerp(.6,1.16,arrival).toFixed(3)})`;
  vars.ring.style.opacity=String(band(.42,.60,.78,.96,p));
  vars.ring.style.transform=`translate(-50%,-50%) scale(${lerp(.24,2.75,smooth(.46,.89,p)).toFixed(3)}) rotate(${(rupture*28).toFixed(2)}deg)`;
  for(const node of [vars.rim,vars.halo,vars.tear])setStroke(node,ringLen,smooth(.49,.69,p));
  // After flying through the portal, a new independent hub in depth.
- moveImage(vars.hub,0,H*.04*arrival,lerp(.19,.77,arrival),lerp(8,0,arrival));
- vars.hub.style.opacity=String(smooth(.77,.93,p));
+ moveImage(vars.hub,0,-H*.08*arrival,lerp(.19,1.11,arrival),lerp(8,0,arrival));
+ vars.hub.style.opacity=String(smooth(.74,.93,p));
  vars.debrisA.style.opacity=String(band(.43,.63,.84,.95,p)*.9);
  vars.debrisB.style.opacity=String(band(.47,.66,.83,.95,p)*.9);
  vars.debrisA.style.transform=`translate3d(${(-W*.7*rupture).toFixed(2)}px,${(-H*.4*rupture).toFixed(2)}px,${260*rupture}px) rotate(${(-23-60*rupture).toFixed(2)}deg)`;

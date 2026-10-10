@@ -233,7 +233,7 @@ test("V7 focal portal composition stays inside phone viewport and releases idle 
   expect(sample.stageActive).toBe("true");
   expect(sample.width).toBeLessThan(sample.viewport*.70);
   expect(sample.opacity).toBeGreaterThan(0);
-  expect(sample.opacity).toBeLessThanOrEqual(.44);
+  expect(sample.opacity).toBeLessThanOrEqual(.61);
   await ensureLiteMode(page,true);
   await expect(page.locator("#stage")).toHaveAttribute("data-fx-active","false");
   await page.locator('[data-world-stop="0"]').click();
@@ -259,4 +259,36 @@ test("V7 mobile portal hands off to independent hub without a giant cropped logo
   expect(restore).toBeGreaterThan(.95);
   await scrollToExactProgress(page,0);
   expect((await pose(page)).portalRadiusPct).toBe(0);
+});
+
+
+test("V7 cinematic mobile framing prevents pad-only overzoom and ghost-logo handoff — SYNTHETIC MEDIA",async ({page})=>{
+  const errors:string[]=[];
+  page.on("pageerror",error=>errors.push(error.message));
+  await fixture(page,true);
+  await scrollToExactProgress(page,.40);
+  await ensureLiteMode(page,false);
+  const midpoint=await page.evaluate(()=>{
+    const state=(window as unknown as {__HAZEWAVE_TRAVERSAL_V4:{machineScale:number}}).__HAZEWAVE_TRAVERSAL_V4;
+    return state.machineScale*1448/innerWidth;
+  });
+  expect(midpoint).toBeLessThan(2);
+  await scrollToExactProgress(page,.69);
+  const opening=await page.evaluate(()=>({
+    deviceOpacity:Number((document.getElementById("machine") as HTMLElement).style.opacity),
+    fxOpacity:(window as unknown as {__HAZEWAVE_TRAVERSAL_V4:{effectcraftOpacity:number}}).__HAZEWAVE_TRAVERSAL_V4.effectcraftOpacity,
+  }));
+  expect(opening.deviceOpacity).toBeLessThan(.45);
+  expect(opening.fxOpacity).toBeGreaterThan(.4);
+  await scrollToExactProgress(page,.86);
+  const ghostOpacity=Number(await page.locator("#portal-inner-hub").evaluate(el=>(el as HTMLElement).style.opacity));
+  expect(ghostOpacity).toBeLessThan(.35);
+  await scrollToExactProgress(page,.92);
+  expect((await pose(page)).hubOpacity).toBeGreaterThan(.95);
+  await scrollToExactProgress(page,.40);
+  const reverse=await page.evaluate(()=>
+    (window as unknown as {__HAZEWAVE_TRAVERSAL_V4:{machineScale:number}}).__HAZEWAVE_TRAVERSAL_V4.machineScale*1448/innerWidth);
+  expect(reverse).toBeCloseTo(midpoint,3);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+  expect(errors).toEqual([]);
 });
