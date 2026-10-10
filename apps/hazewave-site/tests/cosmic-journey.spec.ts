@@ -108,3 +108,53 @@ test("owner image serves image/jpeg with JFIF magic and unchanged SHA-256",async
  const obsolete=await request.get("/media/artists/indionesbala.webp");
  expect(obsolete.status()).toBe(404);
 });
+
+test("V11 real camera depth, portal and 12 articulated pads traverse reversibly with captured scenes",async({page},info)=>{
+ await page.goto("/");
+ const shots=[{p:0,label:"origin"},{p:.31,label:"interference"},{p:.55,label:"machine"},{p:.73,label:"portal"},{p:.99,label:"arrival"}];
+ await expect(page.locator("#pads .pad")).toHaveCount(12);
+ await expect(page.locator(".rig-wing")).toHaveCount(2);
+ await expect(page.locator(".depth-plane")).toHaveCount(4);
+ for(const item of shots){
+  await move(page,item.p);
+  const observed=await page.evaluate(()=>{
+    const stage=document.querySelector("#stage") as HTMLElement;
+    const get=(n:string)=>parseFloat(stage.style.getPropertyValue("--"+n))||0;
+    return {cameraZ:get("camera-z"),cameraX:get("camera-x"),wing:get("wing-angle"),
+      portal:get("portal-opacity"),portalScale:get("portal-scale"),
+      interference:get("interference-opacity"),active:[...document.querySelectorAll("#pads .pad.hot")].length,
+      overflow:document.documentElement.scrollWidth-innerWidth};
+  });
+  expect(observed.overflow).toBeLessThanOrEqual(1);
+  if(item.label==="origin")expect(observed.cameraZ).toBe(0);
+  if(item.label==="interference")expect(observed.interference).toBeGreaterThan(.4);
+  if(item.label==="machine"){expect(observed.cameraZ).toBeGreaterThan(80);expect(observed.wing).toBeGreaterThan(10);expect(observed.active).toBeGreaterThan(0)}
+  if(item.label==="portal"){expect(observed.portal).toBeGreaterThan(.5);expect(observed.portalScale).toBeGreaterThan(.75)}
+  if(item.label==="arrival")expect(observed.portal).toBeLessThan(.2);
+  await page.screenshot({path:info.outputPath("v11-"+item.label+"-"+info.project.name+".png"),animations:"disabled"});
+ }
+ await move(page,0);
+ const reversed=await page.locator("#stage").evaluate(e=>({
+   cameraZ:Number.parseFloat((e as HTMLElement).style.getPropertyValue("--camera-z")),
+   portal:Number.parseFloat((e as HTMLElement).style.getPropertyValue("--portal-opacity")),
+   wing:Number.parseFloat((e as HTMLElement).style.getPropertyValue("--wing-angle"))}));
+ expect(reversed.cameraZ).toBe(0);expect(reversed.portal).toBe(0);expect(reversed.wing).toBe(0);
+});
+
+test("V11 artist landing is editorial, truthful and keeps 3-to-1 master brand hierarchy",async({page})=>{
+ await page.goto("/artists/indionesbala/");
+ await expect(page.getByRole("heading",{name:/A frequência encontra/})).toBeVisible();
+ await expect(page.getByRole("region",{name:"Arquivo sonoro"})).toContainText("Nenhuma faixa");
+ await expect(page.locator(".identity")).toHaveCSS("opacity","0.75");
+ const metrics=await page.evaluate(()=>{
+  const brand=document.querySelector(".brand") as HTMLElement;
+  const signature=document.querySelector(".identity") as HTMLElement;
+  const image=brand.querySelector("img") as HTMLImageElement;
+  return {ratio:brand.getBoundingClientRect().width/signature.getBoundingClientRect().width,
+    fit:getComputedStyle(image).objectFit,overflow:document.documentElement.scrollWidth-innerWidth};
+ });
+ expect(metrics.ratio).toBeGreaterThanOrEqual(3);
+ expect(metrics.fit).toBe("cover");
+ expect(metrics.overflow).toBeLessThanOrEqual(1);
+ await expect(page.locator(".back")).toHaveAttribute("href","/");
+});
