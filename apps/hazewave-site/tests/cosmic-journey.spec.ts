@@ -49,11 +49,12 @@ test("V10 logo uses only the top ornamental mark, not the full vertical lighthou
     const im=e as HTMLImageElement;const style=getComputedStyle(im);
     const clip=im.parentElement!.getBoundingClientRect();
     return {fit:style.objectFit,position:style.objectPosition,mask:style.maskImage,
-      naturalWidth:im.naturalWidth,naturalHeight:im.naturalHeight,
+      naturalWidth:im.naturalWidth,naturalHeight:im.naturalHeight,currentSrc:im.currentSrc,
       imageBoxHeight:im.getBoundingClientRect().height,clipHeight:clip.height};
   });
   expect(d.naturalWidth).toBeGreaterThan(d.naturalHeight);
-  expect(d.naturalWidth).toBe(1024);
+  expect(d.naturalWidth).toBeGreaterThan(200);
+  expect(d.currentSrc).toMatch(/\/media\/hazewave-hero-(440|1024)\.webp$/);
   await expect(image).toHaveAttribute("src","/media/hazewave-hero-1024.webp");
   await expect(image).toHaveAttribute("srcset",/hazewave-hero-440.webp 440w/);
   expect(d.fit).toBe("cover");

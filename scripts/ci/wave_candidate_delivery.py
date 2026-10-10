@@ -41,6 +41,10 @@ FILES = tuple(
      ".github/workflows/wave-effectcraft-filmcraft-portal-proof.yml") + (
      "AGENTS.md",
      "scripts/run_hazewave_site.sh",
+     "scripts/verify.sh",
+     "apps/hazewave-site/scripts/verify-brand-screenshots.mjs",
+     "apps/hazewave-site/scripts/optimize-hero.mjs",
+     "tests/test_wave_total_hardening.py",
      "apps/hazewave-site/README.md",
      "apps/hazewave-site/package.json",
      "apps/hazewave-site/package-lock.json",

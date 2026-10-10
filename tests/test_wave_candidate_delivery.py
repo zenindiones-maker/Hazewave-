@@ -126,7 +126,7 @@ def test_source_script_cannot_execute_deployment_or_import_network():
                       "aws s3", "kubectl", "deploy_prod", "gh release create",
                       "npm publish", "gh pages"):
         assert forbidden not in code
-    assert len(mod.FILES) == 37
+    assert len(mod.FILES) == 41
 
 def test_delivery_contains_exact_current_site_source_and_frozen_install_entrypoint():
     required={
@@ -142,3 +142,8 @@ def test_delivery_contains_exact_current_site_source_and_frozen_install_entrypoi
     assert required.issubset(set(mod.FILES))
     assert len(mod.FILES)==len(set(mod.FILES))
     assert all(not p.endswith((".webp",".png",".jpg",".jpeg",".wav",".mp4")) for p in mod.FILES)
+
+
+def test_exact_site_hardening_sources_are_present_in_reviewed_candidate():
+    must={"scripts/verify.sh","apps/hazewave-site/scripts/verify-brand-screenshots.mjs","apps/hazewave-site/scripts/optimize-hero.mjs","tests/test_wave_total_hardening.py"}
+    assert must <= set(mod.FILES)
