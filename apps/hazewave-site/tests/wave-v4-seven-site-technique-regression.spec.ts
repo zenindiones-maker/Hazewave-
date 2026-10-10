@@ -215,3 +215,28 @@ test("V7 real portal engine interpolates two frames INSIDE same pair — SYNTHET
     (window as unknown as {__HAZEWAVE_TRAVERSAL_V4:{qualityUserOverride:string}}).__HAZEWAVE_TRAVERSAL_V4.qualityUserOverride
   ))).toBe("FULL");
 });
+
+test("V7 focal portal composition stays inside phone viewport and releases idle GPU layer — SYNTHETIC ONLY",async ({page})=>{
+  await fixture(page,true);
+  await expect.poll(async()=>page.evaluate(()=>
+    (window as unknown as {__HAZEWAVE_ARTCRAFT_V7:{getReadiness:()=>string}}).__HAZEWAVE_ARTCRAFT_V7.getReadiness()
+  )).toBe("READY");
+  await scrollToExactProgress(page,.70);
+  await ensureLiteMode(page,false);
+  const sample=await page.evaluate(()=>{
+    const stage=document.getElementById("stage") as HTMLElement;
+    const fx=document.getElementById("effectcraft-aperture") as HTMLElement;
+    const r=fx.getBoundingClientRect();
+    return {stageActive:stage.dataset.fxActive,width:r.width,viewport:innerWidth,
+      opacity:Number(fx.style.opacity),quality:stage.dataset.quality};
+  });
+  expect(sample.stageActive).toBe("true");
+  expect(sample.width).toBeLessThan(sample.viewport*.70);
+  expect(sample.opacity).toBeGreaterThan(0);
+  expect(sample.opacity).toBeLessThanOrEqual(.44);
+  await ensureLiteMode(page,true);
+  await expect(page.locator("#stage")).toHaveAttribute("data-fx-active","false");
+  await page.locator('[data-world-stop="0"]').click();
+  await expect.poll(async()=>(await pose(page)).phase).toBe(0);
+  await expect(page.locator("#stage")).toHaveAttribute("data-fx-active","false");
+});
