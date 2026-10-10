@@ -123,6 +123,14 @@
     const isSample = mix.synth === 'Sampler';
     const isGrain = mix.synth === 'Granular';
     const sample = mix.samplePack + ':' + mix.sampleIndex;
+    if ((isSample || isGrain) && (!packOf(mix.samplePack,'melodic') ||
+      !audioFiles(mix.samplePack,'melodic')[mix.sampleIndex]))
+      throw new Error('Sample melódico ainda não disponível no catálogo local; tente novamente após carregar.');
+    for (let i=0;i<KIT.length;i++) {
+      if (state[KIT[i].id].some(Boolean) &&
+        (!packOf(mix.drumPacks[i],'drums') || !audioFiles(mix.drumPacks[i],'drums')[mix.kit[i]]))
+        throw new Error('Banco de bateria '+KIT[i].label+' não disponível; carregue o catálogo.');
+    }
     let melody = isSample ? 's("' + sample + '").note("' + notes + '")'
       : 'note("' + notes + '").synth("' + mix.synth + '")';
     if (isGrain) melody += '.param("Sample", "' + sample + '")';
@@ -179,7 +187,7 @@
     const source = getEditor().get();
     if (source == null) return report('Editor ainda não disponível');
     const data = JSON.stringify({
-      schema: 'HazewavePoptartMobileBackup/v2',
+      schema: 'HazewavePoptartMobileBackup/v3',
       exported_at: new Date().toISOString(),
       source, steps: state, midi_notes: noteSteps, mix,
       attribution: 'Poptart by Glossing, AGPL-3.0-only',
@@ -197,7 +205,8 @@
     if (!file || file.size > 2 * 1024 * 1024) return report('Backup ausente ou maior que 2 MB');
     file.text().then(text => {
       const data = JSON.parse(text);
-      if (!['HazewavePoptartMobileBackup/v1', 'HazewavePoptartMobileBackup/v2'].includes(data.schema) ||
+      if (!['HazewavePoptartMobileBackup/v1', 'HazewavePoptartMobileBackup/v2',
+        'HazewavePoptartMobileBackup/v3'].includes(data.schema) ||
           typeof data.source !== 'string') throw new Error('Backup inválido');
       if (!W.confirm('Substituir o código atual pelo backup? Exporte seu trabalho antes.')) return;
       getEditor().set(data.source);
@@ -221,10 +230,31 @@
       if (Object.hasOwn(MODES, data.mix?.mode)) mix.mode = data.mix.mode;
       if (Number.isInteger(data.mix?.octave)) mix.octave = limits(data.mix.octave, 2, 5, 3);
       if (SYNTHS.includes(data.mix?.synth)) mix.synth = data.mix.synth;
-      if (Array.isArray(data.mix?.kit)) {
-        mix.kit = KIT.map((lane, i) => Number.isInteger(data.mix.kit[i]) &&
-          data.mix.kit[i] >= 0 && data.mix.kit[i] <= 7 ? data.mix.kit[i] : lane.sample);
-      }
+      if (FX_CHOICES.includes(data.mix?.fx)) mix.fx=data.mix.fx;
+      if (Array.isArray(data.mix?.drumPacks))
+        mix.drumPacks=KIT.map((lane,i)=>typeof data.mix.drumPacks[i]==='string' &&
+          /^pt_[a-z0-9_]+$/.test(data.mix.drumPacks[i]) ? data.mix.drumPacks[i] : 'pt_kit');
+      if (Array.isArray(data.mix?.kit))
+        mix.kit=KIT.map((lane,i)=>Number.isInteger(data.mix.kit[i]) &&
+          data.mix.kit[i]>=0 && data.mix.kit[i]<=4999 ? data.mix.kit[i] : lane.sample);
+      if (typeof data.mix?.samplePack==='string' && /^pt_[a-z0-9_]+$/.test(data.mix.samplePack))
+        mix.samplePack=data.mix.samplePack;
+      if (Number.isInteger(data.mix?.sampleIndex) && data.mix.sampleIndex>=0 &&
+        data.mix.sampleIndex<=4999) mix.sampleIndex=data.mix.sampleIndex;
+      if (data.mix?.soundVariant && typeof data.mix.soundVariant==='object')
+        for (const [name,choice] of Object.entries(data.mix.soundVariant))
+          if (SOUND_VARIANTS[name] && SOUND_VARIANTS[name].options.includes(choice))
+            mix.soundVariant[name]=choice;
+      if (data.mix?.tones && typeof data.mix.tones==='object')
+        for(const [name,settings] of Object.entries(data.mix.tones)){
+          if (!TIMBRE_PARAMS[name] || !settings || typeof settings!=='object') continue;
+          mix.tones[name]={};
+          for(const n of [0,1]){
+            const v=settings[n];
+            if (typeof v==='number' && Number.isFinite(v) && v>=0 && v<=1)
+              mix.tones[name][n]=v;
+          }
+        }
       mix.bpm = Math.round(limits(mix.bpm, 60, 200, 120));
       mix.cutoff = limits(mix.cutoff, 0.05, 0.95, 0.45);
       mix.gain = limits(mix.gain, 0.05, 0.9, 0.35);
@@ -241,8 +271,8 @@
         const select = D.getElementById('hz-kit-' + i);
         if (select) select.value = String(mix.kit[i]);
       }
-      refreshPitchGrid(); saveSteps(); repaint();
-      report('Backup restaurado. Pressione Play para ouvir.');
+      syncSoundUI(); refreshPitchGrid(); saveSteps(); repaint();
+      report('Backup restaurado (V1/V2/V3). Pressione Aplicar e ouvir.');
     }).catch(error => report('Falha ao importar: ' + error.message));
   }
   function repaint() {

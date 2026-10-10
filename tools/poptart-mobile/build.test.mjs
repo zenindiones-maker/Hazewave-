@@ -72,3 +72,16 @@ test('pinned official sound catalog preserves all indexed sounds and licensing',
   assert.ok(catalog.packs.every(p=>p.files.every((f,i)=>
     f.number===i&&f.license==='CC0-1.0'&&!f.file.includes('..'))));
 });
+
+test('V3 mobile code exposes complete sampler and backward-compatible backup',()=>{
+  const js=readFileSync(join(dirname(fileURLToPath(import.meta.url)),'hz-mobile.js'),'utf8');
+  assert.match(js,/soundPacks\(kind\)/);
+  assert.match(js,/hz-sample-pack/);
+  assert.match(js,/hz-sample-file/);
+  assert.match(js,/hz-pack-/);
+  assert.match(js,/HazewavePoptartMobileBackup\/v3/);
+  assert.match(js,/HazewavePoptartMobileBackup\/v2/);
+  assert.match(js,/HazewavePoptartMobileBackup\/v1/);
+  for(const instrument of ['Granular','Sampler','Plaits','Braids','Elements','FM'])
+    assert.ok(js.includes("'"+instrument+"'"));
+});
