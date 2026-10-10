@@ -95,7 +95,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artcraft-7-cleanroom-rust-source-pinned
-          path: \${{ runner.temp }}/artcraft-source-archive/
+          path: ${{ runner.temp }}/artcraft-source-archive/
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
