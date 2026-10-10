@@ -174,6 +174,48 @@ window.__HAZEWAVE_TRAVERSAL_V4=state;
   getFrame:()=>state.effectcraftFrame,source:'real-offline-effectcraft-frames'
  };
 
+
+/* V8 CSS 3D geometric corridor: independent Z-positioned gate and wall faces.
+   No owner artwork embedded, no external fetch and no autonomous behavior. */
+const depthField=el('depth-field'),depthWorld=el('depth-world');
+function createDepthWorld(){
+ if(!depthField||!depthWorld){state.depthScene='MISSING';return;}
+ const phone=innerWidth<700,edges=phone?6:8,gates=phone?5:7,step=480,radius=295;
+ const make=(cls,transform,kind)=>{
+  const face=doc.createElement('div');face.className=cls;
+  face.style.transform=transform;face.dataset.geomKind=kind;
+  depthWorld.appendChild(face);
+ };
+ for(let g=0;g<gates;g++){
+  const z=-340-step*g;
+  for(let i=0;i<edges;i++){
+   const a=(i+.5)*2*Math.PI/edges;
+   const x=(Math.cos(a)*radius).toFixed(2),y=(Math.sin(a)*radius*.89).toFixed(2);
+   const rot=(a*180/Math.PI+90).toFixed(2);
+   make('depth-gate','translate3d('+x+'px,'+y+'px,'+z+'px) rotateZ('+rot+'deg)','gate');
+   if(g<gates-1){
+    const wallZ=z-step*.5;
+    make('depth-wall','translate3d('+x+'px,'+y+'px,'+wallZ+'px) rotateZ('+rot+'deg) rotateX(90deg)','wall');
+   }
+  }
+ }
+ state.depthScene='CSS_3D_PERSPECTIVE_GEOMETRY';
+ state.depthGateCount=gates*edges;state.depthWallCount=(gates-1)*edges;
+}
+function renderDepthWorld(p,W,H){
+ if(!depthWorld)return;
+ const flight=smooth(.36,.94,p),travel=flight*3200;
+ const x=-Math.sin(flight*Math.PI*1.13)*Math.min(W*.35,140);
+ const y=Math.sin(flight*Math.PI*1.4)*Math.min(H*.11,86);
+ const yaw=7*Math.sin(flight*Math.PI*1.22),pitch=-5*Math.sin(flight*Math.PI);
+ depthWorld.style.transform='translate3d('+x.toFixed(2)+'px,'+y.toFixed(2)+'px,'+
+  travel.toFixed(3)+'px) rotateY('+yaw.toFixed(3)+'deg) rotateX('+pitch.toFixed(3)+'deg)';
+ depthField.style.opacity=String(band(.36,.49,.75,.89,p)*.65);
+ state.depthCameraZ=travel;state.depthCameraX=x;state.depthCameraY=y;
+ state.depthCameraYaw=yaw;state.depthCameraPitch=pitch;
+ state.depthOpacity=Number(depthField.style.opacity);
+}
+
 function mount(spec){
  const piece=doc.createElement('img');piece.src=(window.__assetUrls?.[spec.file] || 'assets/'+spec.file);
  piece.alt='';piece.draggable=false;piece.decoding='async';piece.className='rig-part rig-'+spec.type;
@@ -205,6 +247,7 @@ function makeStars(){
  }
 }
 function updatePose(p){
+ renderDepthWorld(p,innerWidth,innerHeight);
  const W=innerWidth,H=innerHeight,phone=W<700;
  // ARC ONE: far approach. ARC TWO: fly THROUGH machine. ARC THREE: break into new world.
  const approach=smooth(.035,.31,p),through=smooth(.30,.625,p),rupture=smooth(.54,.77,p),arrival=smooth(.74,.98,p);
@@ -339,7 +382,7 @@ async function start(){
   for(const entry of manifest.v3aPieces){if(!(entry.type in counts))throw Error('UNKNOWN_RIG_PART');counts[entry.type]++;pieces.push(mount(entry));}
   if(counts.pad!==12||counts.knob!==8||counts.speaker!==4)throw Error('V3A_COUNTS_MISMATCH');
   traceLen=vars.trace.getTotalLength();worldLen=vars.worldPath.getTotalLength();ringLen=vars.rim.getTotalLength();
-  makeStars();state.mountedPieces=pieces.length;state.sourceV3A=manifest.v3aSourceActionsSha;
+  makeStars();createDepthWorld();state.mountedPieces=pieces.length;state.sourceV3A=manifest.v3aSourceActionsSha;
   // Require every src image to decode, not merely DOM presence.
   const imgs=[...doc.querySelectorAll('img')];
   await Promise.all(imgs.map(img=>img.decode()));

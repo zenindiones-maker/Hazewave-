@@ -333,3 +333,36 @@ test("V7R rig parts remain attached to opening chassis halves and reveal a jagge
  expect(reset.mask).toMatch(/^polygon\(/);
  expect(errors).toEqual([]);
 });
+
+test("V8 perspective corridor moves the camera THROUGH true Z geometry with reversible LOD — SYNTHETIC artwork",async ({page})=>{
+ const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));
+ await fixture(page,true);
+ const state=()=>page.evaluate(()=>window.__HAZEWAVE_TRAVERSAL_V4 as unknown as {
+  depthScene:string;depthGateCount:number;depthWallCount:number;
+  depthCameraZ:number;depthOpacity:number;mountedPieces:number
+ });
+ const initial=await state();
+ const phone=page.viewportSize()!.width<700;
+ expect(initial.depthScene).toBe("CSS_3D_PERSPECTIVE_GEOMETRY");
+ expect(initial.depthGateCount).toBe(phone?30:56);
+ expect(initial.depthWallCount).toBe(phone?24:48);
+ expect(await page.locator("#depth-world .depth-wall").count()).toBe(phone?24:48);
+ await scrollToExactProgress(page,.52);
+ const approach=await state();
+ await scrollToExactProgress(page,.73);
+ const crossing=await state();
+ expect(crossing.depthCameraZ).toBeGreaterThan(approach.depthCameraZ+600);
+ expect(crossing.depthOpacity).toBeGreaterThan(0);
+ const form=await page.locator("#depth-world").evaluate(el=>(el as HTMLElement).style.transform);
+ expect(form).toContain("translate3d(");
+ expect(form).toContain("rotateY(");
+ await scrollToExactProgress(page,.52);
+ const rewind=await state();
+ expect(rewind.depthCameraZ).toBeCloseTo(approach.depthCameraZ,3);
+ await scrollToExactProgress(page,0);
+ const reset=await state();
+ expect(reset.depthCameraZ).toBe(0);
+ expect(reset.mountedPieces).toBe(24);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+ expect(errors).toEqual([]);
+});

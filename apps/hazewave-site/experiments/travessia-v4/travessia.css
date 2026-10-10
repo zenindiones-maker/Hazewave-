@@ -53,3 +53,14 @@
 .portal-spine{position:absolute;left:50%;top:50%;width:48%;height:70%;border:2px solid #ffa86b55;clip-path:polygon(50% 0,100% 17%,100% 83%,50% 100%,0 83%,0 17%);opacity:0;pointer-events:none;transform:translate(-50%,-50%) perspective(600px) translateZ(-180px);box-shadow:inset 0 0 22px #bb3efa88}
 @media(max-width:450px){.portal-depth{width:85vw;height:66svh}.portal-wall{width:49%}}
 @media(prefers-reduced-motion:reduce){.portal-wall{will-change:auto}}
+
+
+/* V8: world-space faces with independent perspective; dimmed to protect art.
+   Mobile LOD is 54 elements, desktop LOD 104; no scroll-built DOM. */
+.depth-field{mask-image:radial-gradient(ellipse 61% 50% at 50% 50%,#000 32%,transparent 96%);position:absolute;z-index:7;inset:0;perspective:900px;perspective-origin:50% 49%;pointer-events:none;opacity:0;overflow:hidden;contain:layout paint}
+.depth-world{position:absolute;left:50%;top:49%;width:0;height:0;transform-style:preserve-3d;will-change:transform}
+.depth-gate,.depth-wall{position:absolute;left:0;top:0;transform-style:preserve-3d;backface-visibility:visible;pointer-events:none}
+.depth-gate{opacity:.60;width:190px;height:16px;margin-left:-95px;margin-top:-8px;border-radius:10px;border:1px solid #ffc285b5;background:linear-gradient(180deg,#4a1b74,#ed88deaa 43%,#1c124bb2 56%,#070722);box-shadow:0 0 14px #9b59ff66,inset 0 0 7px #e8a8ff69}
+.depth-wall{filter:brightness(.72);width:190px;height:480px;margin-left:-95px;margin-top:-240px;border-left:1px solid #ffc1ad75;border-right:1px solid #8a52d45c;opacity:.65;background:linear-gradient(0deg,#13092375 1%,#91449f26 35%,#ffb59a15 49%,#1a0c3688 95%);box-shadow:inset 0 0 29px #a23ef33b}
+@media(max-width:450px){.depth-field{perspective:650px}.depth-gate{height:12px}.depth-wall{opacity:.55}}
+.stage[data-quality="lite"] .depth-gate,.stage[data-quality="lite"] .depth-wall{box-shadow:none}
