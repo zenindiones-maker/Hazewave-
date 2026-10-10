@@ -146,8 +146,11 @@ window.__HAZEWAVE_TRAVERSAL_V4=state;
   const lite=vars.stage.dataset.quality==='lite' ||
      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(!fxCanvas){state.effectcraftFrame=-1;return}
-  fxCanvas.style.opacity=(fxReadiness==='READY'&&!lite?alpha*.58:0).toFixed(4);
-  fxCanvas.style.transform='translate(-50%,-50%) scale('+(0.48+0.94*t).toFixed(4)+') rotate('+(26*t).toFixed(2)+'deg)';
+  const fxOpacity=fxReadiness==='READY'&&!lite?alpha*.43:0;
+  fxCanvas.style.opacity=fxOpacity.toFixed(4);
+  fxCanvas.style.transform='translate(-50%,-50%) scale('+(0.70+0.38*t).toFixed(4)+') rotate('+(8*t).toFixed(2)+'deg)';
+  // Only retain GPU layer budget while the effect is visible; owner art remains unchanged.
+  vars.stage.dataset.fxActive=fxOpacity>.005?'true':'false';
   if(fxReadiness==='READY'&&!lite&&(idx!==fxFrameIndex||blend!==fxBlend)){
    fxCtx.clearRect(0,0,420,820);
    fxCtx.globalAlpha=1-blend;
