@@ -3,6 +3,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SITE="$ROOT/apps/hazewave-site"
 mkdir -p "$ROOT/verification/screenshots"
+exec > >(tee "$ROOT/verification/verify.log") 2>&1
 test -e "$ROOT/.git"
 COUNT="$(find "$ROOT" -name .git | wc -l)"
 echo "HAZEWAVE_DOT_GIT_COUNT=$COUNT"
