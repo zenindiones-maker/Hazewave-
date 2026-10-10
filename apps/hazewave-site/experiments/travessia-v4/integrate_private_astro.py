@@ -14,7 +14,7 @@ ART_SCHEMA='HazewaveTraversalV4ArtSource/v1'
 
 def digest(path:Path)->str:return hashlib.sha256(path.read_bytes()).hexdigest()
 
-def compose(archive:Path,source:Path,media:Path,output:Path)->dict:
+def compose(archive:Path,source:Path,media:Path,output:Path,fx_root:Path|None=None)->dict:
  archive=archive.resolve(strict=True);source=source.resolve(strict=True)
  media=media.resolve(strict=True);output=output.resolve(strict=False)
  if output.exists() or output.is_relative_to(source) or output.is_relative_to(media):
@@ -57,6 +57,27 @@ def compose(archive:Path,source:Path,media:Path,output:Path)->dict:
  for name in ('index.html','travessia.css','travessia.js'):
   shutil.copyfile(source/name,entry/name)
  shutil.copyfile(media/'asset-manifest.json',entry/'asset-manifest.json')
+ if fx_root is not None:
+  from artcraft_portal_pipeline import verify as verify_effectcraft
+  fx_root=fx_root.resolve(strict=True)
+  if fx_root.is_relative_to(source) or fx_root.is_relative_to(media):
+   raise ValueError('PRIVATE_FX_SOURCE_MUST_BE_ISOLATED')
+  fx_proof=verify_effectcraft(fx_root)
+  fx_out=entry/'assets'/'fx'
+  fx_out.mkdir(mode=0o700,parents=True)
+  for f in fx_proof['frames']:
+   shutil.copyfile(fx_root/'frames'/f['file'],fx_out/f['file'])
+  preview=entry/'index.html'
+  doc=preview.read_text(encoding='utf8')
+  if '<script src="travessia.js" defer></script>' not in doc:
+   raise ValueError('FX_PREVIEW_ENTRYPOINT_NOT_FOUND')
+  jsframes=[{'url':'assets/fx/'+f['file']} for f in fx_proof['frames']]
+  browser_proof={'schema':fx_proof['schema'],'real_effectcraft_render':True,
+   'filmcraft_probe_executed':True,'production_approved':False,'frames':jsframes}
+  injection='<script>window.__hazewaveEffectArt='+json.dumps(browser_proof,separators=(',',':'))+';</script>'
+  preview.write_text(doc.replace('<script src="travessia.js" defer></script>',
+      injection+'<script src="travessia.js" defer></script>'),encoding='utf8')
+
  target=entry/'assets';target.mkdir(mode=0o700)
  for file in (media/'assets').glob('*.webp'):
   shutil.copyfile(file,target/file.name)
@@ -73,7 +94,9 @@ def compose(archive:Path,source:Path,media:Path,output:Path)->dict:
     'newPrivateRoute':'/experimental/travessia-v4/',
     'homepageOriginalUnmodified':True,'homepageCopyWithPrivateEntry':True,
     'ownerSourcePixelsCopiedToGitHub':False,
-    'productionApproved':False,'githubPublished':False,'codespaceHostAttested':False}
+    'productionApproved':False,'githubPublished':False,'codespaceHostAttested':False,
+    'effectcraftOverlayAttached':fx_root is not None,
+    'effectcraftRenderAndFilmcraftProbeVerified':fx_root is not None}
  (output/'HAZEWAVE_TRAVESSIA_V4_PRIVATE_SITE_RECEIPT.json').write_text(json.dumps(report,indent=2)+'\n')
  return report
 
@@ -83,5 +106,6 @@ if __name__=='__main__':
  cli.add_argument('--engine',type=Path,default=Path(__file__).parent)
  cli.add_argument('--private-media',type=Path,required=True)
  cli.add_argument('--output',type=Path,required=True)
+ cli.add_argument('--effectcraft-proof',type=Path)
  a=cli.parse_args()
- print(json.dumps(compose(a.astro_dist_zip,a.engine,a.private_media,a.output),indent=2))
+ print(json.dumps(compose(a.astro_dist_zip,a.engine,a.private_media,a.output,a.effectcraft_proof),indent=2))
