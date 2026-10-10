@@ -52,7 +52,10 @@ test("V10 logo uses only the top ornamental mark, not the full vertical lighthou
       naturalWidth:im.naturalWidth,naturalHeight:im.naturalHeight,
       imageBoxHeight:im.getBoundingClientRect().height,clipHeight:clip.height};
   });
-  expect(d.naturalHeight).toBeGreaterThan(d.naturalWidth);
+  expect(d.naturalWidth).toBeGreaterThan(d.naturalHeight);
+  expect(d.naturalWidth).toBe(1024);
+  await expect(image).toHaveAttribute("src","/media/hazewave-hero-1024.webp");
+  await expect(image).toHaveAttribute("srcset",/hazewave-hero-440.webp 440w/);
   expect(d.fit).toBe("cover");
   expect(d.position).toBe("50% 0%");
   expect(d.mask).toContain("linear-gradient");
