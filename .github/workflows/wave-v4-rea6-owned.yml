@@ -1,0 +1,72 @@
+name: WAVE V4 REA6 Owned Scroll Evidence
+on:
+  push:
+    branches: ["work/wave-rea6-traversal-v4"]
+    paths:
+      - ".github/workflows/wave-v4-rea6-owned.yml"
+      - "tests/fixtures/wave-v4-js-owned/**"
+      - "docs/prototypes/wave-traversal-v4/model.js"
+      - "scripts/research/rea6_js_fixture_validate.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rea6-owned-v4-javascript:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify owned JS identity and reversible semantics
+        run: |
+          set -euo pipefail
+          cmp tests/fixtures/wave-v4-js-owned/main.js docs/prototypes/wave-traversal-v4/model.js
+          node --check docs/prototypes/wave-traversal-v4/model.js
+          node <<'JS'
+          const assert=require('node:assert/strict');
+          require('./docs/prototypes/wave-traversal-v4/model.js');
+          const f=globalThis.HAZEWAVE_V4_MODEL.evaluateFrame;
+          const a=[.1,.158,.216,.274,.332,.39,.448,.506,.564,.622,.68,.738];
+          const p=[0,.15,.4,.7,.95,1,.4,0];
+          const frames=p.map(x=>f(x,0,a));
+          for(let i=1;i<6;i++) assert(frames[i].wave>=frames[i-1].wave);
+          assert.equal(frames[0].wave,0);
+          assert.equal(frames[7].wave,0);
+          assert.equal(frames[0].activeCount,0);
+          assert.equal(frames[7].activeCount,0);
+          assert.equal(frames[5].activeCount,12);
+          assert.equal(f(.55,10,a).activeCount,f(.55,0,a).activeCount);
+          assert.notEqual(f(.55,10,a).idleDrift,f(.55,0,a).idleDrift);
+          assert.throws(()=>f(NaN,0,a));
+          console.log('WAVE_V4_OWNED_SCROLL_LOGIC=PASS');
+          JS
+          echo "WAVE_V4_FIXTURE_SOURCE_IDENTICAL=PASS"
+      - name: Install exact REA6 in disposable runner
+        run: |
+          set -euo pipefail
+          npm_config_ignore_scripts=true npm install --prefix "$RUNNER_TEMP/rea6-v4" --no-audit --no-fund --ignore-scripts --no-save rea-agents@6.0.0
+          node -e 'const p=require(process.argv[1]);if(p.name!=="rea-agents"||p.version!=="6.0.0")process.exit(20)' "$RUNNER_TEMP/rea6-v4/node_modules/rea-agents/package.json"
+      - name: Analyze source-owned scroll JS using real REA6 executable
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/rea6-v4/node_modules/.bin/rea" analyze-javascript-application "$GITHUB_WORKSPACE/tests/fixtures/wave-v4-js-owned" --json > "$RUNNER_TEMP/v4-rea6-evidence.json"
+          python scripts/research/rea6_js_fixture_validate.py validate-js-fixture --fixture tests/fixtures/wave-v4-js-owned --evidence "$RUNNER_TEMP/v4-rea6-evidence.json"
+          echo "WAVE_V4_REA6_JS_STATIC_EVIDENCE=PASS"
+          echo "WAVE_V4_REA6_CODESPACE_PROVEN=NOT_TESTED"
+          echo "WAVE_V4_REA6_AGENT_MCP=NOT_TESTED"
+          echo "WAVE_V4_PRODUCTION_APPROVED=FALSE"
+      - name: Preserve REA forensic graph
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave-v4-rea6-first-party-static-evidence
+          path: ${{ runner.temp }}/v4-rea6-evidence.json
+          if-no-files-found: warn
+          retention-days: 14
