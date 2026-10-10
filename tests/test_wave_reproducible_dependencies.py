@@ -10,4 +10,4 @@ def test_wave_ci_invokes_frozen_real_site_entrypoint():
     assert "bash ../../scripts/run_hazewave_site.sh verify" in workflow
     assert "npm ci --ignore-scripts --no-audit --no-fund" in script
     assert "git -C \"$ROOT\" diff --exit-code HEAD -- apps/hazewave-site/package-lock.json" in script
-    assert script.index("npm ci --ignore-scripts") < script.index("git -C")
+    assert script.index("npm ci --ignore-scripts") < script.index('git -C "$ROOT" diff --exit-code HEAD -- apps/hazewave-site/package-lock.json')
