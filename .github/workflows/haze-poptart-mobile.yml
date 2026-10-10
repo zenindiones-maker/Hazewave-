@@ -70,9 +70,6 @@ jobs:
         working-directory: poptart
         run: npm run build:web
 
-      - name: Build Hazewave touch PWA overlay
-        run: node hazewave/tools/poptart-mobile/build.mjs poptart/dist/web
-
       - name: Preserve source licensing
         shell: bash
         run: |
@@ -87,6 +84,9 @@ jobs:
             echo 'Android hardware/audio acceptance: PENDING'
           } > poptart/dist/web/SOURCE-AND-LICENSE.txt
 
+      - name: Build Hazewave touch PWA overlay
+        run: node hazewave/tools/poptart-mobile/build.mjs poptart/dist/web
+
       - name: Validate static release
         shell: bash
         run: |
@@ -98,6 +98,8 @@ jobs:
           test -s poptart/dist/web/hz-icon-192.png
           test -s poptart/dist/web/hz-icon-512.png
           test -s poptart/dist/web/SOURCE-AND-LICENSE.txt
+          grep -Fq '"./SOURCE-AND-LICENSE.txt"' poptart/dist/web/hz-sw.js
+          grep -Fq '"./UPSTREAM-LICENSE"' poptart/dist/web/hz-sw.js
           ! grep -q HAZE_CACHE_NAME poptart/dist/web/hz-sw.js
           ! grep -q HAZE_CACHE_LIST poptart/dist/web/hz-sw.js
           node -e "let p=require('./poptart/dist/web/hz-provenance.json'); if(p.android_human_acceptance!=='PENDING')process.exit(1)"
