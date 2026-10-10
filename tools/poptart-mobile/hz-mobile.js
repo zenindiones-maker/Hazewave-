@@ -76,7 +76,7 @@
       const target = playing ? update : play;
       if (!target) throw new Error('Controle de reprodução não encontrado');
       target.click();
-      report('Padrão enviado ao motor do Poptart. Confirme o som no aparelho.');
+      report('Padrão atualizado no editor. Confirme a reprodução e o som no aparelho.');
     } catch (error) { report(error.message); }
   }
   function downloadBackup() {
