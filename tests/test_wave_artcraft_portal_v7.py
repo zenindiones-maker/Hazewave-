@@ -81,6 +81,13 @@ def test_source_is_scoped_to_hazewave_and_optional_private_artwork():
     private_astro = (BASE / "integrate_private_astro.py").read_text()
     assert 'id="effectcraft-aperture"' in html
     assert 'renderArtcraftEffect(p)' in js
+    assert "const position=t*7;" in js
+    assert "Math.round((position-idx)*32)/32" in js
+    assert "fxCtx.globalAlpha=1-blend" in js
+    assert "fxCtx.globalAlpha=blend" in js
+    assert "state.effectcraftInterpolation=" in js
+    assert "userForcedFull?false:(userRequestedLite||autoLite)" in js
+    assert "state.qualityUserOverride=" in js
     assert "fxSpec.production_approved!==false" in js
     assert "filmcraft_probe_executed!==true" in js
     assert "reduced-motion: reduce" in js
