@@ -371,6 +371,9 @@ function updatePose(p){
  inscription.style.opacity=String(arrivalInk);
  inscription.style.transform='translate(-50%,'+(34*(1-arrivalInk)).toFixed(2)+'px)';
  state.arrivalInk=arrivalInk;
+ // Editorial handoff: never display two competing HAZEWAVE mastheads.
+ const masthead=doc.querySelector('header.brand');
+ if(masthead)masthead.style.opacity=String(1-arrivalInk);
  vars.debrisA.style.opacity=String(band(.43,.63,.84,.95,p)*.9);
  vars.debrisB.style.opacity=String(band(.47,.66,.83,.95,p)*.9);
  vars.debrisA.style.transform=`translate3d(${(-W*.7*rupture).toFixed(2)}px,${(-H*.4*rupture).toFixed(2)}px,${260*rupture}px) rotate(${(-23-60*rupture).toFixed(2)}deg)`;
