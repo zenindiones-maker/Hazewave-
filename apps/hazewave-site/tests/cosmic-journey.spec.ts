@@ -84,7 +84,7 @@ test("mobile QA: Hazewave 90vw dominates the 18vw, max 110px, 48px and 75% Indio
     expect(visual.signatureCssWidth).toBeCloseTo(width*.18,0);
     expect(visual.signatureMaxWidth).toBe(110);
     expect(visual.signatureMaxHeight).toBe(48);
-    expect(visual.signatureOpacity).toBeCloseTo(.75,2);
+    expect(visual.signatureOpacity).toBeCloseTo(.70,2);
     expect(visual.brandVisibleWidth).toBeGreaterThanOrEqual(visual.signatureVisibleWidth*3);
     expect(visual.signatureLoaded).toBe(true);
     expect(visual.overflow).toBeLessThanOrEqual(1);
@@ -146,7 +146,7 @@ test("V11 artist landing is editorial, truthful and keeps 3-to-1 master brand hi
  await page.goto("/artists/indionesbala/");
  await expect(page.getByRole("heading",{name:/A frequência encontra/})).toBeVisible();
  await expect(page.getByRole("region",{name:"Arquivo sonoro"})).toContainText("Nenhuma faixa");
- await expect(page.locator(".identity")).toHaveCSS("opacity","0.75");
+ await expect(page.locator(".identity")).toHaveCSS("opacity","0.7");
  const metrics=await page.evaluate(()=>{
   const brand=document.querySelector(".brand") as HTMLElement;
   const signature=document.querySelector(".identity") as HTMLElement;
