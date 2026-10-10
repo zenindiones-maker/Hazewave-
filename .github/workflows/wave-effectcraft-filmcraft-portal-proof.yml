@@ -21,7 +21,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout only immutable Hazewave PR head
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
@@ -103,7 +103,7 @@ jobs:
 
       - name: Archive private candidate FX with original film proof
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: wave-v7-effectcraft-filmcraft-real-portal-${{ github.run_id }}
           path: ${{ runner.temp }}/wave-effectfilm-lab/v7-portal
