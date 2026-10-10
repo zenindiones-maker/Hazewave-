@@ -71,7 +71,6 @@
     mix.samplePack = storedMix.samplePack;
   if (Number.isInteger(storedMix?.sampleIndex) && storedMix.sampleIndex >= 0 && storedMix.sampleIndex <= 4999)
     mix.sampleIndex = storedMix.sampleIndex;
-  };
   const defaultDegrees = [0, -1, 2, -1, 3, -1, 4, -1, 5, -1, 4, -1, 2, -1, 1, -1];
   // Import the existing user's V1 steps without shifting their audible pitches.
   const noteSteps = Array.from({ length: 16 }, (_, i) => {
