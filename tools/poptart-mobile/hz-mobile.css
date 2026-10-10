@@ -75,3 +75,23 @@
   .hz-music-controls input { width: 100%; min-width: 0; font-size: 15px; accent-color: #57e6d8; }
   .hz-music-controls input[type="number"] { min-height: 40px; }
 }
+
+/* Pitch / instrument controls: mobile-first, readable without horizontal page overflow. */
+@media (max-width: 800px) {
+  #hz-tone-controls, #hz-kit-controls {
+    display: grid; grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 9px;
+  }
+  #hz-tone-controls[hidden], #hz-kit-controls[hidden] { display: none !important; }
+  #hz-tone-controls label, #hz-kit-controls label {
+    display: flex; flex-direction: column; gap: 5px;
+    min-width: 0; font-size: 12px; font-weight: 700;
+  }
+  #hz-tone-controls select, #hz-kit-controls select {
+    width: 100%; min-width: 0; height: 46px;
+    border-radius: 8px; border: 1px solid #546474;
+    color: #e6f3f7; background: #222b38;
+  }
+  #hz-note-grid .hz-lane-name.hz-in-scale { color: #80f5e2; }
+  #hz-melody-scroll { max-height: min(33dvh, 285px); overflow-y: auto; }
+}

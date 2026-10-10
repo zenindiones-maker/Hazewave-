@@ -11,22 +11,46 @@
     { id: 'hat', label: 'Hat', sample: 4, defaults: [0, 2, 4, 6, 8, 10, 12, 14] },
   ]);
   const KEY = 'hazewave.poptart.mobile.steps.v1';
-  const NOTE_KEY = 'hazewave.poptart.mobile.notes.v1';
+  const NOTE_KEY = 'hazewave.poptart.mobile.notes.v1'; // legacy scale degrees
+  const MIDI_KEY = 'hazewave.poptart.mobile.midi.v2';
+  const ROOTS = Object.freeze(['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']);
+  const MODES = Object.freeze({ major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10] });
+  const SYNTHS = Object.freeze(['Wavetable', 'FM', 'Plaits', 'Braids', 'Rings', 'Elements']);
+  const DRUM_SAMPLES = Object.freeze(['Kick', 'Snare', 'Rim', 'Clap', 'Hat', 'Hat aberto', 'Tom grave', 'Tom agudo']);
+  const NOTE_NAMES = Object.freeze(['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']);
+  const noteName = midi => NOTE_NAMES[midi % 12].toLowerCase() + (Math.floor(midi / 12) - 2);
+  const tonicMidi = (root, octave) => 60 + ROOTS.indexOf(root) + 12 * (octave - 3);
+  const degreeMidi = (degree, root, mode, octave) =>
+    tonicMidi(root, octave) + MODES[mode][degree % 7] + 12 * Math.floor(degree / 7);
+  const boundedMidi = n => Number.isInteger(n) && n >= 36 && n <= 108 ? n : -1;
   const MIX_KEY = 'hazewave.poptart.mobile.controls.v1';
   const limits = (n, low, high, fallback) => Number.isFinite(n) ? Math.max(low, Math.min(high, n)) : fallback;
-  let storedNotes = null, storedMix = null;
+  let storedNotes = null, storedMidi = null, storedMix = null;
   try { storedNotes = JSON.parse(W.localStorage.getItem(NOTE_KEY)); } catch {}
+  try { storedMidi = JSON.parse(W.localStorage.getItem(MIDI_KEY)); } catch {}
   try { storedMix = JSON.parse(W.localStorage.getItem(MIX_KEY)); } catch {}
-  const noteSteps = Array.from({ length: 16 }, (_, i) => {
-    const n = storedNotes?.[i];
-    const defaults = [0, -1, 2, -1, 3, -1, 4, -1, 5, -1, 4, -1, 2, -1, 1, -1];
-    return Number.isInteger(n) && n >= -1 && n <= 7 ? n : defaults[i];
-  });
   const mix = {
-    bpm: Math.round(limits(Number(storedMix?.bpm), 60, 200, 120)) || 120,
+    bpm: Math.round(limits(Number(storedMix?.bpm), 60, 200, 120)),
     cutoff: limits(Number(storedMix?.cutoff), 0.05, 0.95, 0.45),
     gain: limits(Number(storedMix?.gain), 0.05, 0.9, 0.35),
+    root: ROOTS.includes(storedMix?.root) ? storedMix.root : 'F',
+    mode: Object.hasOwn(MODES, storedMix?.mode) ? storedMix.mode : 'minor',
+    octave: Number.isInteger(storedMix?.octave) ? limits(storedMix.octave, 2, 5, 3) : 3,
+    synth: SYNTHS.includes(storedMix?.synth) ? storedMix.synth : 'Wavetable',
+    kit: KIT.map((lane, i) => {
+      const n = storedMix?.kit?.[i];
+      return Number.isInteger(n) && n >= 0 && n <= 7 ? n : lane.sample;
+    }),
   };
+  const defaultDegrees = [0, -1, 2, -1, 3, -1, 4, -1, 5, -1, 4, -1, 2, -1, 1, -1];
+  // Import the existing user's V1 steps without shifting their audible pitches.
+  const noteSteps = Array.from({ length: 16 }, (_, i) => {
+    if (Array.isArray(storedMidi) && storedMidi.length === 16)
+      return boundedMidi(storedMidi[i]);
+    const n = Array.isArray(storedNotes) && Number.isInteger(storedNotes[i]) &&
+      storedNotes[i] >= -1 && storedNotes[i] <= 7 ? storedNotes[i] : defaultDegrees[i];
+    return n < 0 ? -1 : degreeMidi(n, 'F', 'minor', 3);
+  });
   const isMobile = () => W.matchMedia('(max-width: 800px)').matches;
   const report = (message) => {
     const status = D.getElementById('hz-mobile-status');
@@ -45,7 +69,7 @@
   function saveSteps() {
     try {
       W.localStorage.setItem(KEY, JSON.stringify(state));
-      W.localStorage.setItem(NOTE_KEY, JSON.stringify(noteSteps));
+      W.localStorage.setItem(MIDI_KEY, JSON.stringify(noteSteps));
       W.localStorage.setItem(MIX_KEY, JSON.stringify(mix));
     }
     catch { report('Armazenamento indisponível. Exporte o projeto para não perder as alterações.'); }
@@ -67,14 +91,14 @@
   }
   function generatePattern() {
     return [MARK_A,
-      '// Padrões produzidos no sequenciador touch do Hazewave.',
+      '// Padrões e notas MIDI cromáticas produzidos pelo sequenciador Hazewave.',
       'setbpm(' + mix.bpm + ')',
-      ...KIT.map(lane => {
-        const notes = state[lane.id].map(v => v ? 'pt_kit:' + lane.sample : '~');
+      ...KIT.map((lane, i) => {
+        const notes = state[lane.id].map(v => v ? 'pt_kit:' + mix.kit[i] : '~');
         return 'hz_' + lane.id + ': s("' + notes.join(' ') + '").postgain(0.45)';
       }),
-      'hz_melody: n("' + noteSteps.map(n => n < 0 ? '~' : n).join(' ') +
-        '").scale("F minor").synth("Wavetable").fx("Filter").param("Cutoff", ' +
+      'hz_melody: note("' + noteSteps.map(n => n < 0 ? '~' : noteName(n)).join(' ') +
+        '").synth("' + mix.synth + '").fx("Filter").param("Cutoff", ' +
         mix.cutoff.toFixed(2) + ').postgain(' + mix.gain.toFixed(2) + ')',
       MARK_B].join('\n');
   }
@@ -107,9 +131,9 @@
     const source = getEditor().get();
     if (source == null) return report('Editor ainda não disponível');
     const data = JSON.stringify({
-      schema: 'HazewavePoptartMobileBackup/v1',
+      schema: 'HazewavePoptartMobileBackup/v2',
       exported_at: new Date().toISOString(),
-      source, steps: state, notes: noteSteps, mix: mix,
+      source, steps: state, midi_notes: noteSteps, mix,
       attribution: 'Poptart by Glossing, AGPL-3.0-only',
     }, null, 2);
     const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
@@ -125,7 +149,7 @@
     if (!file || file.size > 2 * 1024 * 1024) return report('Backup ausente ou maior que 2 MB');
     file.text().then(text => {
       const data = JSON.parse(text);
-      if (data.schema !== 'HazewavePoptartMobileBackup/v1' ||
+      if (!['HazewavePoptartMobileBackup/v1', 'HazewavePoptartMobileBackup/v2'].includes(data.schema) ||
           typeof data.source !== 'string') throw new Error('Backup inválido');
       if (!W.confirm('Substituir o código atual pelo backup? Exporte seu trabalho antes.')) return;
       getEditor().set(data.source);
@@ -133,13 +157,26 @@
         if (Array.isArray(data.steps?.[lane.id]) && data.steps[lane.id].length === 16)
           state[lane.id] = data.steps[lane.id].map(x => x === true);
       }
-      if (Array.isArray(data.notes) && data.notes.length === 16) {
-        for (let i = 0; i < 16; i++)
-          noteSteps[i] = Number.isInteger(data.notes[i]) && data.notes[i] >= -1 &&
-            data.notes[i] <= 7 ? data.notes[i] : -1;
+      if (Array.isArray(data.midi_notes) && data.midi_notes.length === 16) {
+        for (let i = 0; i < 16; i++) noteSteps[i] = boundedMidi(data.midi_notes[i]);
+      } else if (Array.isArray(data.notes) && data.notes.length === 16) {
+        // Backward-compatible V1 backup: degrees always belonged to F minor at octave 3.
+        for (let i = 0; i < 16; i++) {
+          const degree = data.notes[i];
+          noteSteps[i] = Number.isInteger(degree) && degree >= 0 && degree <= 7
+            ? degreeMidi(degree, 'F', 'minor', 3) : -1;
+        }
       }
       for (const key of ['bpm', 'cutoff', 'gain'])
         if (Number.isFinite(data.mix?.[key])) mix[key] = data.mix[key];
+      if (ROOTS.includes(data.mix?.root)) mix.root = data.mix.root;
+      if (Object.hasOwn(MODES, data.mix?.mode)) mix.mode = data.mix.mode;
+      if (Number.isInteger(data.mix?.octave)) mix.octave = limits(data.mix.octave, 2, 5, 3);
+      if (SYNTHS.includes(data.mix?.synth)) mix.synth = data.mix.synth;
+      if (Array.isArray(data.mix?.kit)) {
+        mix.kit = KIT.map((lane, i) => Number.isInteger(data.mix.kit[i]) &&
+          data.mix.kit[i] >= 0 && data.mix.kit[i] <= 7 ? data.mix.kit[i] : lane.sample);
+      }
       mix.bpm = Math.round(limits(mix.bpm, 60, 200, 120));
       mix.cutoff = limits(mix.cutoff, 0.05, 0.95, 0.45);
       mix.gain = limits(mix.gain, 0.05, 0.9, 0.35);
@@ -149,7 +186,14 @@
       if (bpm) bpm.value = mix.bpm;
       if (cutoff) cutoff.value = mix.cutoff;
       if (gain) gain.value = mix.gain;
-      saveSteps(); repaint();
+      for (const [key, value] of [['hz-key', mix.root], ['hz-mode', mix.mode],
+        ['hz-octave', mix.octave], ['hz-synth', mix.synth]])
+        { const select = D.getElementById(key); if (select) select.value = String(value); }
+      for (let i = 0; i < KIT.length; i++) {
+        const select = D.getElementById('hz-kit-' + i);
+        if (select) select.value = String(mix.kit[i]);
+      }
+      refreshPitchGrid(); saveSteps(); repaint();
       report('Backup restaurado. Pressione Play para ouvir.');
     }).catch(error => report('Falha ao importar: ' + error.message));
   }
@@ -165,6 +209,44 @@
       b.classList.toggle('on', active);
     }
   }
+  function refreshPitchGrid() {
+    const heading = D.querySelector('#hz-mobile-board .hz-board-heading strong');
+    if (heading && !D.getElementById('hz-melody-scroll')?.hidden)
+      heading.textContent = 'HAZE / notas cromáticas · ' + mix.root + mix.octave;
+    const base = tonicMidi(mix.root, mix.octave);
+    const canvas = D.getElementById('hz-note-grid');
+    if (!canvas) return;
+    canvas.replaceChildren();
+    const inScale = MODES[mix.mode];
+    for (let semitone = 11; semitone >= 0; semitone--) {
+      const midi = base + semitone;
+      const name = noteName(midi);
+      const label = D.createElement('div');
+      label.className = 'hz-lane-name';
+      label.textContent = name.toUpperCase();
+      if (inScale.includes(semitone)) label.classList.add('hz-in-scale');
+      canvas.append(label);
+      for (let step = 0; step < 16; step++) {
+        const b = D.createElement('button');
+        b.type = 'button';
+        b.dataset.hzNote = String(midi);
+        b.dataset.hzBeat = String(step);
+        b.textContent = String(step + 1);
+        b.setAttribute('aria-label', name + ', passo ' + (step + 1));
+        if (step % 4 === 0) b.classList.add('bar-start');
+        canvas.append(b);
+      }
+    }
+    repaint();
+  }
+  function shiftPitch(semitones) {
+    if (!semitones) return;
+    // Never silently discard user notes on a shift outside the supported MIDI range.
+    if (noteSteps.some(n => n >= 0 && (n + semitones < 36 || n + semitones > 108)))
+      throw new Error('Transposição fora do alcance: mantenha as notas entre MIDI 36 e 108');
+    for (let i = 0; i < noteSteps.length; i++)
+      if (noteSteps[i] >= 0) noteSteps[i] += semitones;
+  }
   function show(panel) {
     const board = D.getElementById('hz-mobile-board');
     D.documentElement.classList.toggle('hz-mobile-tools', panel === 'tools');
@@ -175,8 +257,12 @@
     if (melody) melody.hidden = panel !== 'notes';
     const heading = board.querySelector('.hz-board-heading strong');
     if (heading) heading.textContent = panel === 'notes'
-      ? 'HAZE / piano roll · F menor'
+      ? 'HAZE / notas cromáticas · ' + mix.root + mix.octave
       : 'HAZE / bateria · 16 passos';
+    const tone = D.getElementById('hz-tone-controls');
+    const kit = D.getElementById('hz-kit-controls');
+    if (tone) tone.hidden = panel !== 'notes';
+    if (kit) kit.hidden = panel !== 'pads';
     for (const b of D.querySelectorAll('[data-hz-tab]'))
       b.setAttribute('aria-pressed', String(b.dataset.hzTab === panel));
     if (panel === 'code') getEditor().focus();
@@ -224,23 +310,41 @@
     piano.hidden = true;
     const keys = D.createElement('div');
     keys.className = 'hz-sequencer-grid';
-    for (let pitch = 7; pitch >= 0; pitch--) {
-      const label = D.createElement('div');
-      label.className = 'hz-lane-name';
-      label.textContent = 'Grau ' + (pitch + 1);
-      keys.append(label);
-      for (let beat = 0; beat < 16; beat++) {
-        const b = D.createElement('button');
-        b.type = 'button';
-        b.dataset.hzNote = String(pitch);
-        b.dataset.hzBeat = String(beat);
-        b.textContent = String(beat + 1);
-        b.setAttribute('aria-label', 'Grau ' + (pitch + 1) + ', passo ' + (beat + 1));
-        if (beat % 4 === 0) b.classList.add('bar-start');
-        keys.append(b);
-      }
-    }
+    keys.id = 'hz-note-grid';
     piano.append(keys); board.append(piano);
+    const tone = D.createElement('div');
+    tone.id = 'hz-tone-controls';
+    tone.className = 'hz-tone-controls';
+    tone.hidden = true;
+    const makeSelect = (id, title, options, selected) => {
+      const label = D.createElement('label');
+      label.textContent = title;
+      const select = D.createElement('select');
+      select.id = id;
+      for (const [value, name] of options) {
+        const option = D.createElement('option');
+        option.value = String(value);
+        option.textContent = name;
+        select.append(option);
+      }
+      select.value = String(selected);
+      label.append(select);
+      return label;
+    };
+    tone.append(
+      makeSelect('hz-key', 'Tonalidade', ROOTS.map(k => [k, k]), mix.root),
+      makeSelect('hz-mode', 'Escala', [['minor', 'Menor'], ['major', 'Maior']], mix.mode),
+      makeSelect('hz-octave', 'Oitava', [2, 3, 4, 5].map(n => [n, String(n)]), mix.octave),
+      makeSelect('hz-synth', 'Instrumento', SYNTHS.map(n => [n, n]), mix.synth),
+    );
+    board.append(tone);
+    const kitControls = D.createElement('div');
+    kitControls.id = 'hz-kit-controls';
+    kitControls.className = 'hz-kit-controls';
+    kitControls.hidden = true;
+    KIT.forEach((lane, i) => kitControls.append(makeSelect('hz-kit-' + i,
+      'Som ' + lane.label, DRUM_SAMPLES.map((name, n) => [n, name]), mix.kit[i])));
+    board.append(kitControls);
     const controls = D.createElement('div');
     controls.className = 'hz-music-controls';
     controls.innerHTML = '<label>BPM <input id="hz-bpm" type="number" min="60" max="200" step="1" value="' + mix.bpm + '"></label>' +
@@ -248,6 +352,38 @@
       '<label>Volume <input id="hz-gain" type="range" min="0.05" max="0.9" step="0.05" value="' + mix.gain + '"></label>';
     board.append(controls);
     let pendingUpdate = null;
+    tone.addEventListener('change', event => {
+      const input = event.target;
+      try {
+        if (input.id === 'hz-key' && ROOTS.includes(input.value)) {
+          shiftPitch(ROOTS.indexOf(input.value) - ROOTS.indexOf(mix.root));
+          mix.root = input.value;
+        } else if (input.id === 'hz-octave') {
+          const next = Number(input.value);
+          if (!Number.isInteger(next) || next < 2 || next > 5) return;
+          shiftPitch(12 * (next - mix.octave));
+          mix.octave = next;
+        } else if (input.id === 'hz-mode' && Object.hasOwn(MODES, input.value))
+          mix.mode = input.value;
+        else if (input.id === 'hz-synth' && SYNTHS.includes(input.value))
+          mix.synth = input.value;
+        else return;
+        saveSteps(); refreshPitchGrid();
+        report('Notas e instrumento atualizados. Pressione Aplicar e ouvir.');
+      } catch (error) {
+        input.value = input.id === 'hz-key' ? mix.root : String(mix.octave);
+        report(error.message);
+      }
+    });
+    kitControls.addEventListener('change', event => {
+      const index = Number(event.target.id.replace('hz-kit-', ''));
+      const n = Number(event.target.value);
+      if (!Number.isInteger(index) || index < 0 || index >= KIT.length ||
+          !Number.isInteger(n) || n < 0 || n >= DRUM_SAMPLES.length) return;
+      mix.kit[index] = n;
+      saveSteps();
+      report('Peça da bateria alterada. Pressione Aplicar e ouvir.');
+    });
     controls.addEventListener('input', event => {
       const id = event.target.id;
       const value = Number(event.target.value);
@@ -316,7 +452,7 @@
     importButton.textContent = 'Importar backup';
     importButton.addEventListener('click', () => file.click());
     actions.append(importButton);
-    repaint();
+    refreshPitchGrid();
     D.documentElement.classList.add('hz-mobile-active');
   }
   function start() {

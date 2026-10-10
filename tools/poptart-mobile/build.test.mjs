@@ -45,3 +45,17 @@ test('offline service worker trusts browser secure contexts including 127.0.0.1'
   assert.doesNotMatch(mobile,/location\.hostname === 'localhost'/);
   assert.match(mobile,/HAZE_OFFLINE_SERVICE_WORKER_FAILED/);
 });
+
+test('touch piano roll exposes individual MIDI pitches, transposition and real upstream instruments',()=>{
+  const source=readFileSync(join(dirname(fileURLToPath(import.meta.url)),'hz-mobile.js'),'utf8');
+  assert.match(source,/midi\.v2/);
+  assert.match(source,/hz-note-grid/);
+  assert.match(source,/noteName\(n\)/);
+  assert.match(source,/note\("/);
+  assert.match(source,/shiftPitch\(12 \* \(next - mix\.octave\)\)/);
+  assert.match(source,/hz-synth/);
+  for(const synth of ['Wavetable','FM','Plaits','Braids','Rings','Elements'])
+    assert.ok(source.includes("'" + synth + "'"), synth);
+  assert.match(source,/HazewavePoptartMobileBackup\/v2/);
+  assert.match(source,/HazewavePoptartMobileBackup\/v1/);
+});
