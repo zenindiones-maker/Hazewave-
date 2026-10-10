@@ -72,7 +72,7 @@ def build(*, output: Path, effect_cli: Path, film_cli: Path,
     checked_binary(film_cli, film_sha)
     root = output.resolve(strict=False)
     # No assets or outputs belong in Git; paths must be outside this repository.
-    repo = Path(__file__).resolve().parents[3]
+    repo = Path(__file__).resolve().parents[4]
     require(not root.is_relative_to(repo), "NO_GENERATED_ART_INSIDE_REPO")
     root.mkdir(parents=True, mode=0o700)
     project = root / "hazewave-original-sonic-portal.ecproj"
