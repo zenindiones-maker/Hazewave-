@@ -34,7 +34,11 @@ FILES = tuple(
      "apps/hazewave-site/experiments/travessia-v4/artcraft_vector_bridge.py",
      "tests/test_wave_artcraft_vector_bridge.py",
      "docs/research/WAVE_ARTCRAFT_EXTERNAL_TOOL_BOUNDARY_V6.md",
-     ".github/workflows/wave-vectorcraft-real-cli-proof.yml")
+     ".github/workflows/wave-vectorcraft-real-cli-proof.yml",
+     "apps/hazewave-site/experiments/travessia-v4/artcraft_portal_pipeline.py",
+     "tests/test_wave_artcraft_portal_v7.py",
+     "docs/research/WAVE_V7_EFFECTCRAFT_FILMCRAFT_PRIVATE_SITE_INTEGRATION.md",
+     ".github/workflows/wave-effectcraft-filmcraft-portal-proof.yml")
 SCHEMA = "HazewaveWaveSourceOnlyDelivery/v1"
 RECEIPT_SCHEMA = "HazewaveWaveSourceOnlyDeliveryReceipt/v1"
 SHA = re.compile(r"^[0-9a-f]{40}$")
