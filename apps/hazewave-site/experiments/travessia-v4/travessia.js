@@ -246,6 +246,21 @@ function makeStars(){
   ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
  }
 }
+
+const cityLayerNodes=[];
+function mountCityArtPlanes(){
+ const original=vars.city.querySelector(':scope > img');
+ if(!original||!original.src)throw Error('APPROVED_CITY_ART_REQUIRED');
+ for(const role of ['left','center','right']){
+  const layer=doc.createElement('img');
+  layer.src=original.src;layer.alt='';layer.decoding='async';
+  layer.className='city-plane city-plane-'+role;
+  vars.city.appendChild(layer);cityLayerNodes.push(layer);
+ }
+ original.style.visibility='hidden'; // retain parent layout and geometry
+ vars.cityFlight.style.display='none'; // no duplicate complete city
+ state.cityPlaneCount=cityLayerNodes.length;
+}
 function updatePose(p){
  renderDepthWorld(p,innerWidth,innerHeight);
  const W=innerWidth,H=innerHeight,phone=W<700;
@@ -259,6 +274,21 @@ function updatePose(p){
  moveImage(vars.machine,camX,camY,scale,twist);
  vars.machine.style.opacity=String(clamp((1-smooth(.53,.71,p))*.99));
  const split=180*smooth(.40,.67,p); // true separated source-painted halves
+ // A01 rests as the original illustrated station. The moving sonic front
+ // reveals A02 through a gradual soft ink mask, not a simple opacity dissolve.
+ // Four independently clipped painted halves travel with the split chassis.
+ const inkAdvance=smooth(.19,.54,p), inkPct=100*inkAdvance;
+ const softEdge=Math.max(0,inkPct-14);
+ const inkMask='linear-gradient(90deg, #000 0%, #000 '+softEdge.toFixed(2)+'%, transparent '+inkPct.toFixed(2)+'%)';
+ for(const [side,direction] of [['left',-1],['right',1]]){
+  const station=el('station-'+side),controller=el('controller-'+side);
+  const carried=direction*split;
+  station.style.transform='translate3d('+carried.toFixed(2)+'px,0,0)';
+  controller.style.transform='translate3d('+carried.toFixed(2)+'px,0,0)';
+  controller.style.opacity=String(inkAdvance>.003?1:0);
+  controller.style.maskImage=inkMask;controller.style.webkitMaskImage=inkMask;
+ }
+ state.ownerArtRevealPct=inkPct;
  vars.left.style.transform=`translate3d(${-split.toFixed(2)}px,${-14*through}px,0) rotate(${-3*through}deg)`;
  vars.right.style.transform=`translate3d(${split.toFixed(2)}px,${14*through}px,0) rotate(${3*through}deg)`;
  const pulse=(p>=.185)?smooth(.185,.49,p):0;
@@ -294,6 +324,11 @@ function updatePose(p){
  vars.worldHead.style.opacity=String(signalValue>.01&&signalValue<.99?.85:0);
  // Separate fog planes are pushed APART by the causal wave, never merely faded.
  const fogPush=rupture*(phone?W*1.15:W*.98);
+ // Ink boundary follows the pressure front; the two approved A05 planes
+ // physically separate and change contour with the same scroll progress.
+ const contour=rupture*11;
+ vars.fogLeft.style.clipPath='polygon(0 0,50% 0,'+(50+contour*.38).toFixed(2)+'% 24%,'+(50-contour*.67).toFixed(2)+'% 52%,'+(50+contour*.20).toFixed(2)+'% 78%,50% 100%,0 100%)';
+ vars.fogRight.style.clipPath='polygon(50% 0,100% 0,100% 100%,50% 100%,'+(50-contour*.25).toFixed(2)+'% 76%,'+(50+contour*.75).toFixed(2)+'% 48%,'+(50-contour*.40).toFixed(2)+'% 22%)';
  vars.fogLeft.style.transform=`translate3d(${-fogPush.toFixed(2)}px,${(-H*.23*rupture).toFixed(2)}px,0) rotate(${-17*rupture}deg)`;
  vars.fogRight.style.transform=`translate3d(${fogPush.toFixed(2)}px,${(H*.22*rupture).toFixed(2)}px,0) rotate(${15*rupture}deg)`;
  vars.fogLeft.style.opacity=String(.48*(1-.82*arrival));
@@ -306,6 +341,16 @@ function updatePose(p){
  const cityY=lerp(-H*.27,H*.10,smooth(.4,.70,p))-H*.2*arrival;
  moveImage(vars.city,cityX,cityY,cityScale,lerp(-15,4,approach));
  vars.city.style.opacity=String(band(.35,.53,.75,.83,p)*.78);
+
+ // A03: three disjoint, feather-masked painted fragments respond to the
+ // sonic pressure field in independently staged depth. Same canonical p.
+ const cityFracture=smooth(.43,.79,p);
+ for(const [i,pane] of cityLayerNodes.entries()){
+  const side=i-1,dx=side*W*.095*cityFracture;
+  const dy=(i===1?-H*.08:H*.012)*cityFracture;
+  const cityZoom=1+(i===1?.21:.06)*cityFracture;
+  pane.style.transform='translate3d('+dx.toFixed(2)+'px,'+dy.toFixed(2)+'px,0) scale('+cityZoom.toFixed(4)+') rotate('+(side*3.7*cityFracture).toFixed(3)+'deg)';
+ }
  vars.cityFlight.style.transform=`translate3d(${(-W*.16*rupture).toFixed(2)}px,${(H*.22*rupture).toFixed(2)}px,120px) scale(${(1+.6*rupture).toFixed(3)})`;
  // A physical aperture in the fog, fully clipping the new illustrated region.
  const portalRadius=lerp(0,75,smooth(.43,.76,p));
@@ -345,8 +390,17 @@ function updatePose(p){
  vars.ring.style.transform=`translate(-50%,-50%) scale(${lerp(.24,1.75,smooth(.46,.89,p)).toFixed(3)}) rotate(${(rupture*14).toFixed(2)}deg)`;
  for(const node of [vars.rim,vars.halo,vars.tear])setStroke(node,ringLen,smooth(.49,.69,p));
  // After flying through the portal, a new independent hub in depth.
- moveImage(vars.hub,0,-H*.08*arrival,lerp(.19,1.11,arrival),lerp(8,0,arrival));
+ moveImage(vars.hub,0,-H*.08*arrival,lerp(.19,.46,arrival),lerp(8,0,arrival));
  vars.hub.style.opacity=String(smooth(.74,.86,p));
+ const arrivalInk=smooth(.83,.95,p),inscription=el('arrival-inscription');
+ inscription.style.opacity=String(arrivalInk);
+ inscription.style.transform='translate(-50%,'+(34*(1-arrivalInk)).toFixed(2)+'px)';
+ state.arrivalInk=arrivalInk;
+ // Editorial handoff: never display two competing HAZEWAVE mastheads.
+ const masthead=doc.querySelector('header.brand');
+ if(masthead)masthead.style.opacity=String(1-arrivalInk);
+ const introCue=doc.querySelector('.hud');
+ if(introCue)introCue.style.opacity=String(1-smooth(.04,.16,p));
  vars.debrisA.style.opacity=String(band(.43,.63,.84,.95,p)*.9);
  vars.debrisB.style.opacity=String(band(.47,.66,.83,.95,p)*.9);
  vars.debrisA.style.transform=`translate3d(${(-W*.7*rupture).toFixed(2)}px,${(-H*.4*rupture).toFixed(2)}px,${260*rupture}px) rotate(${(-23-60*rupture).toFixed(2)}deg)`;
@@ -357,7 +411,7 @@ function updatePose(p){
  // One immutable scroll progress determines every visible pose; reverse is exact.
  const phase=p<.16?0:p<.36?1:p<.58?2:p<.80?3:4;
  if(phase!==lastPhase){vars.num.textContent=chapters[phase][0];vars.title.textContent=chapters[phase][1];vars.copy.textContent=chapters[phase][2];lastPhase=phase;}
- vars.narrative.style.opacity=String(clamp(1-smooth(.31,.42,p)+smooth(.79,.89,p)));
+ vars.narrative.style.opacity=String(clamp(1-smooth(.31,.42,p)+smooth(.79,.89,p))*(1-smooth(.84,.96,p)));
  vars.progress.style.width=(p*100).toFixed(2)+'%';vars.progressText.textContent=String(Math.round(p*100)).padStart(2,'0')+'%';
  Object.assign(state,{progress:p,phase,activePads,activeKnobs,activeSpeakers,
   traceDrawn:lineValue,worldWaveDrawn:signalValue,portalRadiusPct:portalRadius,
@@ -385,11 +439,17 @@ async function start(){
    manifest=await response.json();
   }
   if(manifest.schema!=='HazewaveTraversalV4ArtSource/v1'||manifest.productionApproved!==false||manifest.ownerOriginalsInGithub!==false||manifest.v3aPieces.length!==24)throw Error('SOURCE_OR_AUTHORITY_INVALID');
+  // Runtime requires all five original roles in the SHA-bound private manifest.
+  // The private build pipeline already verifies original media SHA-256.
+  const painted=['station.webp','controller.webp','city.webp','hub.webp','fog.webp'];
+  const artHashes=painted.map(name=>manifest.assetSha256?.[name]);
+  if(artHashes.some(hash=>typeof hash!=='string'||!/^[a-f0-9]{64}$/.test(hash))||
+     new Set(artHashes).size!==5)throw Error('FIVE_APPROVED_INDEPENDENT_ART_STAGES_REQUIRED');
   const counts={pad:0,knob:0,speaker:0};
   for(const entry of manifest.v3aPieces){if(!(entry.type in counts))throw Error('UNKNOWN_RIG_PART');counts[entry.type]++;pieces.push(mount(entry));}
   if(counts.pad!==12||counts.knob!==8||counts.speaker!==4)throw Error('V3A_COUNTS_MISMATCH');
   traceLen=vars.trace.getTotalLength();worldLen=vars.worldPath.getTotalLength();ringLen=vars.rim.getTotalLength();
-  makeStars();createDepthWorld();state.mountedPieces=pieces.length;state.sourceV3A=manifest.v3aSourceActionsSha;
+  makeStars();createDepthWorld();mountCityArtPlanes();state.mountedPieces=pieces.length;state.sourceV3A=manifest.v3aSourceActionsSha;
   // Require every src image to decode, not merely DOM presence.
   const imgs=[...doc.querySelectorAll('img')];
   await Promise.all(imgs.map(img=>img.decode()));

@@ -89,3 +89,28 @@ python integrate_private_astro.py \\
 ```
 
 O pacote executado é `HAZEWAVE_V4_PRIVATE_ASTRO_INTEGRATED_SITE.zip` na Biblioteca privada `/Hazewave/Living-Universe/V4-TRAVESSIA-ENGENHARIA/`. É preciso abri-lo **somente em localhost dentro do Codespace autorizado ou ambiente de revisão equivalente**, jamais em host público. Não há upload automático de arte para Git ou infra paga. `productionApproved=false` e `codespaceHostAttested=false` permanecem.
+
+## V11 isolated remediation: five approved artworks, scroll-painted causal motion
+
+Previously the V4 private manifest tracked all five owner-approved paintings,
+but the DOM did not render **A01 station** or **A02 controller** at all.
+V11 inserts four spatially clipped owner-art plates (two rest/charged pairs)
+that move with the 12-pad, 8-knob, four-speaker V3A rig. A02 is exposed using
+the moving signal's scroll-dependent gradient matte. A05 fog source halves
+also separate *and change contours* as the wave crosses. A03 city and A04
+Indionesbala hub remain independent existing illustrated regions.
+The end now preserves the destination while revealing a dominant HAZEWAVE
+wordmark and subordinate Indionesbala signature. Visible numeric prototype HUD
+has been reduced to decorative stage dots; semantic act navigation survives.
+
+The exact-hash private art build still requires `build_assets.py` inputs;
+we do not commit PRIVATE_MEDIA to GitHub or claim the synthetic CI test shows
+owner pixels. The tests remain explicitly synthetic, and artistic approval,
+independent mobile review, and private-site publication remain PENDING.
+
+Research: https://tympanus.net/codrops/2025/10/07/ponpon-mania-how-webgl-and-gsap-bring-a-comic-sheeps-dream-to-life/
+and https://gsap.com/docs/v3/Plugins/ScrollTrigger/ and
+https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/stroke-dashoffset
+are relevant to the multi-plane editorial animation technique.
+Existing verified first-party EffectCraft/FilmCraft remain optional FX tools,
+not their own creative authority, and no Adobe license bypass is involved.

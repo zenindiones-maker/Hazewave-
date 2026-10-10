@@ -15,12 +15,30 @@ for(const width of [440,1024]){
  if(size>=original.length*.6)throw Error("HERO_OPTIMIZATION_INEFFECTIVE");
  console.log(`HAZEWAVE_HERO_WEBP_${width}_BYTES=${size}`);
 }
+
+const artistOriginal=await readFile(join(dist,"media/artists/indionesbala.jpg"));
+const artistSha="e9c4c00ab903cfc583138e333c594fc8c99c9c868c691454f4e17744193246e4";
+if(createHash("sha256").update(artistOriginal).digest("hex")!==artistSha)throw Error("OWNER_ARTIST_SHA_DRIFT");
+const metaArtist=await sharp(artistOriginal).metadata();
+if(metaArtist.width!==1536||metaArtist.height!==643)throw Error("OWNER_ARTIST_DIMENSIONS_DRIFT");
+for(const width of [160,400]){
+ const path=join(dist,"media/artists/indionesbala-signature-"+width+".webp");
+ await sharp(artistOriginal).resize({width}).webp({quality:82,effort:6}).toFile(path);
+ const size=(await readFile(path)).length;
+ if(size>=artistOriginal.length*.6)throw Error("ARTIST_RESPONSIVE_OPTIMIZATION_INEFFECTIVE");
+ console.log("INDIONESBALA_RESPONSIVE_"+width+"_BYTES="+size);
+}
+const artistOld='src="/media/artists/indionesbala.jpg"';
+const artistSrcset='src="/media/artists/indionesbala.jpg" srcset="/media/artists/indionesbala-signature-160.webp 160w, /media/artists/indionesbala-signature-400.webp 400w, /media/artists/indionesbala.jpg 1536w"';
 const old='src="/media/hazewave-world.jpg"';
 const optimized='src="/media/hazewave-hero-1024.webp" srcset="/media/hazewave-hero-440.webp 440w, /media/hazewave-hero-1024.webp 1024w" sizes="(max-width:700px) 90vw, (max-width:1100px) 69vw, 700px"';
 for(const rel of ["index.html","artists/indionesbala/index.html"]){
  const path=join(dist,rel),html=await readFile(path,"utf8");
  if(html.split(old).length!==2)throw Error("HERO_MARKUP_CHANGED:"+rel);
- await writeFile(path,html.replace(old,optimized));
+
+ const sizes=rel==="index.html"?"(max-width:700px) 18vw, 200px":"(max-width:700px) 18vw, (max-width:1200px) 85vw, 850px";
+ if(html.split(artistOld).length!==2)throw Error("ARTIST_MARKUP_CHANGED:"+rel);
+ await writeFile(path,html.replace(old,optimized).replace(artistOld,artistSrcset+' sizes="'+sizes+'"'));
 }
 if(process.env.HAZEWAVE_TEST_EXPERIMENTS!=="1"){
  const observed=[];
@@ -33,7 +51,7 @@ if(process.env.HAZEWAVE_TEST_EXPERIMENTS!=="1"){
   }
  }
  await walk(dist);
- const approved=[/^index\.html$/,/^artists\/indionesbala\/index\.html$/,/^media\/artists\/indionesbala\.jpg$/,/^media\/hazewave-world\.jpg$/,/^media\/hazewave-hero-(440|1024)\.webp$/,/^_astro\/index\.[^.]+\.css$/,/^_astro\/_id_\.[^.]+\.css$/];
- if(observed.length!==8||observed.some(x=>!approved.some(re=>re.test(x))))throw Error("UNAPPROVED_DIST_OUTPUT:"+observed.join(","));
+ const approved=[/^index\.html$/,/^artists\/indionesbala\/index\.html$/,/^media\/artists\/indionesbala\.jpg$/,/^media\/artists\/indionesbala-signature-(160|400)\.webp$/,/^media\/hazewave-world\.jpg$/,/^media\/hazewave-hero-(440|1024)\.webp$/,/^_astro\/index\.[^.]+\.css$/,/^_astro\/_id_\.[^.]+\.css$/];
+ if(observed.length!==10||observed.some(x=>!approved.some(re=>re.test(x))))throw Error("UNAPPROVED_DIST_OUTPUT:"+observed.join(","));
 }
 console.log("HAZEWAVE_MASTER_PRESERVED_AND_RESPONSIVE_WEBP=PASS");

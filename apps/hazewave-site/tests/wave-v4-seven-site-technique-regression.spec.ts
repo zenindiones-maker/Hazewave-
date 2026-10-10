@@ -29,7 +29,9 @@ const manifest={
   ownerOriginalsInGithub:false,
   productionApproved:false,
   v3aSourceActionsSha:"SYNTHETIC_CI_MOCK_NOT_AN_OWNER_SOURCE",
-  v3aPieces:PIECES
+  v3aPieces:PIECES,
+  // Test-only fake hash structure; these are NEVER owner media.
+  assetSha256:Object.fromEntries(["station.webp","controller.webp","city.webp","hub.webp","fog.webp"].map((name,i)=>[name,String(i+1).repeat(64)]))
 };
 type Pose={phase:number;progress:number;activePads:number;activeKnobs:number;
   activeSpeakers:number;portalRadiusPct:number;hubOpacity:number;
@@ -416,4 +418,52 @@ test("V9 feathered portal avoids a hard bright core, double-exposed worlds, and 
  expect(restored.hub).toBeCloseTo(cross.hub,3);
  expect(restored.mask).toBe(cross.mask);
  expect(errors).toEqual([]);
+});
+
+test("V11 paints five owner-derived scenes with a reversible revealing ink front — SYNTHETIC pixels",async({page})=>{
+ for(const basename of ["station","controller","city","hub","fog"])
+  expect(DOC).toContain('src="assets/'+basename+'.webp"');
+ await fixture(page);
+ expect(await page.locator("#station-left,#station-right").count()).toBe(2);
+ expect(await page.locator("#controller-left,#controller-right").count()).toBe(2);
+ await scrollToExactProgress(page,.12);
+ const start=await page.evaluate(()=>{const s=(window as unknown as {__HAZEWAVE_TRAVERSAL_V4:{ownerArtRevealPct:number}}).__HAZEWAVE_TRAVERSAL_V4;return {ink:s.ownerArtRevealPct,mask:(document.getElementById("controller-left") as HTMLElement).style.maskImage}});
+ expect(start.ink).toBe(0);
+ await scrollToExactProgress(page,.44);
+ const mid=await page.evaluate(()=>{const ink=document.getElementById("controller-left") as HTMLElement;const fog=document.getElementById("fog-left") as HTMLElement;const s=(window as unknown as {__HAZEWAVE_TRAVERSAL_V4:{ownerArtRevealPct:number}}).__HAZEWAVE_TRAVERSAL_V4;return {ink:s.ownerArtRevealPct,mask:ink.style.maskImage,opacity:ink.style.opacity,contour:fog.style.clipPath}});
+ expect(mid.ink).toBeGreaterThan(30);expect(mid.mask).not.toBe(start.mask);expect(mid.opacity).toBe("1");
+ await scrollToExactProgress(page,.92);
+ const end=await page.evaluate(()=>{const s=(window as unknown as {__HAZEWAVE_TRAVERSAL_V4:{arrivalInk:number;hubOpacity:number}}).__HAZEWAVE_TRAVERSAL_V4;return {arrival:s.arrivalInk,hub:s.hubOpacity}});
+ expect(end.arrival).toBeGreaterThan(.6);expect(end.hub).toBeGreaterThan(.95);
+ const headerOpacity=Number(await page.locator("header.brand").evaluate(x=>(x as HTMLElement).style.opacity));
+ expect(headerOpacity).toBeLessThan(.2);
+ const finalFraming=await page.evaluate(()=>({
+  hubWidth:(document.getElementById("hub-scene") as HTMLElement).getBoundingClientRect().width,
+  viewport:innerWidth,narrative:Number((document.getElementById("narrative") as HTMLElement).style.opacity)
+ }));
+ expect(finalFraming.hubWidth).toBeLessThan(finalFraming.viewport*.8);
+ expect(finalFraming.narrative).toBeLessThan(.28);
+ await scrollToExactProgress(page,.12);
+ const reset=await page.evaluate(()=>{const s=(window as unknown as {__HAZEWAVE_TRAVERSAL_V4:{ownerArtRevealPct:number;arrivalInk:number}}).__HAZEWAVE_TRAVERSAL_V4;return {ink:s.ownerArtRevealPct,arrival:s.arrivalInk}});
+ expect(reset.ink).toBe(0);expect(reset.arrival).toBe(0);
+ await expect(page.locator("header.brand")).toHaveCSS("opacity","1");
+});
+
+test("V11 painterly A03 regions split into three soft-mask planes, react causally and reverse — SYNTHETIC source pixels",async({page})=>{
+ await fixture(page);
+ await expect(page.locator("#city-scene > img.city-plane")).toHaveCount(3);
+ expect((await pose(page) as Pose & {cityPlaneCount:number}).cityPlaneCount).toBe(3);
+ await scrollToExactProgress(page,.77);
+ const transformed=await page.locator("#city-scene > img.city-plane").evaluateAll(nodes=>nodes.map(n=>(n as HTMLElement).style.transform));
+ expect(new Set(transformed).size).toBe(3);
+ const cue=Number(await page.locator(".hud").evaluate(n=>(n as HTMLElement).style.opacity));
+ expect(cue).toBeLessThan(.01);
+ await ensureLiteMode(page,true);
+ await expect(page.locator(".city-plane-left")).toHaveCSS("display","none");
+ await expect(page.locator(".city-plane-center")).toHaveCSS("mask-image","none");
+ await ensureLiteMode(page,false);
+ await scrollToExactProgress(page,0);
+ const returned=await page.locator("#city-scene > img.city-plane").evaluateAll(nodes=>nodes.map(n=>(n as HTMLElement).style.transform));
+ expect(new Set(returned).size).toBe(1);
+ await expect(page.locator(".hud")).toHaveCSS("opacity","1");
 });

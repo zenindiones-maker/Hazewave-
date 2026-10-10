@@ -99,6 +99,8 @@ test("mobile QA: Hazewave 90vw dominates the 18vw, max 110px, 48px and 75% Indio
 test("owner image serves image/jpeg with JFIF magic and unchanged SHA-256",async({page,request})=>{
  await page.goto("/");
  await expect(page.locator("#indionesbala-logo")).toHaveAttribute("src","/media/artists/indionesbala.jpg");
+ await expect(page.locator("#indionesbala-logo")).toHaveAttribute("srcset",/indionesbala-signature-160\.webp 160w.*indionesbala-signature-400\.webp 400w/);
+ await expect.poll(()=>page.locator("#indionesbala-logo").evaluate((el)=>(el as HTMLImageElement).currentSrc)).toMatch(/indionesbala-signature-(160|400)\.webp$/);
  const response=await request.get("/media/artists/indionesbala.jpg");
  expect(response.status()).toBe(200);
  expect(response.headers()["content-type"]).toMatch(/^image\/jpeg(?:;|$)/);
