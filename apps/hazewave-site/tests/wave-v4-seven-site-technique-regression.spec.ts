@@ -337,7 +337,7 @@ test("V7R rig parts remain attached to opening chassis halves and reveal a jagge
 test("V8 perspective corridor moves the camera THROUGH true Z geometry with reversible LOD — SYNTHETIC artwork",async ({page})=>{
  const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));
  await fixture(page,true);
- const state=()=>page.evaluate(()=>window.__HAZEWAVE_TRAVERSAL_V4 as unknown as {
+ const state=()=>page.evaluate(()=>(window as unknown as {__HAZEWAVE_TRAVERSAL_V4:unknown}).__HAZEWAVE_TRAVERSAL_V4 as {
   depthScene:string;depthGateCount:number;depthWallCount:number;
   depthCameraZ:number;depthOpacity:number;mountedPieces:number
  });
