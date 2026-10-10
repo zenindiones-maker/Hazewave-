@@ -30,7 +30,11 @@ FILES = tuple(
      "tests/test_wave_seven_site_forensics_v5.py",
      "knowledge/wave-seven-site-forensics-v5.json",
      "docs/research/WAVE_SEVEN_SITES_REVERSE_ENGINEERING_V5.md",
-     "apps/hazewave-site/tests/wave-v4-seven-site-technique-regression.spec.ts")
+     "apps/hazewave-site/tests/wave-v4-seven-site-technique-regression.spec.ts",
+     "apps/hazewave-site/experiments/travessia-v4/artcraft_vector_bridge.py",
+     "tests/test_wave_artcraft_vector_bridge.py",
+     "docs/research/WAVE_ARTCRAFT_EXTERNAL_TOOL_BOUNDARY_V6.md",
+     ".github/workflows/wave-vectorcraft-real-cli-proof.yml")
 SCHEMA = "HazewaveWaveSourceOnlyDelivery/v1"
 RECEIPT_SCHEMA = "HazewaveWaveSourceOnlyDeliveryReceipt/v1"
 SHA = re.compile(r"^[0-9a-f]{40}$")
