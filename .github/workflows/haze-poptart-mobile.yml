@@ -51,6 +51,7 @@ jobs:
 
       - name: Verify adapter syntax and unit contracts
         run: |
+          bash -n hazewave/tools/poptart-mobile/codespace-preview.sh
           node --check hazewave/tools/poptart-mobile/hz-mobile.js
           node --check hazewave/tools/poptart-mobile/build.mjs
           node --test hazewave/tools/poptart-mobile/build.test.mjs

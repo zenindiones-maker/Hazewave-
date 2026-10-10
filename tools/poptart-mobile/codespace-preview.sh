@@ -8,8 +8,8 @@ STATE="$HOME/.local/state/hazewave/poptart-mobile-preview-v1"
 PORT=8777
 blocked(){ printf 'BLOCKED=%s\n' "$1" >&2; exit 2; }
 attest(){
-  [[ "$CODESPACES" == "true" ]] || blocked NOT_CODESPACES
-  [[ "$CODESPACE_NAME" == "$EXPECTED_CS" ]] || blocked WRONG_CODESPACE
+  [[ "${CODESPACES:-}" == "true" ]] || blocked NOT_CODESPACES
+  [[ "${CODESPACE_NAME:-}" == "$EXPECTED_CS" ]] || blocked WRONG_CODESPACE
   remote="$(git -C /workspaces/Hazewave- remote get-url origin 2>/dev/null || true)"
   [[ "$remote" == *"zenindiones-maker/Hazewave-"* ]] || blocked WRONG_REPO
   printf '%s\n' "CODESPACE_IDENTITY=PASS" "REPOSITORY_IDENTITY=PASS"
