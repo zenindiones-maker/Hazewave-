@@ -126,4 +126,4 @@ def test_source_script_cannot_execute_deployment_or_import_network():
                       "aws s3", "kubectl", "deploy_prod", "gh release create",
                       "npm publish", "gh pages"):
         assert forbidden not in code
-    assert len(mod.FILES) == 17
+    assert len(mod.FILES) == 21
