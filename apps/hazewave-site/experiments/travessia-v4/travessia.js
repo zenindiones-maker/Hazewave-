@@ -48,6 +48,7 @@ window.__HAZEWAVE_TRAVERSAL_V4=state;
   if(button){button.setAttribute('aria-pressed',String(userRequestedLite));button.textContent=userRequestedLite?'EFEITOS':'LEVE';}
   state.visualQualityTier=lite?'lite':'full';
   state.qualityDowngradeAutomatic=autoLite;
+  if(Number.isFinite(state.progress))renderArtcraftEffect(state.progress);
   // Geometry, original art, and interaction authority NEVER change with quality.
  }
  function observeFrameBudget(timestamp){
@@ -113,7 +114,7 @@ window.__HAZEWAVE_TRAVERSAL_V4=state;
    if(images.some(img=>img.naturalWidth!==420||img.naturalHeight!==820))
      throw Error('EFFECT_FRAME_CANVAS_DRIFT');
    fxDecoded=images;fxReadiness='READY';state.effectcraftStatus='READY';
-   schedule();
+   renderArtcraftEffect(progressFromScroll());
   }catch{
    fxReadiness='UNAVAILABLE';state.effectcraftStatus='ASSET_DECODE_FAILED';
    // The native CSS/SVG physical aperture keeps working without FX.
