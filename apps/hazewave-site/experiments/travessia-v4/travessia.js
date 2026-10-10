@@ -259,6 +259,21 @@ function updatePose(p){
  moveImage(vars.machine,camX,camY,scale,twist);
  vars.machine.style.opacity=String(clamp((1-smooth(.53,.71,p))*.99));
  const split=180*smooth(.40,.67,p); // true separated source-painted halves
+ // A01 rests as the original illustrated station. The moving sonic front
+ // reveals A02 through a gradual soft ink mask, not a simple opacity dissolve.
+ // Four independently clipped painted halves travel with the split chassis.
+ const inkAdvance=smooth(.19,.54,p), inkPct=100*inkAdvance;
+ const softEdge=Math.max(0,inkPct-14);
+ const inkMask='linear-gradient(90deg, #000 0%, #000 '+softEdge.toFixed(2)+'%, transparent '+inkPct.toFixed(2)+'%)';
+ for(const [side,direction] of [['left',-1],['right',1]]){
+  const station=el('station-'+side),controller=el('controller-'+side);
+  const carried=direction*split;
+  station.style.transform='translate3d('+carried.toFixed(2)+'px,0,0)';
+  controller.style.transform='translate3d('+carried.toFixed(2)+'px,0,0)';
+  controller.style.opacity=String(inkAdvance>.003?1:0);
+  controller.style.maskImage=inkMask;controller.style.webkitMaskImage=inkMask;
+ }
+ state.ownerArtRevealPct=inkPct;
  vars.left.style.transform=`translate3d(${-split.toFixed(2)}px,${-14*through}px,0) rotate(${-3*through}deg)`;
  vars.right.style.transform=`translate3d(${split.toFixed(2)}px,${14*through}px,0) rotate(${3*through}deg)`;
  const pulse=(p>=.185)?smooth(.185,.49,p):0;
@@ -294,6 +309,11 @@ function updatePose(p){
  vars.worldHead.style.opacity=String(signalValue>.01&&signalValue<.99?.85:0);
  // Separate fog planes are pushed APART by the causal wave, never merely faded.
  const fogPush=rupture*(phone?W*1.15:W*.98);
+ // Ink boundary follows the pressure front; the two approved A05 planes
+ // physically separate and change contour with the same scroll progress.
+ const contour=rupture*11;
+ vars.fogLeft.style.clipPath='polygon(0 0,50% 0,'+(50+contour*.38).toFixed(2)+'% 24%,'+(50-contour*.67).toFixed(2)+'% 52%,'+(50+contour*.20).toFixed(2)+'% 78%,50% 100%,0 100%)';
+ vars.fogRight.style.clipPath='polygon(50% 0,100% 0,100% 100%,50% 100%,'+(50-contour*.25).toFixed(2)+'% 76%,'+(50+contour*.75).toFixed(2)+'% 48%,'+(50-contour*.40).toFixed(2)+'% 22%)';
  vars.fogLeft.style.transform=`translate3d(${-fogPush.toFixed(2)}px,${(-H*.23*rupture).toFixed(2)}px,0) rotate(${-17*rupture}deg)`;
  vars.fogRight.style.transform=`translate3d(${fogPush.toFixed(2)}px,${(H*.22*rupture).toFixed(2)}px,0) rotate(${15*rupture}deg)`;
  vars.fogLeft.style.opacity=String(.48*(1-.82*arrival));
@@ -347,6 +367,10 @@ function updatePose(p){
  // After flying through the portal, a new independent hub in depth.
  moveImage(vars.hub,0,-H*.08*arrival,lerp(.19,1.11,arrival),lerp(8,0,arrival));
  vars.hub.style.opacity=String(smooth(.74,.86,p));
+ const arrivalInk=smooth(.83,.95,p),inscription=el('arrival-inscription');
+ inscription.style.opacity=String(arrivalInk);
+ inscription.style.transform='translate(-50%,'+(34*(1-arrivalInk)).toFixed(2)+'px)';
+ state.arrivalInk=arrivalInk;
  vars.debrisA.style.opacity=String(band(.43,.63,.84,.95,p)*.9);
  vars.debrisB.style.opacity=String(band(.47,.66,.83,.95,p)*.9);
  vars.debrisA.style.transform=`translate3d(${(-W*.7*rupture).toFixed(2)}px,${(-H*.4*rupture).toFixed(2)}px,${260*rupture}px) rotate(${(-23-60*rupture).toFixed(2)}deg)`;
@@ -385,6 +409,12 @@ async function start(){
    manifest=await response.json();
   }
   if(manifest.schema!=='HazewaveTraversalV4ArtSource/v1'||manifest.productionApproved!==false||manifest.ownerOriginalsInGithub!==false||manifest.v3aPieces.length!==24)throw Error('SOURCE_OR_AUTHORITY_INVALID');
+  // Runtime requires all five original roles in the SHA-bound private manifest.
+  // The private build pipeline already verifies original media SHA-256.
+  const painted=['station.webp','controller.webp','city.webp','hub.webp','fog.webp'];
+  const artHashes=painted.map(name=>manifest.assetSha256?.[name]);
+  if(artHashes.some(hash=>typeof hash!=='string'||!/^[a-f0-9]{64}$/.test(hash))||
+     new Set(artHashes).size!==5)throw Error('FIVE_APPROVED_INDEPENDENT_ART_STAGES_REQUIRED');
   const counts={pad:0,knob:0,speaker:0};
   for(const entry of manifest.v3aPieces){if(!(entry.type in counts))throw Error('UNKNOWN_RIG_PART');counts[entry.type]++;pieces.push(mount(entry));}
   if(counts.pad!==12||counts.knob!==8||counts.speaker!==4)throw Error('V3A_COUNTS_MISMATCH');

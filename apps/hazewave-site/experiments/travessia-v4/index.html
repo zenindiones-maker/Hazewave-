@@ -40,6 +40,12 @@
     <div id="machine">
       <img class="machine-chassis" id="chassis-left" src="assets/chassis.webp" alt="">
       <img class="machine-chassis" id="chassis-right" src="assets/chassis.webp" alt="">
+      <!-- A01 and A02: independently rigged source paintings. The A03/A04/A05
+           paintings occupy different city/hub/fog planes. PRIVATE BUILDS ONLY. -->
+      <img class="owner-ink owner-ink-left" id="station-left" src="assets/station.webp" alt="">
+      <img class="owner-ink owner-ink-right" id="station-right" src="assets/station.webp" alt="">
+      <img class="owner-ink energized-ink owner-ink-left" id="controller-left" src="assets/controller.webp" alt="">
+      <img class="owner-ink energized-ink owner-ink-right" id="controller-right" src="assets/controller.webp" alt="">
       <div id="parts"></div>
       <svg id="circuit" viewBox="0 0 1448 1086" aria-hidden="true">
         <path id="trace-shadow" d="M95 755 C212 761 275 630 345 584 S460 401 585 384 S758 365 846 430 S1116 494 1112 598 S917 752 706 728"/>
@@ -58,20 +64,24 @@
     </svg>
   </div>
   <div class="grain" aria-hidden="true"></div>
-  <header class="brand"><span class="wordmark">H A Z E W A V E</span><small>TRAVESSIA / LAB V4</small></header>
-  <div class="narrative" id="narrative" aria-live="off"><span id="chapter-num">01 / 05</span><h1 id="chapter-title">O silêncio tem profundidade.</h1><p id="chapter-copy">Desça para encontrar a primeira frequência.</p></div>
+  <header class="brand"><span class="wordmark">H A Z E W A V E</span><small>UMA FREQUÊNCIA. UM UNIVERSO.</small></header>
+  <div class="narrative" id="narrative" aria-live="off"><span id="chapter-num" aria-hidden="true">01 / 05</span><h1 id="chapter-title">O silêncio tem profundidade.</h1><p id="chapter-copy">Desça para encontrar a primeira frequência.</p></div>
+  <div id="arrival-inscription" class="arrival-inscription" aria-hidden="true">
+    <span class="arrival-master">HAZEWAVE</span>
+    <span class="arrival-artist">com Indionesbala</span>
+  </div>
   <nav class="chapter-nav" id="chapter-nav" aria-label="Navegação entre cinco atos da travessia">
-    <button type="button" data-world-stop="0" aria-label="Ato 1 — Sinal adormecido">01</button>
-    <button type="button" data-world-stop="1" aria-label="Ato 2 — Nasce a onda">02</button>
-    <button type="button" data-world-stop="2" aria-label="Ato 3 — Máquina articulada">03</button>
-    <button type="button" data-world-stop="3" aria-label="Ato 4 — Ruptura da névoa">04</button>
-    <button type="button" data-world-stop="4" aria-label="Ato 5 — Novo mundo">05</button>
+    <button type="button" data-world-stop="0" aria-label="Ato 1 — Sinal adormecido">·</button>
+    <button type="button" data-world-stop="1" aria-label="Ato 2 — Nasce a onda">·</button>
+    <button type="button" data-world-stop="2" aria-label="Ato 3 — Máquina articulada">·</button>
+    <button type="button" data-world-stop="3" aria-label="Ato 4 — Ruptura da névoa">·</button>
+    <button type="button" data-world-stop="4" aria-label="Ato 5 — Novo mundo">·</button>
     <button type="button" id="lightweight-mode" aria-label="Ativar modo leve de efeitos visuais" aria-pressed="false">LEVE</button>
   </nav>
   <div class="hud"><span>ROLE PARA ATRAVESSAR · SUBA PARA VOLTAR</span><span id="progress-text">00%</span><div class="rail"><div id="progress-bar"></div></div></div>
-  <span class="lab-stamp">PROTÓTIPO REAL · SEM APROVAÇÃO DE PRODUÇÃO</span>
+  <span class="lab-stamp" hidden>Prévia privada aguardando aprovação</span>
 </div>
 </main>
-<footer id="end"><strong>HAZEWAVE</strong><p>A travessia começa a transformar o mundo. Estudo de engenharia física e visual, aguardando avaliação do proprietário.</p><a href="#journey">Voltar ao começo ↑</a></footer>
+<footer id="end"><strong>HAZEWAVE</strong><p>A frequência atravessou a névoa. A paisagem não é mais a mesma. Prévia privada aguardando avaliação artística.</p><a href="#journey">Voltar ao começo ↑</a></footer>
 <script src="travessia.js" defer></script>
 </body></html>

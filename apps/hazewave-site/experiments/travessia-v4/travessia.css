@@ -64,3 +64,36 @@
 .depth-wall{filter:brightness(.55);mask-image:linear-gradient(90deg,transparent,#000 24%,#000 75%,transparent);width:190px;height:480px;margin-left:-95px;margin-top:-240px;border-left:1px solid #ffc1ad75;border-right:1px solid #8a52d45c;opacity:.65;background:linear-gradient(0deg,#13092375 1%,#91449f26 35%,#ffb59a15 49%,#1a0c3688 95%);box-shadow:inset 0 0 29px #a23ef33b}
 @media(max-width:450px){.depth-field{perspective:650px}.depth-gate{height:12px}.depth-wall{opacity:.55}}
 .stage[data-quality="lite"] .depth-gate,.stage[data-quality="lite"] .depth-wall{box-shadow:none}
+
+/* V11 — owner A01/A02 paint plates travel with both moving chassis halves,
+   while A03 city, A04 hub and A05 fog remain independent depth planes. */
+#machine .owner-ink{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;
+ pointer-events:none;user-select:none;z-index:1;will-change:transform}
+#machine .owner-ink-left{clip-path:inset(0 50% 0 0)}
+#machine .owner-ink-right{clip-path:inset(0 0 0 50%)}
+#machine .energized-ink{opacity:0;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mix-blend-mode:lighten}
+#machine #parts{z-index:2}
+#machine #circuit{z-index:3}
+#chapter-num,.lab-stamp{display:none!important}
+.chapter-nav{right:clamp(8px,2vw,25px);top:43%;gap:10px}
+.chapter-nav button[data-world-stop]{width:16px;min-height:17px;padding:0;border:0;
+ background:transparent;color:#d8bdd4ab;font-size:25px;line-height:12px;
+ box-shadow:none;border-radius:50%;font-weight:400}
+.chapter-nav button[data-world-stop][aria-current="step"]{background:transparent;
+ color:#f6d1b8;box-shadow:none;text-shadow:0 0 10px #fcba9d}
+.chapter-nav #lightweight-mode{border-radius:24px;border-color:#c09cb676;
+ background:#090415b5;width:38px;min-height:30px}
+.hud{bottom:calc(18px + env(safe-area-inset-bottom,0px));font:400 10px/1.4 Georgia,serif;
+ letter-spacing:.07em;color:#dbc6d9a1}
+.hud #progress-text,.hud .rail{display:none}
+.arrival-inscription{position:absolute;z-index:23;bottom:clamp(65px,12svh,125px);
+ left:50%;width:min(88vw,700px);text-align:center;pointer-events:none;opacity:0;
+ transform:translate(-50%,34px);will-change:opacity,transform;
+ text-shadow:0 2px 34px #060313,0 0 60px #050118}
+.arrival-inscription span{display:block}
+.arrival-master{font:italic 700 clamp(37px,12vw,105px)/.95 Georgia,'Times New Roman',serif;
+ letter-spacing:-.085em;color:#fff0dd}
+.arrival-artist{margin-top:10px;font:400 clamp(12px,2vw,16px)/1.2 ui-sans-serif,system-ui,sans-serif;
+ color:#e8cbd9b5;letter-spacing:.17em}
+@media(max-width:450px){.arrival-inscription{bottom:12svh}.chapter-nav{right:8px}}
+@media(prefers-reduced-motion:reduce){.arrival-inscription{will-change:auto}}
