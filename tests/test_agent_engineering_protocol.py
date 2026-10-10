@@ -33,12 +33,12 @@ def test_five_phase_operational_contract_installed_once():
 
 def test_zero_cost_private_media_and_human_gate_remain_explicit():
     for item in (
-        "no new control plane",
+        "not a new control plane",
         "Hazewave Harness",
         "Indionesbala",
         "human approval",
         "private-media",
         "single documented entrypoint",
-        "no unsupervised infinite loop",
+        "not an unsupervised infinite loop",
     ):
         assert item.lower() in TEXT.lower(), item
