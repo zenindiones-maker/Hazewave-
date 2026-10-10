@@ -437,6 +437,12 @@ test("V11 paints five owner-derived scenes with a reversible revealing ink front
  expect(end.arrival).toBeGreaterThan(.6);expect(end.hub).toBeGreaterThan(.95);
  const headerOpacity=Number(await page.locator("header.brand").evaluate(x=>(x as HTMLElement).style.opacity));
  expect(headerOpacity).toBeLessThan(.2);
+ const finalFraming=await page.evaluate(()=>({
+  hubWidth:(document.getElementById("hub-scene") as HTMLElement).getBoundingClientRect().width,
+  viewport:innerWidth,narrative:Number((document.getElementById("narrative") as HTMLElement).style.opacity)
+ }));
+ expect(finalFraming.hubWidth).toBeLessThan(finalFraming.viewport*.8);
+ expect(finalFraming.narrative).toBeLessThan(.28);
  await scrollToExactProgress(page,.12);
  const reset=await page.evaluate(()=>{const s=(window as unknown as {__HAZEWAVE_TRAVERSAL_V4:{ownerArtRevealPct:number;arrivalInk:number}}).__HAZEWAVE_TRAVERSAL_V4;return {ink:s.ownerArtRevealPct,arrival:s.arrivalInk}});
  expect(reset.ink).toBe(0);expect(reset.arrival).toBe(0);

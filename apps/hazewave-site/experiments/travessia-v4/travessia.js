@@ -365,7 +365,7 @@ function updatePose(p){
  vars.ring.style.transform=`translate(-50%,-50%) scale(${lerp(.24,1.75,smooth(.46,.89,p)).toFixed(3)}) rotate(${(rupture*14).toFixed(2)}deg)`;
  for(const node of [vars.rim,vars.halo,vars.tear])setStroke(node,ringLen,smooth(.49,.69,p));
  // After flying through the portal, a new independent hub in depth.
- moveImage(vars.hub,0,-H*.08*arrival,lerp(.19,1.11,arrival),lerp(8,0,arrival));
+ moveImage(vars.hub,0,-H*.08*arrival,lerp(.19,.46,arrival),lerp(8,0,arrival));
  vars.hub.style.opacity=String(smooth(.74,.86,p));
  const arrivalInk=smooth(.83,.95,p),inscription=el('arrival-inscription');
  inscription.style.opacity=String(arrivalInk);
@@ -384,7 +384,7 @@ function updatePose(p){
  // One immutable scroll progress determines every visible pose; reverse is exact.
  const phase=p<.16?0:p<.36?1:p<.58?2:p<.80?3:4;
  if(phase!==lastPhase){vars.num.textContent=chapters[phase][0];vars.title.textContent=chapters[phase][1];vars.copy.textContent=chapters[phase][2];lastPhase=phase;}
- vars.narrative.style.opacity=String(clamp(1-smooth(.31,.42,p)+smooth(.79,.89,p)));
+ vars.narrative.style.opacity=String(clamp(1-smooth(.31,.42,p)+smooth(.79,.89,p))*(1-smooth(.84,.96,p)));
  vars.progress.style.width=(p*100).toFixed(2)+'%';vars.progressText.textContent=String(Math.round(p*100)).padStart(2,'0')+'%';
  Object.assign(state,{progress:p,phase,activePads,activeKnobs,activeSpeakers,
   traceDrawn:lineValue,worldWaveDrawn:signalValue,portalRadiusPct:portalRadius,

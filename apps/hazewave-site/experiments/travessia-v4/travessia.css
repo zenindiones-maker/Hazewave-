@@ -91,7 +91,7 @@
  transform:translate(-50%,34px);will-change:opacity,transform;
  text-shadow:0 2px 34px #060313,0 0 60px #050118}
 .arrival-inscription span{display:block}
-.arrival-master{font:italic 700 clamp(48px,16vw,120px)/.95 Georgia,'Times New Roman',serif;
+.arrival-master{font:italic 700 clamp(48px,17vw,120px)/.95 Georgia,'Times New Roman',serif;
  letter-spacing:-.085em;color:#fff0dd}
 .arrival-artist{margin-top:10px;font:400 clamp(12px,2vw,16px)/1.2 ui-sans-serif,system-ui,sans-serif;
  color:#e8cbd9b5;letter-spacing:.17em}
