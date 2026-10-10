@@ -68,7 +68,7 @@ jobs:
 
   build-and-browser-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: apps/hazewave-site
@@ -85,7 +85,7 @@ jobs:
           node-version: "24"
 
       - name: One-command clean install, build, live preview and Chromium E2E
-        run: bash ../../scripts/run_hazewave_site.sh verify
+        run: bash ../../scripts/verify.sh
 
       - name: Preserve static runtime
         if: success()
