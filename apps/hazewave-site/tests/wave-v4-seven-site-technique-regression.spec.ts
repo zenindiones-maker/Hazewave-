@@ -241,12 +241,13 @@ test("V7 focal portal composition stays inside phone viewport and releases idle 
   await expect(page.locator("#stage")).toHaveAttribute("data-fx-active","false");
 });
 
-test("V7 mobile portal hands off to independent hub without a giant cropped logo — synthetic media",async ({page},info)=>{
+test("V9 optical portal hands off early to hub without double signage — synthetic media",async ({page},info)=>{
   await fixture(page,true);
   const portal=page.locator("#portal-window");
   await scrollToExactProgress(page,.82);
   const reveal=Number(await portal.evaluate((node)=>(node as HTMLElement).style.opacity));
-  expect(reveal).toBeGreaterThan(.95);
+  expect(reveal).toBeGreaterThan(.5);
+  expect(reveal).toBeLessThan(.85);
   await scrollToExactProgress(page,.92);
   const destination=Number(await portal.evaluate((node)=>(node as HTMLElement).style.opacity));
   const hub=Number(await page.locator("#hub-scene").evaluate((node)=>(node as HTMLElement).style.opacity));
@@ -256,7 +257,7 @@ test("V7 mobile portal hands off to independent hub without a giant cropped logo
   await page.screenshot({path:info.outputPath("v7-hub-handoff-"+info.project.name+".png"),animations:"disabled"});
   await scrollToExactProgress(page,.82);
   const restore=Number(await portal.evaluate((node)=>(node as HTMLElement).style.opacity));
-  expect(restore).toBeGreaterThan(.95);
+  expect(restore).toBeCloseTo(reveal,3);
   await scrollToExactProgress(page,0);
   expect((await pose(page)).portalRadiusPct).toBe(0);
 });
@@ -404,6 +405,8 @@ test("V9 feathered portal avoids a hard bright core, double-exposed worlds, and 
  expect(optic.fx).toBeLessThan(.46);
  expect(optic.fxFilter).toContain("blur(6px)");
  expect(cross.city+cross.hub).toBeGreaterThan(.65);
+ expect(cross.city).toBeLessThan(.05);
+ expect(cross.hub).toBeGreaterThan(.98);
  expect(cross.city+cross.hub).toBeLessThan(1.01);
  expect(cross.ring).toBeLessThan(.10);
  await sample(.64);

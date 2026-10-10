@@ -305,7 +305,7 @@ function updatePose(p){
  const cityX=lerp(W*.46,0,smooth(.38,.68,p))+lerp(0,-W*.55,smooth(.78,.98,p));
  const cityY=lerp(-H*.27,H*.10,smooth(.4,.70,p))-H*.2*arrival;
  moveImage(vars.city,cityX,cityY,cityScale,lerp(-15,4,approach));
- vars.city.style.opacity=String(band(.35,.53,.77,.91,p)*.78);
+ vars.city.style.opacity=String(band(.35,.53,.75,.83,p)*.78);
  vars.cityFlight.style.transform=`translate3d(${(-W*.16*rupture).toFixed(2)}px,${(H*.22*rupture).toFixed(2)}px,120px) scale(${(1+.6*rupture).toFixed(3)})`;
  // A physical aperture in the fog, fully clipping the new illustrated region.
  const portalRadius=lerp(0,75,smooth(.43,.76,p));
@@ -334,10 +334,10 @@ function updatePose(p){
  // the INDEPENDENT hub illustration. Without the fade-out, the scaled
  // portal's enormous inset logo covers the final 360/393px mobile viewport.
  // It is reversible: scrolling back to .82 restores the full original mask.
- vars.window.style.opacity=String(smooth(.43,.64,p)*(1-smooth(.81,.92,p)));
+ vars.window.style.opacity=String(smooth(.43,.64,p)*(1-smooth(.78,.88,p)));
  const portalMove=smooth(.69,.95,p);
  moveImage(vars.window,0,H*.025*portalMove,lerp(.73,1.42,portalMove));
- vars.portalWorld.style.opacity=String(1-smooth(.79,.89,p));
+ vars.portalWorld.style.opacity=String(1-smooth(.74,.84,p));
  vars.portalWorld.style.transform=`translate3d(${(-W*.25*arrival).toFixed(2)}px,${(-H*.18*arrival).toFixed(2)}px,0) scale(${lerp(.88,1.35,arrival).toFixed(3)})`;
  vars.innerHub.style.opacity=String(band(.79,.85,.88,.91,p)*.12);
  vars.innerHub.style.transform=`translate3d(0,${(-H*.11*arrival).toFixed(2)}px,0) scale(${lerp(.6,1.16,arrival).toFixed(3)})`;
@@ -346,7 +346,7 @@ function updatePose(p){
  for(const node of [vars.rim,vars.halo,vars.tear])setStroke(node,ringLen,smooth(.49,.69,p));
  // After flying through the portal, a new independent hub in depth.
  moveImage(vars.hub,0,-H*.08*arrival,lerp(.19,1.11,arrival),lerp(8,0,arrival));
- vars.hub.style.opacity=String(smooth(.79,.92,p));
+ vars.hub.style.opacity=String(smooth(.74,.86,p));
  vars.debrisA.style.opacity=String(band(.43,.63,.84,.95,p)*.9);
  vars.debrisB.style.opacity=String(band(.47,.66,.83,.95,p)*.9);
  vars.debrisA.style.transform=`translate3d(${(-W*.7*rupture).toFixed(2)}px,${(-H*.4*rupture).toFixed(2)}px,${260*rupture}px) rotate(${(-23-60*rupture).toFixed(2)}deg)`;
