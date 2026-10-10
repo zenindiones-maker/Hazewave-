@@ -4,15 +4,23 @@ Input media root must contain SHA-bound assets/ and asset-manifest.json
 from build_assets.py. Media files remain private, not in repo or GitHub Actions.
 """
 from pathlib import Path
-import argparse,base64,hashlib,json,re
+import argparse,base64,hashlib,json,re,os
+
+REPO_ROOT=Path(__file__).resolve().parents[4]
 
 def build(source:Path,media:Path,destination:Path, fx_root:Path|None=None)->Path:
  source=source.resolve(strict=True);media=media.resolve(strict=True)
  destination=destination.resolve(strict=False)
- if destination.exists() or destination.is_relative_to(source) or destination.is_relative_to(media):
+ if (destination.exists() or destination.is_relative_to(source) or
+     destination.is_relative_to(media) or destination.is_relative_to(REPO_ROOT)):
   raise ValueError('STANDALONE_OUTPUT_EXISTS_OR_INSIDE_INPUTS')
  manifest=json.loads((media/'asset-manifest.json').read_text(encoding='utf8'))
- assert manifest['schema']=='HazewaveTraversalV4ArtSource/v1' and manifest['productionApproved'] is False
+ if (manifest.get('schema')!='HazewaveTraversalV4ArtSource/v1' or
+     manifest.get('productionApproved') is not False or
+     manifest.get('ownerOriginalsInGithub') is not False or
+     len(manifest.get('assetSha256',{}))!=43 or
+     len(manifest.get('v3aPieces',[]))!=24):
+  raise ValueError('PRIVATE_ART_MANIFEST_UNQUALIFIED')
  mapping={}
  for filename,expected in manifest['assetSha256'].items():
   data=(media/'assets'/filename).read_bytes()
@@ -44,7 +52,8 @@ def build(source:Path,media:Path,destination:Path, fx_root:Path|None=None)->Path
  page=page.replace('<script src="travessia.js" defer></script>',inline+'<script>'+js+'</script>')
  if 'src="assets/' in page or 'href="travessia.css"' in page:raise ValueError('STANDALONE_HAS_NETWORK_DEPENDENCIES')
  destination.parent.mkdir(parents=True,exist_ok=True)
- destination.write_text(page,encoding='utf8')
+ with os.fdopen(os.open(destination,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'w',encoding='utf8') as private_out:
+  private_out.write(page)
  print('V4_OFFLINE_SELF_CONTAINED=PASS')
  print('V4_PRIVATE_HTML_SHA256='+hashlib.sha256(destination.read_bytes()).hexdigest())
  return destination
