@@ -75,6 +75,21 @@ async function fixture(page:Page, syntheticFx=false) {
   )),{timeout:25000}).toBe(true);
 }
 
+async function ensureLiteMode(page:Page,desired:boolean){
+  const actual=(await page.locator("#stage").getAttribute("data-quality"))==="lite";
+  if(actual!==desired)await page.locator("#lightweight-mode").click();
+  await expect(page.locator("#stage")).toHaveAttribute("data-quality",desired?"lite":"full");
+}
+async function scrollToExactProgress(page:Page,p:number){
+  await page.evaluate((position)=>{
+    const journey=document.getElementById("journey")!;
+    const available=Math.max(1,journey.offsetHeight-innerHeight);
+    window.scrollTo({top:available*position,behavior:"instant"});
+  },p);
+  await expect.poll(async()=>(await pose(page)).progress,{timeout:12000}).toBeGreaterThanOrEqual(p-.004);
+  await expect.poll(async()=>(await pose(page)).progress,{timeout:12000}).toBeLessThanOrEqual(p+.004);
+}
+
 test("NASA-derived navigation reverses all five acts in ACTUAL WAVE source, synthetic images only",async ({page},info)=>{
   const errors:string[]=[];
   page.on("pageerror",err=>errors.push(err.message));
@@ -106,8 +121,7 @@ test("V4 mechanical camera and portal remain independent of optional effects bud
   expect(full.activeSpeakers).toBe(4);
   expect(full.portalRadiusPct).toBeGreaterThan(68);
   expect(full.secondIllustratedRegionVisible).toBe(true);
-  await page.locator("#lightweight-mode").click();
-  await expect(page.locator("#stage")).toHaveAttribute("data-quality","lite");
+  await ensureLiteMode(page,true);
   await expect(page.locator("#lightweight-mode")).toHaveAttribute("aria-pressed","true");
   const lite=await pose(page);
   expect(lite.portalRadiusPct).toBe(full.portalRadiusPct);
@@ -138,6 +152,7 @@ test("V7 optional EFFECT LAYER scrubs forward and backward without replacing own
   )).toBe("READY");
   await page.locator('[data-world-stop="3"]').click();
   await expect.poll(async()=>(await pose(page)).phase).toBe(3);
+  await ensureLiteMode(page,false);
   await expect.poll(async()=>page.evaluate(()=>
     (window as unknown as {__HAZEWAVE_ARTCRAFT_V7:{getFrame:()=>number}}).__HAZEWAVE_ARTCRAFT_V7.getFrame()
   )).toBeGreaterThan(0);
@@ -145,12 +160,12 @@ test("V7 optional EFFECT LAYER scrubs forward and backward without replacing own
   expect(opacity).toBeGreaterThan(0);
   const portal=await pose(page);
   expect(portal.portalRadiusPct).toBeGreaterThan(0);
-  await page.locator("#lightweight-mode").click();
+  await ensureLiteMode(page,true);
   await expect.poll(async()=>page.evaluate(()=>
     (window as unknown as {__HAZEWAVE_ARTCRAFT_V7:{getFrame:()=>number}}).__HAZEWAVE_ARTCRAFT_V7.getFrame()
   )).toBe(-1);
   expect((await pose(page)).portalRadiusPct).toBe(portal.portalRadiusPct);
-  await page.locator("#lightweight-mode").click();
+  await ensureLiteMode(page,false);
   await page.locator('[data-world-stop="0"]').click();
   await expect.poll(async()=>(await pose(page)).phase).toBe(0);
   expect((await pose(page)).portalRadiusPct).toBe(0);
@@ -166,4 +181,37 @@ test("V7 missing optional FX never breaks the original 24-piece interactive site
   await expect.poll(async()=>(await pose(page)).phase).toBe(4);
   expect((await pose(page)).activePads).toBe(12);
   expect((await pose(page)).portalRadiusPct).toBeGreaterThan(68);
+});
+
+test("V7 real portal engine interpolates two frames INSIDE same pair — SYNTHETIC test-only PNGs",async ({page})=>{
+  const errors:string[]=[];
+  page.on("pageerror",err=>errors.push(err.message));
+  await fixture(page,true);
+  await expect.poll(async()=>page.evaluate(()=>
+    (window as unknown as {__HAZEWAVE_ARTCRAFT_V7:{getReadiness:()=>string}}).__HAZEWAVE_ARTCRAFT_V7.getReadiness()
+  )).toBe("READY");
+  const samples:{frame:number;blend:number;image:string}[]=[];
+  for(const position of [0.64,0.65,0.66]){
+    await scrollToExactProgress(page,position);
+    await ensureLiteMode(page,false);
+    samples.push(await page.evaluate(()=>({
+      frame:(window as unknown as {__HAZEWAVE_TRAVERSAL_V4:{effectcraftFrame:number}}).__HAZEWAVE_TRAVERSAL_V4.effectcraftFrame,
+      blend:(window as unknown as {__HAZEWAVE_TRAVERSAL_V4:{effectcraftBlend:number}}).__HAZEWAVE_TRAVERSAL_V4.effectcraftBlend,
+      image:(document.getElementById("effectcraft-aperture") as HTMLCanvasElement).toDataURL("image/png")
+    })));
+  }
+  expect(samples.map(x=>x.frame)).toEqual([4,4,4]);
+  expect(samples[0].blend).toBeLessThan(samples[1].blend);
+  expect(samples[1].blend).toBeLessThan(samples[2].blend);
+  expect(new Set(samples.map(x=>x.image)).size).toBe(3);
+  expect(errors).toEqual([]);
+  // In auto-lite mode the owner still regains FULL graphics on request.
+  await ensureLiteMode(page,true);
+  await expect.poll(async()=>page.evaluate(()=>(
+    (window as unknown as {__HAZEWAVE_TRAVERSAL_V4:{effectcraftFrame:number}}).__HAZEWAVE_TRAVERSAL_V4.effectcraftFrame
+  ))).toBe(-1);
+  await ensureLiteMode(page,false);
+  expect(await page.evaluate(()=>(
+    (window as unknown as {__HAZEWAVE_TRAVERSAL_V4:{qualityUserOverride:string}}).__HAZEWAVE_TRAVERSAL_V4.qualityUserOverride
+  ))).toBe("FULL");
 });
