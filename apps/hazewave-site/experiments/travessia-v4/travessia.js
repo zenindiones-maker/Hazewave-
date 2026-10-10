@@ -265,7 +265,11 @@ function updatePose(p){
  const portalRadius=lerp(0,69,smooth(.47,.80,p));
  renderArtcraftEffect(p);
  vars.window.style.clipPath=`circle(${portalRadius.toFixed(3)}% at 50% 50%)`;
- vars.window.style.opacity=String(smooth(.43,.66,p));
+ // Keep the painterly portal open during the reveal, then hand off to
+ // the INDEPENDENT hub illustration. Without the fade-out, the scaled
+ // portal's enormous inset logo covers the final 360/393px mobile viewport.
+ // It is reversible: scrolling back to .82 restores the full original mask.
+ vars.window.style.opacity=String(smooth(.43,.66,p)*(1-smooth(.82,.91,p)));
  const portalMove=smooth(.69,.95,p);
  moveImage(vars.window,0,H*.07*portalMove,lerp(.72,2.15,portalMove));
  vars.portalWorld.style.opacity=String(1-smooth(.78,.95,p));
