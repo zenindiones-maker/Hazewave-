@@ -3,12 +3,22 @@ const CACHE = /*HAZE_CACHE_NAME*/;
 const SHELL = /*HAZE_CACHE_LIST*/;
 self.addEventListener('install', event => event.waitUntil((async () => {
   const cache = await caches.open(CACHE);
-  for (const url of SHELL) {
-    const response = await fetch(url, { cache: 'reload' });
-    if (!response.ok) throw new Error('Missing core asset: ' + url);
-    await cache.put(url, response);
+  // Bound concurrency avoids one sequential request per asset on mobile, while
+  // preventing a 400-request burst on Codespaces and Chrome Android.
+  try {
+    for (let offset = 0; offset < SHELL.length; offset += 6) {
+      await Promise.all(SHELL.slice(offset, offset + 6).map(async (url) => {
+        const response = await fetch(url, { cache: 'reload' });
+        if (!response.ok) throw new Error('Missing core asset: ' + url);
+        await cache.put(url, response);
+      }));
+    }
+  } catch (error) {
+    await caches.delete(CACHE);
+    throw error;
   }
-  await self.skipWaiting();
+  // Do not forcibly replace a worker during a live musical performance.
+  // Existing clients transition naturally when their old tab is closed.
 })()));
 self.addEventListener('activate', event => event.waitUntil((async () => {
   const names = await caches.keys();

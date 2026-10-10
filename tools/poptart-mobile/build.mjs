@@ -58,17 +58,17 @@ function enumerate(dir,prefix=''){
   }
   return entries;
 }
+// All packaged static modules, WASM devices, samples and HTML documentation
+// must be available offline, not just the editor shell. Fail closed instead
+// of silently dropping oversized files: an incomplete PWA can appear "ready".
 export function precacheEntries(files){
-  const extra=new Set(['index.html','client.js','style.css','themes.css',
-    'hz-mobile.css','hz-mobile.js','hz-manifest.webmanifest','hz-icon-192.png',
-    'hz-icon-512.png','theme-boot.js','poptart-mode.js']);
-  const result=files.filter(({relative,bytes})=>bytes<=5*1024*1024&&(
-    extra.has(relative)||['vendor/codemirror/','pattern-core/','web/',
-      'web-engine/src/','web-engine/worklets/','web-engine/packs/pt_kit/',
-      'web-engine/packs/pt_keys/'].some(p=>relative.startsWith(p))));
+  const result=files.filter(({relative})=>
+    relative !== 'hz-sw.js' && relative !== 'hz-provenance.json');
+  const oversized=result.find(({bytes})=>bytes>8*1024*1024);
+  if(oversized)throw new Error('Offline file exceeds 8 MiB: '+oversized.relative);
   const sum=result.reduce((s,x)=>s+x.bytes,0);
   if(sum>48*1024*1024)throw new Error('Offline precache exceeds 48 MiB');
-  return result.map(({relative})=>'./'+relative);
+  return result.map(({relative})=>'./'+relative).sort();
 }
 export function build(output){
   const dist=path.resolve(output);
@@ -89,9 +89,16 @@ export function build(output){
   };
   fs.writeFileSync(path.join(dist,'hz-manifest.webmanifest'),JSON.stringify(manifest,null,2));
   const precache=precacheEntries(enumerate(dist));
-  const revision=createHash('sha256').update(UPSTREAM_SHA+
-    fs.readFileSync(htmlFile)+fs.readFileSync(path.join(dist,'hz-mobile.js'))).digest('hex').slice(0,16);
   const swTemplate=fs.readFileSync(path.join(home,'hz-sw.template.js'),'utf8');
+  // Revision is based on the WHOLE cached bundle, not just HTML/JS: a changed
+  // CSS, WASM binary or sample must never reuse an incompatible offline cache.
+  const fingerprint=createHash('sha256').update(UPSTREAM_SHA);
+  fingerprint.update(swTemplate);
+  for(const asset of precache){
+    fingerprint.update(asset);
+    fingerprint.update(fs.readFileSync(path.join(dist,asset.slice(2))));
+  }
+  const revision=fingerprint.digest('hex').slice(0,16);
   fs.writeFileSync(path.join(dist,'hz-sw.js'),swTemplate
     .replace('/*HAZE_CACHE_NAME*/',JSON.stringify('hz-poptart-'+revision))
     .replace('/*HAZE_CACHE_LIST*/',JSON.stringify(precache)));

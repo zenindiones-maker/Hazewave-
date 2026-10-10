@@ -10,14 +10,23 @@ test('mobile injection is idempotent and preserves the audio editor',()=>{
 test('upstream drift fails closed',()=>{
   assert.throws(()=>injectMobile('<html><head></head><body></body></html>'),/shape changed/);
 });
-test('precache filters oversized assets',()=>{
+test('full offline bundle includes WASM, docs, editor helpers and audio data',()=>{
   assert.deepEqual(precacheEntries([
-    {relative:'index.html',bytes:100},
-    {relative:'web/boot.mjs',bytes:400},
+    {relative:'web-engine/devices/Plaits.wasm',bytes:185310},
+    {relative:'docs/start.html',bytes:5000},
+    {relative:'api-docs.js',bytes:40000},
+    {relative:'osc-engine/sample-map-core.mjs',bytes:51000},
     {relative:'web-engine/packs/pt_kit/kick.wav',bytes:1000},
-    {relative:'web-engine/packs/pt_kit/oversize.wav',bytes:9000000},
-    {relative:'web-engine/devices/plugin.wasm',bytes:4000}
-  ]),['./index.html','./web/boot.mjs','./web-engine/packs/pt_kit/kick.wav']);
+    {relative:'index.html',bytes:100},
+    {relative:'hz-sw.js',bytes:100},
+    {relative:'hz-provenance.json',bytes:100}
+  ]),['./api-docs.js','./docs/start.html','./index.html',
+    './osc-engine/sample-map-core.mjs','./web-engine/devices/Plaits.wasm',
+    './web-engine/packs/pt_kit/kick.wav']);
+});
+test('oversized or excessive offline package fails closed',()=>{
+  assert.throws(()=>precacheEntries([{relative:'huge.wasm',bytes:9*1024*1024}]),/8 MiB/);
+  assert.throws(()=>precacheEntries(Array.from({length:7},(_,i)=>({relative:i+'.wasm',bytes:8*1024*1024}))),/48 MiB/);
 });
 test('PWA icons are real PNG images',()=>{
   for(const n of [192,512]){const b=png(n);
