@@ -1,0 +1,17 @@
+{
+  "schema": "HazewaveExternalMusicIntegration/v1",
+  "name": "poptart-mobile",
+  "domain": "HAZE",
+  "authority": "NONE",
+  "upstream": {
+    "repository": "glossings/poptart",
+    "commit": "1310635d3a306a46544773bfc77720ce123ede75",
+    "license": "AGPL-3.0-only"
+  },
+  "code_mode": "UPSTREAM_PINNED_EXTERNAL_SOURCE_PLUS_ISOLATED_MOBILE_OVERLAY",
+  "runtime": "ANDROID_BROWSER_WEB_AUDIO",
+  "offline_audio_gate": "PENDING_ANDROID",
+  "harness_permissions": [],
+  "canonical_promotion_authorized": false,
+  "public_deployment_authorized": false
+}

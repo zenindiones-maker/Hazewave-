@@ -1,0 +1,110 @@
+name: HAZE Poptart Mobile Candidate
+
+on:
+  push:
+    branches:
+      - work/haze-poptart-integration-v1
+    paths:
+      - 'tools/poptart-mobile/**'
+      - '.github/workflows/haze-poptart-mobile.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: haze-poptart-mobile-candidate
+  cancel-in-progress: false
+
+jobs:
+  candidate-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout preserved Hazewave candidate
+        uses: actions/checkout@v4
+        with:
+          path: hazewave
+          persist-credentials: false
+
+      - name: Checkout exact Poptart upstream source
+        uses: actions/checkout@v4
+        with:
+          repository: glossings/poptart
+          ref: 1310635d3a306a46544773bfc77720ce123ede75
+          path: poptart
+          persist-credentials: false
+
+      - name: Verify immutable upstream pin
+        shell: bash
+        run: |
+          test "$(git -C poptart rev-parse HEAD)" = "1310635d3a306a46544773bfc77720ce123ede75"
+          test -f poptart/LICENSE
+          test -f poptart/THIRD-PARTY-NOTICES.md
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: poptart/package-lock.json
+
+      - name: Verify adapter syntax and unit contracts
+        run: |
+          node --check hazewave/tools/poptart-mobile/hz-mobile.js
+          node --check hazewave/tools/poptart-mobile/build.mjs
+          node --test hazewave/tools/poptart-mobile/build.test.mjs
+
+      - name: Install upstream dependencies
+        working-directory: poptart
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run upstream tests
+        working-directory: poptart
+        run: npm test
+
+      - name: Assemble upstream browser audio engine
+        working-directory: poptart
+        run: npm run build:web
+
+      - name: Build Hazewave touch PWA overlay
+        run: node hazewave/tools/poptart-mobile/build.mjs poptart/dist/web
+
+      - name: Preserve source licensing
+        shell: bash
+        run: |
+          cp poptart/LICENSE poptart/dist/web/UPSTREAM-LICENSE
+          cp poptart/THIRD-PARTY-NOTICES.md poptart/dist/web/THIRD-PARTY-NOTICES.md
+          {
+            echo 'Hazewave Poptart Mobile Candidate — AGPL-3.0-only'
+            echo 'Upstream complete source:'
+            echo 'https://github.com/glossings/poptart/tree/1310635d3a306a46544773bfc77720ce123ede75'
+            echo 'Hazewave overlay source:'
+            echo "https://github.com/zenindiones-maker/Hazewave-/tree/$GITHUB_SHA/tools/poptart-mobile"
+            echo 'Android hardware/audio acceptance: PENDING'
+          } > poptart/dist/web/SOURCE-AND-LICENSE.txt
+
+      - name: Validate static release
+        shell: bash
+        run: |
+          node --check poptart/dist/web/hz-mobile.js
+          node --check poptart/dist/web/hz-sw.js
+          test -s poptart/dist/web/web/boot.mjs
+          test -s poptart/dist/web/pattern-core/index.mjs
+          test -s poptart/dist/web/web-engine/src/index.mjs
+          test -s poptart/dist/web/hz-icon-192.png
+          test -s poptart/dist/web/hz-icon-512.png
+          test -s poptart/dist/web/SOURCE-AND-LICENSE.txt
+          ! grep -q HAZE_CACHE_NAME poptart/dist/web/hz-sw.js
+          ! grep -q HAZE_CACHE_LIST poptart/dist/web/hz-sw.js
+          node -e "let p=require('./poptart/dist/web/hz-provenance.json'); if(p.android_human_acceptance!=='PENDING')process.exit(1)"
+          echo 'STATIC_PACKAGE_VALIDATION=PASS'
+          echo 'REAL_ANDROID_AUDIO_GATE=PENDING'
+
+      - name: Store candidate for private testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: hazewave-poptart-mobile-candidate
+          path: poptart/dist/web/
+          if-no-files-found: error
+          retention-days: 2
