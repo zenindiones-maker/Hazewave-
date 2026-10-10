@@ -30,7 +30,7 @@
     overflow: auto; background: var(--bg-raised, #171923); overscroll-behavior: contain;
   }
   html.hz-mobile-active #hz-mobile-dock {
-    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
     position: fixed; z-index: 8100; bottom: 0; left: 0; right: 0;
     padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
     gap: 6px; background: #11141e; border-top: 1px solid #404958;
@@ -66,4 +66,12 @@
   #hz-mobile-apply { background: #1c776f; color: white; border-color: #86e9dc; }
   #hz-mobile-status { margin: 0; min-height: 18px; font-size: 12px; line-height: 1.4; }
   html.hz-mobile-active :is(button, select, input) { touch-action: manipulation; }
+}
+
+@media (max-width: 800px) {
+  #hz-drum-scroll[hidden], #hz-melody-scroll[hidden] { display: none !important; }
+  .hz-music-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .hz-music-controls label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; }
+  .hz-music-controls input { width: 100%; min-width: 0; font-size: 15px; accent-color: #57e6d8; }
+  .hz-music-controls input[type="number"] { min-height: 40px; }
 }
