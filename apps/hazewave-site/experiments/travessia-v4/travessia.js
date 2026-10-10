@@ -80,6 +80,68 @@ window.__HAZEWAVE_TRAVERSAL_V4=state;
  state.productionApproved=false;
  window.__HAZEWAVE_RESEARCH_V5={gotoAct,getStops:()=>[...chapterStops],getQuality:()=>state.visualQualityTier};
 
+// Optional first-party portal overlay rendered OFFLINE with real EffectCraft.
+ // The FilmCraft validation receipt is checked by the private site composer,
+ // NOT by the browser (which never invokes untrusted native applications).
+ const fxCanvas=el('effectcraft-aperture');
+ const fxCtx=fxCanvas?.getContext('2d',{alpha:true}) || null;
+ let fxDecoded=[],fxFrameIndex=-1,fxReadiness='NOT_ATTACHED';
+ const fxSpec=window.__hazewaveEffectArt;
+ async function prepareArtcraftEffect(){
+  if(!fxCtx||!fxSpec){state.effectcraftStatus='NOT_ATTACHED';return}
+  const frames=fxSpec.frames;
+  if(fxSpec.schema!=='HazewaveRealArtcraftPortalOverlay/v1' ||
+     fxSpec.production_approved!==false ||
+     fxSpec.real_effectcraft_render!==true ||
+     fxSpec.filmcraft_probe_executed!==true ||
+     !Array.isArray(frames) || frames.length!==8){
+   state.effectcraftStatus='REJECTED_UNTRUSTED_MANIFEST';return;
+  }
+  const images=[];
+  for(let i=0;i<8;i++){
+   const frame=frames[i],path=frame?.url;
+   const expected='assets/fx/sonic-portal-'+String(i).padStart(2,'0')+'.png';
+   if(typeof path!=='string' || !(path===expected ||
+      (path.startsWith('data:image/png;base64,') && path.length<3000000))){
+    state.effectcraftStatus='REJECTED_ASSET_PATH';return;
+   }
+   const image=new Image();image.decoding='async';image.src=path;
+   images.push(image);
+  }
+  try{
+   await Promise.all(images.map(img=>img.decode()));
+   if(images.some(img=>img.naturalWidth!==420||img.naturalHeight!==820))
+     throw Error('EFFECT_FRAME_CANVAS_DRIFT');
+   fxDecoded=images;fxReadiness='READY';state.effectcraftStatus='READY';
+   schedule();
+  }catch{
+   fxReadiness='UNAVAILABLE';state.effectcraftStatus='ASSET_DECODE_FAILED';
+   // The native CSS/SVG physical aperture keeps working without FX.
+  }
+ }
+ function renderArtcraftEffect(p){
+  const t=smooth(.45,.79,p);
+  const alpha=band(.45,.61,.75,.87,p);
+  const idx=Math.min(7,Math.max(0,Math.floor(t*8)));
+  const lite=vars.stage.dataset.quality==='lite' ||
+     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!fxCanvas){state.effectcraftFrame=-1;return}
+  fxCanvas.style.opacity=(fxReadiness==='READY'&&!lite?alpha*.83:0).toFixed(4);
+  fxCanvas.style.transform='translate(-50%,-50%) scale('+(0.58+1.42*t).toFixed(4)+') rotate('+(26*t).toFixed(2)+'deg)';
+  if(fxReadiness==='READY'&&!lite&&idx!==fxFrameIndex){
+   fxCtx.clearRect(0,0,420,820);
+   fxCtx.drawImage(fxDecoded[idx],0,0,420,820);
+   fxFrameIndex=idx;
+  }
+  state.effectcraftFrame=fxReadiness==='READY'&&!lite?idx:-1;
+  state.effectcraftOpacity=parseFloat(fxCanvas.style.opacity);
+  state.effectcraftSuppressed=Boolean(lite);
+ }
+ window.__HAZEWAVE_ARTCRAFT_V7={
+  version:'V7',site:'Hazewave',getReadiness:()=>fxReadiness,
+  getFrame:()=>state.effectcraftFrame,source:'real-offline-effectcraft-frames'
+ };
+
 function mount(spec){
  const piece=doc.createElement('img');piece.src=(window.__assetUrls?.[spec.file] || 'assets/'+spec.file);
  piece.alt='';piece.draggable=false;piece.decoding='async';piece.className='rig-part rig-'+spec.type;
@@ -170,6 +232,7 @@ function updatePose(p){
  vars.cityFlight.style.transform=`translate3d(${(-W*.16*rupture).toFixed(2)}px,${(H*.22*rupture).toFixed(2)}px,120px) scale(${(1+.6*rupture).toFixed(3)})`;
  // A physical aperture in the fog, fully clipping the new illustrated region.
  const portalRadius=lerp(0,69,smooth(.47,.80,p));
+ renderArtcraftEffect(p);
  vars.window.style.clipPath=`circle(${portalRadius.toFixed(3)}% at 50% 50%)`;
  vars.window.style.opacity=String(smooth(.43,.66,p));
  const portalMove=smooth(.69,.95,p);
@@ -232,6 +295,7 @@ async function start(){
   await Promise.all(imgs.map(img=>img.decode()));
   setupChapterNavigation();
   state.ready=true;updatePose(progressFromScroll());lastProgress=state.progress;
+  void prepareArtcraftEffect();
   addEventListener('scroll',schedule,{passive:true});
   addEventListener('resize',()=>{makeStars();schedule()},{passive:true});
  }catch(error){console.error('HAZEWAVE_V4_FAIL_CLOSED',error);state.error=String(error);state.ready=false;}
