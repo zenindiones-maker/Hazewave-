@@ -1,0 +1,112 @@
+name: WAVE EffectCraft + FilmCraft real portal proof
+on:
+  pull_request:
+    paths:
+      - "apps/hazewave-site/experiments/travessia-v4/**"
+      - "tests/test_wave_artcraft_portal_v7.py"
+      - ".github/workflows/wave-effectcraft-filmcraft-portal-proof.yml"
+
+permissions:
+  contents: read
+concurrency:
+  group: wave-effect-film-portal-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  original-wave-portal-real-two-clis:
+    name: Genuine EffectCraft render + FilmCraft decode
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout only immutable Hazewave PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Download only pinned public upstream releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/wave-verified-tools"
+          curl --proto '=https' --tlsv1.2 --fail --location --retry 2 --max-time 180 \
+            -o "$RUNNER_TEMP/wave-verified-tools/effectcraft.tar.gz" \
+            https://github.com/storytold/effectcraft/releases/download/v0.6.0/effectcraft-0.6.0-linux-x86_64.tar.gz
+          curl --proto '=https' --tlsv1.2 --fail --location --retry 2 --max-time 180 \
+            -o "$RUNNER_TEMP/wave-verified-tools/filmcraft.tar.gz" \
+            https://github.com/storytold/filmcraft/releases/download/v0.4.0/filmcraft-0.4.0-linux-x86_64.tar.gz
+          printf '%s  %s\n' \
+            '71810719903378cdab32a1fe328f23c874d38cd3d833abb19c6263dd2bad218c' "$RUNNER_TEMP/wave-verified-tools/effectcraft.tar.gz" \
+            '841790ff6649f0d49daa4a8ade1cb18d948e5ca43d00771046663e06c8d8ce83' "$RUNNER_TEMP/wave-verified-tools/filmcraft.tar.gz" | sha256sum --check -
+
+      - name: Extract only two bounded release CLI executables
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/wave-verified-tools" <<'PY'
+          import hashlib
+          from pathlib import Path,PurePosixPath
+          import sys,tarfile
+          dest=Path(sys.argv[1])
+          for name in ("effectcraft","filmcraft"):
+              archive=dest/(name+".tar.gz")
+              with tarfile.open(archive,"r:gz") as tar:
+                  members=tar.getmembers()
+                  if len(members)>320 or sum(x.size for x in members)>500_000_000:
+                      raise RuntimeError("UPSTREAM_RESOURCE_LIMIT")
+                  for entry in members:
+                      p=PurePosixPath(entry.name)
+                      if p.is_absolute() or ".." in p.parts or not (entry.isfile() or entry.isdir()):
+                          raise RuntimeError("UNSAFE_RELEASE_ENTRY")
+                  choices=[x for x in members if x.isfile() and PurePosixPath(x.name).name==name+"-cli"]
+                  if len(choices)!=1 or not 50_000<choices[0].size<160_000_000:
+                      raise RuntimeError("REAL_CLI_MISSING_OR_AMBIGUOUS:"+name)
+                  executable=dest/(name+"-cli")
+                  with tar.extractfile(choices[0]) as input_file,executable.open("wb") as output:
+                      while part:=input_file.read(1<<20):
+                          output.write(part)
+                  executable.chmod(0o500)
+                  binary_sha=hashlib.sha256(executable.read_bytes()).hexdigest()
+                  (dest/(name+".sha256")).write_text(binary_sha+"\n")
+                  print("HAZEWAVE_VERIFIED_BINARY="+name+":"+binary_sha)
+          PY
+
+      - name: Execute authentic EffectCraft and FilmCraft offline in sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/wave-effectfilm-lab"
+          effect="$RUNNER_TEMP/wave-verified-tools/effectcraft-cli"
+          film="$RUNNER_TEMP/wave-verified-tools/filmcraft-cli"
+          effect_sha="$(cat "$RUNNER_TEMP/wave-verified-tools/effectcraft.sha256")"
+          film_sha="$(cat "$RUNNER_TEMP/wave-verified-tools/filmcraft.sha256")"
+          docker run --rm --network none --read-only \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --pids-limit 180 --cpus 2 --memory 3g \
+            --user "$(id -u):$(id -g)" \
+            --tmpfs /tmp:rw,nosuid,nodev,size=256m \
+            -v "$GITHUB_WORKSPACE:/src:ro" \
+            -v "$effect:/tools/effectcraft-cli:ro" \
+            -v "$film:/tools/filmcraft-cli:ro" \
+            -v "$RUNNER_TEMP/wave-effectfilm-lab:/work:rw" \
+            python:3.12-slim-bookworm \
+            python3 /src/apps/hazewave-site/experiments/travessia-v4/artcraft_portal_pipeline.py build \
+              --out /work/v7-portal --effect /tools/effectcraft-cli \
+              --film /tools/filmcraft-cli \
+              --effect-sha "$effect_sha" --film-sha "$film_sha"
+          python3 apps/hazewave-site/experiments/travessia-v4/artcraft_portal_pipeline.py verify \
+            --out "$RUNNER_TEMP/wave-effectfilm-lab/v7-portal"
+          echo "HAZEWAVE_EFFECT_FILM_SITE_ASSETS=VERIFIED_PRIVATE_LAB_ONLY" >> "$GITHUB_STEP_SUMMARY"
+          echo "PRODUCTION_PUBLISHED=FALSE" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Archive private candidate FX with original film proof
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave-v7-effectcraft-filmcraft-real-portal-${{ github.run_id }}
+          path: ${{ runner.temp }}/wave-effectfilm-lab/v7-portal
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 6
