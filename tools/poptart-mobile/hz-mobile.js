@@ -326,8 +326,13 @@
       D.documentElement.classList.toggle('hz-mobile-active', e.matches);
       if (!e.matches) D.documentElement.classList.remove('hz-mobile-tools');
     });
-    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost'))
-      navigator.serviceWorker.register('./hz-sw.js', { scope: './' }).catch(() => {});
+    // Treat the browser's own trust decision as authoritative: secure
+    // loopback URLs (127.0.0.1/::1) support Service Workers even over HTTP.
+    // Do not request offline caching on untrusted origins.
+    if ('serviceWorker' in navigator && W.isSecureContext) {
+      navigator.serviceWorker.register('./hz-sw.js', { scope: './' })
+        .catch(error => console.warn('HAZE_OFFLINE_SERVICE_WORKER_FAILED', error));
+    }
   }
   if (D.readyState === 'loading') D.addEventListener('DOMContentLoaded', start, { once: true });
   else start();

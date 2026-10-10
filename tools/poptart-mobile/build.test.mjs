@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {dirname,join} from 'node:path';
 import {injectMobile,precacheEntries,png,UPSTREAM_SHA} from './build.mjs';
 const fixture='<html><head></head><body><textarea id="editor"></textarea><button id="playBtn"></button></body></html>';
 test('mobile injection is idempotent and preserves the audio editor',()=>{
@@ -35,3 +38,10 @@ test('PWA icons are real PNG images',()=>{
   }
 });
 test('upstream pin exact',()=>assert.match(UPSTREAM_SHA,/^[0-9a-f]{40}$/));
+
+test('offline service worker trusts browser secure contexts including 127.0.0.1',()=>{
+  const mobile=readFileSync(join(dirname(fileURLToPath(import.meta.url)),'hz-mobile.js'),'utf8');
+  assert.match(mobile,/serviceWorker' in navigator && W\.isSecureContext/);
+  assert.doesNotMatch(mobile,/location\.hostname === 'localhost'/);
+  assert.match(mobile,/HAZE_OFFLINE_SERVICE_WORKER_FAILED/);
+});
