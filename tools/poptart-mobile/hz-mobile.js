@@ -9,13 +9,27 @@
     { id: 'kick', label: 'Kick', sample: 0, defaults: [0, 4, 8, 12] },
     { id: 'snare', label: 'Snare', sample: 1, defaults: [4, 12] },
     { id: 'hat', label: 'Hat', sample: 4, defaults: [0, 2, 4, 6, 8, 10, 12, 14] },
+    { id: 'rim', label: 'Rim', sample: 2, defaults: [] },
+    { id: 'clap', label: 'Clap', sample: 3, defaults: [] },
+    { id: 'openhat', label: 'Hat aberto', sample: 5, defaults: [] },
+    { id: 'tomlo', label: 'Tom grave', sample: 6, defaults: [] },
+    { id: 'tomhi', label: 'Tom agudo', sample: 7, defaults: [] },
   ]);
   const KEY = 'hazewave.poptart.mobile.steps.v1';
   const NOTE_KEY = 'hazewave.poptart.mobile.notes.v1'; // legacy scale degrees
   const MIDI_KEY = 'hazewave.poptart.mobile.midi.v2';
   const ROOTS = Object.freeze(['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']);
   const MODES = Object.freeze({ major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10] });
-  const SYNTHS = Object.freeze(['Wavetable', 'FM', 'Plaits', 'Braids', 'Rings', 'Elements']);
+  const SYNTHS = Object.freeze(['Wavetable', 'FM', 'Plaits', 'Braids', 'Rings', 'Elements', 'Granular', 'Sampler']);
+  const SOUND_VARIANTS = Object.freeze({"Wavetable":{"parameter":"Osc 1 Table","options":["Basic","Harmonics","Odd","PWM","Sync","Fold","FM","Organ","Vocal"]},"Plaits":{"parameter":"Engine","options":["VA VCF","Phase Distortion","FM 6-op A","FM 6-op B","FM 6-op C","Wave Terrain","String Machine","Chiptune","Virtual Analog","Waveshaping","FM","Grain","Additive","Wavetable","Chord","Speech","Swarm","Noise","Particle","String","Modal","Bass Drum","Snare Drum","Hi-Hat"]},"Braids":{"parameter":"Shape","options":["CSaw","Morph","Saw Square","Sine Triangle","Buzz","Square Sub","Saw Sub","Square Sync","Saw Sync","Triple Saw","Triple Square","Triple Triangle","Triple Sine","Triple Ring Mod","Saw Swarm","Saw Comb","Toy","Filter LP","Filter Peak","Filter BP","Filter HP","VOSIM","Vowel","Vowel FOF","Harmonics","FM","Feedback FM","Chaotic FM","Plucked","Bowed","Blown","Fluted","Struck Bell","Struck Drum","Kick","Cymbal","Snare","Wavetables","Wave Map","Wave Line","Wave Paraphonic","Filtered Noise","Twin Peaks Noise","Clocked Noise","Granular Cloud","Particle Noise","Digital Modulation","Question Mark"]},"Rings":{"parameter":"Model","options":["Modal","Sympathetic String","String","FM Voice","Quantised Sympathetic","String and Reverb"]}});
+  const FX_CHOICES = Object.freeze(['Nenhum','Reverb','Delay','Chorus','Phaser','Flanger','Distort','Overdrive','Crush','GrainEcho','Stutter','CloudSeed','Galactic','Clouds','Shift','FreqShift','EQ','Compressor','Multiband','Limiter','Ducker','Convolver']);
+  const TIMBRE_PARAMS = Object.freeze({Wavetable:['Osc 1 Position','Osc 1 Warp'],FM:['Op 2 Level','Mod 2 to 1'],Plaits:['Timbre','Morph'],Braids:['Timbre','Color'],Rings:['Brightness','Damping'],Elements:['Brightness','Space'],Granular:['Spray','Reverse']});
+  const LOCAL_PACKS = Object.freeze([{"id":"pt_keys","title":"Poptart Keys","kind":"melodic","files":[{"name":"Pluck","number":0,"license":"CC0-1.0"},{"name":"Bell","number":1,"license":"CC0-1.0"},{"name":"Bass","number":2,"license":"CC0-1.0"},{"name":"Pad","number":3,"license":"CC0-1.0"},{"name":"Stab","number":4,"license":"CC0-1.0"}]},{"id":"pt_kit","title":"Poptart Kit","kind":"drums","files":[{"name":"Kick","number":0,"license":"CC0-1.0"},{"name":"Snare","number":1,"license":"CC0-1.0"},{"name":"Rim","number":2,"license":"CC0-1.0"},{"name":"Clap","number":3,"license":"CC0-1.0"},{"name":"Hat","number":4,"license":"CC0-1.0"},{"name":"Hat aberto","number":5,"license":"CC0-1.0"},{"name":"Tom grave","number":6,"license":"CC0-1.0"},{"name":"Tom agudo","number":7,"license":"CC0-1.0"}]}]);
+  let remotePacks = [];
+  const soundPacks = kind => [...LOCAL_PACKS.filter(p=>p.kind===kind),...remotePacks.filter(p=>p.kind===kind)];
+  const packOf = (id,kind) => soundPacks(kind).find(p=>p.id===id);
+  const audioFiles = (id,kind) => packOf(id,kind)?.files ?? [];
+
   const DRUM_SAMPLES = Object.freeze(['Kick', 'Snare', 'Rim', 'Clap', 'Hat', 'Hat aberto', 'Tom grave', 'Tom agudo']);
   const NOTE_NAMES = Object.freeze(['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']);
   const noteName = midi => NOTE_NAMES[midi % 12].toLowerCase() + (Math.floor(midi / 12) - 2);
@@ -37,10 +51,26 @@
     mode: Object.hasOwn(MODES, storedMix?.mode) ? storedMix.mode : 'minor',
     octave: Number.isInteger(storedMix?.octave) ? limits(storedMix.octave, 2, 5, 3) : 3,
     synth: SYNTHS.includes(storedMix?.synth) ? storedMix.synth : 'Wavetable',
+    fx: FX_CHOICES.includes(storedMix?.fx) ? storedMix.fx : 'Nenhum',
+    samplePack: 'pt_keys',
+    sampleIndex: 0,
+    drumPacks: KIT.map((lane, i) => typeof storedMix?.drumPacks?.[i] === 'string'
+      && /^pt_[a-z0-9_]+$/.test(storedMix.drumPacks[i])
+      ? storedMix.drumPacks[i] : 'pt_kit'),
     kit: KIT.map((lane, i) => {
       const n = storedMix?.kit?.[i];
-      return Number.isInteger(n) && n >= 0 && n <= 7 ? n : lane.sample;
+      return Number.isInteger(n) && n >= 0 && n <= 4999 ? n : lane.sample;
     }),
+    soundVariant: storedMix?.soundVariant && typeof storedMix.soundVariant === 'object'
+      ? {...storedMix.soundVariant} : {},
+    tones: storedMix?.tones && typeof storedMix.tones === 'object'
+      ? {...storedMix.tones} : {},
+  };
+  // Sound picks are kept as data, never executed as JavaScript.
+  if (typeof storedMix?.samplePack === 'string' && /^pt_[a-z0-9_]+$/.test(storedMix.samplePack))
+    mix.samplePack = storedMix.samplePack;
+  if (Number.isInteger(storedMix?.sampleIndex) && storedMix.sampleIndex >= 0 && storedMix.sampleIndex <= 4999)
+    mix.sampleIndex = storedMix.sampleIndex;
   };
   const defaultDegrees = [0, -1, 2, -1, 3, -1, 4, -1, 5, -1, 4, -1, 2, -1, 1, -1];
   // Import the existing user's V1 steps without shifting their audible pitches.
@@ -90,16 +120,35 @@
     };
   }
   function generatePattern() {
+    const notes = noteSteps.map(n => n < 0 ? '~' : noteName(n)).join(' ');
+    const isSample = mix.synth === 'Sampler';
+    const isGrain = mix.synth === 'Granular';
+    const sample = mix.samplePack + ':' + mix.sampleIndex;
+    let melody = isSample ? 's("' + sample + '").note("' + notes + '")'
+      : 'note("' + notes + '").synth("' + mix.synth + '")';
+    if (isGrain) melody += '.param("Sample", "' + sample + '")';
+    const v = SOUND_VARIANTS[mix.synth];
+    const option = v && v.options.includes(mix.soundVariant[mix.synth]) ? mix.soundVariant[mix.synth] : null;
+    if (option) melody += '.param("' + v.parameter + '", "' + option + '")';
+    const controls = TIMBRE_PARAMS[mix.synth] || [];
+    const tone = mix.tones[mix.synth];
+    if (tone && typeof tone === 'object') for (let n = 0; n < controls.length; n++) {
+      const value = tone[n];
+      if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1)
+        melody += '.param("' + controls[n] + '", ' + value.toFixed(2) + ')';
+    }
+    melody += '.fx("Filter").param("Cutoff", ' + mix.cutoff.toFixed(2) + ')';
+    if (mix.fx !== 'Nenhum') melody += '.fx("' + mix.fx + '")';
+    melody += '.postgain(' + mix.gain.toFixed(2) + ')';
     return [MARK_A,
-      '// Padrões e notas MIDI cromáticas produzidos pelo sequenciador Hazewave.',
+      '// Catálogo oficial Poptart: sintetizadores, presets e samples licenciados.',
       'setbpm(' + mix.bpm + ')',
       ...KIT.map((lane, i) => {
-        const notes = state[lane.id].map(v => v ? 'pt_kit:' + mix.kit[i] : '~');
-        return 'hz_' + lane.id + ': s("' + notes.join(' ') + '").postgain(0.45)';
+        const sample = mix.drumPacks[i] + ':' + mix.kit[i];
+        const steps = state[lane.id].map(v => v ? sample : '~');
+        return 'hz_' + lane.id + ': s("' + steps.join(' ') + '").postgain(0.42)';
       }),
-      'hz_melody: note("' + noteSteps.map(n => n < 0 ? '~' : noteName(n)).join(' ') +
-        '").synth("' + mix.synth + '").fx("Filter").param("Cutoff", ' +
-        mix.cutoff.toFixed(2) + ').postgain(' + mix.gain.toFixed(2) + ')',
+      'hz_melody: ' + melody,
       MARK_B].join('\n');
   }
   function mergeManagedBlock(source, managed) {
