@@ -40,14 +40,21 @@ window.__HAZEWAVE_TRAVERSAL_V4=state;
  // scroll state, and optional low-detail compositor. Original Hazewave code.
  const chapterStops=Object.freeze([0,.25,.47,.70,.92]);
  const chapterLinks=[...doc.querySelectorAll('[data-world-stop]')];
- let userRequestedLite=false,autoLite=false,frameBudgetStreak=0,lastFrameAt=NaN;
+ let userRequestedLite=false,userForcedFull=false,autoLite=false,frameBudgetStreak=0,lastFrameAt=NaN;
  function updateQuality(){
-  const lite=userRequestedLite||autoLite;
+  // Never trap the owner in automatic quality degradation. An explicit
+  // request to enable full effects overrides the slow-frame quality guard.
+  const lite=userForcedFull?false:(userRequestedLite||autoLite);
   vars.stage.dataset.quality=lite?'lite':'full';
   const button=el('lightweight-mode');
-  if(button){button.setAttribute('aria-pressed',String(userRequestedLite));button.textContent=userRequestedLite?'EFEITOS':'LEVE';}
+  if(button){
+   button.setAttribute('aria-pressed',String(lite));
+   button.setAttribute('aria-label',lite?'Ativar todos os efeitos visuais':'Ativar modo leve de efeitos visuais');
+   button.textContent=lite?'EFEITOS':'LEVE';
+  }
   state.visualQualityTier=lite?'lite':'full';
   state.qualityDowngradeAutomatic=autoLite;
+  state.qualityUserOverride=userForcedFull?'FULL':userRequestedLite?'LITE':'AUTO';
   if(Number.isFinite(state.progress))renderArtcraftEffect(state.progress);
   // Geometry, original art, and interaction authority NEVER change with quality.
  }
@@ -74,7 +81,14 @@ window.__HAZEWAVE_TRAVERSAL_V4=state;
    if(Number.isInteger(index))button.addEventListener('click',()=>gotoAct(index));
   }
   const light=el('lightweight-mode');
-  if(light)light.addEventListener('click',()=>{userRequestedLite=!userRequestedLite;updateQuality();});
+  if(light)light.addEventListener('click',()=>{
+   if(vars.stage.dataset.quality==='lite'){
+    userForcedFull=true;userRequestedLite=false;
+   }else{
+    userRequestedLite=true;userForcedFull=false;
+   }
+   updateQuality();
+  });
   updateQuality();
  }
  state.researchReferenceTechniques=['nasa-prospect-direction-reversible-chapter-nav','ponpon-mania-layered-illustration-camera','whoisguilty-motion-graphic-compositor'];
@@ -86,7 +100,7 @@ window.__HAZEWAVE_TRAVERSAL_V4=state;
  // NOT by the browser (which never invokes untrusted native applications).
  const fxCanvas=el('effectcraft-aperture');
  const fxCtx=fxCanvas?.getContext('2d',{alpha:true}) || null;
- let fxDecoded=[],fxFrameIndex=-1,fxReadiness='NOT_ATTACHED';
+ let fxDecoded=[],fxFrameIndex=-1,fxBlend=-1,fxReadiness='NOT_ATTACHED';
  const fxSpec=window.__hazewaveEffectArt;
  async function prepareArtcraftEffect(){
   if(!fxCtx||!fxSpec){state.effectcraftStatus='NOT_ATTACHED';return}
@@ -123,17 +137,30 @@ window.__HAZEWAVE_TRAVERSAL_V4=state;
  function renderArtcraftEffect(p){
   const t=smooth(.45,.79,p);
   const alpha=band(.45,.61,.75,.87,p);
-  const idx=Math.min(7,Math.max(0,Math.floor(t*8)));
+  // Blend neighboring verified EffectCraft frames so a tiny scroll movement
+  // cannot create an abrupt one-frame jump. Quantize only the blend weight
+  // to 1/32: bounded Canvas2D paints on mobile while geometry stays continuous.
+  const position=t*7;
+  const idx=Math.min(7,Math.floor(position));
+  const blend=idx===7?0:Math.round((position-idx)*32)/32;
   const lite=vars.stage.dataset.quality==='lite' ||
      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(!fxCanvas){state.effectcraftFrame=-1;return}
   fxCanvas.style.opacity=(fxReadiness==='READY'&&!lite?alpha*.58:0).toFixed(4);
   fxCanvas.style.transform='translate(-50%,-50%) scale('+(0.48+0.94*t).toFixed(4)+') rotate('+(26*t).toFixed(2)+'deg)';
-  if(fxReadiness==='READY'&&!lite&&idx!==fxFrameIndex){
+  if(fxReadiness==='READY'&&!lite&&(idx!==fxFrameIndex||blend!==fxBlend)){
    fxCtx.clearRect(0,0,420,820);
+   fxCtx.globalAlpha=1-blend;
    fxCtx.drawImage(fxDecoded[idx],0,0,420,820);
-   fxFrameIndex=idx;
+   if(blend>0&&idx<7){
+    fxCtx.globalAlpha=blend;
+    fxCtx.drawImage(fxDecoded[idx+1],0,0,420,820);
+   }
+   fxCtx.globalAlpha=1;
+   fxFrameIndex=idx;fxBlend=blend;
   }
+  state.effectcraftBlend=fxReadiness==='READY'&&!lite?blend:0;
+  state.effectcraftInterpolation=fxReadiness==='READY'?'ADJACENT_FRAMES_LINEAR_32_STEPS':'UNAVAILABLE';
   state.effectcraftFrame=fxReadiness==='READY'&&!lite?idx:-1;
   state.effectcraftOpacity=parseFloat(fxCanvas.style.opacity);
   state.effectcraftSuppressed=Boolean(lite);
