@@ -395,6 +395,7 @@ test("V9 feathered portal avoids a hard bright core, double-exposed worlds, and 
  expect(mid.feather).toBeGreaterThan(early.feather);
  expect(mid.ring).toBeLessThan(.10);
  expect(mid.caption).toBeLessThan(.05);
+ await sample(.64); // Read FX optics at peak portal, not after hub arrival at .86.
  const optic=await page.evaluate(()=>({
    machine:Number((document.getElementById("machine") as HTMLElement).style.opacity),
    fx:Number((document.getElementById("effectcraft-aperture") as HTMLElement).style.opacity),
