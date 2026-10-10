@@ -296,6 +296,97 @@
     for (let i = 0; i < noteSteps.length; i++)
       if (noteSteps[i] >= 0) noteSteps[i] += semitones;
   }
+  // This is a pinned on-disk catalog, not a network search in a remote repository.
+  // Poptart's own engine fetches external sound bytes only when a pack is used.
+  function optionsFor(select,values,selected) {
+    if (!select) return;
+    select.replaceChildren();
+    for (const [value,label] of values) {
+      const option = D.createElement('option');
+      option.value = String(value); option.textContent = String(label); select.append(option);
+    }
+    select.value = String(selected);
+  }
+  function soundChoices(pack,kind) {
+    const files = audioFiles(pack,kind);
+    return files.map((f,i)=>[i, f.name + ' · ' + String(i + 1) + '/' + files.length]);
+  }
+  function packChoices(kind) {
+    return soundPacks(kind).map(p=>[p.id,p.title+' ('+p.files.length+')'+
+      (p.id==='pt_kit'||p.id==='pt_keys'?' · local':' · externo')]);
+  }
+  function syncSoundUI() {
+    const synth = D.getElementById('hz-synth');
+    if (!synth) return;
+    const variantRow = D.getElementById('hz-variant-row');
+    const sampleRows = D.getElementById('hz-sampler-controls');
+    const timbreRows = D.getElementById('hz-character-controls');
+    const variants = SOUND_VARIANTS[mix.synth];
+    if (variantRow) variantRow.hidden = !variants;
+    if (variants) {
+      optionsFor(D.getElementById('hz-variant'),
+        [['','Padrão original'],...variants.options.map(t=>[t,t])],
+        variants.options.includes(mix.soundVariant[mix.synth])?mix.soundVariant[mix.synth]:'');
+    }
+    if (sampleRows) sampleRows.hidden = mix.synth !== 'Sampler' && mix.synth !== 'Granular';
+    const pack = packOf(mix.samplePack,'melodic');
+    if (!pack && soundPacks('melodic').length) {
+      mix.samplePack = 'pt_keys'; mix.sampleIndex = 0;
+    }
+    optionsFor(D.getElementById('hz-sample-pack'),packChoices('melodic'),mix.samplePack);
+    const samples = soundChoices(mix.samplePack,'melodic');
+    if (mix.sampleIndex >= samples.length) mix.sampleIndex = 0;
+    optionsFor(D.getElementById('hz-sample-file'),samples,mix.sampleIndex);
+    if (timbreRows) timbreRows.hidden = !TIMBRE_PARAMS[mix.synth];
+    const names = TIMBRE_PARAMS[mix.synth] || [];
+    const settings = mix.tones[mix.synth] || {};
+    names.forEach((name,i)=>{
+      const label=D.getElementById('hz-tone-label-'+i);
+      const slider=D.getElementById('hz-tone-'+i);
+      if (label) label.firstChild.textContent=name;
+      if (slider) slider.value=typeof settings[i]==='number'?settings[i]:0.5;
+    });
+    for (let i=0; i<KIT.length; i++) {
+      const pack=packOf(mix.drumPacks[i],'drums');
+      if (!pack && soundPacks('drums').length) {
+        mix.drumPacks[i]='pt_kit';mix.kit[i]=KIT[i].sample;
+      }
+      optionsFor(D.getElementById('hz-pack-'+i),packChoices('drums'),mix.drumPacks[i]);
+      const sounds=soundChoices(mix.drumPacks[i],'drums');
+      if (mix.kit[i]>=sounds.length) mix.kit[i]=0;
+      optionsFor(D.getElementById('hz-kit-'+i),sounds,mix.kit[i]);
+    }
+    const count = D.getElementById('hz-catalog-summary');
+    if (count) count.textContent='Biblioteca oficial: 13 locais + '+remotePacks.reduce((n,p)=>n+p.files.length,0)+
+      ' externos catalogados. Os externos precisam de rede no primeiro uso.';
+  }
+  async function loadCatalog() {
+    try {
+      const response=await W.fetch('./hz-sound-catalog.json',{cache:'force-cache'});
+      if (!response.ok) throw new Error('catálogo HTTP '+response.status);
+      const data=await response.json();
+      const expected='6e19b90a4f07a1c863fc1272a41800934d7c6530';
+      if (data.schema!=='HazewavePoptartSoundCatalog/v1' ||
+        data.origin_commit!==expected || data.origin_files!==182 || data.local_files!==13 ||
+        !Array.isArray(data.packs) || data.packs.length!==15)
+        throw new Error('identidade ou contagem de catálogo divergente');
+      const packs=data.packs.map(p=>{
+        if (!/^pt_[a-z0-9_]+$/.test(p.id) || !['drums','melodic'].includes(p.kind) ||
+          !Array.isArray(p.files) || !p.files.length ||
+          !p.files.every((f,i)=> f.number===i && f.license==='CC0-1.0' &&
+             typeof f.name==='string' && typeof f.file==='string' &&
+             /^[a-z0-9_.-]+$/i.test(f.file)))
+          throw new Error('catálogo contém pack inválido');
+        return p;
+      });
+      if (packs.reduce((n,p)=>n+p.files.length,0)!==182)
+        throw new Error('contagem de arquivos divergente');
+      remotePacks=packs;
+      syncSoundUI();saveSteps();
+    } catch (error) {
+      report('Biblioteca remota indisponível: '+error.message+'. 13 samples locais permanecem.');
+    }
+  }
   function show(panel) {
     const board = D.getElementById('hz-mobile-board');
     D.documentElement.classList.toggle('hz-mobile-tools', panel === 'tools');
@@ -391,9 +482,47 @@
     kitControls.id = 'hz-kit-controls';
     kitControls.className = 'hz-kit-controls';
     kitControls.hidden = true;
-    KIT.forEach((lane, i) => kitControls.append(makeSelect('hz-kit-' + i,
-      'Som ' + lane.label, DRUM_SAMPLES.map((name, n) => [n, name]), mix.kit[i])));
+    KIT.forEach((lane,i)=>{
+      kitControls.append(makeSelect('hz-pack-'+i,'Banco '+lane.label,
+        [['pt_kit','Poptart Kit · local']],mix.drumPacks[i]));
+      kitControls.append(makeSelect('hz-kit-'+i,'Som '+lane.label,
+        DRUM_SAMPLES.map((name,n)=>[n,name]),mix.kit[i]));
+    });
     board.append(kitControls);
+    const variantRow=D.createElement('div');
+    variantRow.id='hz-variant-row';
+    variantRow.className='hz-extra-sound-controls';
+    variantRow.append(makeSelect('hz-variant','Modelo / wavetable',
+      [['','Padrão original']],mix.soundVariant[mix.synth]||''));
+    tone.append(variantRow);
+    const sampleRows=D.createElement('div');
+    sampleRows.id='hz-sampler-controls';
+    sampleRows.className='hz-extra-sound-controls';
+    sampleRows.append(
+      makeSelect('hz-sample-pack','Banco melódico',[['pt_keys','Poptart Keys · local']],mix.samplePack),
+      makeSelect('hz-sample-file','Sample',[['0','Pluck']],mix.sampleIndex));
+    tone.append(sampleRows);
+    const timbreRows=D.createElement('div');
+    timbreRows.id='hz-character-controls';
+    timbreRows.className='hz-extra-sound-controls';
+    for(let i=0;i<2;i++){
+      const lab=D.createElement('label');
+      lab.id='hz-tone-label-'+i;
+      lab.append(D.createTextNode('Timbre '+(i+1)));
+      const slider=D.createElement('input');
+      slider.id='hz-tone-'+i;
+      slider.type='range';slider.min='0';slider.max='1';slider.step='0.05';slider.value='0.5';
+      lab.append(slider);timbreRows.append(lab);
+    }
+    tone.append(timbreRows);
+    const extra=makeSelect('hz-fx','Efeito adicional',
+      FX_CHOICES.map(name=>[name,name]),mix.fx);
+    tone.append(extra);
+    const summary=D.createElement('p');
+    summary.id='hz-catalog-summary';
+    summary.setAttribute('role','status');
+    tone.append(summary);
+    syncSoundUI();
     const controls = D.createElement('div');
     controls.className = 'hz-music-controls';
     controls.innerHTML = '<label>BPM <input id="hz-bpm" type="number" min="60" max="200" step="1" value="' + mix.bpm + '"></label>' +
@@ -416,22 +545,55 @@
           mix.mode = input.value;
         else if (input.id === 'hz-synth' && SYNTHS.includes(input.value))
           mix.synth = input.value;
+        else if (input.id === 'hz-fx' && FX_CHOICES.includes(input.value))
+          mix.fx = input.value;
+        else if (input.id === 'hz-variant' &&
+          SOUND_VARIANTS[mix.synth]?.options.includes(input.value) || 
+          (input.id === 'hz-variant' && input.value === ''))
+          mix.soundVariant[mix.synth] = input.value;
+        else if (input.id === 'hz-sample-pack' && packOf(input.value,'melodic')) {
+          mix.samplePack=input.value;mix.sampleIndex=0;
+        } else if (input.id === 'hz-sample-file') {
+          const number=Number(input.value);
+          if (!Number.isInteger(number) || number<0 ||
+            number>=audioFiles(mix.samplePack,'melodic').length) return;
+          mix.sampleIndex=number;
+        }
         else return;
-        saveSteps(); refreshPitchGrid();
-        report('Notas e instrumento atualizados. Pressione Aplicar e ouvir.');
+        syncSoundUI();saveSteps(); refreshPitchGrid();
+        report('Timbre selecionado. Pressione Aplicar e ouvir; confirme o som real no aparelho.');
       } catch (error) {
         input.value = input.id === 'hz-key' ? mix.root : String(mix.octave);
         report(error.message);
       }
     });
-    kitControls.addEventListener('change', event => {
-      const index = Number(event.target.id.replace('hz-kit-', ''));
-      const n = Number(event.target.value);
-      if (!Number.isInteger(index) || index < 0 || index >= KIT.length ||
-          !Number.isInteger(n) || n < 0 || n >= DRUM_SAMPLES.length) return;
-      mix.kit[index] = n;
+    tone.addEventListener('input',event=>{
+      if (!/^hz-tone-[01]$/.test(event.target.id)) return;
+      const index=Number(event.target.id.slice(-1));
+      const n=Number(event.target.value);
+      if (!TIMBRE_PARAMS[mix.synth] || !Number.isFinite(n) || n<0 || n>1) return;
+      if (!mix.tones[mix.synth] || typeof mix.tones[mix.synth]!=='object')
+        mix.tones[mix.synth]={};
+      mix.tones[mix.synth][index]=n;
       saveSteps();
-      report('Peça da bateria alterada. Pressione Aplicar e ouvir.');
+      report('Parâmetro do instrumento ajustado. Pressione Aplicar e ouvir.');
+    });
+    kitControls.addEventListener('change', event => {
+      const input=event.target;
+      const id=input.id;
+      if (/^hz-pack-[0-7]$/.test(id)) {
+        const i=Number(id.slice(-1));
+        if (!packOf(input.value,'drums')) return;
+        mix.drumPacks[i]=input.value;mix.kit[i]=0;
+      } else if (/^hz-kit-[0-7]$/.test(id)) {
+        const i=Number(id.slice(-1));
+        const n=Number(input.value);
+        if (!Number.isInteger(n) || n<0 ||
+          n>=audioFiles(mix.drumPacks[i],'drums').length) return;
+        mix.kit[i]=n;
+      } else return;
+      syncSoundUI();saveSteps();
+      report('Banco/peça alterado. Pressione Aplicar e ouvir; confirme o som real.');
     });
     controls.addEventListener('input', event => {
       const id = event.target.id;
@@ -503,6 +665,7 @@
     actions.append(importButton);
     refreshPitchGrid();
     D.documentElement.classList.add('hz-mobile-active');
+    loadCatalog();
   }
   function start() {
     if (isMobile()) createUI();
