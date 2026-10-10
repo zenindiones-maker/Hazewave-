@@ -9,7 +9,16 @@ const useDist = process.argv.includes("--dist");
 const base = useDist ? resolve(root, "dist") : resolve(root, "public");
 
 let failed = false;
-for (const asset of provenance.assets) {
+// The source retains historical originals intact; the production dist contains
+// only the approved Hazewave master artwork and sole Indionesbala artist.
+const allowedDistAssets = new Set([
+  "/media/hazewave-world.jpg",
+  "/media/artists/indionesbala.webp",
+]);
+if (useDist && !provenance.assets.some((asset) => !allowedDistAssets.has(asset.asset))) {
+  throw new Error("DIST_SCOPE_PROVENANCE_UNEXPECTED");
+}
+for (const asset of provenance.assets.filter((asset) => !useDist || allowedDistAssets.has(asset.asset))) {
   const rel = String(asset.asset).replace(/^\//, "");
   const buf = readFileSync(resolve(base, rel));
   const sha = createHash("sha256").update(buf).digest("hex");
