@@ -20,7 +20,7 @@ For CI/auditors, run the exact same path without leaving the server open:
 bash scripts/run_hazewave_site.sh verify
 ```
 
-The [WAVE Site CI](../../.github/workflows/wave-site-ci.yml) runs `verify` in a fresh GitHub Actions checkout and preserves `dist/` plus browser screenshots. Source media provenance remains versioned; the public build removes the other four historical artist images. The image verification uses all six preserved originals **for source provenance**, but only the approved HAZEWAVE and Indionesbala images **for the distribution**.
+The [WAVE Site CI](../../.github/workflows/wave-site-ci.yml) runs `verify` in a fresh GitHub Actions checkout. It first exercises all historical prototype regressions in a temporary QA build, **then rebuilds a strict five-file production distribution** and runs the real site E2E again against that clean output. Only the second `dist/` is preserved; it has no experimental routes, prototype vendor chunks, or unauthorised artwork. Source media provenance remains versioned; the public build removes the other four historical artist images. The image verification uses all six preserved originals **for source provenance**, but only the approved HAZEWAVE and Indionesbala images **for the distribution**.
 
 ## Scope and limits
 

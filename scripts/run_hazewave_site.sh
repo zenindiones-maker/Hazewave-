@@ -45,18 +45,31 @@ printf 'HAZEWAVE_SITE_STAGE=SOURCE_AND_SCHEMA\n'
 bash -n scripts/a15-runtime-proof.sh
 node --check experiments/travessia-v4/travessia.js
 npx tsc --noEmit
-printf 'HAZEWAVE_SITE_STAGE=STATIC_BUILD\n'
-npm run build
+printf 'HAZEWAVE_SITE_STAGE=ISOLATED_EXPERIMENT_QA_BUILD\n'
+HAZEWAVE_TEST_EXPERIMENTS=1 npm run build
 node scripts/verify-owner-art.mjs --dist
 node scripts/check-bundle-budget.mjs
 
-printf 'HAZEWAVE_SITE_STAGE=CHROMIUM_E2E\n'
+printf 'HAZEWAVE_SITE_STAGE=FULL_CHROMIUM_E2E\n'
 if [[ "${GITHUB_ACTIONS:-false}" == "true" ]]; then
   npx playwright install --with-deps chromium
 else
   npx playwright install chromium
 fi
 CI=true npm test -- --workers=1 --project=chromium-desktop --project=chromium-mobile
+printf 'HAZEWAVE_SITE_EXPERIMENTAL_QA=PASS\n'
+
+# This second, ordinary Astro build is the ONLY deliverable `dist/`.
+# Experiments are proven above but excluded from this distribution.
+printf 'HAZEWAVE_SITE_STAGE=APPROVED_PRODUCTION_BUILD\n'
+npm run build
+node scripts/verify-owner-art.mjs --dist
+node scripts/check-bundle-budget.mjs
+test ! -e dist/living-universe-p0
+test ! -e dist/experimental
+printf 'HAZEWAVE_SITE_STAGE=FINAL_DIST_CHROMIUM_SMOKE\n'
+CI=true npm test -- tests/cosmic-journey.spec.ts --workers=1 --project=chromium-desktop --project=chromium-mobile
+printf 'HAZEWAVE_SITE_PRODUCTION_SCOPE=PASS\n'
 printf 'HAZEWAVE_SITE_E2E=PASS\n'
 
 if [[ "$MODE" == "serve" ]]; then
