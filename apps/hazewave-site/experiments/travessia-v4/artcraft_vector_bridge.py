@@ -16,7 +16,7 @@ import subprocess
 import sys
 
 ENGINE_DIR = Path(__file__).resolve().parent
-APP_ROOT = ENGINE_DIR.parent.parent
+REPO_ROOT = ENGINE_DIR.parents[3]
 SVG_PATH = re.compile(r'<path\s+id="world-signal-path"\s+d="([^"]+)"')
 SAFE_PATH = re.compile(r"^[MLHVCSQTAZmlhvcsqtaz0-9.,+\-\sEe]+$")
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
@@ -33,7 +33,7 @@ def digest(data: bytes) -> str:
 
 def _private_output(dest: Path) -> Path:
     target = dest.expanduser().resolve(strict=False)
-    if target.exists() or target.is_relative_to(APP_ROOT):
+    if target.exists() or target.is_relative_to(REPO_ROOT):
         raise ValueError("OUTPUT_MUST_BE_FRESH_OUTSIDE_HAZEWAVE_REPOSITORY")
     return target
 
@@ -101,7 +101,7 @@ def validate_png(path: Path) -> str:
 
 def render(output: Path, cli: Path, pinned_binary_hash: str) -> dict:
     root = output.resolve(strict=True)
-    if root.is_symlink() or root.is_relative_to(APP_ROOT):
+    if root.is_symlink() or root.is_relative_to(REPO_ROOT):
         raise ValueError("PRIVATE_OUTPUT_LOCATION_DENIED")
     manifest_path = root / "proof.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
