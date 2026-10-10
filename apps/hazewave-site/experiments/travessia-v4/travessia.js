@@ -17,6 +17,7 @@ const chapters=[
  ['05 / 05','Outro mundo.','A interferência alcança o hub Indionesbala. O universo responde.']
 ];
 const vars={section:el('journey'),stage:el('stage'),stars:el('stars'),machine:el('machine'),
+wallLeft:el('portal-wall-left'),wallRight:el('portal-wall-right'),spine:el('portal-spine'),
 left:el('chassis-left'),right:el('chassis-right'),parts:el('parts'),
 fogBack:el('fog-back'),fogLeft:el('fog-left'),fogRight:el('fog-right'),
 city:el('city-scene'),cityFlight:el('city-flight'),hub:el('hub-scene'),
@@ -222,17 +223,19 @@ function updatePose(p){
  for(const {spec,piece,on} of pieces){
   // The wave is physically the single causal source for mechanical response.
   const energy=smooth(Math.max(.19,spec.activation*.72)-.035,Math.max(.19,spec.activation*.72)+.105,p);
+  const partHalf=spec.x<724?-1:1;
+  const carriedSplit=partHalf*split;
   if(spec.type==='pad'){
    const push=energy*(2.7+2.0*Math.sin(spec.activation*16));
-   const shift=rupture*12;piece.style.transform=`translate3d(${(rupture*(spec.x-724)*.030).toFixed(2)}px,${(-push-shift).toFixed(2)}px,${(22*energy).toFixed(2)}px)`;
+   const shift=rupture*12;piece.style.transform=`translate3d(${(carriedSplit+rupture*(spec.x-724)*.012).toFixed(2)}px,${(-push-shift).toFixed(2)}px,${(22*energy).toFixed(2)}px)`;
    if(on){on.style.transform=piece.style.transform;on.style.opacity=(energy*(.9+.06*Math.sin(spec.activation*30))).toFixed(4)}
    if(energy>.5)activePads++;
   }else if(spec.type==='knob'){
    const spin=(spec.x%2?1:-1)*energy*32;
-   piece.style.transform=`rotate(${spin.toFixed(3)}deg) translateZ(${energy*11}px)`;
+   piece.style.transform=`translate3d(${carriedSplit.toFixed(2)}px,0,${(energy*11).toFixed(2)}px) rotate(${spin.toFixed(3)}deg)`;
    if(energy>.5)activeKnobs++;
   }else{
-   const cone=1+energy*.075;piece.style.transform=`scale(${cone.toFixed(4)}) translateZ(${energy*13}px)`;
+   const cone=1+energy*.075;piece.style.transform=`translate3d(${carriedSplit.toFixed(2)}px,0,${(energy*13).toFixed(2)}px) scale(${cone.toFixed(4)})`;
    if(energy>.5)activeSpeakers++;
   }
  }
@@ -263,8 +266,20 @@ function updatePose(p){
  vars.cityFlight.style.transform=`translate3d(${(-W*.16*rupture).toFixed(2)}px,${(H*.22*rupture).toFixed(2)}px,120px) scale(${(1+.6*rupture).toFixed(3)})`;
  // A physical aperture in the fog, fully clipping the new illustrated region.
  const portalRadius=lerp(0,75,smooth(.43,.76,p));
+ const mechanicalOpen=smooth(.40,.69,p);
+ const wallVisible=band(.39,.50,.69,.82,p);
+ vars.wallLeft.style.transform=`perspective(720px) translate3d(${(-Math.min(W*.53,370)*mechanicalOpen).toFixed(2)}px,0,${(125*mechanicalOpen).toFixed(2)}px) rotateY(${(-70*mechanicalOpen).toFixed(2)}deg)`;
+ vars.wallRight.style.transform=`perspective(720px) translate3d(${(Math.min(W*.53,370)*mechanicalOpen).toFixed(2)}px,0,${(125*mechanicalOpen).toFixed(2)}px) rotateY(${(70*mechanicalOpen).toFixed(2)}deg)`;
+ vars.wallLeft.style.opacity=String(wallVisible*.88);
+ vars.wallRight.style.opacity=String(wallVisible*.88);
+ vars.spine.style.opacity=String(band(.47,.61,.72,.84,p)*.56);
+ vars.spine.style.transform=`translate(-50%,-50%) perspective(680px) translateZ(${(-180+210*mechanicalOpen).toFixed(2)}px) scale(${(.45+.75*mechanicalOpen).toFixed(3)})`;
  renderArtcraftEffect(p);
- vars.window.style.clipPath=`circle(${portalRadius.toFixed(3)}% at 50% 50%)`;
+ // Twelve corners are real occlusion edges; the scroll reverses the same mask.
+ const aperture=portalRadius*.85;
+ const verts=[[0,-1],[.28,-.89],[.69,-.72],[.88,-.36],[.99,.03],[.70,.55],[.24,.98],[-.19,.91],[-.67,.70],[-1,.20],[-.87,-.32],[-.45,-.88]];
+ vars.window.style.clipPath='polygon('+verts.map(([x,y])=>
+  (50+x*aperture).toFixed(3)+'% '+(50+y*aperture).toFixed(3)+'%').join(',')+')';
  // Keep the painterly portal open during the reveal, then hand off to
  // the INDEPENDENT hub illustration. Without the fade-out, the scaled
  // portal's enormous inset logo covers the final 360/393px mobile viewport.
@@ -296,7 +311,7 @@ function updatePose(p){
  vars.progress.style.width=(p*100).toFixed(2)+'%';vars.progressText.textContent=String(Math.round(p*100)).padStart(2,'0')+'%';
  Object.assign(state,{progress:p,phase,activePads,activeKnobs,activeSpeakers,
   traceDrawn:lineValue,worldWaveDrawn:signalValue,portalRadiusPct:portalRadius,
-  mechanicalSplitPx:split,cameraTravelPx:Math.hypot(camX,camY),machineScale:scale,
+  mechanicalSplitPx:split,partHalfSeparationPx:2*split,riftWallOpening:mechanicalOpen,riftWallOpacity:wallVisible*.88,cameraTravelPx:Math.hypot(camX,camY),machineScale:scale,
   fogSeparationPx:2*fogPush,cityOpacity:parseFloat(vars.city.style.opacity),hubOpacity:parseFloat(vars.hub.style.opacity),
   changedRegion:rupture>.45,secondIllustratedRegionVisible:arrival>.4});
  for(const [index,button] of chapterLinks.entries()){

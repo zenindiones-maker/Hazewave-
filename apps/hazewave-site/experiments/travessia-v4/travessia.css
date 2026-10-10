@@ -41,3 +41,15 @@
 .stage[data-fx-active="true"] #effectcraft-aperture{will-change:opacity,transform}
 .stage[data-quality="lite"] #effectcraft-aperture{display:none!important}
 @media(prefers-reduced-motion:reduce){#effectcraft-aperture{display:none!important}}
+
+
+/* V7R: physical split planes. Each child owns its perspective transform:
+   a clipped/transparent ancestor can flatten preserve-3d (CSS Transforms). */
+.portal-depth{position:absolute;z-index:7;left:50%;top:50%;width:min(79vw,600px);height:min(73svh,690px);transform:translate(-50%,-50%);perspective:720px;pointer-events:none}
+.portal-wall{position:absolute;top:9%;height:82%;width:48%;opacity:0;backface-visibility:hidden;transform-style:preserve-3d;will-change:auto;background:linear-gradient(100deg,#080717f2 0%,#24103eec 24%,#120825da 56%,#040410f0 100%);border:2px solid #c35af799;box-shadow:inset 0 0 18px #af5bf455,0 0 25px #0b031fe0}
+.portal-wall::before{content:"";position:absolute;inset:4% 6%;border-left:2px solid #eea56a99;border-right:1px solid #a34aff66;background:repeating-linear-gradient(180deg,transparent 0 27px,#e89cff28 29px,transparent 31px);pointer-events:none}
+.portal-wall-left{left:1%;clip-path:polygon(0 0,100% 7%,91% 27%,100% 50%,85% 75%,100% 93%,0 100%);transform-origin:0% 50%}
+.portal-wall-right{right:1%;clip-path:polygon(100% 0,0 7%,9% 27%,0 50%,15% 75%,0 93%,100% 100%);transform-origin:100% 50%}
+.portal-spine{position:absolute;left:50%;top:50%;width:48%;height:70%;border:2px solid #ffa86b55;clip-path:polygon(50% 0,100% 17%,100% 83%,50% 100%,0 83%,0 17%);opacity:0;pointer-events:none;transform:translate(-50%,-50%) perspective(600px) translateZ(-180px);box-shadow:inset 0 0 22px #bb3efa88}
+@media(max-width:450px){.portal-depth{width:85vw;height:66svh}.portal-wall{width:49%}}
+@media(prefers-reduced-motion:reduce){.portal-wall{will-change:auto}}

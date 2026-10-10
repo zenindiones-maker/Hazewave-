@@ -16,7 +16,7 @@ const piece=(type:"pad"|"knob"|"speaker",number:number) => ({
   id:type+"_"+String(number).padStart(2,"0"),type,
   file:type+"_"+String(number).padStart(2,"0")+".webp",
   energizedFile:type+"_"+String(number).padStart(2,"0")+"_on.webp",
-  x:200+number*40,y:150+number*45,width:40,height:40,
+  x:200+number*(type==='pad'?95:40),y:150+number*45,width:40,height:40,
   activation:0.2+number*0.035
 });
 const PIECES=[
@@ -291,4 +291,45 @@ test("V7 cinematic mobile framing prevents pad-only overzoom and ghost-logo hand
   expect(reverse).toBeCloseTo(midpoint,3);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
   expect(errors).toEqual([]);
+});
+
+
+test("V7R rig parts remain attached to opening chassis halves and reveal a jagged depth passage — SYNTHETIC IMAGES",async ({page})=>{
+ const errors:string[]=[];
+ page.on("pageerror",e=>errors.push(e.message));
+ await fixture(page,true);
+ const x=(value:string)=>{
+   const m=value.match(/translate3d\\((-?[0-9.]+)px/);
+   if(!m)throw Error("MISSING_TRANSLATION:"+value);
+   return Number(m[1]);
+ };
+ await scrollToExactProgress(page,.68);
+ await ensureLiteMode(page,false);
+ const opened=await page.evaluate(()=>{
+   const style=(selector:string)=>(document.querySelector(selector) as HTMLElement).style;
+   return {
+     chassisLeft:style("#chassis-left").transform,chassisRight:style("#chassis-right").transform,
+     padLeft:style('img[data-part-id="pad_00"]').transform,
+     padRight:style('img[data-part-id="pad_11"]').transform,
+     mask:style("#portal-window").clipPath,
+     wallLeft:style("#portal-wall-left").transform,wallRight:style("#portal-wall-right").transform,
+     opacity:Number(style("#portal-wall-left").opacity)
+   };
+ });
+ expect(Math.abs(x(opened.padLeft)-x(opened.chassisLeft))).toBeLessThan(12);
+ expect(Math.abs(x(opened.padRight)-x(opened.chassisRight))).toBeLessThan(12);
+ expect(opened.mask).toMatch(/^polygon\\(/);
+ expect(opened.wallLeft).toContain("rotateY(");
+ expect(opened.wallRight).toContain("rotateY(");
+ expect(opened.opacity).toBeGreaterThan(.5);
+ await scrollToExactProgress(page,0);
+ const reset=await page.evaluate(()=>({
+   left:(document.getElementById("portal-wall-left") as HTMLElement).style.opacity,
+   part:(document.querySelector('img[data-part-id="pad_00"]') as HTMLElement).style.transform,
+   mask:(document.getElementById("portal-window") as HTMLElement).style.clipPath
+ }));
+ expect(Number(reset.left)).toBe(0);
+ expect(x(reset.part)).toBeCloseTo(0,0);
+ expect(reset.mask).toMatch(/^polygon\\(/);
+ expect(errors).toEqual([]);
 });
