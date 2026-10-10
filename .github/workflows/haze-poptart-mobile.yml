@@ -59,7 +59,9 @@ jobs:
         working-directory: poptart
         run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Run upstream tests
+      - name: Run upstream tests (record cross-platform baseline)
+        id: upstream_tests
+        continue-on-error: true
         working-directory: poptart
         run: npm test
 
@@ -108,3 +110,11 @@ jobs:
           path: poptart/dist/web/
           if-no-files-found: error
           retention-days: 2
+
+      - name: Block promotion when upstream suite fails
+        if: steps.upstream_tests.outcome != 'success'
+        shell: bash
+        run: |
+          echo 'UPSTREAM_FULL_SUITE=FAIL'
+          echo 'Candidate artifact may be inspected; no promotion authorized.'
+          exit 1
