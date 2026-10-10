@@ -1,0 +1,101 @@
+# Standalone source acquisition. Exists only on an isolated research branch.
+# It does NOT alter Hazewave app source, use secrets, build, install, or run upstream code.
+name: ArtCraft seven upstream source archives
+on:
+  push:
+    branches:
+      - work/external-artcraft-seven-repos-download-v1
+    paths:
+      - .github/workflows/artcraft-seven-source-archives.yml
+permissions:
+  contents: read
+concurrency:
+  group: artcraft-seven-source-archives-once
+  cancel-in-progress: true
+jobs:
+  acquire-source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - name: Fetch seven exact commits without executing upstream code
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/artcraft-source-archive" "$RUNNER_TEMP/artcraft-checkouts"
+          cd "$RUNNER_TEMP/artcraft-source-archive"
+          printf 'sha256  upstream-project  pinned-commit\n' > ARCHIVE_INDEX.txt
+          while read -r project pinned; do
+            test "$project" != "" || continue
+            case "$project" in
+              photocraft|vectorcraft|filmcraft|lightcraft|pdfcraft|effectcraft|designcraft) ;;
+              *) echo "Unexpected upstream name" >&2; exit 20 ;;
+            esac
+            [[ "$pinned" =~ ^[0-9a-f]{40}$ ]] || exit 21
+            work="$RUNNER_TEMP/artcraft-checkouts/$project"
+            mkdir "$work"
+            git -C "$work" init -q
+            git -C "$work" remote add origin "https://github.com/storytold/$project.git"
+            git -C "$work" -c protocol.version=2 fetch --no-tags --depth=1 origin "$pinned"
+            got="$(git -C "$work" rev-parse FETCH_HEAD)"
+            test "$got" = "$pinned" || { echo "SHA mismatch: $project" >&2; exit 22; }
+            archive="$project-$pinned.tar.gz"
+            git -C "$work" archive --format=tar.gz --prefix="$project/" \
+              --output="$PWD/$archive" FETCH_HEAD
+            test -s "$archive"
+            tar -tzf "$archive" > "$project.filelist.txt"
+            grep -q -E "^$project/(LICENSE-MIT|LICENSE-APACHE|LICENSE|COPYING)" "$project.filelist.txt" \
+              || { echo "License evidence missing: $project" >&2; exit 23; }
+            if git -C "$work" ls-tree -r "$pinned" | grep -q '^160000 commit '; then
+              echo "Gitlink/submodule found; not claiming standalone complete contents: $project" >&2
+              exit 24
+            fi
+            checksum="$(sha256sum "$archive" | cut -d' ' -f1)"
+            printf '%s  %s  %s\n' "$checksum" "$project" "$pinned" >> ARCHIVE_INDEX.txt
+            printf '%s\n' "$checksum  $archive" >> SHA256SUMS.txt
+            echo "DOWNLOADED_PINNED_SOURCE=$project@$pinned SHA256=$checksum"
+          done <<'PINNED_UPSTREAM_COMMITS'
+          photocraft 69b1379781a4d7e12774b9768cab44b35db6231b
+          vectorcraft 866ea5878a7f6db7dd3d6b1287f9a9bb3a241c33
+          filmcraft 7b6c134472287db4367fca80bcb498240ba36567
+          lightcraft 88ea1a804b35709e1fe436e3792adf0428b97daa
+          pdfcraft c110c579a24800bb841b5d643e2e34e161e81f13
+          effectcraft 30aaddf7c23329dcdfc72a5bf65b55747bbd6be1
+          designcraft 66c7ce7e96ec286a091878cc2541ee8369aa79d6
+          PINNED_UPSTREAM_COMMITS
+          test "$(find . -maxdepth 1 -name '*.tar.gz' -type f | wc -l)" -eq 7
+          test "$(grep -cE '^[0-9a-f]{64}  ' SHA256SUMS.txt)" -eq 7
+          sha256sum --check SHA256SUMS.txt
+          cat > README-ARCHIVE.txt <<'ARCHIVE_INFO'
+          Seven independent ArtCraft source repositories from github.com/storytold.
+          Exact 40-character upstream commits and SHA-256 are in ARCHIVE_INDEX.txt.
+          Each original tracked tree is preserved as project-sha.tar.gz, including
+          upstream LICENSE/NOTICE as supplied by the respective maintainers.
+          No Adobe proprietary source, no builds, no executables, no installations.
+          No source has been committed to Hazewave or BR-no-GTA.
+          To extract, use tar -xzf [project-sha].tar.gz in an isolated directory.
+          Upstream source is early-alpha/in-development and untrusted for execution.
+          These public projects describe clean-room reimplementations, not bytewise
+          copies of Adobe's closed-source software.
+          ARCHIVE_INFO
+          {
+            echo "### Original ArtCraft source download — 7 pinned repositories"
+            echo ""
+            echo "Only public upstream source fetched. No GitHub token, secrets, installer or execution."
+            echo ""
+            echo '~~~'
+            cat ARCHIVE_INDEX.txt
+            echo '~~~'
+            echo ""
+            echo "Seven archives checked with sha256sum; unchanged Hazewave main."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload all seven verified source repositories
+        uses: actions/upload-artifact@v4
+        with:
+          name: artcraft-7-cleanroom-rust-source-pinned
+          path: \${{ runner.temp }}/artcraft-source-archive/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
