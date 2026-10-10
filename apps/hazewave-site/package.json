@@ -7,6 +7,7 @@
     "dev": "astro dev",
     "build": "astro build && node scripts/enforce-indionesbala-only.mjs",
     "preview": "astro preview",
+    "start": "astro preview --host 127.0.0.1 --port 3000",
     "test": "playwright test"
   },
   "dependencies": {

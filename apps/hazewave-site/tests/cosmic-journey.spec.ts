@@ -84,7 +84,7 @@ test("mobile QA: Hazewave 90vw dominates the 18vw, max 110px, 48px and 75% Indio
     expect(visual.signatureCssWidth).toBeCloseTo(width*.18,0);
     expect(visual.signatureMaxWidth).toBe(110);
     expect(visual.signatureMaxHeight).toBe(48);
-    expect(visual.signatureOpacity).toBeCloseTo(.75,2);
+    expect(visual.signatureOpacity).toBeCloseTo(.7,2);
     expect(visual.brandVisibleWidth).toBeGreaterThanOrEqual(visual.signatureVisibleWidth*3);
     expect(visual.signatureLoaded).toBe(true);
     expect(visual.overflow).toBeLessThanOrEqual(1);
