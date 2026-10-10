@@ -104,6 +104,15 @@ jobs:
           path: apps/hazewave-site/package-lock.json
           if-no-files-found: error
 
+      - name: Preserve hardening log, Lighthouse report and three screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: hazewave-hardening-verification
+          path: verification/
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Preserve visual proof
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
