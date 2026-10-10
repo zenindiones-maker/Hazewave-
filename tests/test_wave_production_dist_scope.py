@@ -39,3 +39,12 @@ def test_final_artist_image_extension_matches_jpeg_magic_preserving_owner_bytes(
     assert "INDIONESBALA_PUBLIC_MIME=image/jpeg" in guard
     assert "/media/artists/indionesbala.jpg" in page
     assert 'media/artists/indionesbala.jpg' in verifier
+
+
+def test_waves_replace_unapproved_mpc_and_artist_styles_remain_strictly_scoped():
+    page=(ROOT/"apps/hazewave-site/src/pages/index.astro").read_text(encoding="utf8")
+    guard=(ROOT/"apps/hazewave-site/scripts/enforce-indionesbala-only.mjs").read_text(encoding="utf8")
+    assert "resonance-front" in page
+    assert "A FREQUÊNCIA INTERFERE NA NÉVOA" in page
+    assert "machine-field" not in page and "rig-wing" not in page
+    assert 'if(actual.length!==6)' in guard and "_id_" in guard

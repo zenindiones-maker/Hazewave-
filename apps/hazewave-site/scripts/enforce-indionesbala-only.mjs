@@ -46,11 +46,12 @@ if (process.env.HAZEWAVE_TEST_EXPERIMENTS !== "1") {
     /^artists\/indionesbala\/index\.html$/,
     /^media\/artists\/indionesbala\.jpg$/,
     /^media\/hazewave-world\.jpg$/,
-    /^_astro\/index\.[^.]+\.css$/
+    /^_astro\/index\.[^.]+\.css$/,
+    /^_astro\/_id_\.[^.]+\.css$/
   ];
   const unexpected=actual.filter(name=>!allow.some(re=>re.test(name)));
   if(unexpected.length)throw Error("UNAPPROVED_STATIC_ROUTE_OR_MEDIA:"+unexpected.join(","));
-  if(actual.length!==5)throw Error("APPROVED_OUTPUT_MISSING:"+actual.join(","));
+  if(actual.length!==6)throw Error("APPROVED_OUTPUT_MISSING:"+actual.join(","));
   console.log("PRODUCTION_DIST_ONLY_HAZEWAVE_AND_INDIONESBALA=PASS");
 } else {
   console.log("TEMPORARY_EXPERIMENT_QA_BUILD_NOT_FOR_DELIVERY=TRUE");
