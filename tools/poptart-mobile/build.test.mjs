@@ -85,3 +85,40 @@ test('V3 mobile code exposes complete sampler and backward-compatible backup',()
   for(const instrument of ['Granular','Sampler','Plaits','Braids','Elements','FM'])
     assert.ok(js.includes("'"+instrument+"'"));
 });
+
+test('gain-staging regression: stable profile skips empty tracks and caps summing',()=>{
+  const src=readFileSync(join(dirname(fileURLToPath(import.meta.url)),'hz-mobile.js'),'utf8');
+  assert.doesNotMatch(src,/\.postgain\(0\.42\)/);
+  assert.match(src,/drumBudget:0\.42/);
+  assert.match(src,/maxLanes:4/);
+  assert.match(src,/activeKit\.map/);
+  assert.match(src,/HEAVY_FX/);
+  assert.match(src,/HazewavePoptartMobileBackup\/v4/);
+  assert.match(src,/hz-audio-profile/);
+  assert.doesNotMatch(src,/pendingUpdate = W\.setTimeout/);
+  assert.doesNotMatch(src,/\}, 130\)/);
+  const vm=await import('node:vm');
+  const appended=src.replace(/\}\)\(\);\s*$/, 
+    'globalThis.__test_audio={generatePattern,mix,state,KIT};\n})();');
+  const stored=new Map();
+  const ctx={
+    window:{localStorage:{getItem:k=>stored.get(k)??null,setItem:(k,v)=>stored.set(k,v)}},
+    document:{readyState:'loading',addEventListener(){}}
+  };
+  vm.runInNewContext(appended,ctx,{timeout:1000});
+  const {generatePattern,mix,state}=ctx.__test_audio;
+  const initial=generatePattern();
+  const samples=initial.split('\n').filter(t=>t.startsWith('hz_')&&t.includes('s("'));
+  assert.equal(samples.length,3,'empty V3 channels must not spawn sample nodes');
+  assert.ok(samples.every(t=>t.includes('.postgain(0.140)')));
+  assert.match(initial,/hz_melody:.*\.postgain\(0\.22\)/);
+  state.rim[0]=true;state.clap[0]=true;
+  assert.throws(()=>generatePattern(),/no máximo 4 pistas/);
+  mix.audioMode='full';mix.gain=0.34;
+  const complete=generatePattern();
+  assert.equal(complete.split('\n').filter(t=>t.startsWith('hz_')&&t.includes('s("')).length,5);
+  assert.match(complete,/postgain\(0\.096\)/);
+  mix.audioMode='stable';mix.fx='CloudSeed';
+  state.rim[0]=false;state.clap[0]=false;
+  assert.throws(()=>generatePattern(),/Efeito pesado/);
+});

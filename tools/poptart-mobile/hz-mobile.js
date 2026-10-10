@@ -38,6 +38,14 @@
     tonicMidi(root, octave) + MODES[mode][degree % 7] + 12 * Math.floor(degree / 7);
   const boundedMidi = n => Number.isInteger(n) && n >= 36 && n <= 108 ? n : -1;
   const MIX_KEY = 'hazewave.poptart.mobile.controls.v1';
+  // Budget the COMBINED voices, not just each slider: peaks from tracks add up.
+  // Full keeps all eight lanes but never restores V3's unsafe 0.42 per lane.
+  const AUDIO_PROFILES = Object.freeze({
+    stable: {maxLanes:4, drumBudget:0.42, maxDrumGain:0.14, maxMelodyGain:0.22},
+    full: {maxLanes:8, drumBudget:0.48, maxDrumGain:0.14, maxMelodyGain:0.34},
+  });
+  const HEAVY_FX = Object.freeze(['CloudSeed','Galactic','Clouds','Shift','Convolver','GrainEcho','Multiband']);
+
   const limits = (n, low, high, fallback) => Number.isFinite(n) ? Math.max(low, Math.min(high, n)) : fallback;
   let storedNotes = null, storedMidi = null, storedMix = null;
   try { storedNotes = JSON.parse(W.localStorage.getItem(NOTE_KEY)); } catch {}
@@ -46,7 +54,10 @@
   const mix = {
     bpm: Math.round(limits(Number(storedMix?.bpm), 60, 200, 120)),
     cutoff: limits(Number(storedMix?.cutoff), 0.05, 0.95, 0.45),
-    gain: limits(Number(storedMix?.gain), 0.05, 0.9, 0.35),
+    // Clamp imported V1-V3 mixer state before it touches the audio engine.
+    gain: limits(Number(storedMix?.gain), 0.05,
+      AUDIO_PROFILES[storedMix?.audioMode === 'full' ? 'full' : 'stable'].maxMelodyGain, 0.16),
+    audioMode: storedMix?.audioMode === 'full' ? 'full' : 'stable',
     root: ROOTS.includes(storedMix?.root) ? storedMix.root : 'F',
     mode: Object.hasOwn(MODES, storedMix?.mode) ? storedMix.mode : 'minor',
     octave: Number.isInteger(storedMix?.octave) ? limits(storedMix.octave, 2, 5, 3) : 3,
@@ -119,6 +130,17 @@
     };
   }
   function generatePattern() {
+    const activeKit = KIT.map((lane, i) => ({lane, i}))
+      .filter(({lane}) => state[lane.id].some(Boolean));
+    const profile = AUDIO_PROFILES[mix.audioMode] ?? AUDIO_PROFILES.stable;
+    if (activeKit.length > profile.maxLanes)
+      throw new Error('Modo estável: no máximo '+profile.maxLanes+
+        ' pistas de bateria ativas. Desative outras pistas ou escolha Completo.');
+    if (mix.audioMode === 'stable' && HEAVY_FX.includes(mix.fx))
+      throw new Error('Efeito pesado para o A15. Mude para Completo ou escolha um efeito leve.');
+    const drumLevel = Math.min(profile.maxDrumGain,
+      profile.drumBudget / Math.max(1, activeKit.length));
+    const melodyLevel = Math.min(profile.maxMelodyGain, mix.gain);
     const notes = noteSteps.map(n => n < 0 ? '~' : noteName(n)).join(' ');
     const isSample = mix.synth === 'Sampler';
     const isGrain = mix.synth === 'Granular';
@@ -146,14 +168,16 @@
     }
     melody += '.fx("Filter").param("Cutoff", ' + mix.cutoff.toFixed(2) + ')';
     if (mix.fx !== 'Nenhum') melody += '.fx("' + mix.fx + '")';
-    melody += '.postgain(' + mix.gain.toFixed(2) + ')';
+    melody += '.postgain(' + melodyLevel.toFixed(2) + ')';
     return [MARK_A,
       '// Catálogo oficial Poptart: sintetizadores, presets e samples licenciados.',
       'setbpm(' + mix.bpm + ')',
-      ...KIT.map((lane, i) => {
+      // Do not instantiate six extra silent sample tracks on a small CPU.
+      ...activeKit.map(({lane,i}) => {
         const sample = mix.drumPacks[i] + ':' + mix.kit[i];
         const steps = state[lane.id].map(v => v ? sample : '~');
-        return 'hz_' + lane.id + ': s("' + steps.join(' ') + '").postgain(0.42)';
+        return 'hz_' + lane.id + ': s("' + steps.join(' ') +
+          '").postgain(' + drumLevel.toFixed(3) + ')';
       }),
       'hz_melody: ' + melody,
       MARK_B].join('\n');
@@ -187,7 +211,7 @@
     const source = getEditor().get();
     if (source == null) return report('Editor ainda não disponível');
     const data = JSON.stringify({
-      schema: 'HazewavePoptartMobileBackup/v3',
+      schema: 'HazewavePoptartMobileBackup/v4',
       exported_at: new Date().toISOString(),
       source, steps: state, midi_notes: noteSteps, mix,
       attribution: 'Poptart by Glossing, AGPL-3.0-only',
@@ -206,7 +230,7 @@
     file.text().then(text => {
       const data = JSON.parse(text);
       if (!['HazewavePoptartMobileBackup/v1', 'HazewavePoptartMobileBackup/v2',
-        'HazewavePoptartMobileBackup/v3'].includes(data.schema) ||
+        'HazewavePoptartMobileBackup/v3', 'HazewavePoptartMobileBackup/v4'].includes(data.schema) ||
           typeof data.source !== 'string') throw new Error('Backup inválido');
       if (!W.confirm('Substituir o código atual pelo backup? Exporte seu trabalho antes.')) return;
       getEditor().set(data.source);
@@ -231,6 +255,7 @@
       if (Number.isInteger(data.mix?.octave)) mix.octave = limits(data.mix.octave, 2, 5, 3);
       if (SYNTHS.includes(data.mix?.synth)) mix.synth = data.mix.synth;
       if (FX_CHOICES.includes(data.mix?.fx)) mix.fx=data.mix.fx;
+      mix.audioMode = data.mix?.audioMode === 'full' ? 'full' : 'stable';
       if (Array.isArray(data.mix?.drumPacks))
         mix.drumPacks=KIT.map((lane,i)=>typeof data.mix.drumPacks[i]==='string' &&
           /^pt_[a-z0-9_]+$/.test(data.mix.drumPacks[i]) ? data.mix.drumPacks[i] : 'pt_kit');
@@ -257,7 +282,7 @@
         }
       mix.bpm = Math.round(limits(mix.bpm, 60, 200, 120));
       mix.cutoff = limits(mix.cutoff, 0.05, 0.95, 0.45);
-      mix.gain = limits(mix.gain, 0.05, 0.9, 0.35);
+      mix.gain = limits(mix.gain, 0.05, AUDIO_PROFILES[mix.audioMode].maxMelodyGain, 0.16);
       const bpm = D.getElementById('hz-bpm');
       const cutoff = D.getElementById('hz-cutoff');
       const gain = D.getElementById('hz-gain');
@@ -271,8 +296,8 @@
         const select = D.getElementById('hz-kit-' + i);
         if (select) select.value = String(mix.kit[i]);
       }
-      syncSoundUI(); refreshPitchGrid(); saveSteps(); repaint();
-      report('Backup restaurado (V1/V2/V3). Pressione Aplicar e ouvir.');
+      syncSoundUI(); syncAudioProfileUI(); refreshPitchGrid(); saveSteps(); repaint();
+      report('Backup restaurado (V1–V4). Pressione Aplicar e ouvir.');
     }).catch(error => report('Falha ao importar: ' + error.message));
   }
   function repaint() {
@@ -416,6 +441,17 @@
       report('Biblioteca remota indisponível: '+error.message+'. 13 samples locais permanecem.');
     }
   }
+  function syncAudioProfileUI() {
+    const profile=AUDIO_PROFILES[mix.audioMode] ?? AUDIO_PROFILES.stable;
+    mix.gain=limits(mix.gain,0.05,profile.maxMelodyGain,0.16);
+    const selector=D.getElementById('hz-audio-profile');
+    if(selector) selector.value=mix.audioMode;
+    const gain=D.getElementById('hz-gain');
+    if(gain) {
+      gain.max=String(profile.maxMelodyGain);
+      gain.value=String(mix.gain);
+    }
+  }
   function show(panel) {
     const board = D.getElementById('hz-mobile-board');
     D.documentElement.classList.toggle('hz-mobile-tools', panel === 'tools');
@@ -556,9 +592,11 @@
     controls.className = 'hz-music-controls';
     controls.innerHTML = '<label>BPM <input id="hz-bpm" type="number" min="60" max="200" step="1" value="' + mix.bpm + '"></label>' +
       '<label>Filtro <input id="hz-cutoff" type="range" min="0.05" max="0.95" step="0.05" value="' + mix.cutoff + '"></label>' +
-      '<label>Volume <input id="hz-gain" type="range" min="0.05" max="0.9" step="0.05" value="' + mix.gain + '"></label>';
+      '<label>Volume da melodia <input id="hz-gain" type="range" min="0.05" max="0.22" step="0.01" value="' + mix.gain + '"></label>' +
+      '<label>Áudio <select id="hz-audio-profile"><option value="stable">Estável (A15)</option>' +
+      '<option value="full">Completo (experimental)</option></select></label>';
     board.append(controls);
-    let pendingUpdate = null;
+    syncAudioProfileUI();
     tone.addEventListener('change', event => {
       const input = event.target;
       try {
@@ -625,22 +663,26 @@
       report('Banco/peça alterado. Pressione Aplicar e ouvir; confirme o som real.');
     });
     controls.addEventListener('input', event => {
-      const id = event.target.id;
-      const value = Number(event.target.value);
-      if (id === 'hz-bpm') mix.bpm = Math.round(limits(value, 60, 200, 120));
-      if (id === 'hz-cutoff') mix.cutoff = limits(value, 0.05, 0.95, 0.45);
-      if (id === 'hz-gain') mix.gain = limits(value, 0.05, 0.9, 0.35);
+      const id=event.target.id;
+      if (!['hz-bpm','hz-cutoff','hz-gain'].includes(id)) return;
+      const value=Number(event.target.value);
+      if (id==='hz-bpm') mix.bpm=Math.round(limits(value,60,200,120));
+      if (id==='hz-cutoff') mix.cutoff=limits(value,0.05,0.95,0.45);
+      if (id==='hz-gain') mix.gain=limits(value,0.05,
+        AUDIO_PROFILES[mix.audioMode].maxMelodyGain,0.16);
       saveSteps();
-      if (pendingUpdate) W.clearTimeout(pendingUpdate);
-      pendingUpdate = W.setTimeout(() => {
-        try {
-          const e = getEditor();
-          if (!e.get()?.includes(MARK_A)) return;
-          e.set(mergeManagedBlock(e.get(), generatePattern()));
-          D.getElementById('updateBtn')?.click();
-          report('Parâmetro atualizado. Confirme a resposta sonora.');
-        } catch (error) { report(error.message); }
-      }, 130);
+      // V3 rebuilt the entire audio graph after 130ms while sliding:
+      // stop that update storm on Chrome Android; apply once, on user request.
+      report('Ajuste guardado. Pressione Aplicar e ouvir (sem reiniciar áudio durante o gesto).');
+    });
+    controls.addEventListener('change', event => {
+      if (event.target.id!=='hz-audio-profile') return;
+      if (!Object.hasOwn(AUDIO_PROFILES,event.target.value)) return;
+      mix.audioMode=event.target.value;
+      syncAudioProfileUI();saveSteps();
+      report(mix.audioMode==='stable'
+        ? 'Modo estável: no máximo 4 pistas, efeitos leves e volume protegido.'
+        : 'Modo completo: até 8 pistas; teste em volume baixo e pare se houver estalos.');
     });
     const actions = D.createElement('div');
     actions.className = 'hz-actions';
@@ -692,7 +734,7 @@
     importButton.textContent = 'Importar backup';
     importButton.addEventListener('click', () => file.click());
     actions.append(importButton);
-    refreshPitchGrid();
+    refreshPitchGrid();syncAudioProfileUI();
     D.documentElement.classList.add('hz-mobile-active');
     loadCatalog();
   }
