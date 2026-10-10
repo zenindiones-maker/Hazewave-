@@ -147,7 +147,7 @@ window.__HAZEWAVE_TRAVERSAL_V4=state;
   const lite=vars.stage.dataset.quality==='lite' ||
      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(!fxCanvas){state.effectcraftFrame=-1;return}
-  const fxOpacity=fxReadiness==='READY'&&!lite?alpha*.60:0;
+  const fxOpacity=fxReadiness==='READY'&&!lite?alpha*.45:0;
   fxCanvas.style.opacity=fxOpacity.toFixed(4);
   fxCanvas.style.transform='translate(-50%,-50%) scale('+(0.70+0.38*t).toFixed(4)+') rotate('+(8*t).toFixed(2)+'deg)';
   // Only retain GPU layer budget while the effect is visible; owner art remains unchanged.
@@ -257,7 +257,7 @@ function updatePose(p){
  const camY=lerp(-H*.18,H*.08,approach)+lerp(0,-H*.19,through);
  const twist=lerp(-6,0,approach)+lerp(0,-18,through);
  moveImage(vars.machine,camX,camY,scale,twist);
- vars.machine.style.opacity=String(clamp((1-smooth(.56,.76,p))*.99));
+ vars.machine.style.opacity=String(clamp((1-smooth(.53,.71,p))*.99));
  const split=180*smooth(.40,.67,p); // true separated source-painted halves
  vars.left.style.transform=`translate3d(${-split.toFixed(2)}px,${-14*through}px,0) rotate(${-3*through}deg)`;
  vars.right.style.transform=`translate3d(${split.toFixed(2)}px,${14*through}px,0) rotate(${3*through}deg)`;

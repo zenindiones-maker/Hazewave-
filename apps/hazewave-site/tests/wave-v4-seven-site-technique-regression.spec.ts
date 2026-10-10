@@ -394,6 +394,15 @@ test("V9 feathered portal avoids a hard bright core, double-exposed worlds, and 
  expect(mid.feather).toBeGreaterThan(early.feather);
  expect(mid.ring).toBeLessThan(.10);
  expect(mid.caption).toBeLessThan(.05);
+ const optic=await page.evaluate(()=>({
+   machine:Number((document.getElementById("machine") as HTMLElement).style.opacity),
+   fx:Number((document.getElementById("effectcraft-aperture") as HTMLElement).style.opacity),
+   fxFilter:getComputedStyle(document.getElementById("effectcraft-aperture")!).filter
+ }));
+ expect(optic.machine).toBeLessThan(.5);
+ expect(optic.fx).toBeGreaterThan(.4);
+ expect(optic.fx).toBeLessThan(.46);
+ expect(optic.fxFilter).toContain("blur(6px)");
  expect(cross.city+cross.hub).toBeGreaterThan(.65);
  expect(cross.city+cross.hub).toBeLessThan(1.01);
  expect(cross.ring).toBeLessThan(.10);

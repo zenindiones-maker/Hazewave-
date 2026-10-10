@@ -37,7 +37,7 @@
 /* V7 - Optional first-party sonic ring rendered by genuine EffectCraft.
    This is a decorative GPU-friendly canvas BEHIND the owner-painted aperture,
    not a replacement for the original art or the scroll-driven SVG. */
-#effectcraft-aperture{position:absolute;z-index:8;left:50%;top:51%;width:min(55vw,260px);height:auto;aspect-ratio:420/820;opacity:0;transform:translate(-50%,-50%);pointer-events:none;mix-blend-mode:screen;will-change:auto;contain:paint}
+#effectcraft-aperture{filter:blur(6px) saturate(.85);position:absolute;z-index:8;left:50%;top:51%;width:min(55vw,260px);height:auto;aspect-ratio:420/820;opacity:0;transform:translate(-50%,-50%);pointer-events:none;mix-blend-mode:screen;will-change:auto;contain:paint}
 .stage[data-fx-active="true"] #effectcraft-aperture{will-change:opacity,transform}
 .stage[data-quality="lite"] #effectcraft-aperture{display:none!important}
 @media(prefers-reduced-motion:reduce){#effectcraft-aperture{display:none!important}}
