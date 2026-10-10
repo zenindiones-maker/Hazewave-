@@ -104,3 +104,12 @@ def test_first_party_tool_chain_is_one_sha_pinned_per_upstream():
     assert len(tool.FRAME_TIMES) == 8
     assert tool.FRAME_TIMES[0] == 0
     assert tool.FRAME_TIMES[-1] == .875
+
+
+def test_real_artcraft_private_site_composer_makes_media_parent_before_frames():
+    composer = (BASE / "integrate_private_astro.py").read_text()
+    parent = "target=entry/'assets';target.mkdir(mode=0o700)"
+    child = "fx_out.mkdir(mode=0o700,parents=True)"
+    assert parent in composer and child in composer
+    assert composer.index(parent) < composer.index(child)
+    assert "from artcraft_portal_pipeline import verify" in composer
