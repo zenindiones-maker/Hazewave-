@@ -10,3 +10,34 @@ test("one approved artist, two identity images, no numeric navigation and no fiv
 test("scroll drives one continuous wave / MPC / Indionesbala reveal and reverses",async({page},info)=>{await page.goto("/");await expect.poll(()=>page.evaluate(()=>Boolean((window as unknown as {__HAZEWAVE_STORY?:{artistCount:number}}).__HAZEWAVE_STORY))).toBe(true);for(const [p,state] of [[0,"silence"],[.31,"interference"],[.55,"machine"],[.83,"handoff"],[.99,"artist"],[.55,"machine"],[0,"silence"]] as const){await move(page,p);await expect(page.locator("body")).toHaveAttribute("data-story-state",state);expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1)}await move(page,.99);await expect(page.locator("#artist-entry")).toHaveAttribute("href","/artists/indionesbala/");await expect(page.locator("#artist-entry")).toHaveCSS("pointer-events","auto");await page.screenshot({path:info.outputPath("single-artist-reveal-"+info.project.name+".png")})});
 test("sole artist destination works; other four routes are not emitted",async({page})=>{await page.goto("/artists/indionesbala/");await expect(page.locator("h1")).toHaveText("Indionesbala");await expect(page.locator("img")).toHaveCount(2);await expect(page.locator(".world-switcher,.planet,.artist-card")).toHaveCount(0);await expect.poll(()=>page.locator(".identity").evaluate(e=>(e as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);for(const slug of ["aquaverno","baazu","barak-ozama-beats","hemorragia-cosmica"]){const response=await page.goto("/artists/"+slug+"/");expect(response?.status()).toBe(404)}});
 test("reduced motion and no JS preserve artist access",async({browser,page})=>{await page.emulateMedia({reducedMotion:"reduce"});await page.goto("/");await move(page,.92);await expect(page.locator("html")).toHaveAttribute("data-reduced-motion","true");const context=await browser.newContext({javaScriptEnabled:false});const blank=await context.newPage();await blank.goto("/");await expect(blank.locator("#arrival a")).toBeVisible();await context.close()});
+
+test("V10 art direction: Hazewave hero dominates both destinations; Indionesbala stays a supporting signature",async({page})=>{
+  await page.goto("/");
+  await move(page,0);
+  await expect(page.locator(".copy-origin")).toHaveCSS("opacity","1");
+  for(const progress of [0,.25,.55,.82,.99]){
+    await move(page,progress);
+    const rank=await page.evaluate(()=>{
+      const brand=document.querySelector(".brand") as HTMLElement;
+      const artist=document.querySelector(".logo-reveal img") as HTMLElement;
+      return {brand:brand.getBoundingClientRect().width,
+        artist:artist.getBoundingClientRect().width,
+        visible:Number(getComputedStyle(brand).opacity),
+        xOverflow:document.documentElement.scrollWidth-innerWidth};
+    });
+    expect(rank.visible).toBe(1);
+    expect(rank.brand).toBeGreaterThanOrEqual(rank.artist*3);
+    expect(rank.xOverflow).toBeLessThanOrEqual(1);
+  }
+  await move(page,.99);
+  await expect(page.locator("#artist-entry")).toContainText("Entrar no universo Hazewave");
+  await page.goto("/artists/indionesbala/");
+  await expect(page).toHaveTitle(/HAZEWAVE/);
+  const hierarchy=await page.evaluate(()=>{
+    const brand=document.querySelector(".brand") as HTMLElement;
+    const signature=document.querySelector(".identity") as HTMLElement;
+    return {brand:brand.getBoundingClientRect().width,signature:signature.getBoundingClientRect().width};
+  });
+  expect(hierarchy.brand).toBeGreaterThanOrEqual(hierarchy.signature*3);
+  await expect(page.locator(".back")).toContainText("Hazewave");
+});
