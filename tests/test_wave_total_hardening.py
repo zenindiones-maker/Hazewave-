@@ -7,7 +7,7 @@ ROOT=Path(__file__).resolve().parents[1]
 def test_live_port3000_immutable_npm_and_lighthouse_gate():
     script=(ROOT/"scripts/verify.sh").read_text(encoding="utf8")
     for needle in (
-       "set -euo pipefail", "npm ci", "npm run build",
+       "set -euo pipefail", "rm -rf -- node_modules .next dist", "npm ci", "npm run build",
        "npm run start", "127.0.0.1:3000",
        "HAZEWAVE_DOT_GIT_COUNT", "verify-brand-screenshots.mjs",
        "lighthouse@12.8.2", "s<=90", "HAZEWAVE_VERIFY=PASS"

@@ -9,6 +9,9 @@ COUNT="$(find "$ROOT" -name .git | wc -l)"
 echo "HAZEWAVE_DOT_GIT_COUNT=$COUNT"
 test "$COUNT" -eq 1
 cd "$SITE"
+# All clean-up strictly scoped to the existing single Astro package.
+# Never touch the Reflex worktree, Codespace services or another repository.
+rm -rf -- node_modules .next dist
 npm ci --ignore-scripts --no-audit --no-fund
 if grep -RniE 'TODO|MOCK|placeholder|lorem ipsum' src; then
  echo "HAZEWAVE_INCOMPLETE_SOURCE=FAIL"
