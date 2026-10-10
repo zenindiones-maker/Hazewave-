@@ -31,7 +31,7 @@
 #stage{background:radial-gradient(ellipse 80% 67% at 50% 62%,#271a35 0%,#121425 48%,#070912 100%)}
 #stage::after{content:"";position:absolute;z-index:7;pointer-events:none;inset:0;background:linear-gradient(180deg,#08091235 0%,transparent 35%,#07081100 53%,#08091252 100%)}
 .brand{z-index:15;top:clamp(38px,7svh,82px);width:min(69vw,700px);max-width:calc(100vw - 34px);aspect-ratio:955/416;opacity:1;transform-origin:center top;mix-blend-mode:screen;filter:drop-shadow(0 8px 26px #3a1c5240)}
-.brand img{object-fit:contain;object-position:top center;height:100%;width:100%}
+.brand img{object-fit:cover;object-position:center top;height:100%;width:100%;-webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 11%,#000 81%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0%,#000 11%,#000 81%,transparent 100%)}
 .logo-reveal{z-index:11;inset:auto 0 25% 0;height:15%;display:flex;align-items:center;justify-content:center;transform:translate3d(0,var(--artist-y,25px),0) scale(var(--artist-scale,.86))}
 .logo-reveal img{max-width:min(19vw,200px);width:min(19vw,200px);max-height:90px;object-fit:contain;filter:url(#indionesbala-background-key) drop-shadow(0 5px 12px #c86d3422)}
 .copy{left:max(7vw,28px);right:max(7vw,28px);top:auto;bottom:clamp(96px,14svh,150px);max-width:min(640px,86vw);text-shadow:0 2px 24px #06061099;pointer-events:none}

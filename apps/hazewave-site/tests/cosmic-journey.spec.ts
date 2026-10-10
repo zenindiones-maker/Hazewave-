@@ -41,3 +41,20 @@ test("V10 art direction: Hazewave hero dominates both destinations; Indionesbala
   expect(hierarchy.brand).toBeGreaterThanOrEqual(hierarchy.signature*3);
   await expect(page.locator(".back")).toContainText("Hazewave");
 });
+
+test("V10 logo uses only the top ornamental mark, not the full vertical lighthouse poster",async({page})=>{
+  await page.goto("/");
+  const image=page.locator("#hazewave-logo");
+  const d=await image.evaluate(e=>{
+    const im=e as HTMLImageElement;const style=getComputedStyle(im);
+    const clip=im.parentElement!.getBoundingClientRect();
+    return {fit:style.objectFit,position:style.objectPosition,mask:style.maskImage,
+      naturalWidth:im.naturalWidth,naturalHeight:im.naturalHeight,
+      imageBoxHeight:im.getBoundingClientRect().height,clipHeight:clip.height};
+  });
+  expect(d.naturalHeight).toBeGreaterThan(d.naturalWidth);
+  expect(d.fit).toBe("cover");
+  expect(d.position).toBe("50% 0%");
+  expect(d.mask).toContain("linear-gradient");
+  expect(d.imageBoxHeight).toBeCloseTo(d.clipHeight,0);
+});
