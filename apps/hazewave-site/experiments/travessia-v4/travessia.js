@@ -128,7 +128,7 @@ window.__HAZEWAVE_TRAVERSAL_V4=state;
      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(!fxCanvas){state.effectcraftFrame=-1;return}
   fxCanvas.style.opacity=(fxReadiness==='READY'&&!lite?alpha*.58:0).toFixed(4);
-  fxCanvas.style.transform='translate(-50%,-50%) scale('+(0.58+1.42*t).toFixed(4)+') rotate('+(26*t).toFixed(2)+'deg)';
+  fxCanvas.style.transform='translate(-50%,-50%) scale('+(0.48+0.94*t).toFixed(4)+') rotate('+(26*t).toFixed(2)+'deg)';
   if(fxReadiness==='READY'&&!lite&&idx!==fxFrameIndex){
    fxCtx.clearRect(0,0,420,820);
    fxCtx.drawImage(fxDecoded[idx],0,0,420,820);
