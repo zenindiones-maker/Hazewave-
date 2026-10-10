@@ -1,0 +1,116 @@
+name: WAVE VectorCraft Real CLI Proof
+on:
+  pull_request:
+    paths:
+      - "apps/hazewave-site/experiments/travessia-v4/artcraft_vector_bridge.py"
+      - "apps/hazewave-site/experiments/travessia-v4/index.html"
+      - "tests/test_wave_artcraft_vector_bridge.py"
+      - ".github/workflows/wave-vectorcraft-real-cli-proof.yml"
+
+permissions:
+  contents: read
+concurrency:
+  group: vectorcraft-real-proof-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hazewave-vectorcraft-real-proof:
+    name: ArtCraft tool → Hazewave SVG → REAL PNG (offline)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout immutable HAZEWAVE PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Prepare only Hazewave first-party signal SVG
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 apps/hazewave-site/experiments/travessia-v4/artcraft_vector_bridge.py prepare \
+            --source apps/hazewave-site/experiments/travessia-v4/index.html \
+            --output "$RUNNER_TEMP/wave-vectorcraft-verified"
+          test -s "$RUNNER_TEMP/wave-vectorcraft-verified/wave-signal-source.svg"
+
+      - name: Fetch and SHA-verify official untrusted upstream tool release
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/wave-vectorcraft-tools"
+          mkdir -p "$dir"
+          curl --proto '=https' --tlsv1.2 --fail --location --retry 2 \
+            --max-time 180 \
+            --output "$dir/vectorcraft-release.tar.gz" \
+            https://github.com/storytold/vectorcraft/releases/download/v0.7.0/vectorcraft-0.7.0-linux-x86_64.tar.gz
+          printf '%s  %s\n' 'd6b0ee57e1bdbd377b44c8524e8569ad2b4dff46b792fc10b0edbf8d74292acd' "$dir/vectorcraft-release.tar.gz" | sha256sum --check -
+          python3 - "$dir" <<'PY'
+          import pathlib,sys,tarfile,os
+          directory=pathlib.Path(sys.argv[1])
+          archive=directory/"vectorcraft-release.tar.gz"
+          with tarfile.open(archive,"r:gz") as source:
+              entries=source.getmembers()
+              if len(entries)>300 or sum(e.size for e in entries)>400_000_000:
+                  raise RuntimeError("UPSTREAM_ARCHIVE_RESOURCE_LIMIT")
+              for e in entries:
+                  p=pathlib.PurePosixPath(e.name)
+                  if p.is_absolute() or ".." in p.parts or (not e.isfile() and not e.isdir()):
+                      raise RuntimeError("UNSAFE_RELEASE_ARCHIVE_ENTRY")
+              binaries=[e for e in entries if e.isfile() and pathlib.PurePosixPath(e.name).name=="vectorcraft-cli"]
+              if len(binaries)!=1 or binaries[0].size<50000 or binaries[0].size>140_000_000:
+                  raise RuntimeError("PINNED_RELEASE_DOES_NOT_CONTAIN_ONE_CLI")
+              dest=directory/"vectorcraft-cli"
+              with source.extractfile(binaries[0]) as src, dest.open("wb") as out:
+                  while chunk:=src.read(1024*1024):out.write(chunk)
+              dest.chmod(0o500)
+              import hashlib
+              digest=hashlib.sha256(dest.read_bytes()).hexdigest()
+              (directory/"CLI_SHA256").write_text(digest+"\n")
+              print("HAZEWAVE_VECTOCRAFT_BINARY_SHA256="+digest)
+          PY
+
+      - name: Execute genuine VectorCraft only inside offline read-only Docker
+        shell: bash
+        run: |
+          set -euo pipefail
+          proof="$RUNNER_TEMP/wave-vectorcraft-verified"
+          tool="$RUNNER_TEMP/wave-vectorcraft-tools/vectorcraft-cli"
+          sha="$(cat "$RUNNER_TEMP/wave-vectorcraft-tools/CLI_SHA256")"
+          test -s "$tool" && test -s "$proof/proof.json"
+          docker run --rm --network none \
+            --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --pids-limit 120 --cpus 2 --memory 2g \
+            --user "$(id -u):$(id -g)" \
+            --tmpfs /tmp:rw,nosuid,nodev,size=128m \
+            -v "$GITHUB_WORKSPACE:/src:ro" \
+            -v "$tool:/tools/vectorcraft-cli:ro" \
+            -v "$proof:/work:rw" \
+            python:3.12-slim-bookworm \
+            python3 /src/apps/hazewave-site/experiments/travessia-v4/artcraft_vector_bridge.py render \
+            --output /work --cli /tools/vectorcraft-cli --binary-sha256 "$sha"
+          python3 - "$proof" <<'PY'
+          import json, pathlib,sys,hashlib
+          directory=pathlib.Path(sys.argv[1])
+          data=json.loads((directory/"proof.json").read_text())
+          p=directory/"wave-signal-vectorcraft.png"
+          assert data["tool_executed"] is True
+          assert data["project"]=="zenindiones-maker/Hazewave-"
+          assert data["production_approved"] is False
+          assert p.is_file() and p.stat().st_size>100
+          assert hashlib.sha256(p.read_bytes()).hexdigest()==data["output_png_sha256"]
+          print("V6_REAL_VECTORCRAFT_CLI=PASS")
+          print("V6_SITE_FIRST_PARTY_VECTOR_PROOF=PNG_SHA_BOUND")
+          print("V6_SITE_PRODUCTION_APPROVED=FALSE")
+          PY
+
+      - name: Save only HAZEWAVE vector test image and hash receipt
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave-vectorcraft-real-first-party-signal-${{ github.run_id }}
+          path: ${{ runner.temp }}/wave-vectorcraft-verified/
+          retention-days: 14
+          if-no-files-found: error
