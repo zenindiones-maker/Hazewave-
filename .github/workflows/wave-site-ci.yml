@@ -84,11 +84,12 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Resolve deterministic lockfile
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-
-      - name: Clean install
+      # npm ci must reject package/lock drift instead of repairing it in CI.
+      - name: Immutable clean install
         run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Prove committed lockfile unchanged
+        run: git diff --exit-code HEAD -- package-lock.json
 
       - name: Validate A15 runtime proof script
         run: bash -n scripts/a15-runtime-proof.sh
