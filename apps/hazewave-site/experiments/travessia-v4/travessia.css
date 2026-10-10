@@ -33,3 +33,10 @@
 .stage[data-quality="lite"] .pad-on,.stage[data-quality="lite"] #portal-tear,.stage[data-quality="lite"] #trace,.stage[data-quality="lite"] #trace-head{filter:none!important}
 @media(max-width:450px){.chapter-nav{top:36%;right:5px;gap:4px}.chapter-nav button{width:34px;min-height:33px}}
 @media(prefers-reduced-motion:reduce){.chapter-nav button{transition:none!important}}
+
+/* V7 - Optional first-party sonic ring rendered by genuine EffectCraft.
+   This is a decorative GPU-friendly canvas BEHIND the owner-painted aperture,
+   not a replacement for the original art or the scroll-driven SVG. */
+#effectcraft-aperture{position:absolute;z-index:8;left:50%;top:50%;width:min(115vw,490px);height:auto;aspect-ratio:420/820;opacity:0;transform:translate(-50%,-50%);pointer-events:none;mix-blend-mode:screen;will-change:opacity,transform}
+.stage[data-quality="lite"] #effectcraft-aperture{display:none!important}
+@media(prefers-reduced-motion:reduce){#effectcraft-aperture{display:none!important}}
