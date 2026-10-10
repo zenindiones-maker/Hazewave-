@@ -38,7 +38,24 @@ FILES = tuple(
      "apps/hazewave-site/experiments/travessia-v4/artcraft_portal_pipeline.py",
      "tests/test_wave_artcraft_portal_v7.py",
      "docs/research/WAVE_V7_EFFECTCRAFT_FILMCRAFT_PRIVATE_SITE_INTEGRATION.md",
-     ".github/workflows/wave-effectcraft-filmcraft-portal-proof.yml")
+     ".github/workflows/wave-effectcraft-filmcraft-portal-proof.yml") + (
+     "AGENTS.md",
+     "scripts/run_hazewave_site.sh",
+     "apps/hazewave-site/README.md",
+     "apps/hazewave-site/package.json",
+     "apps/hazewave-site/package-lock.json",
+     "apps/hazewave-site/astro.config.mjs",
+     "apps/hazewave-site/playwright.config.ts",
+     "apps/hazewave-site/owner-art-provenance.json",
+     "apps/hazewave-site/src/data/publicArtists.ts",
+     "apps/hazewave-site/src/pages/index.astro",
+     "apps/hazewave-site/src/pages/artists/[id].astro",
+     "apps/hazewave-site/scripts/enforce-indionesbala-only.mjs",
+     "apps/hazewave-site/scripts/check-bundle-budget.mjs",
+     "apps/hazewave-site/scripts/verify-owner-art.mjs",
+     "apps/hazewave-site/tests/cosmic-journey.spec.ts",
+     ".github/workflows/wave-site-ci.yml",
+)
 SCHEMA = "HazewaveWaveSourceOnlyDelivery/v1"
 RECEIPT_SCHEMA = "HazewaveWaveSourceOnlyDeliveryReceipt/v1"
 SHA = re.compile(r"^[0-9a-f]{40}$")
