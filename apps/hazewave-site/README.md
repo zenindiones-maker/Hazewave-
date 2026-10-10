@@ -1,40 +1,29 @@
-# Hazewave — Cosmic Interference (candidate)
+# Hazewave — WAVE site (review candidate)
 
-**Status: technical candidate implemented; not owner-approved or published.**
+**One artist only: Indionesbala.** HAZEWAVE is the master brand; Indionesbala appears as a smaller supporting signature. No other artist routes/media, experimental HUDs or private imagery are authorized for publication. This WAVE candidate is **not** approved for public deployment or merge.
 
-This is a creative rebuild from the interrupted Grok Build worktree, not a continuation of the former cassette/player direction. [The Boat (SBS)](https://www.sbs.com.au/theboat/) is a conceptual interaction reference; its proprietary source and visual assets were not copied.
+## Run the real site with one command
 
-## Implemented
+Prerequisites: clone this repository, Node.js **24+**, Bash, Git and a browser-capable system. Install scripts run in the checkout, never on the A15. No Codespace, machine or paid provider is created.
 
-- Native-scroll, reversible three-act journey: birth, traversal and identity reveal.
-- Original procedural WebGL2 interference field with nebula, depth layers and optional pointer motion.
-- The owner-supplied original Hazewave art is not modified; interference masks reveal its original texture.
-- The film completes before the artist directory to keep the final reveal unobscured.
-- Five static routes use owner-supplied artist images: Indionesbala, Barak Ozama Beats, Baazü, Aquaverno and Hemorragia Cósmica.
-- Optional opt-in synthetic interference audio. No published track, release or artist biography is invented.
-- Accessible semantic navigation and non-JavaScript/non-WebGL artwork fallback.
+From the **repository root**:
 
-## Run and verify (Node 24)
+```bash
+bash scripts/run_hazewave_site.sh
+```
 
-From apps/hazewave-site, run:
+The command verifies original owner artwork, performs a frozen `npm ci` from the committed lockfile, checks JavaScript and TypeScript, builds Astro, verifies the two approved images in `dist/`, enforces JS bundle limits, installs Chromium, runs real Playwright desktop/mobile E2E against a local preview server, and then serves `http://127.0.0.1:4321` until stopped with Ctrl+C. **Failures stop the process with a nonzero code**; no pretend fallback.
 
-    npm ci --ignore-scripts --no-audit --no-fund
-    node scripts/verify-owner-art.mjs
-    npx tsc --noEmit
-    npm run build
-    node scripts/verify-owner-art.mjs --dist
-    node scripts/check-bundle-budget.mjs
-    npx playwright install chromium
-    npm test -- --workers=1
+For CI/auditors, run the exact same path without leaving the server open:
 
-Preview the built site:
+```bash
+bash scripts/run_hazewave_site.sh verify
+```
 
-    npm run preview -- --host 0.0.0.0 --port 4321
+The [WAVE Site CI](../../.github/workflows/wave-site-ci.yml) runs `verify` in a fresh GitHub Actions checkout. It first exercises all historical prototype regressions in a temporary QA build, **then rebuilds a strict five-file production distribution** and runs the real site E2E again against that clean output. Only the second `dist/` is preserved; it has no experimental routes, prototype vendor chunks, or unauthorised artwork. The SHA-bound source-only candidate includes the actual Astro pages, one-command runner and frozen npm lockfile, but never embeds owner artwork or secret files. Source media provenance remains versioned; the public build removes the other four historical artist images. The image verification uses all six preserved originals **for source provenance**, but only the approved HAZEWAVE and Indionesbala images **for the distribution**. The original Indionesbala filename ends in `.webp` but contains JPEG data; the build publishes those identical bytes at `.jpg` and the E2E checks `image/jpeg` plus owner SHA-256.
 
-WAVE Site CI runs repository contracts, Python suite, TypeScript, Astro build, bundle budget and desktop/Pixel 7 Playwright. Verified runs retain the static dist and visual proof as artifacts.
+## Scope and limits
 
-## Still not proven
+The Python/Haze audio engine and GPU-dependent generation are a **different runtime domain** governed by the same Hazewave Harness. The WAVE site launcher does not install ACE-Step model weights, pretend to exercise GPU hardware, export private audio, deploy to public HTTPS or touch Termux/A15. The root `AGENTS.md` governs all phases and promotion.
 
-This is analytic **2.5D WebGL2**, not a geometric 3D reconstruction, nor a completed illustrated production comparable in artistic sophistication to The Boat. Automated screenshots prove browser execution, not final creative quality. Real Android/Safari hardware tests, frame-time profiling, comprehensive accessibility review and authorized artist tracks remain pending. The site has no owner approval and must not be published or merged into main.
-
-Historical WAVE reviews remain evidence, not current design authority. Respect repository AGENTS.md and owner-art-provenance.json; preserve all original artwork.
+**Site artistic approval remains pending.** Passing Astro/Playwright confirms the implementation works, not that it reaches a cinematic 10/10. The SBS *The Boat* reference guides the interaction concept; no copyrighted source code or imagery is copied.

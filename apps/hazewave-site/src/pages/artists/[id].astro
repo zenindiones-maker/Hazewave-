@@ -1,52 +1,39 @@
 ---
-import "../../styles/illustrated-interference.css";
 import { PUBLIC_ARTISTS, type PublicArtist } from "../../data/publicArtists";
-export function getStaticPaths() {
-  return PUBLIC_ARTISTS.map((artist) => ({ params: { id: artist.slug }, props: { artist } }));
-}
-const { artist } = Astro.props as { artist: PublicArtist };
+export function getStaticPaths(){return PUBLIC_ARTISTS.map(artist=>({params:{id:artist.slug},props:{artist}}))}
+const {artist}=Astro.props as {artist:PublicArtist};
 ---
-<!doctype html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <meta name="theme-color" content="#090e18"/>
-  <meta name="description" content={"Hazewave — universo musical e arte original de "+artist.name}/>
-  <title>{artist.name} — Universo Hazewave</title>
-</head>
-<body class="constellation-detail">
-  <a class="skip" href="#artist-world">Ir para o artista</a>
-  <header class="masthead">
-    <a class="masthead-mark" href="/#beginning" aria-label="Voltar ao universo Hazewave">HAZE<span>WAVE</span><i aria-hidden="true">∿</i></a>
-    <span class="masthead-edition">UM MUNDO · MUITAS FREQUÊNCIAS</span>
-    <a class="masthead-link" href="/#worlds">VOLTAR À CONSTELAÇÃO ↗</a>
-  </header>
-  <main id="artist-world" class="artist-world">
-    <div class="artist-world-ink" aria-hidden="true">
-      <span class="world-ring world-ring-a"></span>
-      <span class="world-ring world-ring-b"></span>
-      <span class="world-ring world-ring-c"></span>
-      <span class="world-thread"></span>
-    </div>
-    <div class="artist-world-art">
-      <div class="artist-world-orb">
-        <img src={artist.image} alt={"Arte original de "+artist.name} width="600" height="600"/>
-      </div>
-      <span class="eyebrow">ARTE ORIGINAL DO ARTISTA · PRESERVADA</span>
-    </div>
-    <div class="artist-world-type">
-      <span class="eyebrow">HAZEWAVE / CONSTELAÇÃO</span>
-      <h1>{artist.name}</h1>
-      <p>Um mundo singular na galáxia Hazewave. Aqui, a arte original é o ponto de partida — sem músicas, biografias ou lançamentos inventados.</p>
-      <a class="world-return" href="/#worlds">EXPLORAR OUTROS MUNDOS <span aria-hidden="true">↗</span></a>
-    </div>
-  </main>
-  <nav class="world-switcher" aria-label="Outros mundos">
-    {PUBLIC_ARTISTS.map((entry, index) => (
-      <a href={"/artists/"+entry.slug+"/"} aria-current={entry.slug===artist.slug?"page":undefined}><span>0{index+1}</span>{entry.name}</a>
-    ))}
-  </nav>
-  <footer class="colophon"><span>HAZEWAVE — CADA ARTISTA, UM UNIVERSO</span><a href="/#beginning">INÍCIO ↑</a></footer>
-</body>
-</html>
+<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/><meta name="theme-color" content="#080912"/><meta name="robots" content="noindex,nofollow,noarchive"/><meta name="description" content="Indionesbala — universo sonoro Hazewave"/><title>HAZEWAVE — com Indionesbala</title><style>
+:root{color-scheme:dark;background:#080912;color:#f8e6d6;font-family:Inter,ui-sans-serif,system-ui,sans-serif}*{box-sizing:border-box}html,body{margin:0;overflow-x:clip}body{min-height:100svh;background:radial-gradient(ellipse 90% 60% at 50% 50%,#331b2d 0%,#131126 49%,#080912 100%)}a{color:inherit}a:focus-visible{outline:2px solid #ffb58f;outline-offset:5px}.brand{position:relative;display:block;margin:0 auto;width:min(46vw,300px);aspect-ratio:1024/480;overflow:hidden;mix-blend-mode:screen}.brand img{width:100%;height:auto}.story{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2rem;overflow:hidden;padding:36px 22px;text-align:center}.signal{position:absolute;inset:0;pointer-events:none;z-index:0;opacity:.38;background:radial-gradient(ellipse 23% 19% at 25% 75%,#70397855,transparent),radial-gradient(ellipse 30% 35% at 77% 23%,#9a4d624d,transparent)}.story>*:not(.signal){position:relative;z-index:1}.identity{filter:url(#indionesbala-background-key);width:min(85vw,850px);height:auto;max-height:42svh;object-fit:contain;mix-blend-mode:screen;filter:url(#indionesbala-background-key) drop-shadow(0 14px 40px #fa7b4018)}.story p{max-width:550px;font-size:clamp(15px,2vw,19px);font-weight:400;line-height:1.65;color:#d0bace;margin:0}.back{font-size:14px;text-decoration:underline;text-underline-offset:6px;min-height:45px;display:inline-flex;align-items:center}#artist-world h1{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}@media(max-width:600px){.brand{width:62vw}.story{gap:2.4rem}.identity{width:92vw}}
+
+/* Preserve the same visual rank on the destination: main brand >= 3x artist mark. */
+.brand{width:min(77vw,680px);max-width:calc(100vw - 24px);mix-blend-mode:screen}
+.identity{width:min(24vw,205px);max-height:12svh;opacity:.78;filter:url(#indionesbala-background-key) drop-shadow(0 6px 14px #b8562922)}
+.story{gap:clamp(18px,3vh,32px);padding:clamp(34px,8vh,80px) 24px;background:radial-gradient(ellipse 75% 54% at 50% 50%,#281b35,#131325 60%,#090912)}
+.story p{max-width:450px;color:#ded2e0;line-height:1.55;font-size:clamp(15px,1.8vw,19px)}
+.back{color:#eee0f0;text-decoration:none;border-bottom:1px solid #d8b3cf80}
+@media(max-width:600px){.brand{width:89vw}.identity{width:28vw;max-height:82px}.story{gap:24px}}
+
+/* WAVE cinematic editorial destination: no fake music, no extra owner media. */
+body{background:#060711}
+.story{min-height:100svh;position:relative;isolation:isolate;overflow:hidden;gap:clamp(18px,4svh,42px);justify-content:center;padding:clamp(30px,6svh,62px) 20px clamp(46px,8svh,85px);background:radial-gradient(ellipse 44% 35% at 53% 47%,#69488c70,transparent 83%),radial-gradient(ellipse 40% 47% at 70% 59%,#783c5848,transparent 91%),linear-gradient(160deg,#080919,#1a122a 59%,#060711)}
+.story:before{content:"";position:absolute;pointer-events:none;z-index:0;left:50%;top:48%;width:min(95vw,760px);aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%) rotateX(64deg);border:2px solid #e4b4e88c;box-shadow:0 0 70px #aa73e873,inset 0 0 90px #c18bca40}
+.story:after{content:"";position:absolute;pointer-events:none;z-index:0;inset:0;background-image:radial-gradient(circle at 16% 27%,#f2ddff 1px,transparent 2px),radial-gradient(circle at 72% 69%,#ffcba5 1px,transparent 2px);background-size:229px 211px,367px 269px;opacity:.44}
+.signal{opacity:.81;background:radial-gradient(ellipse 42% 30% at 18% 70%,#7540a47b,transparent 86%),radial-gradient(ellipse 35% 31% at 78% 21%,#bd79987d,transparent 94%);filter:blur(32px)}
+.brand{width:min(77vw,680px);max-width:calc(100vw - 28px);aspect-ratio:1024/475;overflow:hidden;flex:none;filter:drop-shadow(0 6px 32px #bf88fa32)}
+.brand img{width:100%;height:100%;object-fit:cover;object-position:center top;-webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 11%,#000 81%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0%,#000 11%,#000 81%,transparent 100%)}
+.story h1{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.artist-chapter{max-width:680px;display:flex;align-items:center;flex-direction:column;gap:12px;text-align:center}
+.artist-chapter .overline{font:500 clamp(11px,1.5vw,14px)/1.5 ui-sans-serif,system-ui,sans-serif;letter-spacing:.21em;text-transform:uppercase;color:#e9d9ec}
+.artist-chapter h2{font:400 clamp(33px,6vw,75px)/1.04 Georgia,'Times New Roman',serif;letter-spacing:-.055em;color:#fff1e9;margin:0;text-shadow:0 8px 45px #0008}
+.artist-chapter h2 em{font-weight:400;color:#e8b8ff}
+.identity{width:min(20vw,165px);max-height:80px;opacity:.70;mix-blend-mode:screen;object-fit:contain;filter:url(#indionesbala-background-key) drop-shadow(0 8px 24px #d2743d36)}
+.story p{max-width:535px;line-height:1.6;color:#dfcfe2;font-size:clamp(15px,1.6vw,18px)}
+.artist-archive{width:min(660px,88vw);display:flex;flex-direction:column;gap:8px;align-items:center;text-align:center;border-top:1px solid #d6aadd52;border-bottom:1px solid #d6aadd52;padding:clamp(17px,4svh,27px) 20px}
+.artist-archive h3{font:400 clamp(18px,2.8vw,27px)/1.2 Georgia,'Times New Roman',serif;margin:0;color:#ffe6e5;letter-spacing:-.03em}
+.artist-archive p{font-size:13px;line-height:1.5;color:#c6b5d4;max-width:440px}
+.back{border:1px solid #d9b5df94;border-radius:999px;padding:13px 23px;text-decoration:none;min-height:50px;background:#171022e8;transition:background .2s,color .2s}
+.back:hover{background:#5e3d72;color:#fff}
+@media(max-width:700px){.story{gap:clamp(13px,2.8svh,26px);padding:28px 18px 55px}.brand{width:90vw}.artist-chapter h2{font-size:clamp(32px,9vw,47px)}.identity{width:min(18vw,110px);max-height:48px}.artist-archive{width:90vw;padding:20px 15px}.artist-chapter .overline{letter-spacing:.13em}}
+@media(prefers-reduced-motion:reduce){.back{transition:none}}
+</style></head><body><main class="story" id="artist-world"><svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true"><filter id="indionesbala-background-key" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  1.1 .10 -.40 0 -.17"/></filter></svg><div class="signal" aria-hidden="true"></div><a class="brand" href="/" aria-label="Voltar ao universo Hazewave"><img src="/media/hazewave-world.jpg" alt="Hazewave"/></a><h1>{artist.name}</h1><div class="artist-chapter"><span class="overline">HAZEWAVE · com Indionesbala</span><h2>A frequência encontra <em>uma forma.</em></h2></div><img class="identity" src={artist.image} alt={"Arte original de "+artist.name} width="1536" height="643"/><p>Uma onda de interferência cruza a névoa cósmica. No encontro com a matéria, nasce uma assinatura: Indionesbala.</p><section class="artist-archive" aria-label="Arquivo sonoro"><h3>O universo continua em construção.</h3><p>Esta experiência apresenta a identidade visual. Nenhuma faixa ou reprodução de áudio é exibida sem autorização.</p></section><a class="back" href="/">Reatravessar o universo Hazewave ↖</a></main></body></html>

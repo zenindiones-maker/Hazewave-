@@ -53,7 +53,7 @@ def test_source_package_delivers_exact_head_bytes_without_owner_media(repo, tmp_
         names = zipfile.namelist()
         assert len(names) == len(mod.FILES) + 1
         assert names[0] == "manifest.json"
-        assert all(name.endswith((".html", ".css", ".js", ".py", ".md", ".json", ".ts", ".yml"))
+        assert all(name.endswith((".html", ".css", ".js", ".py", ".md", ".json", ".ts", ".yml", ".mjs", ".astro", ".sh"))
                    for name in names)
         meta = json.loads(zipfile.read("manifest.json"))
         assert meta["media_bytes_embedded"] == 0
@@ -126,4 +126,24 @@ def test_source_script_cannot_execute_deployment_or_import_network():
                       "aws s3", "kubectl", "deploy_prod", "gh release create",
                       "npm publish", "gh pages"):
         assert forbidden not in code
-    assert len(mod.FILES) == 17
+    assert len(mod.FILES) == 41
+
+def test_delivery_contains_exact_current_site_source_and_frozen_install_entrypoint():
+    required={
+        "AGENTS.md",
+        "scripts/run_hazewave_site.sh",
+        "apps/hazewave-site/src/pages/index.astro",
+        "apps/hazewave-site/src/pages/artists/[id].astro",
+        "apps/hazewave-site/package.json",
+        "apps/hazewave-site/package-lock.json",
+        "apps/hazewave-site/scripts/enforce-indionesbala-only.mjs",
+        ".github/workflows/wave-site-ci.yml",
+    }
+    assert required.issubset(set(mod.FILES))
+    assert len(mod.FILES)==len(set(mod.FILES))
+    assert all(not p.endswith((".webp",".png",".jpg",".jpeg",".wav",".mp4")) for p in mod.FILES)
+
+
+def test_exact_site_hardening_sources_are_present_in_reviewed_candidate():
+    must={"scripts/verify.sh","apps/hazewave-site/scripts/verify-brand-screenshots.mjs","apps/hazewave-site/scripts/optimize-hero.mjs","tests/test_wave_total_hardening.py"}
+    assert must <= set(mod.FILES)

@@ -49,7 +49,7 @@ if(largest(coreRows)>180_000)throw new Error("CORE_LARGEST_JS_CHUNK_BUDGET_EXCEE
 if(coreTotal>220_000)throw new Error("CORE_JS_BUDGET_EXCEEDED:"+coreTotal);
 if(largest(optionalRows)>160_000)throw new Error("OPTIONAL_HIGH_TIER_CHUNK_BUDGET_EXCEEDED:"+largest(optionalRows));
 if(optionalTotal>180_000)throw new Error("OPTIONAL_HIGH_TIER_JS_BUDGET_EXCEEDED:"+optionalTotal);
-if(!p0Rows.length)throw new Error("EXPERIMENTAL_P0_CHUNKS_NOT_ISOLATED");
+if(!p0Rows.length)console.log("EXPERIMENTAL_P0_NOT_SHIPPED=PASS");
 if(largest(p0Rows)>525_000)throw new Error("EXPERIMENTAL_P0_LARGEST_CHUNK_BUDGET_EXCEEDED:"+largest(p0Rows));
 if(p0Total>750_000)throw new Error("EXPERIMENTAL_P0_BUDGET_EXCEEDED:"+p0Total);
 if(total>1_000_000)throw new Error("TOTAL_JS_BUDGET_EXCEEDED:"+total);

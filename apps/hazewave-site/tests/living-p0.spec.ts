@@ -22,7 +22,7 @@ test("isolated P0 renders Pixi canvas, not the rejected composite poster", async
   await expect(page.locator("body")).toHaveAttribute("data-p0-status","running");
   await expect(page.locator("body")).toHaveAttribute("data-p0-phase","sleep");
   await expect(page.locator('img[src="/media/hazewave-world.jpg"]')).toHaveCount(0);
-  await expect(page.locator('img[src="/media/artists/indionesbala.webp"]')).toHaveCount(1);
+  await expect(page.locator('img[src="/media/artists/indionesbala.jpg"]')).toHaveCount(1);
   await expect(page.locator(".artist-card")).toHaveCount(0);
   await page.screenshot({path:"test-results/living-p0-start-"+info.project.name+".png",animations:"disabled"});
 });

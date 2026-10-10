@@ -17,6 +17,7 @@ const chapters=[
  ['05 / 05','Outro mundo.','A interferência alcança o hub Indionesbala. O universo responde.']
 ];
 const vars={section:el('journey'),stage:el('stage'),stars:el('stars'),machine:el('machine'),
+wallLeft:el('portal-wall-left'),wallRight:el('portal-wall-right'),spine:el('portal-spine'),
 left:el('chassis-left'),right:el('chassis-right'),parts:el('parts'),
 fogBack:el('fog-back'),fogLeft:el('fog-left'),fogRight:el('fog-right'),
 city:el('city-scene'),cityFlight:el('city-flight'),hub:el('hub-scene'),
@@ -40,14 +41,22 @@ window.__HAZEWAVE_TRAVERSAL_V4=state;
  // scroll state, and optional low-detail compositor. Original Hazewave code.
  const chapterStops=Object.freeze([0,.25,.47,.70,.92]);
  const chapterLinks=[...doc.querySelectorAll('[data-world-stop]')];
- let userRequestedLite=false,autoLite=false,frameBudgetStreak=0,lastFrameAt=NaN;
+ let userRequestedLite=false,userForcedFull=false,autoLite=false,frameBudgetStreak=0,lastFrameAt=NaN;
  function updateQuality(){
-  const lite=userRequestedLite||autoLite;
+  // Never trap the owner in automatic quality degradation. An explicit
+  // request to enable full effects overrides the slow-frame quality guard.
+  const lite=userForcedFull?false:(userRequestedLite||autoLite);
   vars.stage.dataset.quality=lite?'lite':'full';
   const button=el('lightweight-mode');
-  if(button){button.setAttribute('aria-pressed',String(userRequestedLite));button.textContent=userRequestedLite?'EFEITOS':'LEVE';}
+  if(button){
+   button.setAttribute('aria-pressed',String(lite));
+   button.setAttribute('aria-label',lite?'Ativar todos os efeitos visuais':'Ativar modo leve de efeitos visuais');
+   button.textContent=lite?'EFEITOS':'LEVE';
+  }
   state.visualQualityTier=lite?'lite':'full';
   state.qualityDowngradeAutomatic=autoLite;
+  state.qualityUserOverride=userForcedFull?'FULL':userRequestedLite?'LITE':'AUTO';
+  if(Number.isFinite(state.progress))renderArtcraftEffect(state.progress);
   // Geometry, original art, and interaction authority NEVER change with quality.
  }
  function observeFrameBudget(timestamp){
@@ -73,12 +82,139 @@ window.__HAZEWAVE_TRAVERSAL_V4=state;
    if(Number.isInteger(index))button.addEventListener('click',()=>gotoAct(index));
   }
   const light=el('lightweight-mode');
-  if(light)light.addEventListener('click',()=>{userRequestedLite=!userRequestedLite;updateQuality();});
+  if(light)light.addEventListener('click',()=>{
+   if(vars.stage.dataset.quality==='lite'){
+    userForcedFull=true;userRequestedLite=false;
+   }else{
+    userRequestedLite=true;userForcedFull=false;
+   }
+   updateQuality();
+  });
   updateQuality();
  }
  state.researchReferenceTechniques=['nasa-prospect-direction-reversible-chapter-nav','ponpon-mania-layered-illustration-camera','whoisguilty-motion-graphic-compositor'];
  state.productionApproved=false;
  window.__HAZEWAVE_RESEARCH_V5={gotoAct,getStops:()=>[...chapterStops],getQuality:()=>state.visualQualityTier};
+
+// Optional first-party portal overlay rendered OFFLINE with real EffectCraft.
+ // The FilmCraft validation receipt is checked by the private site composer,
+ // NOT by the browser (which never invokes untrusted native applications).
+ const fxCanvas=el('effectcraft-aperture');
+ const fxCtx=fxCanvas?.getContext('2d',{alpha:true}) || null;
+ let fxDecoded=[],fxFrameIndex=-1,fxBlend=-1,fxReadiness='NOT_ATTACHED';
+ const fxSpec=window.__hazewaveEffectArt;
+ async function prepareArtcraftEffect(){
+  if(!fxCtx||!fxSpec){state.effectcraftStatus='NOT_ATTACHED';return}
+  const frames=fxSpec.frames;
+  if(fxSpec.schema!=='HazewaveRealArtcraftPortalOverlay/v1' ||
+     fxSpec.production_approved!==false ||
+     fxSpec.real_effectcraft_render!==true ||
+     fxSpec.filmcraft_probe_executed!==true ||
+     !Array.isArray(frames) || frames.length!==8){
+   state.effectcraftStatus='REJECTED_UNTRUSTED_MANIFEST';return;
+  }
+  const images=[];
+  for(let i=0;i<8;i++){
+   const frame=frames[i],path=frame?.url;
+   const expected='assets/fx/sonic-portal-'+String(i).padStart(2,'0')+'.png';
+   if(typeof path!=='string' || !(path===expected ||
+      (path.startsWith('data:image/png;base64,') && path.length<3000000))){
+    state.effectcraftStatus='REJECTED_ASSET_PATH';return;
+   }
+   const image=new Image();image.decoding='async';image.src=path;
+   images.push(image);
+  }
+  try{
+   await Promise.all(images.map(img=>img.decode()));
+   if(images.some(img=>img.naturalWidth!==420||img.naturalHeight!==820))
+     throw Error('EFFECT_FRAME_CANVAS_DRIFT');
+   fxDecoded=images;fxReadiness='READY';state.effectcraftStatus='READY';
+   renderArtcraftEffect(progressFromScroll());
+  }catch{
+   fxReadiness='UNAVAILABLE';state.effectcraftStatus='ASSET_DECODE_FAILED';
+   // The native CSS/SVG physical aperture keeps working without FX.
+  }
+ }
+ function renderArtcraftEffect(p){
+  const t=smooth(.45,.79,p);
+  const alpha=band(.45,.61,.75,.87,p);
+  // Blend neighboring verified EffectCraft frames so a tiny scroll movement
+  // cannot create an abrupt one-frame jump. Quantize only the blend weight
+  // to 1/32: bounded Canvas2D paints on mobile while geometry stays continuous.
+  const position=t*7;
+  const idx=Math.min(7,Math.floor(position));
+  const blend=idx===7?0:Math.round((position-idx)*32)/32;
+  const lite=vars.stage.dataset.quality==='lite' ||
+     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!fxCanvas){state.effectcraftFrame=-1;return}
+  const fxOpacity=fxReadiness==='READY'&&!lite?alpha*.45:0;
+  fxCanvas.style.opacity=fxOpacity.toFixed(4);
+  fxCanvas.style.transform='translate(-50%,-50%) scale('+(0.70+0.38*t).toFixed(4)+') rotate('+(8*t).toFixed(2)+'deg)';
+  // Only retain GPU layer budget while the effect is visible; owner art remains unchanged.
+  vars.stage.dataset.fxActive=fxOpacity>.005?'true':'false';
+  if(fxReadiness==='READY'&&!lite&&(idx!==fxFrameIndex||blend!==fxBlend)){
+   fxCtx.clearRect(0,0,420,820);
+   fxCtx.globalAlpha=1-blend;
+   fxCtx.drawImage(fxDecoded[idx],0,0,420,820);
+   if(blend>0&&idx<7){
+    fxCtx.globalAlpha=blend;
+    fxCtx.drawImage(fxDecoded[idx+1],0,0,420,820);
+   }
+   fxCtx.globalAlpha=1;
+   fxFrameIndex=idx;fxBlend=blend;
+  }
+  state.effectcraftBlend=fxReadiness==='READY'&&!lite?blend:0;
+  state.effectcraftInterpolation=fxReadiness==='READY'?'ADJACENT_FRAMES_LINEAR_32_STEPS':'UNAVAILABLE';
+  state.effectcraftFrame=fxReadiness==='READY'&&!lite?idx:-1;
+  state.effectcraftOpacity=parseFloat(fxCanvas.style.opacity);
+  state.effectcraftSuppressed=Boolean(lite);
+ }
+ window.__HAZEWAVE_ARTCRAFT_V7={
+  version:'V7',site:'Hazewave',getReadiness:()=>fxReadiness,
+  getFrame:()=>state.effectcraftFrame,source:'real-offline-effectcraft-frames'
+ };
+
+
+/* V8 CSS 3D geometric corridor: independent Z-positioned gate and wall faces.
+   No owner artwork embedded, no external fetch and no autonomous behavior. */
+const depthField=el('depth-field'),depthWorld=el('depth-world');
+function createDepthWorld(){
+ if(!depthField||!depthWorld){state.depthScene='MISSING';return;}
+ const phone=innerWidth<700,edges=phone?6:8,gates=phone?5:7,step=480,radius=295;
+ const make=(cls,transform,kind)=>{
+  const face=doc.createElement('div');face.className=cls;
+  face.style.transform=transform;face.dataset.geomKind=kind;
+  depthWorld.appendChild(face);
+ };
+ for(let g=0;g<gates;g++){
+  const z=-340-step*g;
+  for(let i=0;i<edges;i++){
+   const a=(i+.5)*2*Math.PI/edges;
+   const x=(Math.cos(a)*radius).toFixed(2),y=(Math.sin(a)*radius*.89).toFixed(2);
+   const rot=(a*180/Math.PI+90).toFixed(2);
+   make('depth-gate','translate3d('+x+'px,'+y+'px,'+z+'px) rotateZ('+rot+'deg)','gate');
+   if(g<gates-1){
+    const wallZ=z-step*.5;
+    make('depth-wall','translate3d('+x+'px,'+y+'px,'+wallZ+'px) rotateZ('+rot+'deg) rotateX(90deg)','wall');
+   }
+  }
+ }
+ state.depthScene='CSS_3D_PERSPECTIVE_GEOMETRY';
+ state.depthGateCount=gates*edges;state.depthWallCount=(gates-1)*edges;
+}
+function renderDepthWorld(p,W,H){
+ if(!depthWorld)return;
+ const flight=smooth(.36,.94,p),travel=flight*3200;
+ const x=-Math.sin(flight*Math.PI*1.13)*Math.min(W*.35,140);
+ const y=Math.sin(flight*Math.PI*1.4)*Math.min(H*.11,86);
+ const yaw=7*Math.sin(flight*Math.PI*1.22),pitch=-5*Math.sin(flight*Math.PI);
+ depthWorld.style.transform='translate3d('+x.toFixed(2)+'px,'+y.toFixed(2)+'px,'+
+  travel.toFixed(3)+'px) rotateY('+yaw.toFixed(3)+'deg) rotateX('+pitch.toFixed(3)+'deg)';
+ depthField.style.opacity=String(band(.38,.53,.70,.84,p)*.35);
+ state.depthCameraZ=travel;state.depthCameraX=x;state.depthCameraY=y;
+ state.depthCameraYaw=yaw;state.depthCameraPitch=pitch;
+ state.depthOpacity=Number(depthField.style.opacity);
+}
 
 function mount(spec){
  const piece=doc.createElement('img');piece.src=(window.__assetUrls?.[spec.file] || 'assets/'+spec.file);
@@ -111,17 +247,18 @@ function makeStars(){
  }
 }
 function updatePose(p){
+ renderDepthWorld(p,innerWidth,innerHeight);
  const W=innerWidth,H=innerHeight,phone=W<700;
  // ARC ONE: far approach. ARC TWO: fly THROUGH machine. ARC THREE: break into new world.
  const approach=smooth(.035,.31,p),through=smooth(.30,.625,p),rupture=smooth(.54,.77,p),arrival=smooth(.74,.98,p);
- const rigSize=Math.min((phone?W*1.7:W*.87)/1448,(H*(phone?.87:1.1))/1086);
- const scale=rigSize*lerp(.30,1.22,approach)*lerp(1,3.9,through);
- const camX=lerp(phone?W*.42:W*.23,0,approach) + lerp(0,phone?-W*.96:-W*.55,through);
- const camY=lerp(-H*.28,H*.19,approach)+lerp(0,-H*.52,through);
+ const rigSize=Math.min((phone?W*1.02:W*.76)/1448,(H*(phone?.70:.98))/1086);
+ const scale=rigSize*lerp(.38,1.18,approach)*lerp(1,2.65,through);
+ const camX=lerp(phone?W*.32:W*.19,0,approach) + lerp(0,phone?-W*.30:-W*.31,through);
+ const camY=lerp(-H*.18,H*.08,approach)+lerp(0,-H*.19,through);
  const twist=lerp(-6,0,approach)+lerp(0,-18,through);
  moveImage(vars.machine,camX,camY,scale,twist);
- vars.machine.style.opacity=String(clamp((1-smooth(.65,.81,p))*.97));
- const split=85*smooth(.43,.66,p); // true separated source-painted halves
+ vars.machine.style.opacity=String(clamp((1-smooth(.53,.71,p))*.99));
+ const split=180*smooth(.40,.67,p); // true separated source-painted halves
  vars.left.style.transform=`translate3d(${-split.toFixed(2)}px,${-14*through}px,0) rotate(${-3*through}deg)`;
  vars.right.style.transform=`translate3d(${split.toFixed(2)}px,${14*through}px,0) rotate(${3*through}deg)`;
  const pulse=(p>=.185)?smooth(.185,.49,p):0;
@@ -129,17 +266,19 @@ function updatePose(p){
  for(const {spec,piece,on} of pieces){
   // The wave is physically the single causal source for mechanical response.
   const energy=smooth(Math.max(.19,spec.activation*.72)-.035,Math.max(.19,spec.activation*.72)+.105,p);
+  const partHalf=spec.x<724?-1:1;
+  const carriedSplit=partHalf*split;
   if(spec.type==='pad'){
    const push=energy*(2.7+2.0*Math.sin(spec.activation*16));
-   const shift=rupture*12;piece.style.transform=`translate3d(${(rupture*(spec.x-724)*.030).toFixed(2)}px,${(-push-shift).toFixed(2)}px,${(22*energy).toFixed(2)}px)`;
+   const shift=rupture*12;piece.style.transform=`translate3d(${(carriedSplit+rupture*(spec.x-724)*.012).toFixed(2)}px,${(-push-shift).toFixed(2)}px,${(22*energy).toFixed(2)}px)`;
    if(on){on.style.transform=piece.style.transform;on.style.opacity=(energy*(.9+.06*Math.sin(spec.activation*30))).toFixed(4)}
    if(energy>.5)activePads++;
   }else if(spec.type==='knob'){
    const spin=(spec.x%2?1:-1)*energy*32;
-   piece.style.transform=`rotate(${spin.toFixed(3)}deg) translateZ(${energy*11}px)`;
+   piece.style.transform=`translate3d(${carriedSplit.toFixed(2)}px,0,${(energy*11).toFixed(2)}px) rotate(${spin.toFixed(3)}deg)`;
    if(energy>.5)activeKnobs++;
   }else{
-   const cone=1+energy*.075;piece.style.transform=`scale(${cone.toFixed(4)}) translateZ(${energy*13}px)`;
+   const cone=1+energy*.075;piece.style.transform=`translate3d(${carriedSplit.toFixed(2)}px,0,${(energy*13).toFixed(2)}px) scale(${cone.toFixed(4)})`;
    if(energy>.5)activeSpeakers++;
   }
  }
@@ -154,36 +293,60 @@ function updatePose(p){
  vars.worldHead.setAttribute('cx',worldPosition.x.toFixed(2));vars.worldHead.setAttribute('cy',worldPosition.y.toFixed(2));
  vars.worldHead.style.opacity=String(signalValue>.01&&signalValue<.99?.85:0);
  // Separate fog planes are pushed APART by the causal wave, never merely faded.
- const fogPush=rupture*(phone?W*.95:W*.78);
+ const fogPush=rupture*(phone?W*1.15:W*.98);
  vars.fogLeft.style.transform=`translate3d(${-fogPush.toFixed(2)}px,${(-H*.23*rupture).toFixed(2)}px,0) rotate(${-17*rupture}deg)`;
  vars.fogRight.style.transform=`translate3d(${fogPush.toFixed(2)}px,${(H*.22*rupture).toFixed(2)}px,0) rotate(${15*rupture}deg)`;
- vars.fogLeft.style.opacity=String(.65*(1-.63*arrival));
- vars.fogRight.style.opacity=String(.57*(1-.59*arrival));
+ vars.fogLeft.style.opacity=String(.48*(1-.82*arrival));
+ vars.fogRight.style.opacity=String(.44*(1-.82*arrival));
  vars.fogBack.style.transform=`translate3d(${(-W*.11*approach+W*.38*rupture).toFixed(2)}px,${(H*.2*through).toFixed(2)}px,0) scale(${(1.05+.7*approach+.18*through).toFixed(3)})`;
  vars.fogBack.style.opacity=String(.35*(1-smooth(.60,.84,p)));
  // Substantial actual 3D parallax: SECOND CITY behind the split chassis.
- const cityScale=lerp(.23,1.20,smooth(.38,.71,p))*lerp(1,2.6,smooth(.72,.95,p));
+ const cityScale=lerp(.23,1.08,smooth(.38,.71,p))*lerp(1,1.48,smooth(.78,.93,p));
  const cityX=lerp(W*.46,0,smooth(.38,.68,p))+lerp(0,-W*.55,smooth(.78,.98,p));
  const cityY=lerp(-H*.27,H*.10,smooth(.4,.70,p))-H*.2*arrival;
  moveImage(vars.city,cityX,cityY,cityScale,lerp(-15,4,approach));
- vars.city.style.opacity=String(band(.35,.53,.76,.98,p));
+ vars.city.style.opacity=String(band(.35,.53,.75,.83,p)*.78);
  vars.cityFlight.style.transform=`translate3d(${(-W*.16*rupture).toFixed(2)}px,${(H*.22*rupture).toFixed(2)}px,120px) scale(${(1+.6*rupture).toFixed(3)})`;
  // A physical aperture in the fog, fully clipping the new illustrated region.
- const portalRadius=lerp(0,69,smooth(.47,.80,p));
- vars.window.style.clipPath=`circle(${portalRadius.toFixed(3)}% at 50% 50%)`;
- vars.window.style.opacity=String(smooth(.43,.66,p));
+ const portalRadius=lerp(0,75,smooth(.43,.76,p));
+ const mechanicalOpen=smooth(.40,.69,p);
+ const wallVisible=band(.42,.57,.69,.80,p);
+ vars.wallLeft.style.transform=`perspective(720px) translate3d(${(-Math.min(W*.53,370)*mechanicalOpen).toFixed(2)}px,0,${(125*mechanicalOpen).toFixed(2)}px) rotateY(${(-70*mechanicalOpen).toFixed(2)}deg)`;
+ vars.wallRight.style.transform=`perspective(720px) translate3d(${(Math.min(W*.53,370)*mechanicalOpen).toFixed(2)}px,0,${(125*mechanicalOpen).toFixed(2)}px) rotateY(${(70*mechanicalOpen).toFixed(2)}deg)`;
+ vars.wallLeft.style.opacity=String(wallVisible*.24);
+ vars.wallRight.style.opacity=String(wallVisible*.24);
+ vars.spine.style.opacity=String(band(.47,.61,.72,.84,p)*.12);
+ vars.spine.style.transform=`translate(-50%,-50%) perspective(680px) translateZ(${(-180+210*mechanicalOpen).toFixed(2)}px) scale(${(.45+.75*mechanicalOpen).toFixed(3)})`;
+ renderArtcraftEffect(p);
+ // V9 optical aperture: wide alpha feather replaces the hard polygon silhouette.
+ // Stable deterministic scroll mapping, so both directions sample identical pixels.
+ const aperture=portalRadius/75;
+ const featherX=(5+70*aperture).toFixed(3);
+ const featherY=(5+77*aperture).toFixed(3);
+ const apertureX=(50+Math.sin(p*18)*.8).toFixed(3);
+ const softMask='radial-gradient(ellipse '+featherX+'% '+featherY+'% at '+apertureX+'% 50%, rgba(0,0,0,.96) 0%, rgba(0,0,0,.83) 36%, rgba(0,0,0,.55) 62%, rgba(0,0,0,.20) 80%, transparent 100%)';
+ vars.window.style.clipPath='none';
+ vars.window.style.maskImage=softMask;
+ vars.window.style.webkitMaskImage=softMask;
+ state.portalSoftMask='RADIAL_ALPHA_FEATHER';
+ state.portalFeatherPercent=featherX;
+ // Keep the painterly portal open during the reveal, then hand off to
+ // the INDEPENDENT hub illustration. Without the fade-out, the scaled
+ // portal's enormous inset logo covers the final 360/393px mobile viewport.
+ // It is reversible: scrolling back to .82 restores the full original mask.
+ vars.window.style.opacity=String(smooth(.43,.64,p)*(1-smooth(.78,.88,p)));
  const portalMove=smooth(.69,.95,p);
- moveImage(vars.window,0,H*.07*portalMove,lerp(.72,2.15,portalMove));
- vars.portalWorld.style.opacity=String(1-smooth(.78,.95,p));
+ moveImage(vars.window,0,H*.025*portalMove,lerp(.73,1.42,portalMove));
+ vars.portalWorld.style.opacity=String(1-smooth(.74,.84,p));
  vars.portalWorld.style.transform=`translate3d(${(-W*.25*arrival).toFixed(2)}px,${(-H*.18*arrival).toFixed(2)}px,0) scale(${lerp(.88,1.35,arrival).toFixed(3)})`;
- vars.innerHub.style.opacity=String(band(.74,.86,.89,.98,p));
+ vars.innerHub.style.opacity=String(band(.79,.85,.88,.91,p)*.12);
  vars.innerHub.style.transform=`translate3d(0,${(-H*.11*arrival).toFixed(2)}px,0) scale(${lerp(.6,1.16,arrival).toFixed(3)})`;
- vars.ring.style.opacity=String(band(.42,.60,.78,.96,p));
- vars.ring.style.transform=`translate(-50%,-50%) scale(${lerp(.24,2.75,smooth(.46,.89,p)).toFixed(3)}) rotate(${(rupture*28).toFixed(2)}deg)`;
+ vars.ring.style.opacity=String(band(.45,.61,.72,.85,p)*.09);
+ vars.ring.style.transform=`translate(-50%,-50%) scale(${lerp(.24,1.75,smooth(.46,.89,p)).toFixed(3)}) rotate(${(rupture*14).toFixed(2)}deg)`;
  for(const node of [vars.rim,vars.halo,vars.tear])setStroke(node,ringLen,smooth(.49,.69,p));
  // After flying through the portal, a new independent hub in depth.
- moveImage(vars.hub,0,H*.04*arrival,lerp(.19,.77,arrival),lerp(8,0,arrival));
- vars.hub.style.opacity=String(smooth(.77,.93,p));
+ moveImage(vars.hub,0,-H*.08*arrival,lerp(.19,1.11,arrival),lerp(8,0,arrival));
+ vars.hub.style.opacity=String(smooth(.74,.86,p));
  vars.debrisA.style.opacity=String(band(.43,.63,.84,.95,p)*.9);
  vars.debrisB.style.opacity=String(band(.47,.66,.83,.95,p)*.9);
  vars.debrisA.style.transform=`translate3d(${(-W*.7*rupture).toFixed(2)}px,${(-H*.4*rupture).toFixed(2)}px,${260*rupture}px) rotate(${(-23-60*rupture).toFixed(2)}deg)`;
@@ -194,11 +357,11 @@ function updatePose(p){
  // One immutable scroll progress determines every visible pose; reverse is exact.
  const phase=p<.16?0:p<.36?1:p<.58?2:p<.80?3:4;
  if(phase!==lastPhase){vars.num.textContent=chapters[phase][0];vars.title.textContent=chapters[phase][1];vars.copy.textContent=chapters[phase][2];lastPhase=phase;}
- vars.narrative.style.opacity=String(clamp(1-(band(.26,.4,.63,.78,p)*.78)));
+ vars.narrative.style.opacity=String(clamp(1-smooth(.31,.42,p)+smooth(.79,.89,p)));
  vars.progress.style.width=(p*100).toFixed(2)+'%';vars.progressText.textContent=String(Math.round(p*100)).padStart(2,'0')+'%';
  Object.assign(state,{progress:p,phase,activePads,activeKnobs,activeSpeakers,
   traceDrawn:lineValue,worldWaveDrawn:signalValue,portalRadiusPct:portalRadius,
-  mechanicalSplitPx:split,cameraTravelPx:Math.hypot(camX,camY),machineScale:scale,
+  mechanicalSplitPx:split,partHalfSeparationPx:2*split,riftWallOpening:mechanicalOpen,riftWallOpacity:wallVisible*.24,cameraTravelPx:Math.hypot(camX,camY),machineScale:scale,
   fogSeparationPx:2*fogPush,cityOpacity:parseFloat(vars.city.style.opacity),hubOpacity:parseFloat(vars.hub.style.opacity),
   changedRegion:rupture>.45,secondIllustratedRegionVisible:arrival>.4});
  for(const [index,button] of chapterLinks.entries()){
@@ -226,12 +389,13 @@ async function start(){
   for(const entry of manifest.v3aPieces){if(!(entry.type in counts))throw Error('UNKNOWN_RIG_PART');counts[entry.type]++;pieces.push(mount(entry));}
   if(counts.pad!==12||counts.knob!==8||counts.speaker!==4)throw Error('V3A_COUNTS_MISMATCH');
   traceLen=vars.trace.getTotalLength();worldLen=vars.worldPath.getTotalLength();ringLen=vars.rim.getTotalLength();
-  makeStars();state.mountedPieces=pieces.length;state.sourceV3A=manifest.v3aSourceActionsSha;
+  makeStars();createDepthWorld();state.mountedPieces=pieces.length;state.sourceV3A=manifest.v3aSourceActionsSha;
   // Require every src image to decode, not merely DOM presence.
   const imgs=[...doc.querySelectorAll('img')];
   await Promise.all(imgs.map(img=>img.decode()));
   setupChapterNavigation();
   state.ready=true;updatePose(progressFromScroll());lastProgress=state.progress;
+  void prepareArtcraftEffect();
   addEventListener('scroll',schedule,{passive:true});
   addEventListener('resize',()=>{makeStars();schedule()},{passive:true});
  }catch(error){console.error('HAZEWAVE_V4_FAIL_CLOSED',error);state.error=String(error);state.ready=false;}
