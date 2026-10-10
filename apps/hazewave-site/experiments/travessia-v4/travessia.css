@@ -97,3 +97,14 @@
  color:#e8cbd9b5;letter-spacing:.17em}
 @media(max-width:450px){.arrival-inscription{bottom:12svh}.chapter-nav{right:8px}}
 @media(prefers-reduced-motion:reduce){.arrival-inscription{will-change:auto}}
+
+/* V11 art direction: independently re-projected, soft-masked A03 fragments.
+   Source image remains byte-identical and is requested once by the browser. */
+.city-scene > img.city-plane{position:absolute;left:0;top:0;width:100%;height:auto;
+ object-fit:contain;display:block;pointer-events:none;will-change:transform}
+.city-scene > img.city-plane-left{mask-image:linear-gradient(to right,#000 0%,#000 29%,#0009 34%,transparent 39%);-webkit-mask-image:linear-gradient(to right,#000 0%,#000 29%,#0009 34%,transparent 39%)}
+.city-scene > img.city-plane-center{mask-image:linear-gradient(to right,transparent 27%,#000a 35%,#000 41%,#000 64%,#0009 73%,transparent 79%);-webkit-mask-image:linear-gradient(to right,transparent 27%,#000a 35%,#000 41%,#000 64%,#0009 73%,transparent 79%)}
+.city-scene > img.city-plane-right{mask-image:linear-gradient(to right,transparent 65%,#0009 71%,#000 79%,#000 100%);-webkit-mask-image:linear-gradient(to right,transparent 65%,#0009 71%,#000 79%,#000 100%)}
+.stage[data-quality="lite"] .city-plane-left,.stage[data-quality="lite"] .city-plane-right{display:none!important}
+.stage[data-quality="lite"] .city-plane-center{mask-image:none!important;-webkit-mask-image:none!important;transform:none!important}
+@media(prefers-reduced-motion:reduce){.city-scene > img.city-plane{will-change:auto}}

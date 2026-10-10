@@ -246,6 +246,21 @@ function makeStars(){
   ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
  }
 }
+
+const cityLayerNodes=[];
+function mountCityArtPlanes(){
+ const original=vars.city.querySelector(':scope > img');
+ if(!original||!original.src)throw Error('APPROVED_CITY_ART_REQUIRED');
+ for(const role of ['left','center','right']){
+  const layer=doc.createElement('img');
+  layer.src=original.src;layer.alt='';layer.decoding='async';
+  layer.className='city-plane city-plane-'+role;
+  vars.city.appendChild(layer);cityLayerNodes.push(layer);
+ }
+ original.style.visibility='hidden'; // retain parent layout and geometry
+ vars.cityFlight.style.display='none'; // no duplicate complete city
+ state.cityPlaneCount=cityLayerNodes.length;
+}
 function updatePose(p){
  renderDepthWorld(p,innerWidth,innerHeight);
  const W=innerWidth,H=innerHeight,phone=W<700;
@@ -326,6 +341,16 @@ function updatePose(p){
  const cityY=lerp(-H*.27,H*.10,smooth(.4,.70,p))-H*.2*arrival;
  moveImage(vars.city,cityX,cityY,cityScale,lerp(-15,4,approach));
  vars.city.style.opacity=String(band(.35,.53,.75,.83,p)*.78);
+
+ // A03: three disjoint, feather-masked painted fragments respond to the
+ // sonic pressure field in independently staged depth. Same canonical p.
+ const cityFracture=smooth(.43,.79,p);
+ for(const [i,pane] of cityLayerNodes.entries()){
+  const side=i-1,dx=side*W*.095*cityFracture;
+  const dy=(i===1?-H*.08:H*.012)*cityFracture;
+  const cityZoom=1+(i===1?.21:.06)*cityFracture;
+  pane.style.transform='translate3d('+dx.toFixed(2)+'px,'+dy.toFixed(2)+'px,0) scale('+cityZoom.toFixed(4)+') rotate('+(side*3.7*cityFracture).toFixed(3)+'deg)';
+ }
  vars.cityFlight.style.transform=`translate3d(${(-W*.16*rupture).toFixed(2)}px,${(H*.22*rupture).toFixed(2)}px,120px) scale(${(1+.6*rupture).toFixed(3)})`;
  // A physical aperture in the fog, fully clipping the new illustrated region.
  const portalRadius=lerp(0,75,smooth(.43,.76,p));
@@ -374,6 +399,8 @@ function updatePose(p){
  // Editorial handoff: never display two competing HAZEWAVE mastheads.
  const masthead=doc.querySelector('header.brand');
  if(masthead)masthead.style.opacity=String(1-arrivalInk);
+ const introCue=doc.querySelector('.hud');
+ if(introCue)introCue.style.opacity=String(1-smooth(.04,.16,p));
  vars.debrisA.style.opacity=String(band(.43,.63,.84,.95,p)*.9);
  vars.debrisB.style.opacity=String(band(.47,.66,.83,.95,p)*.9);
  vars.debrisA.style.transform=`translate3d(${(-W*.7*rupture).toFixed(2)}px,${(-H*.4*rupture).toFixed(2)}px,${260*rupture}px) rotate(${(-23-60*rupture).toFixed(2)}deg)`;
@@ -422,7 +449,7 @@ async function start(){
   for(const entry of manifest.v3aPieces){if(!(entry.type in counts))throw Error('UNKNOWN_RIG_PART');counts[entry.type]++;pieces.push(mount(entry));}
   if(counts.pad!==12||counts.knob!==8||counts.speaker!==4)throw Error('V3A_COUNTS_MISMATCH');
   traceLen=vars.trace.getTotalLength();worldLen=vars.worldPath.getTotalLength();ringLen=vars.rim.getTotalLength();
-  makeStars();createDepthWorld();state.mountedPieces=pieces.length;state.sourceV3A=manifest.v3aSourceActionsSha;
+  makeStars();createDepthWorld();mountCityArtPlanes();state.mountedPieces=pieces.length;state.sourceV3A=manifest.v3aSourceActionsSha;
   // Require every src image to decode, not merely DOM presence.
   const imgs=[...doc.querySelectorAll('img')];
   await Promise.all(imgs.map(img=>img.decode()));

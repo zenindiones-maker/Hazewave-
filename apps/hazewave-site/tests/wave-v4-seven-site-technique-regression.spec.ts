@@ -448,3 +448,22 @@ test("V11 paints five owner-derived scenes with a reversible revealing ink front
  expect(reset.ink).toBe(0);expect(reset.arrival).toBe(0);
  await expect(page.locator("header.brand")).toHaveCSS("opacity","1");
 });
+
+test("V11 painterly A03 regions split into three soft-mask planes, react causally and reverse — SYNTHETIC source pixels",async({page})=>{
+ await fixture(page);
+ await expect(page.locator("#city-scene > img.city-plane")).toHaveCount(3);
+ expect((await pose(page) as Pose & {cityPlaneCount:number}).cityPlaneCount).toBe(3);
+ await scrollToExactProgress(page,.77);
+ const transformed=await page.locator("#city-scene > img.city-plane").evaluateAll(nodes=>nodes.map(n=>(n as HTMLElement).style.transform));
+ expect(new Set(transformed).size).toBe(3);
+ const cue=Number(await page.locator(".hud").evaluate(n=>(n as HTMLElement).style.opacity));
+ expect(cue).toBeLessThan(.01);
+ await ensureLiteMode(page,true);
+ await expect(page.locator(".city-plane-left")).toHaveCSS("display","none");
+ await expect(page.locator(".city-plane-center")).toHaveCSS("mask-image","none");
+ await ensureLiteMode(page,false);
+ await scrollToExactProgress(page,0);
+ const returned=await page.locator("#city-scene > img.city-plane").evaluateAll(nodes=>nodes.map(n=>(n as HTMLElement).style.transform));
+ expect(new Set(returned).size).toBe(1);
+ await expect(page.locator(".hud")).toHaveCSS("opacity","1");
+});
