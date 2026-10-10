@@ -63,6 +63,54 @@
 }
 @media(max-height:620px) and (min-width:701px){.brand{top:22px;width:min(42vw,475px)}.logo-reveal{bottom:29%}.copy-reveal{bottom:18%}.entry-link{bottom:18px}}
 @media(prefers-reduced-motion:reduce){.entry-link{transition:none}.brand,.logo-reveal{will-change:auto}}
+
+/* WAVE V11: actual reversible camera-space journey, not a static poster.
+   The stage owns perspective; depths, portal and rig receive one scroll clock. */
+#stage{perspective:1100px;perspective-origin:50% 53%;background:radial-gradient(ellipse 90% 85% at 52% 48%,#2f214a 0%,#17122f 37%,#050711 78%,#03040b 100%)}
+.depth-universe{position:absolute;inset:-18%;z-index:1;pointer-events:none;transform-style:preserve-3d;opacity:var(--universe-opacity,.88);transform:translate3d(calc(var(--camera-x,0)*1px),calc(var(--camera-y,0)*1px),calc(var(--camera-z,0)*1px)) rotateZ(calc(var(--camera-roll,0)*1deg));will-change:transform,opacity}
+.depth-plane{position:absolute;inset:0;pointer-events:none;transform-origin:center;will-change:transform,opacity}
+.depth-plane.far{background:radial-gradient(ellipse 34% 20% at 48% 52%,#f1b9df24 0%,#8748b53d 34%,transparent 75%),radial-gradient(ellipse 25% 41% at 68% 42%,#433c8972,transparent 91%),repeating-radial-gradient(ellipse at 51% 53%,transparent 0 24px,#9f65da0d 26px 27px,transparent 29px 64px);opacity:.98;transform:translateZ(-360px) scale(1.32) rotate(-18deg)}
+.depth-plane.middle{inset:10%;background:radial-gradient(ellipse 48% 15% at 43% 62%,#e1a8ff69,transparent 77%),radial-gradient(ellipse 34% 27% at 60% 39%,#7847c282,transparent 82%),repeating-conic-gradient(from 28deg at 49% 52%,#9a70c50a 0deg 8deg,transparent 9deg 23deg);opacity:var(--depth-mid,.53);filter:blur(19px);transform:translate3d(calc(var(--mid-x,0)*1px),calc(var(--mid-y,0)*1px),-120px) scale(1.08) rotate(24deg)}
+.depth-plane.near{inset:-5%;background:radial-gradient(ellipse 24% 43% at 22% 62%,#ffa97665,transparent 85%),radial-gradient(ellipse 31% 23% at 84% 22%,#a77dff6b,transparent 88%),radial-gradient(ellipse 38% 30% at 54% 80%,#542a8e64,transparent 91%);filter:blur(28px);opacity:var(--depth-near,.4);transform:translate3d(calc(var(--near-x,0)*1px),calc(var(--near-y,0)*1px),160px) scale(1.10)}
+.depth-plane.stars{inset:3%;background-image:radial-gradient(circle at 13% 32%,#fff1ed 1.5px,transparent 3px),radial-gradient(circle at 80% 46%,#ffe5bf 1.1px,transparent 2.5px),radial-gradient(circle at 38% 13%,#cabaff 1.5px,transparent 2.6px),radial-gradient(circle at 65% 86%,#eed8ff 1px,transparent 3px),radial-gradient(circle at 43% 57%,#fff8ff 1px,transparent 2px);background-size:167px 181px,241px 193px,309px 277px,193px 239px,137px 153px;opacity:var(--star-intensity,.63);transform:translate3d(calc(var(--star-x,0)*1px),calc(var(--star-y,0)*1px),110px) scale(1.2)}
+.nebula{opacity:var(--nebula-opacity,.30);filter:blur(32px);width:92vw;height:69vh;background:radial-gradient(ellipse,#ad6ff4b3,#5a388c64 43%,transparent 76%)}
+.nebula-right{background:radial-gradient(ellipse,#4979a6ad,#b379aa44 50%,transparent 76%)}
+.wave-field{z-index:4;mix-blend-mode:screen}
+.wave-field svg{filter:drop-shadow(0 0 18px #af7aff63)}
+.interference-veil{position:absolute;z-index:4;inset:-12%;opacity:var(--interference-opacity,0);transform:translate3d(calc(var(--veil-x,0)*1px),calc(var(--veil-y,0)*1px),0) rotateZ(-15deg) scale(var(--veil-scale,.65));pointer-events:none;will-change:transform,opacity;mix-blend-mode:screen;background:repeating-radial-gradient(ellipse at 51% 49%,transparent 0 23px,#db99ff34 25px 27px,transparent 29px 48px),radial-gradient(ellipse 43% 28% at 51% 49%,#9a68d044,transparent 86%);-webkit-mask-image:radial-gradient(ellipse 56% 49% at center,#000 18%,transparent 95%);mask-image:radial-gradient(ellipse 56% 49% at center,#000 18%,transparent 95%)}
+.machine-field{perspective:920px;transform-style:preserve-3d;transform:translate3d(-50%,-50%,calc(var(--rig-advance,0)*1px)) rotateX(calc(var(--rig-pitch,18)*1deg)) rotateY(calc(var(--rig-yaw,-19)*1deg)) rotateZ(var(--machine-rotate,-8deg)) scale(var(--machine-scale,.61));filter:drop-shadow(0 32px 35px #010109df) drop-shadow(0 0 24px #bc82df52)}
+.machine-field svg{position:relative;z-index:3;overflow:visible;filter:drop-shadow(0 4px 5px #000c)}
+.rig-wing{position:absolute;z-index:2;width:26%;height:63%;top:18%;border-radius:14px;border:4px solid #887ca0;box-shadow:inset 0 0 0 6px #171629,inset 0 0 25px #d28bd23d,0 16px 40px #0009;background:repeating-linear-gradient(180deg,#322b44 0 13px,#504262 14px 17px,#1a182b 18px 23px);transform-style:preserve-3d;will-change:transform}
+.rig-wing:after{content:"";position:absolute;inset:12% 23%;border-left:3px solid #e5afcc88;border-right:3px solid #e5afcc88;box-shadow:0 0 22px #ffb9e552}
+.rig-wing.left{left:-13%;transform-origin:right center;transform:rotateY(calc(var(--wing-angle,0)*-1deg)) translateZ(12px)}
+.rig-wing.right{right:-10%;transform-origin:left center;transform:rotateY(calc(var(--wing-angle,0)*1deg)) translateZ(12px)}
+.machine-field .pad{transform-box:fill-box;transform-origin:center;transform:translateY(calc(var(--pad-depth,0)*-7px)) scale(var(--pad-swell,1));filter:drop-shadow(0 5px 2px #03020c) drop-shadow(0 0 1px #cbbde7);stroke:#a99cb1;stroke-width:4;will-change:transform}
+.machine-field .pad.hot{fill:#ef9b64;stroke:#fff1cf;filter:drop-shadow(0 0 17px #ffa46b) drop-shadow(0 1px 5px #fdd0b9);stroke-width:6}
+.event-horizon{position:absolute;z-index:6;left:50%;top:54%;width:min(108vw,930px);aspect-ratio:1;pointer-events:none;opacity:var(--portal-opacity,0);transform:translate3d(-50%,-50%,0) rotate(calc(var(--portal-rotate,0)*1deg)) scale(var(--portal-scale,.2));transform-origin:center;will-change:transform,opacity;background:radial-gradient(circle at center,#fff4e51e 0%,#bb75fb24 8%,#150c28 27%,#0c0b20 38%,#f1c3dbb9 40%,#6c3d9c9c 41%,transparent 43%),conic-gradient(from 18deg,#834ada00,#f1a5e5a1,#9453fa0a,#ffb779ad,#834ada00);border-radius:50%;box-shadow:0 0 95px #ae6ce17d,inset 0 0 130px #ad6ace76;mask-image:radial-gradient(circle,transparent 0%,#000 27%,#000 48%,transparent 66%)}
+.event-horizon:before,.event-horizon:after{content:"";position:absolute;inset:14%;border:1.5px solid #eebff7a0;border-radius:50%;box-shadow:0 0 35px #d79afe7c;transform:rotateX(68deg) rotateZ(29deg)}
+.event-horizon:after{inset:5%;transform:rotateY(71deg) rotateZ(-17deg);border-color:#ffcba19c}
+.approach-haze{z-index:8;background:radial-gradient(ellipse 52% 44% at 52% 48%,#ffc5ba63,#926cc45d 45%,transparent 88%)}
+.logo-reveal{z-index:11}
+.copy{z-index:13}
+.brand{z-index:19}
+.entry-link{z-index:20}
+#arrival{position:relative;overflow:hidden;isolation:isolate;background:radial-gradient(ellipse 51% 39% at 51% -10%,#7f4b9d79,transparent),linear-gradient(180deg,#080a16,#20162b 58%,#080912)}
+#arrival:before{content:"";position:absolute;z-index:-1;top:8%;left:50%;width:min(76vw,660px);aspect-ratio:1;border:1px solid #b07dc84d;border-radius:50%;transform:translateX(-50%) rotateX(63deg);box-shadow:0 0 75px #c588ff35,inset 0 0 60px #c588ff21}
+#arrival .arrival-label{font-family:Georgia,serif;letter-spacing:-.06em}
+@media(max-width:700px){
+ .depth-universe{inset:-23%}
+ .depth-plane.near{filter:blur(18px)}
+ .depth-plane.middle{filter:blur(11px)}
+ .event-horizon{width:135vw}
+ .machine-field{width:108vw;left:52%;top:55%}
+ .rig-wing{border-width:2px}
+ .brand{z-index:19}
+}
+@media(prefers-reduced-motion:reduce){
+ .depth-plane,.depth-universe,.machine-field,.rig-wing,.event-horizon,.interference-veil{will-change:auto}
+ .interference-veil{background:radial-gradient(ellipse 50% 35%,#926cc53a,transparent 84%)}
+}
+
 </style>
 </head>
 <body data-experience="indionesbala-only">
@@ -71,11 +119,11 @@
 <section id="journey" aria-label="A onda percorre o universo Hazewave e revela Indionesbala">
 <div id="stage">
 <svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true"><filter id="indionesbala-background-key" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  1.1 .10 -.40 0 -.17"/></filter></svg>
- <div class="cosmos" aria-hidden="true"></div><div class="nebula" aria-hidden="true"></div><div class="nebula nebula-right" aria-hidden="true"></div>
+ <div class="cosmos" aria-hidden="true"></div><div class="depth-universe" aria-hidden="true"><div class="depth-plane far"></div><div class="depth-plane middle"></div><div class="depth-plane stars"></div><div class="depth-plane near"></div></div><div class="nebula" aria-hidden="true"></div><div class="nebula nebula-right" aria-hidden="true"></div>
  <div class="brand"><img id="hazewave-logo" src="/media/hazewave-world.jpg" alt="HAZEWAVE" width="955" height="416"/></div>
  <div class="wave-field" aria-hidden="true"><svg viewBox="0 0 1440 900" preserveAspectRatio="none"><path class="signal-trail" pathLength="1" d="M-140 552 C210 540 343 630 470 501 S770 250 960 440 S1210 620 1540 380"/><path class="signal-mid" pathLength="1" d="M-140 544 C202 531 341 618 462 500 S782 267 960 434 S1202 615 1540 373"/><path class="signal-core" pathLength="1" d="M-140 538 C200 528 344 610 453 499 S770 279 960 426 S1213 604 1540 364"/></svg></div>
- <div class="continuity-slit" aria-hidden="true"></div>
- <div class="machine-field" aria-hidden="true"><svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg" role="presentation"><defs><linearGradient id="chassis" x2=".2" y2="1"><stop stop-color="#382b4c"/><stop offset=".57" stop-color="#241d36"/><stop offset="1" stop-color="#121321"/></linearGradient><linearGradient id="edge" x2="1" y2="1"><stop stop-color="#9f86af"/><stop offset="1" stop-color="#4a355e"/></linearGradient></defs><path d="M76 172 L907 132 Q942 136 944 170 L967 564 Q970 603 930 611 L125 651 Q89 648 81 609 L46 216 Q40 190 76 172Z" fill="#080913" stroke="#b297b5" stroke-width="5"/><path d="M76 161 L902 126 Q922 127 928 148 L943 560 Q943 578 921 583 L128 629 Q104 628 101 607 L56 199 Q55 171 76 161Z" fill="url(#chassis)" class="rig-outline"/><path d="M107 224 L619 202 L640 571 L140 598Z" fill="#171322" stroke="#665575" stroke-width="4"/><g id="pads"><rect class="pad" x="142" y="254" width="105" height="91" rx="10"/>
+ <div class="interference-veil" aria-hidden="true"></div><div class="continuity-slit" aria-hidden="true"></div><div class="event-horizon" aria-hidden="true"></div>
+ <div class="machine-field" aria-hidden="true"><div class="rig-wing left"></div><div class="rig-wing right"></div><svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg" role="presentation"><defs><linearGradient id="chassis" x2=".2" y2="1"><stop stop-color="#382b4c"/><stop offset=".57" stop-color="#241d36"/><stop offset="1" stop-color="#121321"/></linearGradient><linearGradient id="edge" x2="1" y2="1"><stop stop-color="#9f86af"/><stop offset="1" stop-color="#4a355e"/></linearGradient></defs><path d="M76 172 L907 132 Q942 136 944 170 L967 564 Q970 603 930 611 L125 651 Q89 648 81 609 L46 216 Q40 190 76 172Z" fill="#080913" stroke="#b297b5" stroke-width="5"/><path d="M76 161 L902 126 Q922 127 928 148 L943 560 Q943 578 921 583 L128 629 Q104 628 101 607 L56 199 Q55 171 76 161Z" fill="url(#chassis)" class="rig-outline"/><path d="M107 224 L619 202 L640 571 L140 598Z" fill="#171322" stroke="#665575" stroke-width="4"/><g id="pads"><rect class="pad" x="142" y="254" width="105" height="91" rx="10"/>
 <rect class="pad" x="256" y="254" width="105" height="91" rx="10"/>
 <rect class="pad" x="370" y="254" width="105" height="91" rx="10"/>
 <rect class="pad" x="484" y="254" width="105" height="91" rx="10"/>
@@ -123,11 +171,27 @@
   const p=clamp((window.scrollY-top)/extent); progress=p;
   const wave=smooth(.08,.37,p),ignite=smooth(.23,.58,p),arrival=smooth(.70,.94,p);
   set('drift',(p*-74).toFixed(2));set('lift',(p*-34).toFixed(2));set('breath',(1+p*.12).toFixed(3));
-  set('mist-x',(p*-54).toFixed(2)+'px');set('mist-right',(p*64).toFixed(2)+'px');set('nebula-opacity',(.13+bell(.24,.48,.64,.85,p)*.18).toFixed(3));
+  set('mist-x',(p*-92).toFixed(2)+'px');set('mist-right',(p*135).toFixed(2)+'px');set('nebula-opacity',(.26+bell(.18,.40,.67,.91,p)*.42).toFixed(3));
+   const crossing=smooth(.09,.64,p),rupture=bell(.47,.64,.77,.94,p),gateway=bell(.59,.74,.84,.985,p);
+   set('camera-x',(-130*crossing+44*arrival).toFixed(2));set('camera-y',(-70*crossing+24*arrival).toFixed(2));
+   set('camera-z',(280*crossing+160*rupture).toFixed(2));set('camera-roll',(-11*crossing+9*arrival).toFixed(3));
+   set('mid-x',(-160*crossing).toFixed(2));set('mid-y',(95*crossing).toFixed(2));
+   set('near-x',(-270*crossing).toFixed(2));set('near-y',(170*crossing).toFixed(2));
+   set('star-x',(-86*crossing).toFixed(2));set('star-y',(55*crossing).toFixed(2));
+   set('depth-mid',(.5+rupture*.36).toFixed(3));set('depth-near',(.47+rupture*.40).toFixed(3));
+   set('star-intensity',(.55+crossing*.28).toFixed(3));set('universe-opacity',(1-smooth(.79,.97,p)*.68).toFixed(3));
+   set('interference-opacity',bell(.11,.30,.69,.85,p).toFixed(3));
+   set('veil-x',(-210+crossing*290).toFixed(2));set('veil-y',(65-crossing*110).toFixed(2));set('veil-scale',(.64+crossing*.74).toFixed(3));
+   set('portal-opacity',gateway.toFixed(3));set('portal-scale',(.16+gateway*1.48+arrival*.48).toFixed(3));
+   set('portal-rotate',(-22+crossing*75).toFixed(2));
   set('logo-opacity','1');set('logo-scale',(1-.07*smooth(.12,.73,p)).toFixed(3));
   set('wave-opacity',Math.max(.08,.12+wave*.84-arrival*.91).toFixed(3));set('draw',(1-smooth(.05,.42,p)).toFixed(4));set('wave-shift',(-12+p*16).toFixed(2)+'%');set('wave-y',(Math.sin(p*3.5)*24).toFixed(2)+'px');set('wave-scale',(1+wave*.19).toFixed(3));
   set('machine-opacity',bell(.22,.39,.61,.79,p).toFixed(3));
-  set('machine-scale',(.60+.34*ignite).toFixed(3));set('machine-rotate',(-8+ignite*8).toFixed(2)+'deg');
+  set('machine-scale',(.56+.44*ignite+.21*rupture).toFixed(3));set('machine-rotate',(-12+ignite*15).toFixed(2)+'deg');
+   set('rig-advance',(32+ignite*118+rupture*120).toFixed(2));
+   set('rig-pitch',(23-ignite*18-rupture*9).toFixed(3));set('rig-yaw',(-29+ignite*26).toFixed(3));
+   set('wing-angle',(73*smooth(.37,.65,p)).toFixed(2));
+   set('pad-swell',(1+.03*ignite).toFixed(3));
   set('slit-opacity',bell(.43,.63,.72,.89,p).toFixed(3));set('slit-shift',(-250+p*340).toFixed(2)+'px');set('slit-scale',(.1+p*2.5).toFixed(3));
   set('approach-opacity',bell(.61,.76,.84,1,p).toFixed(3));
   set('artist-opacity',arrival.toFixed(3));set('artist-y',(25-25*arrival).toFixed(2)+'px');set('artist-scale',(.86+.14*arrival).toFixed(3));
@@ -138,7 +202,11 @@
   const entryOpacity=smooth(.90,.985,p);set('entry-opacity',entryOpacity.toFixed(3));
   set('entry-y',((1-entryOpacity)*14).toFixed(1)+'px');set('entry-events',entryOpacity>.95?'auto':'none');
   entry.tabIndex=entryOpacity>.95?0:-1;
-  pads.forEach((pad,i)=>pad.classList.toggle('hot',ignite>(i+1)/14 && p<.71));
+  pads.forEach((pad,i)=>{
+     const energy=clamp((ignite-(i+1)/14)*5)* (1-smooth(.67,.79,p));
+     pad.classList.toggle('hot',energy>.26);
+     pad.style.setProperty('--pad-depth',energy.toFixed(3));
+   });
   document.body.dataset.storyProgress=p.toFixed(3);
   document.body.dataset.storyState=p<.22?'silence':p<.44?'interference':p<.73?'machine':p<.93?'handoff':'artist';
  }
@@ -146,7 +214,7 @@
  addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',onScroll,{passive:true});
  // Stop idle animation under reduced motion; native scroll remains reversible.
  if(reduced)document.documentElement.dataset.reducedMotion='true';
- render();window.__HAZEWAVE_STORY={get progress(){return progress},get artistCount(){return 1},version:'indionesbala-only'};
+ render();window.__HAZEWAVE_STORY={get progress(){return progress},get artistCount(){return 1},get stage(){return document.body.dataset.storyState},version:'cinematic-v11'};
 })();
 </script>
 </body></html>
