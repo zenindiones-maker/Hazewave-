@@ -120,3 +120,40 @@ def test_real_artcraft_private_site_composer_makes_media_parent_before_frames():
     assert parent in composer and child in composer
     assert composer.index(parent) < composer.index(child)
     assert "from artcraft_portal_pipeline import verify" in composer
+
+
+def test_private_export_never_targets_site_public_or_repo(tmp_path):
+    import importlib.util
+    import sys
+    standalone_script = BASE / "build_standalone.py"
+    integrate_script = BASE / "integrate_private_astro.py"
+    def load(path, name):
+        spec = importlib.util.spec_from_file_location(name, path)
+        assert spec and spec.loader
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    standalone = load(standalone_script, "hazewave_standalone_security")
+    integrated = load(integrate_script, "hazewave_integrator_security")
+    allowed_private_media = tmp_path / "media"
+    allowed_private_media.mkdir()
+    forbidden_output = ROOT / "apps" / "hazewave-site" / "public" / "owner-private.html"
+    with pytest.raises(ValueError, match="STANDALONE_OUTPUT_EXISTS_OR_INSIDE_INPUTS"):
+        standalone.build(BASE, allowed_private_media, forbidden_output)
+    fake_astro = tmp_path / "dist.zip"
+    fake_astro.write_bytes(b"not-real-zip")
+    with pytest.raises(ValueError, match="PRIVATE_OUTPUT_MUST_BE_FRESH_OUTSIDE_SOURCE_AND_ART"):
+        integrated.compose(fake_astro, BASE, allowed_private_media,
+                           ROOT / "apps" / "hazewave-site" / "public" / "preview")
+    assert not forbidden_output.exists()
+
+
+def test_invalid_fx_receipt_is_checked_before_site_copy_mutation():
+    source = (BASE / "integrate_private_astro.py").read_text()
+    assert "REPO_ROOT=Path(__file__).resolve().parents[4]" in source
+    assert source.index("fx_proof=verify_effectcraft(fx_root)") < source.index(
+        "output.mkdir(mode=0o700,parents=True)"
+    )
+    standalone_source = (BASE / "build_standalone.py").read_text()
+    assert "os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600" in standalone_source
+    assert "PRIVATE_ART_MANIFEST_UNQUALIFIED" in standalone_source
