@@ -1,169 +1,113 @@
----
-import "../styles/illustrated-interference.css";
-import { PUBLIC_ARTISTS } from "../data/publicArtists";
----
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#090e18" />
-  <meta name="description" content="Hazewave — uma história ilustrada sobre a onda de interferência que atravessa a névoa do universo e conecta mundos musicais." />
-  <title>HAZEWAVE — Uma onda, muitos universos</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="robots" content="noindex,nofollow,noarchive"/>
+<meta name="theme-color" content="#090811"/>
+<meta name="description" content="Hazewave — uma onda de interferência atravessa a névoa cósmica e desperta o universo de Indionesbala."/>
+<title>HAZEWAVE — A onda encontra Indionesbala</title>
+<style>
+:root{color-scheme:dark;--cream:#f5e9de;--violet:#9c6ee7;--amber:#ffad67;--signal:#dcb5ff;--night:#080912;background:var(--night);font-family:Inter,ui-sans-serif,system-ui,sans-serif}
+*{box-sizing:border-box}html{scroll-behavior:auto;overflow-x:clip}body{margin:0;color:var(--cream);background:var(--night);overflow-x:clip}a{color:inherit}a:focus-visible{outline:2px solid #ffc891;outline-offset:6px}.skip{position:fixed;z-index:90;top:-90px;left:12px;background:white;color:black;padding:14px}.skip:focus{top:12px}
+#journey{height:600svh;min-height:3600px;position:relative}#stage{isolation:isolate;height:100svh;min-height:440px;position:sticky;top:0;overflow:hidden;background:radial-gradient(ellipse 74% 71% at 56% 64%,#26152e 0%,#100f22 42%,#060912 89%)}
+.cosmos{position:absolute;inset:0;pointer-events:none;overflow:hidden}.cosmos:before{content:"";position:absolute;inset:-12%;background:radial-gradient(ellipse 30% 42% at 17% 46%,#66357569,transparent 100%),radial-gradient(ellipse 32% 33% at 84% 32%,#2638689e,transparent 100%),radial-gradient(ellipse 23% 28% at 70% 79%,#a05d3d4f,transparent 100%);transform:translate3d(calc(var(--drift,0)*1px),calc(var(--lift,0)*1px),0) scale(var(--breath,1));will-change:transform}.cosmos:after{content:"";position:absolute;inset:0;background-image:radial-gradient(circle at 10% 14%,#ddd8ef 1px,transparent 2px),radial-gradient(circle at 76% 28%,#f1bb9b 1.1px,transparent 2px),radial-gradient(circle at 35% 75%,#c2acff 1.1px,transparent 2px),radial-gradient(circle at 62% 51%,#dfdde6 1px,transparent 2px),radial-gradient(circle at 88% 80%,#dfdde6 1px,transparent 2px);background-size:413px 337px,509px 317px,367px 311px,577px 389px,457px 443px;opacity:.45}
+.nebula{position:absolute;z-index:2;border-radius:45%;width:74vw;height:55vh;max-width:800px;pointer-events:none;filter:blur(45px);opacity:var(--nebula-opacity,.15);background:radial-gradient(ellipse,#9a58c26b,transparent 74%);transform:translate3d(var(--mist-x,0px),0,0) rotate(-18deg);top:24%;left:-18%;will-change:transform,opacity}.nebula-right{left:auto;right:-24%;top:4%;background:radial-gradient(ellipse,#6282b051,transparent 73%);transform:translate3d(var(--mist-right,0px),0,0) rotate(24deg)}
+.brand{position:absolute;z-index:12;left:50%;top:14%;width:clamp(200px,53vw,500px);aspect-ratio:955/416;transform:translate3d(-50%,0,0) scale(var(--logo-scale,1));opacity:var(--logo-opacity,1);transform-origin:center top;pointer-events:none;will-change:transform,opacity}.brand img{display:block;width:100%;height:auto;object-fit:fill}.brand{overflow:hidden;aspect-ratio:1024/475;mix-blend-mode:screen}
+.wave-field{position:absolute;z-index:3;inset:0;overflow:visible;opacity:var(--wave-opacity,.14);transform:translate3d(var(--wave-shift,-12%),var(--wave-y,0px),0) scale(var(--wave-scale,1));will-change:transform,opacity;pointer-events:none}.wave-field svg{width:100%;height:100%;display:block;overflow:visible}.signal-trail{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:4;stroke:#af78e7;opacity:.38}.signal-mid{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:6;stroke:#ddb7ff;filter:drop-shadow(0 0 8px #b47bf899)}.signal-core{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:2;stroke:#ffe8c4;opacity:.85}
+.machine-field{z-index:5;position:absolute;left:64%;top:58%;width:min(72vw,810px);aspect-ratio:1000/700;transform:translate3d(-50%,-50%,0) scale(var(--machine-scale,.61)) rotate(var(--machine-rotate,-8deg));opacity:var(--machine-opacity,0);filter:drop-shadow(0 24px 45px #000b);will-change:transform,opacity;pointer-events:none}.machine-field svg{width:100%;height:100%;display:block}.rig-outline{stroke:#9f819c;stroke-width:7}.pad{fill:#23192e;stroke:#776481;stroke-width:3}.pad:nth-child(3n){fill:#2f203d}.pad.hot{fill:#d96f40;stroke:#ffd6a4;filter:drop-shadow(0 0 10px #ff7d5b)}.readout{fill:#1c1929;stroke:#a08cb1;stroke-width:5}.spk{fill:#090d18;stroke:#897a9b;stroke-width:5}
+.continuity-slit{position:absolute;z-index:4;inset:0;pointer-events:none;opacity:var(--slit-opacity,0);background:linear-gradient(93deg,transparent 8%,#7958a312 38%,#eabbc71d 50%,#ffad8133 58%,transparent 91%);mask-image:linear-gradient(90deg,transparent 3%,#000 43%,#000 55%,transparent 98%);transform:translate3d(var(--slit-shift,0px),0,0) scaleX(var(--slit-scale,.1));will-change:transform,opacity}
+.approach-haze{position:absolute;z-index:6;inset:-15%;pointer-events:none;opacity:var(--approach-opacity,0);background:radial-gradient(ellipse 43% 31% at 52% 51%,#ee9d7852,transparent 90%),radial-gradient(ellipse 28% 40% at 24% 60%,#75448a50,transparent 100%);mix-blend-mode:screen;will-change:opacity}
+.logo-reveal{position:absolute;z-index:8;inset:0;display:grid;place-items:center;opacity:var(--artist-opacity,0);transform:translate3d(0,var(--artist-y,25px),0) scale(var(--artist-scale,.86));pointer-events:none;will-change:opacity,transform}.logo-reveal img{mix-blend-mode:screen;display:block;max-width:min(85vw,820px);width:85vw;height:auto;max-height:53vh;object-fit:contain;filter:drop-shadow(0 0 35px #d862252b)}
+.copy{position:absolute;z-index:10;left:clamp(24px,7vw,112px);right:clamp(24px,9vw,130px);top:30%;max-width:500px;pointer-events:none;opacity:0;will-change:transform,opacity}.copy p{font-size:clamp(11px,1vw,13px);font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#dcc3e5;margin:0 0 20px}.copy h1,.copy h2{font-weight:570;letter-spacing:-.06em;font-size:clamp(37px,6vw,88px);line-height:1.04;margin:0;max-width:780px}.copy em{color:#ffc59d;font-weight:450;font-family:Georgia,serif}.copy-origin{opacity:var(--copy-origin,0);transform:translateY(var(--copy-origin-y,0px))}.copy-machine{opacity:var(--copy-machine,0);transform:translateY(var(--copy-machine-y,0px))}.copy-reveal{top:auto;bottom:clamp(60px,13vh,150px);left:0;right:0;text-align:center;max-width:none;opacity:var(--copy-reveal,0);transform:translateY(var(--copy-reveal-y,0px))}.copy-reveal h2{font-size:clamp(21px,4vw,48px);font-weight:540;letter-spacing:-.03em}.copy-reveal p{color:#ffcba7}
+.entry-link{position:absolute;z-index:11;bottom:clamp(22px,5vh,54px);left:50%;transform:translateX(-50%) translateY(var(--entry-y,14px));pointer-events:var(--entry-events,none);opacity:var(--entry-opacity,0);text-decoration:none;white-space:nowrap;border:1px solid #ffc79eaa;border-radius:100px;background:#130b17c9;backdrop-filter:blur(9px);padding:16px 23px;min-height:54px;display:flex;align-items:center;gap:16px;font-size:clamp(12px,1.2vw,15px);font-weight:620;letter-spacing:.04em;color:#ffe7d7;transition:background .2s}.entry-link:hover{background:#6d3629}
+.scroll-hint{position:absolute;z-index:12;left:50%;bottom:clamp(20px,5vh,43px);transform:translateX(-50%);opacity:var(--hint-opacity,.85);pointer-events:none;color:#ccb8d4;font:500 11px/1.2 system-ui;letter-spacing:.04em}.scroll-hint span{display:inline-block;margin-left:9px;font-size:17px;animation:bob 2.4s ease-in-out infinite}@keyframes bob{50%{transform:translateY(6px)}}
+#arrival{min-height:45svh;background:linear-gradient(180deg,#100c17,#080912);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:20px;padding:70px 24px;color:#c3b9c9;text-align:center}#arrival p{font-size:clamp(15px,2vw,19px);max-width:540px;line-height:1.7;margin:0}#arrival a{font-size:14px;color:#ffd2aa;text-decoration:underline;text-underline-offset:5px;min-height:42px;display:inline-flex;align-items:center}
+@media(max-width:600px){#journey{height:540svh;min-height:3400px}.brand{top:16%;width:72vw}.copy{left:8vw;right:8vw;top:24%}.copy h1,.copy h2{font-size:clamp(35px,9.6vw,53px)}.copy-reveal{top:auto;bottom:clamp(130px,25vh,235px)}.copy-reveal h2{font-size:25px}.machine-field{left:50%;width:92vw;top:62%}.nebula{filter:blur(29px)}.logo-reveal img{width:90vw;max-height:47vh}.entry-link{bottom:clamp(36px,7vh,74px)}}
+@media(prefers-reduced-motion:reduce){.scroll-hint span{animation:none}.nebula{filter:blur(22px)}.entry-link{transition:none}}
+</style>
 </head>
-<body class="story-mode" data-phase="origin" data-motion="full">
-  <a class="skip" href="#worlds">Pular para os artistas</a>
-  <header class="masthead">
-    <a href="#beginning" class="masthead-mark" aria-label="HAZEWAVE, voltar ao início">HAZE<span>WAVE</span><i aria-hidden="true">∿</i></a>
-    <span class="masthead-edition">UM ROMANCE VISUAL SOBRE O SOM</span>
-    <a href="#worlds" class="masthead-link">OS MUNDOS <span aria-hidden="true">↗</span></a>
-  </header>
-
-  <main>
-    <section id="film" class="film" aria-label="A jornada da interferência sonora">
-      <div class="film-reel" id="beginning">
-        <div class="illustrated-sky" aria-hidden="true">
-          <div class="night-horizon"></div>
-          <svg id="interference-art" class="interference-art" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" role="presentation">
-            <defs>
-              <linearGradient id="nightInk" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#050a16"/><stop offset=".48" stop-color="#101e2b"/><stop offset="1" stop-color="#060a16"/></linearGradient>
-              <linearGradient id="silk" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#d6f0de"/><stop offset=".35" stop-color="#9cc4c5"/><stop offset=".72" stop-color="#427c99"/><stop offset="1" stop-color="#181f42"/></linearGradient>
-              <linearGradient id="aurora" x1="0" y1="0" x2="1" y2=".1"><stop stop-color="#b0ded6" stop-opacity="0"/><stop offset=".36" stop-color="#a4c5b4"/><stop offset=".6" stop-color="#ead3a8"/><stop offset="1" stop-color="#b0ded6" stop-opacity="0"/></linearGradient>
-              <radialGradient id="halo"><stop stop-color="#ffe6ba" stop-opacity=".88"/><stop offset=".23" stop-color="#a7bbd2" stop-opacity=".39"/><stop offset="1" stop-color="#101a38" stop-opacity="0"/></radialGradient>
-              <filter id="fog-ink" x="-30%" y="-40%" width="160%" height="180%">
-                <feTurbulence type="fractalNoise" baseFrequency=".009 .021" numOctaves="3" seed="8" result="grain"/>
-                <feDisplacementMap in="SourceGraphic" in2="grain" scale="54" xChannelSelector="R" yChannelSelector="G"/>
-                <feGaussianBlur stdDeviation="5"/>
-              </filter>
-              <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency=".31" numOctaves="2" seed="12" result="noise"/><feColorMatrix in="noise" type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".06"/></feComponentTransfer></filter>
-              <clipPath id="crescent"><path d="M 720 70 C 965 40 1170 215 1160 447 C 1151 690 969 824 744 819 C 899 747 978 612 983 449 C 991 245 875 130 720 70 Z"/></clipPath>
-            </defs>
-
-            <rect width="1440" height="900" fill="url(#nightInk)"/>
-            <g class="universe-stars" fill="#d5e7ec">
-              <circle cx="85" cy="92" r="1.3"/><circle cx="380" cy="54" r="1.4"/><circle cx="720" cy="112" r="1.1"/>
-              <circle cx="1170" cy="72" r="1.6"/><circle cx="1384" cy="194" r="2"/><circle cx="124" cy="384" r="1.3"/>
-              <circle cx="1310" cy="540" r="1.5"/><circle cx="444" cy="774" r="2"/><circle cx="987" cy="718" r="1.1"/>
-              <circle cx="1211" cy="830" r="1.4"/><circle cx="534" cy="291" r="1"/><circle cx="1073" cy="349" r="1.6"/>
-            </g>
-
-            <g class="ink-landscape art-origin">
-              <circle cx="760" cy="429" r="255" fill="url(#halo)" opacity=".39"/>
-              <path d="M0 665 C240 558 385 710 571 615 S933 586 1440 480 L1440 900 L0 900Z" fill="#131e30" opacity=".9"/>
-              <path d="M-40 740 C175 643 314 836 524 713 S904 679 1480 606" fill="none" stroke="#a0bac2" stroke-width="6" opacity=".3"/>
-              <path d="M-40 750 C215 681 380 848 565 738 S931 706 1480 635" fill="none" stroke="#cbd9ce" stroke-width="2" opacity=".5"/>
-              <g class="seed-sound">
-                <ellipse cx="709" cy="442" rx="13" ry="56" fill="#f2dfaf" opacity=".3"/>
-                <path d="M705 284 Q730 371 705 444 T705 612" stroke="#fbf1d2" stroke-width="3" fill="none"/>
-                <circle cx="706" cy="446" r="8" fill="#f7e6b8"/>
-              </g>
-            </g>
-
-            <g class="ink-landscape art-crossing">
-              <path d="M-120 722 C150 651 329 390 523 395 C752 404 833 731 1127 406 C1250 272 1391 230 1540 237 L1540 900 L-120 900Z" fill="#17304a" stroke="#e0e2ca" stroke-width="9"/>
-              <path d="M-95 768 C179 669 374 467 552 480 C756 501 851 779 1142 461 C1268 323 1451 295 1540 331" fill="none" stroke="#93b8b3" stroke-width="34" opacity=".55"/>
-              <path d="M-60 786 C164 733 343 549 574 564 C813 579 948 751 1204 509 C1301 416 1407 407 1500 420" fill="none" stroke="#e9cea1" stroke-width="4" opacity=".75"/>
-              <path d="M-40 680 C269 499 325 208 565 236 C779 259 900 502 1092 308 C1267 136 1380 178 1490 166" fill="none" stroke="#becad0" stroke-width="90" opacity=".27" filter="url(#fog-ink)"/>
-              <path d="M-140 465 C116 255 323 100 542 225 C795 378 920 184 1165 94 C1293 47 1398 88 1528 47" fill="none" stroke="#8d9daf" stroke-width="136" opacity=".2" filter="url(#fog-ink)"/>
-              <g class="foam" fill="#edf0d8" opacity=".8">
-                <path d="M470 398 Q536 312 597 391 Q540 364 516 419Z"/>
-                <path d="M835 644 Q947 541 1050 538 Q972 601 950 650Z"/>
-                <path d="M1210 351 Q1321 295 1430 322 Q1321 312 1285 365Z"/>
-              </g>
-            </g>
-
-            <g class="ink-landscape art-rupture">
-              <circle cx="724" cy="445" r="372" fill="url(#halo)" opacity=".87"/>
-              <circle cx="720" cy="445" r="252" fill="#090f23" stroke="#d8e1cb" stroke-width="4"/>
-              <circle cx="720" cy="445" r="285" fill="none" stroke="#9eacc0" stroke-width="26" opacity=".4" stroke-dasharray="390 160"/>
-              <circle cx="720" cy="445" r="316" fill="none" stroke="#c3a987" stroke-width="3" opacity=".7" stroke-dasharray="470 90"/>
-              <path d="M-75 498 C120 409 339 587 549 468 S1066 244 1530 438" fill="none" stroke="#e0bf93" stroke-width="43" opacity=".22" filter="url(#fog-ink)"/>
-              <path d="M-75 515 C210 401 396 593 613 478 S1110 302 1530 462" fill="none" stroke="#f0e1bb" stroke-width="5" opacity=".75"/>
-              <path d="M320 65 C483 138 498 273 590 311 M833 660 C989 666 1056 780 1140 887" stroke="#d9e5cc" fill="none" stroke-width="3" opacity=".7"/>
-              <path d="M720 96 L720 250 M720 639 L720 795 M390 445 L470 445 M969 445 L1050 445" stroke="#e8d2a4" stroke-width="3"/>
-              <path d="M555 444 Q634 302 735 447 T915 435" stroke="#dbe8d5" stroke-width="4" fill="none"/>
-              <g fill="#f3e0b4"><circle cx="720" cy="96" r="6"/><circle cx="720" cy="795" r="6"/><circle cx="390" cy="445" r="5"/><circle cx="1050" cy="445" r="5"/></g>
-            </g>
-
-            <g class="signal-engraving">
-              <path class="signal-shadow" pathLength="100" d="M-30 496 C143 493 191 504 280 499 L378 496 L422 454 L473 546 L522 431 L571 565 L623 405 L663 506 Q694 537 719 487 T781 478 Q881 453 952 483 L1040 493 L1475 496" fill="none" stroke="#d4c5a2" stroke-width="25" stroke-linecap="round" stroke-linejoin="round" opacity=".18"/>
-              <path class="signal-core" pathLength="100" d="M-30 496 C143 493 191 504 280 499 L378 496 L422 454 L473 546 L522 431 L571 565 L623 405 L663 506 Q694 537 719 487 T781 478 Q881 453 952 483 L1040 493 L1475 496" fill="none" stroke="#fff0c5" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-              <path class="signal-echo" pathLength="100" d="M-30 504 C143 501 191 512 280 507 L378 504 L422 462 L473 554 L522 439 L571 573 L623 413 L663 514 Q694 545 719 495 T781 486 Q881 461 952 491 L1040 501 L1475 504" fill="none" stroke="#6faeba" stroke-width="2" opacity=".72"/>
-            </g>
-            <rect width="1440" height="900" fill="#d7e7db" filter="url(#paper)"/>
-          </svg>
-          <div class="vertical-filigree"></div>
-          <div class="film-shade"></div>
-        </div>
-        <div class="film-copy">
-          <article class="film-line line-origin" aria-label="Primeiro ato">
-            <span class="eyebrow">01 / ANTES DA LUZ</span>
-            <h1>Antes da matéria,<br/><em>uma frequência.</em></h1>
-            <p>Um risco de som atravessa o vazio. E o vazio nunca mais será o mesmo.</p>
-          </article>
-          <article class="film-line line-crossing" aria-label="Segundo ato">
-            <span class="eyebrow">02 / O PRIMEIRO IMPACTO</span>
-            <h2>Ela atravessa<br/><em>o invisível.</em></h2>
-            <p>A névoa se rompe, a distância dobra, as galáxias encontram outra órbita.</p>
-          </article>
-          <article class="film-line line-rupture" aria-label="Terceiro ato">
-            <span class="eyebrow">03 / A INTERFERÊNCIA</span>
-            <h2>Nenhum mundo<br/><em>fica intacto.</em></h2>
-            <p>Cada som desloca um pedaço de universo. Nenhuma travessia se repete.</p>
-          </article>
-          <article class="film-line line-reveal" aria-label="O surgimento Hazewave">
-            <span class="eyebrow">04 / A DESCOBERTA</span>
-            <h2>Isso é<br/><em>HAZEWAVE.</em></h2>
-            <p>Uma frequência. Muitos universos musicais.</p>
-          </article>
-        </div>
-        <div class="identity-seal" aria-label="Arte original Hazewave preservada">
-          <img src="/media/hazewave-world.jpg" alt="Arte original Hazewave, preservada sem alterações" loading="lazy" />
-          <span>OBRA ORIGINAL · PRESERVADA</span>
-        </div>
-        <div class="film-bottom">
-          <div class="progress-rail" aria-hidden="true"><span class="progress-line"></span></div>
-          <span class="progress-caption">ARRASTE O TEMPO COM A ROLAGEM <b aria-hidden="true">↓</b></span>
-          <a class="skip-film" href="#worlds">PULAR FILME ↗</a>
-        </div>
-        <span class="corner-index" aria-hidden="true">HZW — 001</span>
-      </div>
-    </section>
-
-    <section id="worlds" class="worlds" aria-labelledby="worlds-title">
-      <div class="worlds-entrance">
-        <span class="eyebrow">05 / CONSTELAÇÃO HAZEWAVE</span>
-        <h2 id="worlds-title">Uma onda.<br/><em>Cinco mundos.</em></h2>
-        <p>Há universos que não cabem na mesma frequência. É por isso que a Hazewave existe.</p>
-      </div>
-      <div class="orbital-map" aria-label="Explore cinco universos de artistas independentes">
-        <svg class="orbit-lines" viewBox="0 0 1000 1600" aria-hidden="true" preserveAspectRatio="none">
-          <path d="M 500 15 C 880 190 180 432 520 715 S 900 1230 500 1585" fill="none" stroke="#b9d8d0" stroke-opacity=".34" stroke-width="2" stroke-dasharray="5 12"/>
-          <circle cx="500" cy="15" r="5" fill="#e6d6b3"/><circle cx="500" cy="1585" r="5" fill="#e6d6b3"/>
-        </svg>
-        {PUBLIC_ARTISTS.map((artist, index) => (
-          <a class={"planet planet-" + (index+1)} href={"/artists/" + artist.slug + "/"} aria-label={"Entrar no mundo de " + artist.name}>
-            <span class="planet-halo">
-              <img src={artist.image} alt={"Arte original de " + artist.name} loading="lazy" decoding="async"/>
-            </span>
-            <span class="planet-number">CONSTELAÇÃO 0{index+1}</span>
-            <strong>{artist.name}</strong>
-            <span class="planet-action">ENTRAR NO MUNDO <span aria-hidden="true">↗</span></span>
-          </a>
-        ))}
-      </div>
-      <div class="worlds-outro">
-        <p>Os artistas permanecem donos das suas vozes. As imagens são originais; músicas e lançamentos só serão apresentados após autorização.</p>
-        <a href="#beginning">RECOMEÇAR A TRAVESSIA ↑</a>
-      </div>
-    </section>
-  </main>
-  <footer class="colophon"><span>HAZEWAVE / UMA FREQUÊNCIA SEM FRONTEIRAS</span><span>IMAGEM: WAVE · SOM: HAZE</span></footer>
-  <noscript><style>.film-reel{height:100svh}.film{height:100svh}.film-line:not(.line-origin){display:none}.identity-seal{display:none}.worlds{display:block}</style></noscript>
-  <script>
-    import { mountStorybook } from "../experience/storybook";
-    if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", mountStorybook, {once:true});
-    else mountStorybook();
-  </script>
-</body>
-</html>
+<body data-experience="indionesbala-only">
+<a class="skip" href="#arrival">Pular a travessia</a>
+<main>
+<section id="journey" aria-label="A onda percorre o universo Hazewave e revela Indionesbala">
+<div id="stage">
+ <div class="cosmos" aria-hidden="true"></div><div class="nebula" aria-hidden="true"></div><div class="nebula nebula-right" aria-hidden="true"></div>
+ <div class="brand"><img id="hazewave-logo" src="/media/hazewave-world.jpg" alt="HAZEWAVE" width="955" height="416"/></div>
+ <div class="wave-field" aria-hidden="true"><svg viewBox="0 0 1440 900" preserveAspectRatio="none"><path class="signal-trail" d="M-140 552 C210 540 343 630 470 501 S770 250 960 440 S1210 620 1540 380"/><path class="signal-mid" d="M-140 544 C202 531 341 618 462 500 S782 267 960 434 S1202 615 1540 373"/><path class="signal-core" d="M-140 538 C200 528 344 610 453 499 S770 279 960 426 S1213 604 1540 364"/></svg></div>
+ <div class="continuity-slit" aria-hidden="true"></div>
+ <div class="machine-field" aria-hidden="true"><svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg" role="presentation"><defs><linearGradient id="chassis" x2=".2" y2="1"><stop stop-color="#382b4c"/><stop offset=".57" stop-color="#241d36"/><stop offset="1" stop-color="#121321"/></linearGradient><linearGradient id="edge" x2="1" y2="1"><stop stop-color="#9f86af"/><stop offset="1" stop-color="#4a355e"/></linearGradient></defs><path d="M76 172 L907 132 Q942 136 944 170 L967 564 Q970 603 930 611 L125 651 Q89 648 81 609 L46 216 Q40 190 76 172Z" fill="#080913" stroke="#b297b5" stroke-width="5"/><path d="M76 161 L902 126 Q922 127 928 148 L943 560 Q943 578 921 583 L128 629 Q104 628 101 607 L56 199 Q55 171 76 161Z" fill="url(#chassis)" class="rig-outline"/><path d="M107 224 L619 202 L640 571 L140 598Z" fill="#171322" stroke="#665575" stroke-width="4"/><g id="pads"><rect class="pad" x="142" y="254" width="105" height="91" rx="10"/>
+<rect class="pad" x="256" y="254" width="105" height="91" rx="10"/>
+<rect class="pad" x="370" y="254" width="105" height="91" rx="10"/>
+<rect class="pad" x="484" y="254" width="105" height="91" rx="10"/>
+<rect class="pad" x="142" y="356" width="105" height="91" rx="10"/>
+<rect class="pad" x="256" y="356" width="105" height="91" rx="10"/>
+<rect class="pad" x="370" y="356" width="105" height="91" rx="10"/>
+<rect class="pad" x="484" y="356" width="105" height="91" rx="10"/>
+<rect class="pad" x="142" y="458" width="105" height="91" rx="10"/>
+<rect class="pad" x="256" y="458" width="105" height="91" rx="10"/>
+<rect class="pad" x="370" y="458" width="105" height="91" rx="10"/>
+<rect class="pad" x="484" y="458" width="105" height="91" rx="10"/></g><rect class="readout" x="667" y="210" width="226" height="48" rx="6"/><path d="M681 240 Q715 230 731 236 T780 232 T840 236" fill="none" stroke="#df9f75" stroke-width="4" opacity=".85"/><g><g class="knob" transform="translate(667 286)"><circle r="20" fill="#151023" stroke="#a588b6" stroke-width="3"/><circle r="9" fill="#614c79"/><path d="M0-18 V-9" stroke="#ffc480" stroke-width="3" stroke-linecap="round"/></g>
+<g class="knob" transform="translate(726 286)"><circle r="20" fill="#151023" stroke="#a588b6" stroke-width="3"/><circle r="9" fill="#614c79"/><path d="M0-18 V-9" stroke="#ffc480" stroke-width="3" stroke-linecap="round"/></g>
+<g class="knob" transform="translate(785 286)"><circle r="20" fill="#151023" stroke="#a588b6" stroke-width="3"/><circle r="9" fill="#614c79"/><path d="M0-18 V-9" stroke="#ffc480" stroke-width="3" stroke-linecap="round"/></g>
+<g class="knob" transform="translate(844 286)"><circle r="20" fill="#151023" stroke="#a588b6" stroke-width="3"/><circle r="9" fill="#614c79"/><path d="M0-18 V-9" stroke="#ffc480" stroke-width="3" stroke-linecap="round"/></g>
+<g class="knob" transform="translate(667 366)"><circle r="20" fill="#151023" stroke="#a588b6" stroke-width="3"/><circle r="9" fill="#614c79"/><path d="M0-18 V-9" stroke="#ffc480" stroke-width="3" stroke-linecap="round"/></g>
+<g class="knob" transform="translate(726 366)"><circle r="20" fill="#151023" stroke="#a588b6" stroke-width="3"/><circle r="9" fill="#614c79"/><path d="M0-18 V-9" stroke="#ffc480" stroke-width="3" stroke-linecap="round"/></g>
+<g class="knob" transform="translate(785 366)"><circle r="20" fill="#151023" stroke="#a588b6" stroke-width="3"/><circle r="9" fill="#614c79"/><path d="M0-18 V-9" stroke="#ffc480" stroke-width="3" stroke-linecap="round"/></g>
+<g class="knob" transform="translate(844 366)"><circle r="20" fill="#151023" stroke="#a588b6" stroke-width="3"/><circle r="9" fill="#614c79"/><path d="M0-18 V-9" stroke="#ffc480" stroke-width="3" stroke-linecap="round"/></g></g><rect class="spk" x="656" y="468" width="253" height="87" rx="7"/><path d="M674 481 H894 M674 497 H894 M674 513 H894 M674 529 H894" stroke="#786b88" stroke-width="3" opacity=".75"/><path d="M105 613 Q510 638 922 572" fill="none" stroke="#e6a378" stroke-width="5" opacity=".38"/></svg></div>
+ <div class="approach-haze" aria-hidden="true"></div>
+ <div class="logo-reveal"><img id="indionesbala-logo" src="/media/artists/indionesbala.webp" alt="Indionesbala" width="1536" height="643"/></div>
+ <div class="copy copy-origin"><p>NO PRINCÍPIO, NENHUMA FORMA</p><h1>O universo<br/>escuta <em>primeiro.</em></h1></div>
+ <div class="copy copy-machine"><p>UMA ONDA INTERFERE NA MATÉRIA</p><h2>O som encontra<br/><em>seu mecanismo.</em></h2></div>
+ <div class="copy copy-reveal"><p>A FREQUÊNCIA ENCONTROU UM NOME</p><h2>Uma identidade. Um universo.</h2></div>
+ <a id="artist-entry" class="entry-link" href="/artists/indionesbala/">Entrar no universo de Indionesbala <span aria-hidden="true">↗</span></a>
+ <div class="scroll-hint" aria-hidden="true">Role para atravessar <span>↓</span></div>
+</div>
+</section>
+<section id="arrival" aria-label="Explorar o artista Indionesbala"><p>O que começou como uma interferência agora tem identidade.</p><a href="/artists/indionesbala/">Indionesbala — conhecer o universo ↗</a></section>
+</main>
+<script is:inline>
+(()=>{
+ "use strict";
+ const section=document.querySelector('#journey'),stage=document.querySelector('#stage');
+ const pads=[...document.querySelectorAll('#pads .pad')],entry=document.getElementById('artist-entry');
+ const clamp=(v)=>Math.max(0,Math.min(1,v));
+ const smooth=(a,b,p)=>{const v=clamp((p-a)/(b-a));return v*v*(3-2*v)};
+ const bell=(a,b,c,d,p)=>smooth(a,b,p)*(1-smooth(c,d,p));
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ let pending=false,progress=0;
+ const set=(name,value)=>stage.style.setProperty('--'+name,String(value));
+ function render(){
+  pending=false;
+  const top=section.getBoundingClientRect().top + window.scrollY;
+  const extent=Math.max(1,section.offsetHeight-window.innerHeight);
+  const p=clamp((window.scrollY-top)/extent); progress=p;
+  const wave=smooth(.08,.37,p),ignite=smooth(.23,.58,p),arrival=smooth(.70,.94,p);
+  set('drift',(p*-74).toFixed(2));set('lift',(p*-34).toFixed(2));set('breath',(1+p*.12).toFixed(3));
+  set('mist-x',(p*-54).toFixed(2)+'px');set('mist-right',(p*64).toFixed(2)+'px');set('nebula-opacity',(.13+bell(.24,.48,.64,.85,p)*.18).toFixed(3));
+  set('logo-opacity',(1-smooth(.15,.40,p)).toFixed(3));set('logo-scale',(1-smooth(.1,.46,p)*.19).toFixed(3));
+  set('wave-opacity',(.12+wave*.84-arrival*.26).toFixed(3));set('wave-shift',(-12+p*16).toFixed(2)+'%');set('wave-y',(Math.sin(p*3.5)*24).toFixed(2)+'px');set('wave-scale',(1+wave*.19).toFixed(3));
+  set('machine-opacity',bell(.22,.39,.61,.79,p).toFixed(3));
+  set('machine-scale',(.60+.34*ignite).toFixed(3));set('machine-rotate',(-8+ignite*8).toFixed(2)+'deg');
+  set('slit-opacity',bell(.43,.63,.72,.89,p).toFixed(3));set('slit-shift',(-250+p*340).toFixed(2)+'px');set('slit-scale',(.1+p*2.5).toFixed(3));
+  set('approach-opacity',bell(.61,.76,.84,1,p).toFixed(3));
+  set('artist-opacity',arrival.toFixed(3));set('artist-y',(25-25*arrival).toFixed(2)+'px');set('artist-scale',(.86+.14*arrival).toFixed(3));
+  set('copy-origin',bell(0,.10,.18,.31,p).toFixed(3));set('copy-origin-y',(-25*p).toFixed(1)+'px');
+  set('copy-machine',bell(.28,.43,.51,.64,p).toFixed(3));set('copy-machine-y',((.5-p)*28).toFixed(1)+'px');
+  set('copy-reveal',smooth(.77,.93,p).toFixed(3));set('copy-reveal-y',((1-arrival)*15).toFixed(1)+'px');
+  set('hint-opacity',(1-smooth(.06,.16,p)).toFixed(3));
+  const entryOpacity=smooth(.90,.985,p);set('entry-opacity',entryOpacity.toFixed(3));
+  set('entry-y',((1-entryOpacity)*14).toFixed(1)+'px');set('entry-events',entryOpacity>.95?'auto':'none');
+  entry.tabIndex=entryOpacity>.95?0:-1;
+  pads.forEach((pad,i)=>pad.classList.toggle('hot',ignite>(i+1)/14 && p<.71));
+  document.body.dataset.storyProgress=p.toFixed(3);
+  document.body.dataset.storyState=p<.22?'silence':p<.44?'interference':p<.73?'machine':p<.93?'handoff':'artist';
+ }
+ function onScroll(){if(!pending){pending=true;requestAnimationFrame(render)}}
+ addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',onScroll,{passive:true});
+ // Stop idle animation under reduced motion; native scroll remains reversible.
+ if(reduced)document.documentElement.dataset.reducedMotion='true';
+ render();window.__HAZEWAVE_STORY={get progress(){return progress},get artistCount(){return 1},version:'indionesbala-only'};
+})();
+</script>
+</body></html>
