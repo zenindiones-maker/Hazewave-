@@ -19,7 +19,11 @@ if (useDist && !provenance.assets.some((asset) => !allowedDistAssets.has(asset.a
   throw new Error("DIST_SCOPE_PROVENANCE_UNEXPECTED");
 }
 for (const asset of provenance.assets.filter((asset) => !useDist || allowedDistAssets.has(asset.asset))) {
-  const rel = String(asset.asset).replace(/^\//, "");
+  // Verify the historical source path in source mode, but the honest JPEG
+  // extension in dist; all bytes must still match the owner SHA-256.
+  const rel = useDist && asset.asset === "/media/artists/indionesbala.webp"
+    ? "media/artists/indionesbala.jpg"
+    : String(asset.asset).replace(/^\//, "");
   const buf = readFileSync(resolve(base, rel));
   const sha = createHash("sha256").update(buf).digest("hex");
   const intact = sha === asset.sha256 && buf.byteLength === asset.bytes;

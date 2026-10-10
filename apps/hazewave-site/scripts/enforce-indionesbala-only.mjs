@@ -1,12 +1,22 @@
 /** Fail closed: reviewed public distribution contains one artist only. Original files remain unchanged in Git history. */
-import {readdir,rm,readFile} from "node:fs/promises";import {fileURLToPath} from "node:url";import {resolve,join} from "node:path";
+import {readdir,rm,readFile,rename} from "node:fs/promises";import {fileURLToPath} from "node:url";import {resolve,join} from "node:path";
 const dist=resolve(fileURLToPath(new URL("../dist/",import.meta.url)));
 const page=await readFile(join(dist,"index.html"),"utf8");
-if(!page.includes('data-experience="indionesbala-only"')||!page.includes('src="/media/artists/indionesbala.webp"'))throw Error("UNREVIEWED_ARTIST_SCOPE");
+if(!page.includes('data-experience="indionesbala-only"')||!page.includes('src="/media/artists/indionesbala.jpg"'))throw Error("UNREVIEWED_ARTIST_SCOPE");
 if(/(Baazü|Aquaverno|Hemorragia|Barak Ozama|world-switcher|chapter-nav|data-world-stop)/i.test(page))throw Error("FORBIDDEN_ASSET_OR_UI");
 const slugs=["aquaverno","baazu","barak-ozama-beats","hemorragia-cosmica"];
 for(const slug of slugs){await rm(join(dist,"artists",slug),{recursive:true,force:true});}
-const art=join(dist,"media","artists");for(const filename of await readdir(art)){if(!filename.startsWith("indionesbala."))await rm(join(art,filename),{force:true});}
+// The owner's original named .webp is actually JFIF JPEG. Only the
+// build output is renamed: exact original pixels and hash are preserved.
+const art=join(dist,"media","artists");
+const oldFormat=join(art,"indionesbala.webp");
+const correctFormat=join(art,"indionesbala.jpg");
+const originalBytes=await readFile(oldFormat);
+if(originalBytes.length<4||originalBytes[0]!==0xff||originalBytes[1]!==0xd8||originalBytes[2]!==0xff)
+  throw Error("OWNER_INDIONESBALA_JPEG_SIGNATURE_UNEXPECTED");
+await rename(oldFormat,correctFormat);
+for(const filename of await readdir(art)){if(filename!=="indionesbala.jpg")await rm(join(art,filename),{force:true});}
+console.log("INDIONESBALA_PUBLIC_MIME=image/jpeg");
 await rm(join(dist,"media","worlds"),{recursive:true,force:true});
 await rm(join(dist,"media","hazewave-world.jpg.webp"),{force:true});
 for(const slug of slugs){try{await readFile(join(dist,"artists",slug,"index.html"));throw Error("FORBIDDEN_ROUTE_RESURFACED")}catch(e){if(e.code!=="ENOENT")throw e;}}
@@ -34,7 +44,7 @@ if (process.env.HAZEWAVE_TEST_EXPERIMENTS !== "1") {
   const allow=[
     /^index\.html$/,
     /^artists\/indionesbala\/index\.html$/,
-    /^media\/artists\/indionesbala\.webp$/,
+    /^media\/artists\/indionesbala\.jpg$/,
     /^media\/hazewave-world\.jpg$/,
     /^_astro\/index\.[^.]+\.css$/
   ];
