@@ -37,7 +37,7 @@ type Pose={phase:number;progress:number;activePads:number;activeKnobs:number;
 const pose=async (page:Page) => page.evaluate(()=>(
   (window as unknown as {__HAZEWAVE_TRAVERSAL_V4:Pose}).__HAZEWAVE_TRAVERSAL_V4
 ));
-async function fixture(page:Page) {
+async function fixture(page:Page, syntheticFx=false) {
   const html=DOC.replace('<link rel="stylesheet" href="travessia.css">',
     "<style>"+CSS+"</style>")
     .replace(/src="assets\/[^"]+"/g, 'src="'+PIXEL+'"')
@@ -51,7 +51,24 @@ async function fixture(page:Page) {
   }
   await page.evaluate((values)=>{
     Object.assign(window,{__assetManifest:values.manifest,__assetUrls:values.urls});
-  },{manifest,urls});
+    if(values.syntheticFx){
+      // TEST DOUBLE ONLY: never represent this generated raster as EffectCraft output.
+      const c=document.createElement("canvas");c.width=420;c.height=820;
+      const ctx=c.getContext("2d");if(!ctx)throw Error("CANVAS_UNAVAILABLE");
+      const frames=[];
+      for(let i=0;i<8;i++){
+        ctx.clearRect(0,0,420,820);
+        ctx.strokeStyle="rgba(240,120,255,.85)";ctx.lineWidth=8;
+        ctx.beginPath();ctx.ellipse(210,410,35+i*16,55+i*22,0,0,Math.PI*2);ctx.stroke();
+        frames.push({url:c.toDataURL("image/png")});
+      }
+      Object.assign(window,{__hazewaveEffectArt:{
+        schema:"HazewaveRealArtcraftPortalOverlay/v1",
+        real_effectcraft_render:true,filmcraft_probe_executed:true,
+        production_approved:false,frames
+      }});
+    }
+  },{manifest,urls,syntheticFx});
   await page.addScriptTag({content:RUNTIME});
   await expect.poll(async()=>page.evaluate(()=>Boolean(
     (window as unknown as {__HAZEWAVE_TRAVERSAL_V4:{ready:boolean}}).__HAZEWAVE_TRAVERSAL_V4?.ready
@@ -112,4 +129,41 @@ test("original V4 reference extension honors reduced motion and keyboard access"
   await page.keyboard.press("Space");
   await expect.poll(async()=>(await pose(page)).phase).toBe(0);
   expect((await pose(page)).progress).toBeLessThan(.006);
+});
+
+test("V7 optional EFFECT LAYER scrubs forward and backward without replacing owner scene — TEST-DOUBLE RASTERS",async ({page})=>{
+  await fixture(page,true);
+  await expect.poll(async()=>page.evaluate(()=>
+    (window as unknown as {__HAZEWAVE_ARTCRAFT_V7:{getReadiness:()=>string}}).__HAZEWAVE_ARTCRAFT_V7.getReadiness()
+  )).toBe("READY");
+  await page.locator('[data-world-stop="3"]').click();
+  await expect.poll(async()=>(await pose(page)).phase).toBe(3);
+  await expect.poll(async()=>page.evaluate(()=>
+    (window as unknown as {__HAZEWAVE_ARTCRAFT_V7:{getFrame:()=>number}}).__HAZEWAVE_ARTCRAFT_V7.getFrame()
+  )).toBeGreaterThan(0);
+  const opacity=Number(await page.locator("#effectcraft-aperture").evaluate((x)=>(x as HTMLElement).style.opacity));
+  expect(opacity).toBeGreaterThan(0);
+  const portal=await pose(page);
+  expect(portal.portalRadiusPct).toBeGreaterThan(0);
+  await page.locator("#lightweight-mode").click();
+  await expect.poll(async()=>page.evaluate(()=>
+    (window as unknown as {__HAZEWAVE_ARTCRAFT_V7:{getFrame:()=>number}}).__HAZEWAVE_ARTCRAFT_V7.getFrame()
+  )).toBe(-1);
+  expect((await pose(page)).portalRadiusPct).toBe(portal.portalRadiusPct);
+  await page.locator("#lightweight-mode").click();
+  await page.locator('[data-world-stop="0"]').click();
+  await expect.poll(async()=>(await pose(page)).phase).toBe(0);
+  expect((await pose(page)).portalRadiusPct).toBe(0);
+  expect(Number(await page.locator("#effectcraft-aperture").evaluate((x)=>(x as HTMLElement).style.opacity))).toBe(0);
+});
+
+test("V7 missing optional FX never breaks the original 24-piece interactive site",async ({page})=>{
+  await fixture(page);
+  await expect.poll(async()=>page.evaluate(()=>
+    (window as unknown as {__HAZEWAVE_ARTCRAFT_V7:{getReadiness:()=>string}}).__HAZEWAVE_ARTCRAFT_V7.getReadiness()
+  )).toBe("NOT_ATTACHED");
+  await page.locator('[data-world-stop="4"]').click();
+  await expect.poll(async()=>(await pose(page)).phase).toBe(4);
+  expect((await pose(page)).activePads).toBe(12);
+  expect((await pose(page)).portalRadiusPct).toBeGreaterThan(68);
 });
