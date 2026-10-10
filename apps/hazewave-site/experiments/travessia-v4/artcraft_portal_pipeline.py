@@ -106,6 +106,7 @@ def build(*, output: Path, effect_cli: Path, film_cli: Path,
              "--time", str(time), "--out", str(file),
              "--transparent", "--json"], cwd=root, timeout=90)
         entry = checked_png(file)
+        require(entry["alpha_channel"], "EFFECTCRAFT_ALPHA_REQUIRED_FOR_SITE_OVERLAY")
         entry.update({"file": name, "time": time})
         receipts.append(entry)
     unique = len({f["sha256"] for f in receipts})
@@ -123,6 +124,19 @@ def build(*, output: Path, effect_cli: Path, film_cli: Path,
     film_probe = run([str(film_cli), "probe", str(video)],
                      cwd=root, timeout=90)
     require(len(film_probe) > 15, "FILMCRAFT_PROBE_EMPTY")
+    info = json.loads(film_probe)
+    video_info = info.get("video")
+    require(info.get("container") == "WebM" and isinstance(video_info, dict)
+            and (video_info.get("width"), video_info.get("height")) == CANVAS
+            and video_info.get("codec") in ("VP9", "AV1")
+            and video_info.get("frame_rate") == {"num": 8, "den": 1}
+            and isinstance(info.get("duration"), (int, float))
+            and 0.85 <= info["duration"] / 254_016_000_000 <= 1.15
+            and info.get("audio") is None,
+            "FILMCRAFT_PROBED_WRONG_MEDIA")
+    # The WebM is only a reference/probe output; the browser must use
+    # transparent PNG frames. This video does NOT carry an alpha channel.
+
     (root / "filmcraft-probe.txt").write_text(film_probe + "\n")
     payload = {
         "schema": SCHEMA, "owner_repository": FIRST_PARTY_PROJECT,
@@ -136,6 +150,9 @@ def build(*, output: Path, effect_cli: Path, film_cli: Path,
         "project_sha256": hash_file(project),
         "filmcraft_probe_executed": True,
         "filmcraft_probe_sha256": sha256(film_probe.encode()).hexdigest(),
+        "filmcraft_video_codec": video_info["codec"],
+        "filmcraft_verified_frame_rate": video_info["frame_rate"],
+        "site_overlay_uses_alpha_png_not_webm": True,
         "effectcraft_video_sha256": hash_file(video),
         "real_effectcraft_render": True,
         "frames": receipts, "distinct_frames": unique,
@@ -173,11 +190,17 @@ def verify(output: Path) -> dict:
                 and frame.get("time") == FRAME_TIMES[i], "FRAME_ORDER_DRIFT")
         checked = checked_png(root / "frames" / frame["file"])
         require(checked["sha256"] == frame["sha256"]
-                and checked["bytes"] == frame["bytes"], "FRAME_SHA_DRIFT")
+                and checked["bytes"] == frame["bytes"]
+                and checked["alpha_channel"] is True, "FRAME_SHA_OR_ALPHA_DRIFT")
         seen.add(frame["sha256"])
     require(len(seen) >= 5, "ACTUAL_FX_HAS_INSUFFICIENT_MOTION")
     require(hash_file(root / "effectcraft-reference.webm")
             == d.get("effectcraft_video_sha256"), "VIDEO_SHA_DRIFT")
+    report_text = (root / "filmcraft-probe.txt").read_text().rstrip("\n")
+    require(sha256(report_text.encode()).hexdigest() ==
+            d.get("filmcraft_probe_sha256") and
+            d.get("site_overlay_uses_alpha_png_not_webm") is True,
+            "FILMCRAFT_QA_RECEIPT_DRIFT")
     return d
 
 
