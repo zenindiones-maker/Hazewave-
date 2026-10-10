@@ -11,13 +11,15 @@ import shutil,zipfile
 
 DIST_SHA='5cff7ae24fc0461dbaa70827d8a16b21b0a3bade792a16c37c1d705e2c871de4'
 ART_SCHEMA='HazewaveTraversalV4ArtSource/v1'
+REPO_ROOT=Path(__file__).resolve().parents[4]
 
 def digest(path:Path)->str:return hashlib.sha256(path.read_bytes()).hexdigest()
 
 def compose(archive:Path,source:Path,media:Path,output:Path,fx_root:Path|None=None)->dict:
  archive=archive.resolve(strict=True);source=source.resolve(strict=True)
  media=media.resolve(strict=True);output=output.resolve(strict=False)
- if output.exists() or output.is_relative_to(source) or output.is_relative_to(media):
+ if (output.exists() or output.is_relative_to(source) or
+     output.is_relative_to(media) or output.is_relative_to(REPO_ROOT)):
   raise ValueError('PRIVATE_OUTPUT_MUST_BE_FRESH_OUTSIDE_SOURCE_AND_ART')
  if archive.is_symlink() or media.is_symlink() or source.is_symlink() or digest(archive)!=DIST_SHA:
   raise ValueError('EXACT_ASTRO_DIST_OR_MEDIA_PROVENANCE_BLOCKED')
@@ -34,6 +36,14 @@ def compose(archive:Path,source:Path,media:Path,output:Path,fx_root:Path|None=No
    raise ValueError('PRIVATE_ASSET_SHA_MISMATCH:'+name)
  for name in ('index.html','travessia.css','travessia.js'):
   if not (source/name).is_file():raise ValueError('ENGINE_SOURCE_MISSING')
+ # Validate OPTIONAL native FX proof completely before mutating destination.
+ fx_proof=None
+ if fx_root is not None:
+  from artcraft_portal_pipeline import verify as verify_effectcraft
+  fx_root=fx_root.resolve(strict=True)
+  if fx_root.is_relative_to(source) or fx_root.is_relative_to(media) or fx_root.is_relative_to(REPO_ROOT):
+   raise ValueError('PRIVATE_FX_SOURCE_MUST_BE_ISOLATED')
+  fx_proof=verify_effectcraft(fx_root)
  with zipfile.ZipFile(archive) as z:
   infos=z.infolist()
   if len(infos)>500 or sum(i.file_size for i in infos)>150_000_000:
@@ -58,12 +68,7 @@ def compose(archive:Path,source:Path,media:Path,output:Path,fx_root:Path|None=No
   shutil.copyfile(source/name,entry/name)
  shutil.copyfile(media/'asset-manifest.json',entry/'asset-manifest.json')
  target=entry/'assets';target.mkdir(mode=0o700)
- if fx_root is not None:
-  from artcraft_portal_pipeline import verify as verify_effectcraft
-  fx_root=fx_root.resolve(strict=True)
-  if fx_root.is_relative_to(source) or fx_root.is_relative_to(media):
-   raise ValueError('PRIVATE_FX_SOURCE_MUST_BE_ISOLATED')
-  fx_proof=verify_effectcraft(fx_root)
+ if fx_proof is not None:
   fx_out=entry/'assets'/'fx'
   fx_out.mkdir(mode=0o700,parents=True)
   for f in fx_proof['frames']:
