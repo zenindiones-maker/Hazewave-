@@ -59,3 +59,16 @@ test('touch piano roll exposes individual MIDI pitches, transposition and real u
   assert.match(source,/HazewavePoptartMobileBackup\/v2/);
   assert.match(source,/HazewavePoptartMobileBackup\/v1/);
 });
+
+test('pinned official sound catalog preserves all indexed sounds and licensing',()=>{
+  const catalog=JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)),
+    'hz-sound-catalog.json'),'utf8'));
+  assert.equal(catalog.schema,'HazewavePoptartSoundCatalog/v1');
+  assert.equal(catalog.origin_commit,'6e19b90a4f07a1c863fc1272a41800934d7c6530');
+  assert.equal(catalog.packs.length,15);
+  assert.equal(catalog.packs.reduce((n,p)=>n+p.files.length,0),182);
+  assert.equal(catalog.local_packs.reduce((n,p)=>n+p.files.length,0),13);
+  assert.equal(new Set(catalog.packs.map(p=>p.id)).size,15);
+  assert.ok(catalog.packs.every(p=>p.files.every((f,i)=>
+    f.number===i&&f.license==='CC0-1.0'&&!f.file.includes('..'))));
+});

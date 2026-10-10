@@ -77,7 +77,7 @@ export function build(output){
     if(!fs.existsSync(path.join(dist,asset)))throw new Error('Missing upstream asset: '+asset);
   const htmlFile=path.join(dist,'index.html');
   fs.writeFileSync(htmlFile,injectMobile(fs.readFileSync(htmlFile,'utf8')));
-  for(const file of ['hz-mobile.css','hz-mobile.js'])
+  for(const file of ['hz-mobile.css','hz-mobile.js','hz-sound-catalog.json'])
     fs.copyFileSync(path.join(home,file),path.join(dist,file));
   for(const size of [192,512])
     fs.writeFileSync(path.join(dist,'hz-icon-'+size+'.png'),png(size));

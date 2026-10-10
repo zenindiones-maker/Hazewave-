@@ -1,0 +1,1487 @@
+{
+  "schema": "HazewavePoptartSoundCatalog/v1",
+  "origin_repository": "glossings/poptart-packs",
+  "origin_commit": "6e19b90a4f07a1c863fc1272a41800934d7c6530",
+  "origin_tag": "v1.1.0",
+  "origin_index_blob_sha": "2dff71dc981921413c82ccff6cc4c63a4cfdac85",
+  "delivery_base": "https://cdn.jsdelivr.net/gh/glossings/poptart-packs@v1.1.0",
+  "origin_files": 182,
+  "local_files": 13,
+  "local_packs": [
+    {
+      "id": "pt_keys",
+      "title": "Poptart Keys",
+      "kind": "melodic",
+      "files": [
+        {
+          "name": "Pluck",
+          "number": 0,
+          "license": "CC0-1.0"
+        },
+        {
+          "name": "Bell",
+          "number": 1,
+          "license": "CC0-1.0"
+        },
+        {
+          "name": "Bass",
+          "number": 2,
+          "license": "CC0-1.0"
+        },
+        {
+          "name": "Pad",
+          "number": 3,
+          "license": "CC0-1.0"
+        },
+        {
+          "name": "Stab",
+          "number": 4,
+          "license": "CC0-1.0"
+        }
+      ]
+    },
+    {
+      "id": "pt_kit",
+      "title": "Poptart Kit",
+      "kind": "drums",
+      "files": [
+        {
+          "name": "Kick",
+          "number": 0,
+          "license": "CC0-1.0"
+        },
+        {
+          "name": "Snare",
+          "number": 1,
+          "license": "CC0-1.0"
+        },
+        {
+          "name": "Rim",
+          "number": 2,
+          "license": "CC0-1.0"
+        },
+        {
+          "name": "Clap",
+          "number": 3,
+          "license": "CC0-1.0"
+        },
+        {
+          "name": "Hat",
+          "number": 4,
+          "license": "CC0-1.0"
+        },
+        {
+          "name": "Hat aberto",
+          "number": 5,
+          "license": "CC0-1.0"
+        },
+        {
+          "name": "Tom grave",
+          "number": 6,
+          "license": "CC0-1.0"
+        },
+        {
+          "name": "Tom agudo",
+          "number": 7,
+          "license": "CC0-1.0"
+        }
+      ]
+    }
+  ],
+  "packs": [
+    {
+      "id": "pt_drumbox",
+      "title": "Drum machine kit",
+      "kind": "drums",
+      "bytes": 1235530,
+      "files": [
+        {
+          "number": 0,
+          "name": "kick",
+          "file": "kick.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 1,
+          "name": "snare",
+          "file": "snare.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 2,
+          "name": "rim",
+          "file": "rim.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 3,
+          "name": "clap",
+          "file": "clap.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 4,
+          "name": "hat",
+          "file": "hat.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 5,
+          "name": "hatopen",
+          "file": "hatopen.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 6,
+          "name": "tomlo",
+          "file": "tomlo.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 7,
+          "name": "tommid",
+          "file": "tommid.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 8,
+          "name": "tomhi",
+          "file": "tomhi.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 9,
+          "name": "congalo",
+          "file": "congalo.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 10,
+          "name": "congamid",
+          "file": "congamid.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 11,
+          "name": "congahi",
+          "file": "congahi.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 12,
+          "name": "cymbal",
+          "file": "cymbal.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 13,
+          "name": "cowbell",
+          "file": "cowbell.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 14,
+          "name": "claves",
+          "file": "claves.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 15,
+          "name": "maracas",
+          "file": "maracas.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        }
+      ]
+    },
+    {
+      "id": "pt_drumbox_kick",
+      "title": "Kick sweep",
+      "kind": "drums",
+      "bytes": 3198398,
+      "files": [
+        {
+          "number": 0,
+          "name": "kick0000",
+          "file": "kick0000.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 1,
+          "name": "kick0025",
+          "file": "kick0025.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 2,
+          "name": "kick0050",
+          "file": "kick0050.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 3,
+          "name": "kick0075",
+          "file": "kick0075.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 4,
+          "name": "kick0010",
+          "file": "kick0010.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 5,
+          "name": "kick2500",
+          "file": "kick2500.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 6,
+          "name": "kick2525",
+          "file": "kick2525.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 7,
+          "name": "kick2550",
+          "file": "kick2550.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 8,
+          "name": "kick2575",
+          "file": "kick2575.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 9,
+          "name": "kick2510",
+          "file": "kick2510.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 10,
+          "name": "kick5000",
+          "file": "kick5000.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 11,
+          "name": "kick5025",
+          "file": "kick5025.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 12,
+          "name": "kick5050",
+          "file": "kick5050.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 13,
+          "name": "kick5075",
+          "file": "kick5075.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 14,
+          "name": "kick5010",
+          "file": "kick5010.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 15,
+          "name": "kick7500",
+          "file": "kick7500.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 16,
+          "name": "kick7525",
+          "file": "kick7525.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 17,
+          "name": "kick7550",
+          "file": "kick7550.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 18,
+          "name": "kick7575",
+          "file": "kick7575.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 19,
+          "name": "kick7510",
+          "file": "kick7510.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 20,
+          "name": "kick1000",
+          "file": "kick1000.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 21,
+          "name": "kick1025",
+          "file": "kick1025.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 22,
+          "name": "kick1050",
+          "file": "kick1050.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 23,
+          "name": "kick1075",
+          "file": "kick1075.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 24,
+          "name": "kick1010",
+          "file": "kick1010.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        }
+      ]
+    },
+    {
+      "id": "pt_drumbox_snare",
+      "title": "Snare sweep",
+      "kind": "drums",
+      "bytes": 883142,
+      "files": [
+        {
+          "number": 0,
+          "name": "snare0000",
+          "file": "snare0000.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 1,
+          "name": "snare0025",
+          "file": "snare0025.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 2,
+          "name": "snare0050",
+          "file": "snare0050.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 3,
+          "name": "snare0075",
+          "file": "snare0075.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 4,
+          "name": "snare0010",
+          "file": "snare0010.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 5,
+          "name": "snare2500",
+          "file": "snare2500.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 6,
+          "name": "snare2525",
+          "file": "snare2525.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 7,
+          "name": "snare2550",
+          "file": "snare2550.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 8,
+          "name": "snare2575",
+          "file": "snare2575.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 9,
+          "name": "snare2510",
+          "file": "snare2510.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 10,
+          "name": "snare5000",
+          "file": "snare5000.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 11,
+          "name": "snare5025",
+          "file": "snare5025.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 12,
+          "name": "snare5050",
+          "file": "snare5050.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 13,
+          "name": "snare5075",
+          "file": "snare5075.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 14,
+          "name": "snare5010",
+          "file": "snare5010.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 15,
+          "name": "snare7500",
+          "file": "snare7500.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 16,
+          "name": "snare7525",
+          "file": "snare7525.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 17,
+          "name": "snare7550",
+          "file": "snare7550.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 18,
+          "name": "snare7575",
+          "file": "snare7575.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 19,
+          "name": "snare7510",
+          "file": "snare7510.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 20,
+          "name": "snare1000",
+          "file": "snare1000.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 21,
+          "name": "snare1025",
+          "file": "snare1025.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 22,
+          "name": "snare1050",
+          "file": "snare1050.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 23,
+          "name": "snare1075",
+          "file": "snare1075.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 24,
+          "name": "snare1010",
+          "file": "snare1010.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        }
+      ]
+    },
+    {
+      "id": "pt_drumbox_hatopen",
+      "title": "Open hi-hat sweep",
+      "kind": "drums",
+      "bytes": 220730,
+      "files": [
+        {
+          "number": 0,
+          "name": "hatopen00",
+          "file": "hatopen00.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 1,
+          "name": "hatopen25",
+          "file": "hatopen25.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 2,
+          "name": "hatopen50",
+          "file": "hatopen50.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 3,
+          "name": "hatopen75",
+          "file": "hatopen75.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 4,
+          "name": "hatopen10",
+          "file": "hatopen10.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        }
+      ]
+    },
+    {
+      "id": "pt_drumbox_tomlo",
+      "title": "Low tom sweep",
+      "kind": "drums",
+      "bytes": 441230,
+      "files": [
+        {
+          "number": 0,
+          "name": "tomlo00",
+          "file": "tomlo00.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 1,
+          "name": "tomlo25",
+          "file": "tomlo25.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 2,
+          "name": "tomlo50",
+          "file": "tomlo50.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 3,
+          "name": "tomlo75",
+          "file": "tomlo75.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 4,
+          "name": "tomlo10",
+          "file": "tomlo10.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        }
+      ]
+    },
+    {
+      "id": "pt_drumbox_tommid",
+      "title": "Mid tom sweep",
+      "kind": "drums",
+      "bytes": 441230,
+      "files": [
+        {
+          "number": 0,
+          "name": "tommid00",
+          "file": "tommid00.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 1,
+          "name": "tommid25",
+          "file": "tommid25.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 2,
+          "name": "tommid50",
+          "file": "tommid50.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 3,
+          "name": "tommid75",
+          "file": "tommid75.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 4,
+          "name": "tommid10",
+          "file": "tommid10.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        }
+      ]
+    },
+    {
+      "id": "pt_drumbox_tomhi",
+      "title": "High tom sweep",
+      "kind": "drums",
+      "bytes": 441230,
+      "files": [
+        {
+          "number": 0,
+          "name": "tomhi00",
+          "file": "tomhi00.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 1,
+          "name": "tomhi25",
+          "file": "tomhi25.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 2,
+          "name": "tomhi50",
+          "file": "tomhi50.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 3,
+          "name": "tomhi75",
+          "file": "tomhi75.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 4,
+          "name": "tomhi10",
+          "file": "tomhi10.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        }
+      ]
+    },
+    {
+      "id": "pt_drumbox_congalo",
+      "title": "Low conga sweep",
+      "kind": "drums",
+      "bytes": 220730,
+      "files": [
+        {
+          "number": 0,
+          "name": "congalo00",
+          "file": "congalo00.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 1,
+          "name": "congalo25",
+          "file": "congalo25.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 2,
+          "name": "congalo50",
+          "file": "congalo50.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 3,
+          "name": "congalo75",
+          "file": "congalo75.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 4,
+          "name": "congalo10",
+          "file": "congalo10.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        }
+      ]
+    },
+    {
+      "id": "pt_drumbox_congamid",
+      "title": "Mid conga sweep",
+      "kind": "drums",
+      "bytes": 220730,
+      "files": [
+        {
+          "number": 0,
+          "name": "congamid00",
+          "file": "congamid00.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 1,
+          "name": "congamid25",
+          "file": "congamid25.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 2,
+          "name": "congamid50",
+          "file": "congamid50.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 3,
+          "name": "congamid75",
+          "file": "congamid75.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 4,
+          "name": "congamid10",
+          "file": "congamid10.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        }
+      ]
+    },
+    {
+      "id": "pt_drumbox_congahi",
+      "title": "High conga sweep",
+      "kind": "drums",
+      "bytes": 220730,
+      "files": [
+        {
+          "number": 0,
+          "name": "congahi00",
+          "file": "congahi00.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 1,
+          "name": "congahi25",
+          "file": "congahi25.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 2,
+          "name": "congahi50",
+          "file": "congahi50.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 3,
+          "name": "congahi75",
+          "file": "congahi75.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 4,
+          "name": "congahi10",
+          "file": "congahi10.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        }
+      ]
+    },
+    {
+      "id": "pt_drumbox_cymbal",
+      "title": "Cymbal sweep",
+      "kind": "drums",
+      "bytes": 5954650,
+      "files": [
+        {
+          "number": 0,
+          "name": "cymbal0000",
+          "file": "cymbal0000.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 1,
+          "name": "cymbal0025",
+          "file": "cymbal0025.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 2,
+          "name": "cymbal0050",
+          "file": "cymbal0050.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 3,
+          "name": "cymbal0075",
+          "file": "cymbal0075.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 4,
+          "name": "cymbal0010",
+          "file": "cymbal0010.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 5,
+          "name": "cymbal2500",
+          "file": "cymbal2500.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 6,
+          "name": "cymbal2525",
+          "file": "cymbal2525.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 7,
+          "name": "cymbal2550",
+          "file": "cymbal2550.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 8,
+          "name": "cymbal2575",
+          "file": "cymbal2575.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 9,
+          "name": "cymbal2510",
+          "file": "cymbal2510.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 10,
+          "name": "cymbal5000",
+          "file": "cymbal5000.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 11,
+          "name": "cymbal5025",
+          "file": "cymbal5025.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 12,
+          "name": "cymbal5050",
+          "file": "cymbal5050.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 13,
+          "name": "cymbal5075",
+          "file": "cymbal5075.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 14,
+          "name": "cymbal5010",
+          "file": "cymbal5010.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 15,
+          "name": "cymbal7500",
+          "file": "cymbal7500.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 16,
+          "name": "cymbal7525",
+          "file": "cymbal7525.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 17,
+          "name": "cymbal7550",
+          "file": "cymbal7550.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 18,
+          "name": "cymbal7575",
+          "file": "cymbal7575.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 19,
+          "name": "cymbal7510",
+          "file": "cymbal7510.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 20,
+          "name": "cymbal1000",
+          "file": "cymbal1000.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 21,
+          "name": "cymbal1025",
+          "file": "cymbal1025.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 22,
+          "name": "cymbal1050",
+          "file": "cymbal1050.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 23,
+          "name": "cymbal1075",
+          "file": "cymbal1075.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        },
+        {
+          "number": 24,
+          "name": "cymbal1010",
+          "file": "cymbal1010.wav",
+          "license": "CC0-1.0",
+          "rootNote": null
+        }
+      ]
+    },
+    {
+      "id": "pt_mallets",
+      "title": "Mallets and bells",
+      "kind": "melodic",
+      "bytes": 19779212,
+      "files": [
+        {
+          "number": 0,
+          "name": "glock",
+          "file": "glock.wav",
+          "license": "CC0-1.0",
+          "rootNote": 67
+        },
+        {
+          "number": 1,
+          "name": "vibes",
+          "file": "vibes.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 2,
+          "name": "marimba",
+          "file": "marimba.wav",
+          "license": "CC0-1.0",
+          "rootNote": 59
+        },
+        {
+          "number": 3,
+          "name": "xylo",
+          "file": "xylo.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 4,
+          "name": "tubular",
+          "file": "tubular.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 5,
+          "name": "handbell",
+          "file": "handbell.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 6,
+          "name": "balafon",
+          "file": "balafon.wav",
+          "license": "CC0-1.0",
+          "rootNote": 61
+        },
+        {
+          "number": 7,
+          "name": "tubeglock",
+          "file": "tubeglock.wav",
+          "license": "CC0-1.0",
+          "rootNote": 79
+        },
+        {
+          "number": 8,
+          "name": "kalimba",
+          "file": "kalimba.wav",
+          "license": "CC0-1.0",
+          "rootNote": 59
+        },
+        {
+          "number": 9,
+          "name": "mbira",
+          "file": "mbira.wav",
+          "license": "CC0-1.0",
+          "rootNote": 59
+        },
+        {
+          "number": 10,
+          "name": "glass",
+          "file": "glass.wav",
+          "license": "CC0-1.0",
+          "rootNote": 75
+        }
+      ]
+    },
+    {
+      "id": "pt_piano",
+      "title": "Keyboards",
+      "kind": "melodic",
+      "bytes": 23369456,
+      "files": [
+        {
+          "number": 0,
+          "name": "grand",
+          "file": "grand.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 1,
+          "name": "upright",
+          "file": "upright.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 2,
+          "name": "harpsi",
+          "file": "harpsi.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 3,
+          "name": "harpsi2",
+          "file": "harpsi2.wav",
+          "license": "CC0-1.0",
+          "rootNote": 59
+        },
+        {
+          "number": 4,
+          "name": "psaltery",
+          "file": "psaltery.wav",
+          "license": "CC0-1.0",
+          "rootNote": 70
+        },
+        {
+          "number": 5,
+          "name": "harp",
+          "file": "harp.wav",
+          "license": "CC0-1.0",
+          "rootNote": 59
+        },
+        {
+          "number": 6,
+          "name": "folkharp",
+          "file": "folkharp.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 7,
+          "name": "strum",
+          "file": "strum.wav",
+          "license": "CC0-1.0",
+          "rootNote": 59
+        },
+        {
+          "number": 8,
+          "name": "organ",
+          "file": "organ.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 9,
+          "name": "organ2",
+          "file": "organ2.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        }
+      ]
+    },
+    {
+      "id": "pt_perc",
+      "title": "Hand percussion",
+      "kind": "drums",
+      "bytes": 7899114,
+      "files": [
+        {
+          "number": 0,
+          "name": "bongo",
+          "file": "bongo.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 1,
+          "name": "conga",
+          "file": "conga.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 2,
+          "name": "darbuka",
+          "file": "darbuka.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 3,
+          "name": "frame",
+          "file": "frame.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 4,
+          "name": "timp",
+          "file": "timp.wav",
+          "license": "CC0-1.0",
+          "rootNote": 54
+        },
+        {
+          "number": 5,
+          "name": "clap",
+          "file": "clap.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 6,
+          "name": "claves",
+          "file": "claves.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 7,
+          "name": "cowbell",
+          "file": "cowbell.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 8,
+          "name": "woodblock",
+          "file": "woodblock.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 9,
+          "name": "triangle",
+          "file": "triangle.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 10,
+          "name": "shaker",
+          "file": "shaker.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 11,
+          "name": "tamb",
+          "file": "tamb.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 12,
+          "name": "guiro",
+          "file": "guiro.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 13,
+          "name": "cabasa",
+          "file": "cabasa.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 14,
+          "name": "agogo",
+          "file": "agogo.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 15,
+          "name": "fingercym",
+          "file": "fingercym.wav",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        }
+      ]
+    },
+    {
+      "id": "pt_synth",
+      "title": "Synthesizer one-shots",
+      "kind": "melodic",
+      "bytes": 6667074,
+      "files": [
+        {
+          "number": 0,
+          "name": "bass1",
+          "file": "bass1.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 1,
+          "name": "bass2",
+          "file": "bass2.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 2,
+          "name": "latelybass",
+          "file": "latelybass.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 3,
+          "name": "basslead",
+          "file": "basslead.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 4,
+          "name": "brass1",
+          "file": "brass1.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 5,
+          "name": "brass2",
+          "file": "brass2.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 6,
+          "name": "square",
+          "file": "square.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 7,
+          "name": "calliope",
+          "file": "calliope.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 8,
+          "name": "fifths",
+          "file": "fifths.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 9,
+          "name": "crystal",
+          "file": "crystal.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 10,
+          "name": "choir",
+          "file": "choir.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 11,
+          "name": "bowed",
+          "file": "bowed.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 12,
+          "name": "sweep",
+          "file": "sweep.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 13,
+          "name": "newage",
+          "file": "newage.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 14,
+          "name": "strings1",
+          "file": "strings1.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 15,
+          "name": "strings2",
+          "file": "strings2.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 16,
+          "name": "goblins",
+          "file": "goblins.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 17,
+          "name": "soundtrack",
+          "file": "soundtrack.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        },
+        {
+          "number": 18,
+          "name": "scifi",
+          "file": "scifi.flac",
+          "license": "CC0-1.0",
+          "rootNote": 60
+        }
+      ]
+    }
+  ]
+}
