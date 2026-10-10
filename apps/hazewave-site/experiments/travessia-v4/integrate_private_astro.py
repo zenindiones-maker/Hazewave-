@@ -57,6 +57,7 @@ def compose(archive:Path,source:Path,media:Path,output:Path,fx_root:Path|None=No
  for name in ('index.html','travessia.css','travessia.js'):
   shutil.copyfile(source/name,entry/name)
  shutil.copyfile(media/'asset-manifest.json',entry/'asset-manifest.json')
+ target=entry/'assets';target.mkdir(mode=0o700)
  if fx_root is not None:
   from artcraft_portal_pipeline import verify as verify_effectcraft
   fx_root=fx_root.resolve(strict=True)
@@ -78,7 +79,6 @@ def compose(archive:Path,source:Path,media:Path,output:Path,fx_root:Path|None=No
   preview.write_text(doc.replace('<script src="travessia.js" defer></script>',
       injection+'<script src="travessia.js" defer></script>'),encoding='utf8')
 
- target=entry/'assets';target.mkdir(mode=0o700)
  for file in (media/'assets').glob('*.webp'):
   shutil.copyfile(file,target/file.name)
  # Link on the private copy ONLY. Never patch the public source homepage.
