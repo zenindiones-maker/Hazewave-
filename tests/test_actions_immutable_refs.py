@@ -2,7 +2,7 @@
 from pathlib import Path
 import re
 ROOT=Path(__file__).resolve().parents[1]
-USE=re.compile(r"^\s*-\s*uses:\s*(\S+)", re.MULTILINE)
+USE=re.compile(r"^\s*(?:-\s*)?uses:\s*(\S+)", re.MULTILINE)
 SHA=re.compile(r"^[\w.-]+/[\w.-]+@[0-9a-f]{40}$")
 
 def test_all_workflows_use_verified_immutable_action_commit_ids():
