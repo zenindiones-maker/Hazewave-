@@ -294,7 +294,7 @@ test("V7 cinematic mobile framing prevents pad-only overzoom and ghost-logo hand
 });
 
 
-test("V7R rig parts remain attached to opening chassis halves and reveal a jagged depth passage — SYNTHETIC IMAGES",async ({page})=>{
+test("V9 rig halves remain aligned while rift softens to optical alpha mask — SYNTHETIC IMAGES",async ({page})=>{
  const errors:string[]=[];
  page.on("pageerror",e=>errors.push(e.message));
  await fixture(page,true);
@@ -311,26 +311,28 @@ test("V7R rig parts remain attached to opening chassis halves and reveal a jagge
      chassisLeft:style("#chassis-left").transform,chassisRight:style("#chassis-right").transform,
      padLeft:style('img[data-part-id="pad_00"]').transform,
      padRight:style('img[data-part-id="pad_11"]').transform,
-     mask:style("#portal-window").clipPath,
+     mask:style("#portal-window").maskImage,clip:style("#portal-window").clipPath,
      wallLeft:style("#portal-wall-left").transform,wallRight:style("#portal-wall-right").transform,
      opacity:Number(style("#portal-wall-left").opacity)
    };
  });
  expect(Math.abs(x(opened.padLeft)-x(opened.chassisLeft))).toBeLessThan(12);
  expect(Math.abs(x(opened.padRight)-x(opened.chassisRight))).toBeLessThan(12);
- expect(opened.mask).toMatch(/^polygon\(/);
+ expect(opened.mask).toMatch(/^radial-gradient\(/);
+ expect(opened.clip).toBe("none");
  expect(opened.wallLeft).toContain("rotateY(");
  expect(opened.wallRight).toContain("rotateY(");
- expect(opened.opacity).toBeGreaterThan(.5);
+ expect(opened.opacity).toBeGreaterThan(.08);
+ expect(opened.opacity).toBeLessThan(.25);
  await scrollToExactProgress(page,0);
  const reset=await page.evaluate(()=>({
    left:(document.getElementById("portal-wall-left") as HTMLElement).style.opacity,
    part:(document.querySelector('img[data-part-id="pad_00"]') as HTMLElement).style.transform,
-   mask:(document.getElementById("portal-window") as HTMLElement).style.clipPath
+   mask:(document.getElementById("portal-window") as HTMLElement).style.maskImage
  }));
  expect(Number(reset.left)).toBe(0);
  expect(x(reset.part)).toBeCloseTo(0,0);
- expect(reset.mask).toMatch(/^polygon\(/);
+ expect(reset.mask).toMatch(/^radial-gradient\(/);
  expect(errors).toEqual([]);
 });
 
@@ -364,5 +366,41 @@ test("V8 perspective corridor moves the camera THROUGH true Z geometry with reve
  expect(reset.depthCameraZ).toBe(0);
  expect(reset.mountedPieces).toBe(24);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+ expect(errors).toEqual([]);
+});
+
+test("V9 feathered portal avoids a hard bright core, double-exposed worlds, and caption collision — SYNTHETIC IMAGE QA",async ({page})=>{
+ const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));
+ await fixture(page,true);
+ await ensureLiteMode(page,false);
+ const sample=async(p:number)=>{
+  await scrollToExactProgress(page,p);
+  return page.evaluate(()=>{
+   const sty=(s:string)=>(document.querySelector(s) as HTMLElement).style;
+   const state=(window as unknown as {__HAZEWAVE_TRAVERSAL_V4:{portalSoftMask:string;portalFeatherPercent:string}}).__HAZEWAVE_TRAVERSAL_V4;
+   return {mask:sty("#portal-window").maskImage,clip:sty("#portal-window").clipPath,
+    ring:Number(sty("#portal-ring").opacity),city:Number(sty("#city-scene").opacity),
+    hub:Number(sty("#hub-scene").opacity),caption:Number(sty("#narrative").opacity),
+    mode:state.portalSoftMask,feather:Number(state.portalFeatherPercent)};
+  });
+ };
+ const early=await sample(.46);
+ const mid=await sample(.64);
+ const cross=await sample(.86);
+ expect(mid.mode).toBe("RADIAL_ALPHA_FEATHER");
+ expect(mid.mask).toMatch(/^radial-gradient\(/);
+ expect(mid.mask).toContain("transparent 100%");
+ expect(mid.clip).toBe("none");
+ expect(mid.feather).toBeGreaterThan(early.feather);
+ expect(mid.ring).toBeLessThan(.10);
+ expect(mid.caption).toBeLessThan(.05);
+ expect(cross.city+cross.hub).toBeGreaterThan(.65);
+ expect(cross.city+cross.hub).toBeLessThan(1.01);
+ expect(cross.ring).toBeLessThan(.10);
+ await sample(.64);
+ const restored=await sample(.86);
+ expect(restored.city).toBeCloseTo(cross.city,3);
+ expect(restored.hub).toBeCloseTo(cross.hub,3);
+ expect(restored.mask).toBe(cross.mask);
  expect(errors).toEqual([]);
 });

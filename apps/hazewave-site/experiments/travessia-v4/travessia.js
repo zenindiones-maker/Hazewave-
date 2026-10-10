@@ -210,7 +210,7 @@ function renderDepthWorld(p,W,H){
  const yaw=7*Math.sin(flight*Math.PI*1.22),pitch=-5*Math.sin(flight*Math.PI);
  depthWorld.style.transform='translate3d('+x.toFixed(2)+'px,'+y.toFixed(2)+'px,'+
   travel.toFixed(3)+'px) rotateY('+yaw.toFixed(3)+'deg) rotateX('+pitch.toFixed(3)+'deg)';
- depthField.style.opacity=String(band(.36,.49,.75,.89,p)*.65);
+ depthField.style.opacity=String(band(.38,.53,.70,.84,p)*.35);
  state.depthCameraZ=travel;state.depthCameraX=x;state.depthCameraY=y;
  state.depthCameraYaw=yaw;state.depthCameraPitch=pitch;
  state.depthOpacity=Number(depthField.style.opacity);
@@ -296,50 +296,57 @@ function updatePose(p){
  const fogPush=rupture*(phone?W*1.15:W*.98);
  vars.fogLeft.style.transform=`translate3d(${-fogPush.toFixed(2)}px,${(-H*.23*rupture).toFixed(2)}px,0) rotate(${-17*rupture}deg)`;
  vars.fogRight.style.transform=`translate3d(${fogPush.toFixed(2)}px,${(H*.22*rupture).toFixed(2)}px,0) rotate(${15*rupture}deg)`;
- vars.fogLeft.style.opacity=String(.65*(1-.63*arrival));
- vars.fogRight.style.opacity=String(.57*(1-.59*arrival));
+ vars.fogLeft.style.opacity=String(.48*(1-.82*arrival));
+ vars.fogRight.style.opacity=String(.44*(1-.82*arrival));
  vars.fogBack.style.transform=`translate3d(${(-W*.11*approach+W*.38*rupture).toFixed(2)}px,${(H*.2*through).toFixed(2)}px,0) scale(${(1.05+.7*approach+.18*through).toFixed(3)})`;
  vars.fogBack.style.opacity=String(.35*(1-smooth(.60,.84,p)));
  // Substantial actual 3D parallax: SECOND CITY behind the split chassis.
- const cityScale=lerp(.23,1.20,smooth(.38,.71,p))*lerp(1,2.6,smooth(.72,.95,p));
+ const cityScale=lerp(.23,1.08,smooth(.38,.71,p))*lerp(1,1.48,smooth(.78,.93,p));
  const cityX=lerp(W*.46,0,smooth(.38,.68,p))+lerp(0,-W*.55,smooth(.78,.98,p));
  const cityY=lerp(-H*.27,H*.10,smooth(.4,.70,p))-H*.2*arrival;
  moveImage(vars.city,cityX,cityY,cityScale,lerp(-15,4,approach));
- vars.city.style.opacity=String(band(.35,.53,.76,.98,p));
+ vars.city.style.opacity=String(band(.35,.53,.77,.91,p)*.78);
  vars.cityFlight.style.transform=`translate3d(${(-W*.16*rupture).toFixed(2)}px,${(H*.22*rupture).toFixed(2)}px,120px) scale(${(1+.6*rupture).toFixed(3)})`;
  // A physical aperture in the fog, fully clipping the new illustrated region.
  const portalRadius=lerp(0,75,smooth(.43,.76,p));
  const mechanicalOpen=smooth(.40,.69,p);
- const wallVisible=band(.39,.50,.69,.82,p);
+ const wallVisible=band(.42,.57,.69,.80,p);
  vars.wallLeft.style.transform=`perspective(720px) translate3d(${(-Math.min(W*.53,370)*mechanicalOpen).toFixed(2)}px,0,${(125*mechanicalOpen).toFixed(2)}px) rotateY(${(-70*mechanicalOpen).toFixed(2)}deg)`;
  vars.wallRight.style.transform=`perspective(720px) translate3d(${(Math.min(W*.53,370)*mechanicalOpen).toFixed(2)}px,0,${(125*mechanicalOpen).toFixed(2)}px) rotateY(${(70*mechanicalOpen).toFixed(2)}deg)`;
- vars.wallLeft.style.opacity=String(wallVisible*.88);
- vars.wallRight.style.opacity=String(wallVisible*.88);
- vars.spine.style.opacity=String(band(.47,.61,.72,.84,p)*.56);
+ vars.wallLeft.style.opacity=String(wallVisible*.24);
+ vars.wallRight.style.opacity=String(wallVisible*.24);
+ vars.spine.style.opacity=String(band(.47,.61,.72,.84,p)*.12);
  vars.spine.style.transform=`translate(-50%,-50%) perspective(680px) translateZ(${(-180+210*mechanicalOpen).toFixed(2)}px) scale(${(.45+.75*mechanicalOpen).toFixed(3)})`;
  renderArtcraftEffect(p);
- // Twelve corners are real occlusion edges; the scroll reverses the same mask.
- const aperture=portalRadius*.85;
- const verts=[[0,-1],[.28,-.89],[.69,-.72],[.88,-.36],[.99,.03],[.70,.55],[.24,.98],[-.19,.91],[-.67,.70],[-1,.20],[-.87,-.32],[-.45,-.88]];
- vars.window.style.clipPath='polygon('+verts.map(([x,y])=>
-  (50+x*aperture).toFixed(3)+'% '+(50+y*aperture).toFixed(3)+'%').join(',')+')';
+ // V9 optical aperture: wide alpha feather replaces the hard polygon silhouette.
+ // Stable deterministic scroll mapping, so both directions sample identical pixels.
+ const aperture=portalRadius/75;
+ const featherX=(5+70*aperture).toFixed(3);
+ const featherY=(5+77*aperture).toFixed(3);
+ const apertureX=(50+Math.sin(p*18)*.8).toFixed(3);
+ const softMask='radial-gradient(ellipse '+featherX+'% '+featherY+'% at '+apertureX+'% 50%, rgba(0,0,0,.96) 0%, rgba(0,0,0,.83) 36%, rgba(0,0,0,.55) 62%, rgba(0,0,0,.20) 80%, transparent 100%)';
+ vars.window.style.clipPath='none';
+ vars.window.style.maskImage=softMask;
+ vars.window.style.webkitMaskImage=softMask;
+ state.portalSoftMask='RADIAL_ALPHA_FEATHER';
+ state.portalFeatherPercent=featherX;
  // Keep the painterly portal open during the reveal, then hand off to
  // the INDEPENDENT hub illustration. Without the fade-out, the scaled
  // portal's enormous inset logo covers the final 360/393px mobile viewport.
  // It is reversible: scrolling back to .82 restores the full original mask.
- vars.window.style.opacity=String(smooth(.43,.66,p)*(1-smooth(.82,.91,p)));
+ vars.window.style.opacity=String(smooth(.43,.64,p)*(1-smooth(.81,.92,p)));
  const portalMove=smooth(.69,.95,p);
- moveImage(vars.window,0,H*.07*portalMove,lerp(.72,2.15,portalMove));
- vars.portalWorld.style.opacity=String(1-smooth(.78,.95,p));
+ moveImage(vars.window,0,H*.025*portalMove,lerp(.73,1.42,portalMove));
+ vars.portalWorld.style.opacity=String(1-smooth(.79,.89,p));
  vars.portalWorld.style.transform=`translate3d(${(-W*.25*arrival).toFixed(2)}px,${(-H*.18*arrival).toFixed(2)}px,0) scale(${lerp(.88,1.35,arrival).toFixed(3)})`;
- vars.innerHub.style.opacity=String(band(.72,.81,.85,.89,p)*.38);
+ vars.innerHub.style.opacity=String(band(.79,.85,.88,.91,p)*.12);
  vars.innerHub.style.transform=`translate3d(0,${(-H*.11*arrival).toFixed(2)}px,0) scale(${lerp(.6,1.16,arrival).toFixed(3)})`;
- vars.ring.style.opacity=String(band(.42,.60,.78,.96,p));
- vars.ring.style.transform=`translate(-50%,-50%) scale(${lerp(.24,2.75,smooth(.46,.89,p)).toFixed(3)}) rotate(${(rupture*28).toFixed(2)}deg)`;
+ vars.ring.style.opacity=String(band(.45,.61,.72,.85,p)*.09);
+ vars.ring.style.transform=`translate(-50%,-50%) scale(${lerp(.24,1.75,smooth(.46,.89,p)).toFixed(3)}) rotate(${(rupture*14).toFixed(2)}deg)`;
  for(const node of [vars.rim,vars.halo,vars.tear])setStroke(node,ringLen,smooth(.49,.69,p));
  // After flying through the portal, a new independent hub in depth.
  moveImage(vars.hub,0,-H*.08*arrival,lerp(.19,1.11,arrival),lerp(8,0,arrival));
- vars.hub.style.opacity=String(smooth(.74,.93,p));
+ vars.hub.style.opacity=String(smooth(.79,.92,p));
  vars.debrisA.style.opacity=String(band(.43,.63,.84,.95,p)*.9);
  vars.debrisB.style.opacity=String(band(.47,.66,.83,.95,p)*.9);
  vars.debrisA.style.transform=`translate3d(${(-W*.7*rupture).toFixed(2)}px,${(-H*.4*rupture).toFixed(2)}px,${260*rupture}px) rotate(${(-23-60*rupture).toFixed(2)}deg)`;
@@ -350,11 +357,11 @@ function updatePose(p){
  // One immutable scroll progress determines every visible pose; reverse is exact.
  const phase=p<.16?0:p<.36?1:p<.58?2:p<.80?3:4;
  if(phase!==lastPhase){vars.num.textContent=chapters[phase][0];vars.title.textContent=chapters[phase][1];vars.copy.textContent=chapters[phase][2];lastPhase=phase;}
- vars.narrative.style.opacity=String(clamp(1-(band(.26,.4,.63,.78,p)*.78)));
+ vars.narrative.style.opacity=String(clamp(1-smooth(.31,.42,p)+smooth(.79,.89,p)));
  vars.progress.style.width=(p*100).toFixed(2)+'%';vars.progressText.textContent=String(Math.round(p*100)).padStart(2,'0')+'%';
  Object.assign(state,{progress:p,phase,activePads,activeKnobs,activeSpeakers,
   traceDrawn:lineValue,worldWaveDrawn:signalValue,portalRadiusPct:portalRadius,
-  mechanicalSplitPx:split,partHalfSeparationPx:2*split,riftWallOpening:mechanicalOpen,riftWallOpacity:wallVisible*.88,cameraTravelPx:Math.hypot(camX,camY),machineScale:scale,
+  mechanicalSplitPx:split,partHalfSeparationPx:2*split,riftWallOpening:mechanicalOpen,riftWallOpacity:wallVisible*.24,cameraTravelPx:Math.hypot(camX,camY),machineScale:scale,
   fogSeparationPx:2*fogPush,cityOpacity:parseFloat(vars.city.style.opacity),hubOpacity:parseFloat(vars.hub.style.opacity),
   changedRegion:rupture>.45,secondIllustratedRegionVisible:arrival>.4});
  for(const [index,button] of chapterLinks.entries()){
