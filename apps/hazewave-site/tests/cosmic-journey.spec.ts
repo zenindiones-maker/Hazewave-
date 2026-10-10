@@ -58,3 +58,36 @@ test("V10 logo uses only the top ornamental mark, not the full vertical lighthou
   expect(d.mask).toContain("linear-gradient");
   expect(d.imageBoxHeight).toBeCloseTo(d.clipHeight,0);
 });
+
+test("mobile QA: Hazewave 90vw dominates the 18vw, max 110px, 48px and 75% Indionesbala signature",async({page})=>{
+  for(const width of [360,393]){
+    await page.setViewportSize({width,height:852});
+    await page.goto("/");
+    await move(page,.99);
+    const visual=await page.evaluate(()=>{
+      const main=document.querySelector(".brand") as HTMLElement;
+      const signature=document.querySelector(".logo-reveal img") as HTMLImageElement;
+      const mainStyle=getComputedStyle(main),signatureStyle=getComputedStyle(signature);
+      return {
+        viewport:innerWidth,brandCssWidth:parseFloat(mainStyle.width),
+        signatureCssWidth:parseFloat(signatureStyle.width),
+        signatureMaxWidth:parseFloat(signatureStyle.maxWidth),
+        signatureMaxHeight:parseFloat(signatureStyle.maxHeight),
+        signatureOpacity:parseFloat(signatureStyle.opacity),
+        brandVisibleWidth:main.getBoundingClientRect().width,
+        signatureVisibleWidth:signature.getBoundingClientRect().width,
+        overflow:document.documentElement.scrollWidth-innerWidth,
+        signatureLoaded:signature.naturalWidth>0
+      };
+    });
+    expect(visual.brandCssWidth).toBeCloseTo(width*.9,0);
+    expect(visual.signatureCssWidth).toBeCloseTo(width*.18,0);
+    expect(visual.signatureMaxWidth).toBe(110);
+    expect(visual.signatureMaxHeight).toBe(48);
+    expect(visual.signatureOpacity).toBeCloseTo(.75,2);
+    expect(visual.brandVisibleWidth).toBeGreaterThanOrEqual(visual.signatureVisibleWidth*3);
+    expect(visual.signatureLoaded).toBe(true);
+    expect(visual.overflow).toBeLessThanOrEqual(1);
+  }
+  await expect(page.locator("#artist-entry")).toContainText("Entrar no universo Hazewave");
+});
