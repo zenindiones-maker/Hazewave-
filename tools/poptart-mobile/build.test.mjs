@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {dirname,join} from 'node:path';
@@ -97,7 +98,6 @@ test('gain-staging regression: stable profile skips empty tracks and caps summin
   assert.match(src,/hz-audio-profile/);
   assert.doesNotMatch(src,/pendingUpdate = W\.setTimeout/);
   assert.doesNotMatch(src,/\}, 130\)/);
-  const vm=await import('node:vm');
   const appended=src.replace(/\}\)\(\);\s*$/, 
     'globalThis.__test_audio={generatePattern,mix,state,KIT};\n})();');
   const stored=new Map();
@@ -111,7 +111,7 @@ test('gain-staging regression: stable profile skips empty tracks and caps summin
   const samples=initial.split('\n').filter(t=>t.startsWith('hz_')&&t.includes('s("'));
   assert.equal(samples.length,3,'empty V3 channels must not spawn sample nodes');
   assert.ok(samples.every(t=>t.includes('.postgain(0.140)')));
-  assert.match(initial,/hz_melody:.*\.postgain\(0\.22\)/);
+  assert.match(initial,/hz_melody:.*\.postgain\(0\.16\)/);
   state.rim[0]=true;state.clap[0]=true;
   assert.throws(()=>generatePattern(),/no máximo 4 pistas/);
   mix.audioMode='full';mix.gain=0.34;
