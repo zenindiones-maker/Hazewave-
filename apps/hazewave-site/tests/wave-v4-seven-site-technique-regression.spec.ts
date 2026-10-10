@@ -299,7 +299,7 @@ test("V7R rig parts remain attached to opening chassis halves and reveal a jagge
  page.on("pageerror",e=>errors.push(e.message));
  await fixture(page,true);
  const x=(value:string)=>{
-   const m=value.match(/translate3d\\((-?[0-9.]+)px/);
+   const m=value.match(/translate3d\((-?[0-9.]+)px/);
    if(!m)throw Error("MISSING_TRANSLATION:"+value);
    return Number(m[1]);
  };
@@ -318,7 +318,7 @@ test("V7R rig parts remain attached to opening chassis halves and reveal a jagge
  });
  expect(Math.abs(x(opened.padLeft)-x(opened.chassisLeft))).toBeLessThan(12);
  expect(Math.abs(x(opened.padRight)-x(opened.chassisRight))).toBeLessThan(12);
- expect(opened.mask).toMatch(/^polygon\\(/);
+ expect(opened.mask).toMatch(/^polygon\(/);
  expect(opened.wallLeft).toContain("rotateY(");
  expect(opened.wallRight).toContain("rotateY(");
  expect(opened.opacity).toBeGreaterThan(.5);
@@ -330,6 +330,6 @@ test("V7R rig parts remain attached to opening chassis halves and reveal a jagge
  }));
  expect(Number(reset.left)).toBe(0);
  expect(x(reset.part)).toBeCloseTo(0,0);
- expect(reset.mask).toMatch(/^polygon\\(/);
+ expect(reset.mask).toMatch(/^polygon\(/);
  expect(errors).toEqual([]);
 });
