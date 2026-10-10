@@ -91,3 +91,20 @@ test("mobile QA: Hazewave 90vw dominates the 18vw, max 110px, 48px and 75% Indio
   }
   await expect(page.locator("#artist-entry")).toContainText("Entrar no universo Hazewave");
 });
+
+test("owner image serves image/jpeg with JFIF magic and unchanged SHA-256",async({page,request})=>{
+ await page.goto("/");
+ await expect(page.locator("#indionesbala-logo")).toHaveAttribute("src","/media/artists/indionesbala.jpg");
+ const response=await request.get("/media/artists/indionesbala.jpg");
+ expect(response.status()).toBe(200);
+ expect(response.headers()["content-type"]).toMatch(/^image\/jpeg(?:;|$)/);
+ const bytes=await response.body();
+ expect(bytes.subarray(0,3).equals(Buffer.from([0xff,0xd8,0xff]))).toBe(true);
+ const manifest=JSON.parse(readFileSync(resolve(root,"owner-art-provenance.json"),"utf8"));
+ const original=manifest.assets.find((a:{asset:string})=>a.asset==="/media/artists/indionesbala.webp");
+ expect(original).toBeTruthy();
+ expect(bytes.length).toBe(original.bytes);
+ expect(createHash("sha256").update(bytes).digest("hex")).toBe(original.sha256);
+ const obsolete=await request.get("/media/artists/indionesbala.webp");
+ expect(obsolete.status()).toBe(404);
+});

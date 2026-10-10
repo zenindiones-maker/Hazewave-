@@ -29,3 +29,13 @@ def test_bundle_budget_requires_no_p0_js_in_production():
     assert "EXPERIMENTAL_P0_NOT_SHIPPED=PASS" in source
     assert "EXPERIMENTAL_P0_CHUNKS_NOT_ISOLATED" not in source
     assert "EXPERIMENTAL_P0_LARGEST_CHUNK_BUDGET_EXCEEDED" in source
+
+def test_final_artist_image_extension_matches_jpeg_magic_preserving_owner_bytes():
+    guard=(ROOT/"apps/hazewave-site/scripts/enforce-indionesbala-only.mjs").read_text(encoding="utf8")
+    page=(ROOT/"apps/hazewave-site/src/pages/index.astro").read_text(encoding="utf8")
+    verifier=(ROOT/"apps/hazewave-site/scripts/verify-owner-art.mjs").read_text(encoding="utf8")
+    assert "OWNER_INDIONESBALA_JPEG_SIGNATURE_UNEXPECTED" in guard
+    assert "await rename(oldFormat,correctFormat)" in guard
+    assert "INDIONESBALA_PUBLIC_MIME=image/jpeg" in guard
+    assert "/media/artists/indionesbala.jpg" in page
+    assert 'media/artists/indionesbala.jpg' in verifier
