@@ -1,0 +1,278 @@
+"""WAVE ArtCraft seven-release external bridge. No installation or Harness authority.
+
+Usage:
+  python scripts/wave_artcraft_external_tools.py validate
+  python scripts/wave_artcraft_external_tools.py extract TOOL ARCHIVE OUTPUT_DIR
+  python scripts/wave_artcraft_external_tools.py smoke TOOL EXECUTABLE OUTPUT_DIR
+  python scripts/wave_artcraft_external_tools.py verify TOOL OUTPUT_DIR
+
+All executable smokes operate on ORIGINAL synthetic WAVE fixtures, never owner media.
+The caller must isolate untrusted executables with --network none, read-only FS and
+a bounded writable temporary mount. No app is installed into the site or A15.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import struct
+import subprocess
+import tarfile
+import zlib
+
+LOCK = Path(__file__).with_name("wave_artcraft-seven-lock.json")
+NAMES = frozenset({"photocraft", "lightcraft", "designcraft", "pdfcraft",
+                   "vectorcraft", "effectcraft", "filmcraft"})
+CAPABILITIES = {
+    "photocraft": "IMAGE_LAYER_EDIT",
+    "lightcraft": "IMAGE_COLOR_DEVELOP",
+    "designcraft": "EDITORIAL_LAYOUT",
+    "pdfcraft": "PDF_PREVIEW_QA",
+    "vectorcraft": "SVG_INK_DRAW",
+    "effectcraft": "MOTION_COMPOSITION",
+    "filmcraft": "VIDEO_QC",
+}
+# Preserve existing three proven exact releases; no hidden upgrades.
+EXISTING_PINS = {
+    "vectorcraft": ("0.7.0", "d6b0ee57e1bdbd377b44c8524e8569ad2b4dff46b792fc10b0edbf8d74292acd"),
+    "effectcraft": ("0.6.0", "71810719903378cdab32a1fe328f23c874d38cd3d833abb19c6263dd2bad218c"),
+    "filmcraft": ("0.4.0", "841790ff6649f0d49daa4a8ade1cb18d948e5ca43d00771046663e06c8d8ce83"),
+}
+
+
+def sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def validate_lock(data: object) -> dict[str, dict]:
+    if not isinstance(data, dict) or set(data) != {
+        "schema", "repo", "scope", "approval", "auto_install", "auto_activate", "tools"
+    }:
+        raise ValueError("ARTCRAFT_LOCK_KEYS_INVALID")
+    if (data["schema"] != "HazewaveArtCraftSevenExternalLock/v1"
+        or data["repo"] != "zenindiones-maker/Hazewave-"
+        or data["scope"] != "WAVE_ONLY"
+        or data["approval"] != "CANDIDATE_NOT_PUBLISHED"
+        or data["auto_install"] is not False
+        or data["auto_activate"] is not False):
+        raise ValueError("ARTCRAFT_LOCK_AUTHORITY_ESCALATION")
+    tools = data["tools"]
+    if not isinstance(tools, dict) or set(tools) != NAMES:
+        raise ValueError("ARTCRAFT_REQUIRED_SEVEN_MISSING")
+    for name, tool in tools.items():
+        if not isinstance(tool, dict) or set(tool) != {
+            "repository", "version", "url", "asset", "sha256", "binary",
+            "capability", "authority", "data_classification", "execution", "publication"
+        }:
+            raise ValueError("ARTCRAFT_TOOL_SCHEMA:" + name)
+        if (tool["repository"] != "storytold/" + name
+            or tool["binary"] != name + "-cli"
+            or tool["capability"] != CAPABILITIES[name]
+            or tool["authority"] != "NONE"
+            or tool["data_classification"] != "PUBLIC"
+            or tool["execution"] != "OFFLINE_ISOLATED"
+            or tool["publication"] != "FORBIDDEN"):
+            raise ValueError("ARTCRAFT_TOOL_AUTHORITY_OR_IDENTITY:" + name)
+        version, asset, digest = tool["version"], tool["asset"], tool["sha256"]
+        if (not isinstance(version, str)
+            or not re.fullmatch(r"\d+\.\d+\.\d+", version)
+            or not isinstance(asset, str)
+            or asset not in (f"{name}-{version}-linux-x86_64.tar.gz",
+                             f"{name}-cli-{version}-linux-x86_64.tar.gz")
+            or (name != "pdfcraft" and asset.startswith(name + "-cli-"))
+            or not isinstance(digest, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", digest)
+            or digest == "0" * 64
+            or tool["url"] != f"https://github.com/storytold/{name}/releases/download/v{version}/{asset}"):
+            raise ValueError("ARTCRAFT_UNPINNED_RELEASE:" + name)
+        if name in EXISTING_PINS and (version, digest) != EXISTING_PINS[name]:
+            raise ValueError("ARTCRAFT_PREVIOUSLY_PROVEN_VERSION_CHANGED:" + name)
+    return tools
+
+
+def extract_cli(archive: Path, dest: Path, name: str) -> Path:
+    if name not in NAMES or archive.is_symlink() or not archive.is_file():
+        raise ValueError("UNAUTHORIZED_ARTCRAFT_ARCHIVE")
+    if dest.exists() and any(dest.iterdir()):
+        raise ValueError("REFUSE_TO_OVERWRITE_EXISTING_TOOL")
+    with tarfile.open(archive, "r:gz") as package:
+        members = package.getmembers()
+        if (len(members) > 1200 or
+            sum(max(0, entry.size) for entry in members) > 900_000_000):
+            raise ValueError("ARTCRAFT_ARCHIVE_RESOURCE_BUDGET")
+        for entry in members:
+            key = PurePosixPath(entry.name)
+            if (key.is_absolute() or ".." in key.parts or not (entry.isfile() or entry.isdir())
+                or entry.size < 0 or entry.size > 180_000_000):
+                raise ValueError("ARTCRAFT_UNSAFE_ARCHIVE_ENTRY")
+        choices = [entry for entry in members
+                   if entry.isfile() and PurePosixPath(entry.name).name == name + "-cli"]
+        if len(choices) != 1 or not 50_000 < choices[0].size < 180_000_000:
+            raise ValueError("ARTCRAFT_EXACTLY_ONE_REAL_CLI_REQUIRED:" + name)
+        dest.mkdir(parents=True, exist_ok=True)
+        path = dest / (name + "-cli")
+        with package.extractfile(choices[0]) as src, path.open("xb") as target:
+            for block in iter(lambda: src.read(1024 * 1024), b""):
+                target.write(block)
+        path.chmod(0o500)
+    return path
+
+
+def small_png(path: Path) -> None:
+    """Small deterministically painted original synthetic WAVE fixture, not owner art."""
+    width, height = 160, 96
+    rows = bytearray()
+    for y in range(height):
+        rows.append(0)
+        for x in range(width):
+            rows.extend((int(20 + 175 * x / (width - 1)),
+                         int(15 + 180 * y / (height - 1)),
+                         180 if abs(y - (48 + 20 * __import__("math").sin(x / 24))) < 4 else 38))
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data))
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">2I5B", width, height, 8, 2, 0, 0, 0))
+                     + chunk(b"IDAT", zlib.compress(bytes(rows), 9)) + chunk(b"IEND", b""))
+
+
+def run_one(args: list[str], root: Path, label: str) -> str:
+    try:
+        response = subprocess.run(args, cwd=root, timeout=110, capture_output=True, text=True,
+                                  check=False, env=os.environ.copy())
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise ValueError("ARTCRAFT_TOOL_NOT_EXECUTED:" + label) from error
+    if response.returncode != 0:
+        raise ValueError("ARTCRAFT_TOOL_FAILED:" + label + ":" +
+                         (response.stderr or response.stdout)[-1700:])
+    return response.stdout[:5000]
+
+
+def verify_png(path: Path) -> None:
+    if (not path.is_file() or path.stat().st_size < 100
+        or path.stat().st_size > 12_000_000):
+        raise ValueError("ARTCRAFT_IMAGE_MISSING_OR_TOO_LARGE")
+    with path.open("rb") as inp:
+        header = inp.read(24)
+    if not header.startswith(b"\x89PNG\r\n\x1a\n") or header[12:16] != b"IHDR":
+        raise ValueError("ARTCRAFT_OUTPUT_NOT_PNG")
+    width, height = struct.unpack(">II", header[16:24])
+    if not 2 <= width <= 6000 or not 2 <= height <= 6000:
+        raise ValueError("ARTCRAFT_INVALID_IMAGE_DIMENSIONS")
+
+
+def verify_pdf(path: Path) -> None:
+    if not path.is_file() or not 100 < path.stat().st_size < 20_000_000:
+        raise ValueError("ARTCRAFT_PDF_MISSING_OR_TOO_LARGE")
+    if not path.open("rb").read(5) == b"%PDF-":
+        raise ValueError("ARTCRAFT_OUTPUT_NOT_PDF")
+
+
+def smoke(name: str, executable: Path, root: Path) -> Path:
+    if name not in {"photocraft", "lightcraft", "designcraft", "pdfcraft"}:
+        raise ValueError("SMOKE_ONLY_NEW_FOUR")
+    if executable.name != name + "-cli" or not executable.is_file():
+        raise ValueError("ARTCRAFT_EXACT_EXECUTABLE_REQUIRED")
+    if not root.is_dir() or root.is_symlink():
+        raise ValueError("ARTCRAFT_WORKDIR_MUST_EXIST")
+    input_png = root / "hazewave-synthetic-signal.png"
+    if not input_png.exists():
+        small_png(input_png)
+    verify_png(input_png)
+    target = root / (name + "-render.png")
+    if name == "photocraft":
+        run_one([str(executable), "run", str(input_png), "--cmd",
+                 "image.adjustments.invert", "--out", str(target)], root, name)
+    elif name == "lightcraft":
+        run_one([str(executable), "render", str(input_png), "-o", str(target),
+                 "--set", "light.exposure=0.5"], root, name)
+    elif name == "designcraft":
+        target = root / "designcraft-layout.pdf"
+        run_one([str(executable), "run", "--sample", "--export", str(target)], root, name)
+    else:
+        source = root / "designcraft-layout.pdf"
+        verify_pdf(source)
+        details = run_one([str(executable), "info", str(source)], root, name + "-info")
+        if "page" not in details.lower():
+            raise ValueError("PDFCRAFT_NO_DOCUMENT_INSPECTION")
+        run_one([str(executable), "render", str(source), "--page", "1",
+                 "--dpi", "72", "--out", str(target)], root, name + "-render")
+    if name == "designcraft":
+        verify_pdf(target)
+    else:
+        verify_png(target)
+    if name in {"photocraft", "lightcraft"} and sha256(target) == sha256(input_png):
+        raise ValueError("ARTCRAFT_EXPECTED_PIXEL_CHANGE_MISSING")
+    receipt = {
+        "schema": "HazewaveArtCraftExternalRealSmoke/v1",
+        "project": "zenindiones-maker/Hazewave-",
+        "tool": name,
+        "authority": "NONE",
+        "source": "SYNTHETIC_FIRST_PARTY_ONLY",
+        "owner_private_media_used": False,
+        "production_approved": False,
+        "publication_attempted": False,
+        "executable_sha256": sha256(executable),
+        "output": target.name,
+        "output_sha256": sha256(target),
+        "real_execution": True
+    }
+    receipt_file = root / (name + "-receipt.json")
+    receipt_file.write_text(json.dumps(receipt, indent=2) + "\n")
+    return receipt_file
+
+
+def verify(name: str, root: Path) -> None:
+    data = json.loads((root / (name + "-receipt.json")).read_text())
+    if (data.get("schema") != "HazewaveArtCraftExternalRealSmoke/v1"
+        or data.get("tool") != name or data.get("authority") != "NONE"
+        or data.get("real_execution") is not True
+        or data.get("source") != "SYNTHETIC_FIRST_PARTY_ONLY"
+        or data.get("owner_private_media_used") is not False
+        or data.get("production_approved") is not False
+        or data.get("publication_attempted") is not False):
+        raise ValueError("ARTCRAFT_SMOKE_RECEIPT_INCOMPATIBLE")
+    path = root / data["output"]
+    if path.parent != root or sha256(path) != data["output_sha256"]:
+        raise ValueError("ARTCRAFT_OUTPUT_HASH_DRIFT")
+    verify_pdf(path) if name == "designcraft" else verify_png(path)
+
+
+def main() -> None:
+    cli = argparse.ArgumentParser()
+    sub = cli.add_subparsers(dest="action", required=True)
+    sub.add_parser("validate")
+    ex = sub.add_parser("extract")
+    ex.add_argument("name", choices=sorted(NAMES))
+    ex.add_argument("archive", type=Path)
+    ex.add_argument("output", type=Path)
+    for action in ("smoke", "verify"):
+        p = sub.add_parser(action)
+        p.add_argument("name", choices=sorted(NAMES))
+        if action == "smoke":
+            p.add_argument("executable", type=Path)
+        p.add_argument("output", type=Path)
+    args = cli.parse_args()
+    entries = validate_lock(json.loads(LOCK.read_text()))
+    if args.action == "validate":
+        print("HAZEWAVE_ARTCRAFT_SEVEN_LOCK=PASS")
+    elif args.action == "extract":
+        tool = entries[args.name]
+        if sha256(args.archive) != tool["sha256"]:
+            raise ValueError("ARTCRAFT_RELEASE_SHA256_MISMATCH")
+        extracted = extract_cli(args.archive, args.output, args.name)
+        print("ARTCRAFT_EXACT_CLI=" + str(extracted))
+    elif args.action == "smoke":
+        print("ARTCRAFT_SMOKE_RECEIPT=" + str(smoke(args.name, args.executable, args.output)))
+    elif args.action == "verify":
+        verify(args.name, args.output)
+        print("ARTCRAFT_REAL_OUTPUT_VERIFIED=" + args.name)
+
+
+if __name__ == "__main__":
+    main()
