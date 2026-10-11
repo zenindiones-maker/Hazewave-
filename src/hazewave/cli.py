@@ -52,6 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     notes.add_argument("input", help="Existing local WAV sample")
     notes.add_argument("--out", required=True, help="New .mid output path")
+    notes.add_argument("--engine", choices=("spectral", "basic-pitch"), default="spectral", help="Explicit neural model, no silent fallback")
     notes.add_argument("--task-id", required=True, help="Harness task identifier")
 
     separate = subcommands.add_parser(
@@ -378,10 +379,17 @@ def main() -> int:
                 requested_domain="HAZE",
                 required_capability=CAPABILITY,
             )))
-            result = transcribe_to_midi(
-                args.input, args.out, task_id=args.task_id,
-                authorization=authorization,
-            )
+            if args.engine == "basic-pitch":
+                from hazewave.sample_note_neural import transcribe_polyphonic
+                result = transcribe_polyphonic(
+                    args.input, args.out, task_id=args.task_id,
+                    authorization=authorization,
+                )
+            else:
+                result = transcribe_to_midi(
+                    args.input, args.out, task_id=args.task_id,
+                    authorization=authorization,
+                )
             print(json.dumps(result, sort_keys=True))
             return 0
 
