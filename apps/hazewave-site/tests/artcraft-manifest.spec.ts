@@ -53,8 +53,9 @@ test("real EffectCraft pixels change with scroll while provenance-gated Craft la
      const journey=document.getElementById("journey")!;
      window.scrollTo({top:(journey.offsetHeight-innerHeight)*target,behavior:"instant"});
    },p);
-   await expect.poll(()=>page.evaluate(()=>Number(document.body.dataset.storyProgress)),{timeout:8000})
-     .toBeGreaterThan(p-.015);
+   await expect.poll(()=>page.evaluate(
+     target=>Math.abs(Number(document.body.dataset.storyProgress)-target),p
+   ),{timeout:8000}).toBeLessThan(.015);
  };
  await scroll(.20);
  const initial=await motion();
