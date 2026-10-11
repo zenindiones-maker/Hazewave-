@@ -5,6 +5,7 @@ on:
     paths:
       - "src/hazewave/sample_note_map.py"
       - "src/hazewave/harness.py"
+      - "src/hazewave/cli.py"
       - "tests/test_haze_sample_note_map.py"
       - ".github/workflows/haze-sample-note-map-e2e.yml"
 
@@ -41,10 +42,10 @@ jobs:
       - name: RUN genuine Harness + inspector + MIDI export
         run: |
           set -euo pipefail
-          python -m hazewave.sample_note_map evidence/source-a4.wav \
+          hazewave notes evidence/source-a4.wav \
             --out evidence/source-a4.mid \
-            --json-out evidence/source-a4-receipt.json \
-            --task-id haze-sample-note-map-ci
+            --task-id haze-sample-note-map-ci \
+            | tee evidence/source-a4-receipt.json
           python - <<'PY'
           import json, hashlib
           from pathlib import Path
