@@ -349,6 +349,20 @@
         "research"
       ],
       "description": "Source-grounded executable header and disassembly patterns with bounded claims."
+    },
+    {
+      "id": "haze-sample-note-map-v1",
+      "path": "docs/haze/HAZE_SAMPLE_NOTE_MAP_V1.md",
+      "type": "REFERENCE",
+      "authority": "EXPLANATORY",
+      "status": "DEVELOPMENT",
+      "owner": "HAZE",
+      "applies_to": [
+        "HAZE",
+        "harness",
+        "audio"
+      ],
+      "description": "Bounded native PCM WAV note-map/MIDI capability with security limits, provenance, and honest quality constraints."
     }
   ]
 }
