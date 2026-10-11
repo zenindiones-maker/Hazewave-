@@ -4,6 +4,7 @@
 -- @about MIT licensed original ReaScript. Paint notes, then CREATE MIDI BELOW.
 -- @provides
 --   FyahGrabber_Core.lua
+--   FyahGrabber_AudioExport.lua
 --   FyahGrabber_808.jsfx
 --   fyahgrabber_analyze.py
 -- @changelog
@@ -14,6 +15,7 @@ local _, own = r.get_action_context()
 local sep = package.config:sub(1,1)
 local dir = own:match("^(.*[\\/])") or ""
 local core = dofile(dir .. "FyahGrabber_Core.lua")
+local audio_export = dofile(dir .. "FyahGrabber_AudioExport.lua")
 local TITLE = "FyahGrabber Open · REAPER"
 local top, left, pitch_h, lo, hi = 142, 104, 9, 36, 84
 local source_item, ctx, source_file
@@ -36,7 +38,7 @@ local function context()
   if not take or r.TakeIsMIDI(take) then return nil,"A seleção precisa ser áudio." end
   local src = r.GetMediaItemTake_Source(take)
   local filename = src and r.GetMediaSourceFileName(src)
-  if not filename or filename=="" then return nil,"Sem arquivo-fonte externo válido." end
+  -- Pre-FX audio accessor handles REAPER-decoded sources, including compressed files.
   local tr = r.GetMediaItemTrack(item)
   local out = {
     item=item, take=take, src=src,
@@ -121,52 +123,53 @@ local function safequote(p)
 end
 local function analyze_source()
   if not selected_ok() then return fail("Selecionado mudou: reinicie.") end
-  if math.abs(ctx.rate-1)>1e-6 or math.abs(ctx.pitch)>1e-6 then
-    return fail("CQT exige rate 1 e pitch 0. Faça Glue no item e selecione novamente.")
-  end
-  if not r.file_exists(ctx.filename) then return fail("Arquivo-fonte não está disponível.") end
   local python=r.GetExtState("FyahGrabber","PYTHON")
   if python=="" then
-    local ok,input=r.GetUserInputs("Python local do FyahGrabber",1,
-      "Caminho absoluto do python.exe:", "")
+    local ok,input=r.GetUserInputs("Python da workstation HAZE",1,
+      "Python absoluto (ex: /workspaces/Hazewave-/.venv/bin/python):","")
     if not ok then return end
     python=input
-    if not r.file_exists(python) then return fail("Python inválido.") end
+    if not r.file_exists(python) then return fail("Python não encontrado.") end
     r.SetExtState("FyahGrabber","PYTHON",python,true)
   end
   if not r.file_exists(python) then return fail("Python não encontrado.") end
   local cache=r.GetResourcePath()..sep.."FyahGrabber-cache"
   r.RecursiveCreateDirectory(cache,0)
-  -- Source hash validation and processing are delegated to local sidecar.
-  local input=ctx.filename
-  local path_png=cache..sep.."last-cqt.png"
-  local output=cache..sep.."last-analysis.tsv"
+  local nonce=string.format("%.0f",r.time_precise()*1000000)
+  local input=cache..sep.."take-"..nonce..".wav"
+  local path_png=cache..sep.."cqt-"..nonce..".png"
+  local output=cache..sep.."cqt-"..nonce..".tsv"
+  status="Extraindo áudio de REAPER (pre-FX)..."
+  gfx.update()
+  local exported,export_err=pcall(function()
+    audio_export.export_take(r,ctx.take,ctx.position,ctx.duration,input)
+  end)
+  if not exported then return fail(export_err) end
   local command
-  local ok,err=pcall(function()
+  local safe,err=pcall(function()
     command=safequote(python).." "..safequote(dir.."fyahgrabber_analyze.py")
       .." --source "..safequote(input)
-      .." --offset "..string.format("%.6f",ctx.offset)
-      .." --duration "..string.format("%.6f",ctx.duration)
+      .." --offset 0 --duration "..string.format("%.6f",ctx.duration)
       .." --png "..safequote(path_png)
       .." --tsv "..safequote(output)
   end)
-  if not ok then return fail(err) end
-  status="Analisando CQT... (pode demorar, limite 20 segundos)"
+  if not safe then os.remove(input);return fail(err) end
+  status="CQT offline em execução; até 20 s. Edição manual permanece disponível."
   gfx.update()
   local result=r.ExecProcess(command,20000)
+  -- Audio is transient and NEVER committed or retained in the cache.
+  os.remove(input)
   if not result or not result:match("^0\n") then
-    return fail("Análise falhou ou excedeu limite; use pintura manual. "..tostring(result or ""))
+    return fail("CQT falhou/excedeu limite. É possível pintar MIDI manualmente. "..tostring(result or ""))
   end
   local handle=io.open(output,"r")
-  if not handle then return fail("Analisador não produziu TSV.") end
+  if not handle then return fail("CQT não produziu TSV.") end
   local first=handle:read("*l")
   handle:close()
-  if first~="FYAH_CQT_V1" then
-    return fail("TSV não corresponde ao protocolo esperado.")
-  end
+  if first~="FYAH_CQT_V1" then return fail("TSV sem protocolo correto.") end
   png_loaded=gfx.loadimg(image_slot,path_png)>=0
-  status=png_loaded and "CQT carregado; pinte notas sobre o mapa." or
-    "CQT calculado, mas REAPER não carregou PNG."
+  status=png_loaded and "CQT real do take pré-FX: pinte notas." or
+    "CQT analisado, mas janela gfx não carregou PNG."
 end
 
 local buttons={
