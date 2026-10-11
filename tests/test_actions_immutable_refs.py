@@ -15,6 +15,7 @@ def test_all_workflows_use_verified_immutable_action_commit_ids():
         "wave-site-ci.yml",
         "wave-vectorcraft-real-cli-proof.yml",
         "wave-artcraft-four-real-bridge.yml",
+        "wave-artcraft-seven-integrated-proof.yml",
     }
     assert {flow.name for flow in flows}==expected
     seen=[]
@@ -23,7 +24,16 @@ def test_all_workflows_use_verified_immutable_action_commit_ids():
         actions=USE.findall(source)
         assert actions, str(path)
         for action in actions:
-            assert SHA.fullmatch(action), f"{path}: {action}"
+            local_reusable = {
+                "./.github/workflows/wave-artcraft-four-real-bridge.yml",
+                "./.github/workflows/wave-vectorcraft-real-cli-proof.yml",
+                "./.github/workflows/wave-effectcraft-filmcraft-portal-proof.yml",
+            }
+            is_same_commit_local = (
+                path.name == "wave-artcraft-seven-integrated-proof.yml"
+                and action in local_reusable
+            )
+            assert SHA.fullmatch(action) or is_same_commit_local, f"{path}: {action}"
         seen.extend(actions)
     assert len(seen)>=15
     for action in ["actions/checkout","actions/setup-node","actions/setup-python",
