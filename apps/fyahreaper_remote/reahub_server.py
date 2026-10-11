@@ -29,6 +29,18 @@ class MidiRequest(BaseModel):
     notes: list[Note] = Field(min_length=1, max_length=2048)
 
 
+class DragPayload(BaseModel):
+    phase: Literal['grab', 'drag', 'end', 'cancel']
+    x: int = Field(default=0, ge=0, le=16384)
+    y: int = Field(default=0, ge=0, le=16384)
+
+
+class ViewPayload(BaseModel):
+    factor: float = Field(default=1.0, gt=0.05, lt=20.0)
+    anchor_x: int = Field(default=0, ge=0, le=16384)
+    pan_px: float = Field(default=0.0, ge=-8000, le=8000)
+
+
 class MovePayload(BaseModel):
     delta_px: float = Field(ge=-4000, le=4000)
     commit: bool = False
@@ -42,10 +54,11 @@ class TrackPatch(BaseModel):
     solo: bool | None = None
     armed: bool | None = None
     volume: float | None = Field(default=None, ge=0.0, le=4.0, allow_inf_nan=False)
+    pan: float | None = Field(default=None, ge=-1.0, le=1.0, allow_inf_nan=False)
 
     @model_validator(mode='after')
     def not_empty(self):
-        if all(value is None for value in (self.mute, self.solo, self.armed, self.volume)):
+        if all(value is None for value in (self.mute, self.solo, self.armed, self.volume, self.pan)):
             raise ValueError('EMPTY_TRACK_UPDATE')
         return self
 
@@ -122,6 +135,18 @@ def app_factory(studio, token: str, call_timeout: float | None = None) -> FastAP
     @app.post('/api/items/move', dependencies=[Depends(authenticate)])
     async def move_items(payload: MovePayload):
         return await run_in_threadpool(guarded, studio.move_selected, payload.delta_px, payload.commit, payload.x, payload.y)
+
+    @app.post('/api/items/drag', dependencies=[Depends(authenticate)])
+    async def drag_items(payload: DragPayload):
+        return await run_in_threadpool(guarded, studio.drag, payload.phase, payload.x, payload.y)
+
+    @app.post('/api/view/zoom', dependencies=[Depends(authenticate)])
+    async def view_zoom(payload: ViewPayload):
+        return await run_in_threadpool(guarded, studio.view_zoom, payload.factor, payload.anchor_x, payload.pan_px)
+
+    @app.get('/api/mixer', dependencies=[Depends(authenticate)])
+    async def mixer():
+        return await run_in_threadpool(guarded, studio.mixer)
 
     @app.post('/api/project/create_midi', dependencies=[Depends(authenticate)])
     async def create_midi(payload: MidiRequest):

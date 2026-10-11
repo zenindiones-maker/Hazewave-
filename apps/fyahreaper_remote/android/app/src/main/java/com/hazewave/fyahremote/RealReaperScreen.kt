@@ -7,6 +7,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -14,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -86,6 +88,10 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
     var webView by remember { mutableStateOf<WebView?>(null) }
     var moreOpen by remember { mutableStateOf(false) }
     var moveMode by remember { mutableStateOf(false) }
+    var showMixer by remember { mutableStateOf(false) }
+    // optimistic MOVER preview (device px): ghost of the grabbed item following the finger
+    var ghost by remember { mutableStateOf<FloatArray?>(null) } // [leftOffset, width, height, mode(0 move,1 trimL,2 trimR), grabX]
+    var finger by remember { mutableStateOf<Offset?>(null) }
     var lastGesture by remember { mutableStateOf("") }
     val gestures = remember { kotlinx.coroutines.channels.Channel<Gesture>(64) }
     var ctrl by remember { mutableStateOf(false) }
@@ -141,7 +147,8 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
             while (true) {
                 val next = gestures.tryReceive().getOrNull() ?: break
                 g = when {
-                    g is Gesture.Move && next is Gesture.Move && next.grabX == null -> Gesture.Move(g.remotePx + next.remotePx, g.commit || next.commit, g.grabX, g.grabY)
+                    g is Gesture.View && next is Gesture.View -> Gesture.View(g.factor * next.factor, next.anchorX, g.panPx + next.panPx)
+                    g is Gesture.Drag && next is Gesture.Drag && g.phase == "drag" && next.phase == "drag" -> next
                     g is Gesture.Action && next is Gesture.Action && g.name == next.name -> Gesture.Action(g.name, minOf(8, g.repeat + next.repeat))
                     else -> { pending = next; break }
                 }
@@ -150,13 +157,22 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
             try {
                 when (g) {
                     is Gesture.Action -> { h.request("/api/action/${g.name}?repeat=${g.repeat}", "POST"); lastGesture = "${g.name}×${g.repeat}" }
-                    is Gesture.Move -> {
-                        val body = JSONObject().put("delta_px", g.remotePx.toDouble()).put("commit", g.commit)
-                        if (g.grabX != null && g.grabY != null) body.put("x", g.grabX).put("y", g.grabY)
-                        val r = JSONObject(h.request("/api/items/move", "POST", body))
-                        lastGesture = if (g.grabX != null) "pegar item @${g.grabX},${g.grabY}: ${if (r.optInt("moved") > 0) "ok" else "nenhum item"}" else "move ${g.remotePx.toInt()}px"
+                    is Gesture.View -> {
+                        h.request("/api/view/zoom", "POST", JSONObject().put("factor", g.factor.toDouble()).put("anchor_x", g.anchorX).put("pan_px", g.panPx.toDouble()))
+                        lastGesture = "view ×%.2f @%d pan %d".format(g.factor, g.anchorX, g.panPx.toInt())
                     }
-                }
+                    is Gesture.Drag -> {
+                        val r = JSONObject(h.request("/api/items/drag", "POST", JSONObject().put("phase", g.phase).put("x", g.x).put("y", g.y)))
+                        if (g.phase == "grab") {
+                            val tw = webView as? TouchWebView
+                            if (r.optBoolean("grabbed") && tw != null) {
+                                val k = 1f / tw.remotePerDevice
+                                ghost = floatArrayOf((r.getInt("left_px") - g.x) * k, (r.getInt("right_px") - r.getInt("left_px")) * k,
+                                    r.optInt("track_h", 100) * k, when (r.optString("mode")) { "trim_left" -> 1f; "trim_right" -> 2f; else -> 0f }, g.x * k + tw.offX)
+                            } else ghost = null
+                            lastGesture = if (r.optBoolean("grabbed")) "pegou (${r.optString("mode")})" else "nenhum item aqui"
+                        } else if (g.phase == "end" || g.phase == "cancel") { ghost = null; lastGesture = "soltou" }
+                    }
                 android.util.Log.i("FyahGesture", lastGesture)
             } catch (e: Exception) { diag("gesto falhou: ${e.message?.take(100)}"); snackbar.showSnackbar(e.message ?: "Falha") }
             pending?.let { p -> pending = null; gestures.trySend(p) }
@@ -187,6 +203,7 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                     AndroidView(modifier = Modifier.fillMaxSize(), factory = { c ->
                         TouchWebView(c) { g -> gestures.trySend(g) }.apply {
                             moveMode = false
+                            onFinger = { x, y, down -> finger = if (down) Offset(x, y) else null; if (!down) ghost = null }
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = true
                             settings.useWideViewPort = true
@@ -217,7 +234,21 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                     }, update = { (it as? TouchWebView)?.moveMode = moveMode })
                 }
             }
-            if (moveMode) Text("MODO MOVER: arraste o item com o dedo · toque = selecionar", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp,
+            val gh = ghost; val f = finger
+            if (moveMode && gh != null && f != null) {
+                val dens = androidx.compose.ui.platform.LocalDensity.current
+                val (l, w) = when (gh[3].toInt()) {
+                    1 -> { val right = gh[4] + gh[0] + gh[1]; minOf(f.x, right - 8f) to (right - minOf(f.x, right - 8f)) }  // trim left edge
+                    2 -> { val left = gh[4] + gh[0]; left to maxOf(8f, f.x - left) }                                        // trim right edge
+                    else -> (f.x + gh[0]) to gh[1]
+                }
+                with(dens) {
+                    Box(Modifier.offset(l.toDp(), (f.y - gh[2] / 2).toDp()).size(w.toDp(), gh[2].toDp())
+                        .background(Color(0x5500E5FF)).border(2.dp, Color(0xFF00E5FF)))
+                }
+            }
+            if (showMixer) MixerPanel({ hub() }, { showMixer = false }) { m -> diag("mixer: ${m.take(100)}") }
+            if (moveMode) Text("MOVER: arraste = mover (entre faixas, com grade) · bordas = aparar · toque = selecionar", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(6.dp).background(Color(0xFFFFC107)).padding(horizontal = 10.dp, vertical = 4.dp))
             if (moreOpen) Surface(Modifier.align(Alignment.TopEnd).padding(6.dp), color = Color(0xEE1E1E24)) {
                 Column(Modifier.padding(6.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -237,7 +268,7 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                         BarBtn("NATIVO", Color(0xFF37474F), true) { onOpenNative() }
                         BarBtn("✕", Color(0xFF424242), true) { moreOpen = false }
                     }
-                    Text("Gestos: pinça = zoom · 2 dedos = rolar · toque duplo = zoom no item · segurar = clique direito",
+                    Text("Gestos: pinça = zoom no ponto · 2 dedos = rolar · toque duplo = zoom no item · segurar = clique direito",
                         color = Color.LightGray, fontSize = 11.sp, modifier = Modifier.widthIn(max = 240.dp))
                     if (lastGesture.isNotBlank()) Text("último gesto: $lastGesture", color = Color(0xFFB2FF59), fontSize = 11.sp)
                 }
@@ -266,6 +297,7 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
             BarBtn("REC", if (state == "recording") Color(0xFFFF1744) else Color(0xFFB71C1C), !busy) { call("/api/transport/rec") }
             BarBtn("STOP", Color(0xFF455A64), !busy) { call("/api/transport/stop") }
             Toggle("MOVER", moveMode) { moveMode = !moveMode }
+            Toggle("MIX", showMixer) { showMixer = !showMixer }
             Toggle("CTRL", ctrl) { ctrl = !ctrl; webView?.evaluateJavascript(clickJs("noVNC_toggle_ctrl_button"), null) }
             Toggle("SHIFT", shift) { shift = !shift; webView?.evaluateJavascript(shiftJs(shift), null) }
             BarBtn("ESC", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_send_esc_button"), null) }

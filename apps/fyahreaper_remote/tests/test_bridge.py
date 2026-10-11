@@ -246,3 +246,42 @@ def test_move_grabs_item_under_finger_or_noops():
     assert b.move_selected(100,False,10,10)['moved']==0 and item['position']==1.0
     api.GetItemFromPoint=lambda x,y,l,t:item
     assert b.move_selected(100,False,10,10)['moved']==1 and sel==['clear',True] and abs(item['position']-2.0)<1e-9
+
+
+def test_view_zoom_keeps_anchor_time_under_fingers():
+    api=RPR();view=[0.0,100.0]
+    def gs(p,setv,a,b,s,e):
+        if setv: view[:]=[s,e]
+        return [p,setv,a,b,view[0],view[1]]
+    api.GetSet_ArrangeView2=gs;api.GetHZoomLevel=lambda:16.0
+    b=ReaperBridge(api=api);b._arr_left=700
+    anchor_t=(1500-700)/16.0
+    out=b.view_zoom(2.0,1500,0.0)
+    assert abs(out['end']-out['start']-50.0)<1e-9
+    assert abs(view[0]+(anchor_t-0)/100*50-anchor_t)<1e-6
+    b.view_zoom(1.0,1500,160.0)            # fingers move right 160px -> view 10 s earlier
+    assert abs(view[0]-(out['start']-10.0))<1e-6 or view[0]==0.0
+
+def test_drag_move_snaps_and_changes_track_and_single_undo():
+    api=RPR();api.GetHZoomLevel=lambda:100.0
+    t1={'guid':'{a}','name':'A','I_TCPH':150,'IP_TRACKNUMBER':1};t2={'guid':'{b}','name':'B','I_TCPH':150,'IP_TRACKNUMBER':2}
+    api.tracks=[t1,t2];item={'position':1.0,'duration':2.0,'track':t1,'take':{'midi':False}}
+    api.GetMediaTrackInfo_Value=lambda t,k:t[k]
+    hit=lambda x,y,l,tk: item if 1100<=x<=1300 else '(MediaItem*)0x0000000000000000'
+    api.GetItemFromPoint=hit;api.IsMediaItemSelected=lambda it:True
+    api.CountSelectedMediaItems=lambda p:1;api.GetSelectedMediaItem=lambda p,i:item
+    api.GetSet_ArrangeView2=lambda p,s,a,b,c,d:[p,s,a,b,0.0,30.0]
+    api.GetMediaItemInfo_Value=lambda it,k:it['position'] if k=='D_POSITION' else it['duration']
+    api.SetMediaItemInfo_Value=lambda it,k,v:it.update(position=v) if k=='D_POSITION' else it.update(duration=v)
+    api.GetMediaItemTakeInfo_Value=lambda tk,k:0.0 if k=='D_STARTOFFS' else 1.0
+    api.GetToggleCommandState=lambda c:1;api.SnapToGrid=lambda p,t:round(t*2)/2
+    api.GetTrackFromPoint=lambda x,y,i:[t2 if y>300 else t1,x,y,0];api.MoveMediaItemToTrack=lambda it,t:item.update(track=t)
+    undo=[];api.Undo_OnStateChange=lambda d:undo.append(d)
+    b=ReaperBridge(api=api)
+    g=b.drag('grab',1200,100)
+    assert g['grabbed'] and g['mode']=='move' and g['left_px']==1100 and g['right_px']==1300 and b._arr_left==1000
+    b.drag('drag',1337,400)                 # +1.37 s -> snapped 2.5, one track down
+    assert item['position']==2.5 and item['track'] is t2
+    b.drag('end');assert len(undo)==1
+    b.drag('grab',1295,400);assert b._drag['mode']=='trim_right'
+    b.drag('end');assert len(undo)==1       # tap/no change -> no undo point

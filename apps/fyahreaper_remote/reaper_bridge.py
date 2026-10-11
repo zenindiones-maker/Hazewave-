@@ -157,7 +157,7 @@ class ReaperBridge:
     def _set_track_impl(self, guid, update):
         with self._context():
             track = self._by_guid(guid)
-            for name,param in (('mute','B_MUTE'),('solo','I_SOLO'),('armed','I_RECARM'),('volume','D_VOL')):
+            for name,param in (('mute','B_MUTE'),('solo','I_SOLO'),('armed','I_RECARM'),('volume','D_VOL'),('pan','D_PAN')):
                 if name in update:
                     value = update[name]
                     if name == 'volume' and (not math.isfinite(value) or value<0 or value>4):
@@ -269,7 +269,7 @@ class ReaperBridge:
         'zoom_out_v': 40112, 'zoom_project': 40295, 'zoom_item': 41622, 'scroll_left': 40140,
         'scroll_right': 40141, 'scroll_up': 40138, 'scroll_down': 40139, 'insert_track': 40001,
         'arm_selected': 9, 'metronome': 40364, 'mixer': 40078, 'midi_editor': 40153,
-        'select_all_items': 40182, 'unselect_items': 40289, 'marker': 40157, 'save': 40026,
+        'select_all_items': 40182, 'toolbar_arrange': 41105, 'toolbar_edit': 41106, 'unselect_items': 40289, 'marker': 40157, 'save': 40026,
     }
     TOUCH_TRACK_HEIGHT = 150
 
@@ -325,3 +325,182 @@ class ReaperBridge:
 
     def move_selected(self, delta_px, commit=False, x=None, y=None):
         return self._guarded(self._move_impl, delta_px, commit, x, y)
+
+
+    # ---- touch mixer -------------------------------------------------------------------------------
+    @staticmethod
+    def _db(v):
+        return -150.0 if v <= 1e-8 else 20.0 * math.log10(v)
+
+    def _mixer_impl(self):
+        r = self.r
+        out = []
+        for i in range(int(r.CountTracks(0))):
+            t = r.GetTrack(0, i)
+            name = r.GetTrackName(t, '', 512)
+            name = name[2] if isinstance(name, (list, tuple)) else name
+            col = int(r.GetMediaTrackInfo_Value(t, 'I_CUSTOMCOLOR'))
+            rgb = None
+            if col & 0x1000000:
+                rr, gg, bb = r.ColorFromNative(col & 0xFFFFFF, 0, 0, 0)[1:4] if hasattr(r, 'ColorFromNative') else (col & 0xFF, (col >> 8) & 0xFF, (col >> 16) & 0xFF)
+                rgb = '#%02x%02x%02x' % (rr, gg, bb)
+            vol = float(r.GetMediaTrackInfo_Value(t, 'D_VOL'))
+            out.append({
+                'id': self._guid(t), 'number': i + 1, 'name': name or f'Track {i + 1}', 'color': rgb,
+                'volume': vol, 'volume_db': round(self._db(vol), 2), 'pan': float(r.GetMediaTrackInfo_Value(t, 'D_PAN')),
+                'mute': bool(r.GetMediaTrackInfo_Value(t, 'B_MUTE')), 'solo': bool(r.GetMediaTrackInfo_Value(t, 'I_SOLO')),
+                'armed': bool(r.GetMediaTrackInfo_Value(t, 'I_RECARM')),
+                'peak_db': [round(self._db(float(r.Track_GetPeakInfo(t, ch))), 1) for ch in (0, 1)],
+            })
+        m = r.GetMasterTrack(0)
+        mv = float(r.GetMediaTrackInfo_Value(m, 'D_VOL'))
+        return {'tracks': out, 'master': {'volume': mv, 'volume_db': round(self._db(mv), 2),
+                'peak_db': [round(self._db(float(r.Track_GetPeakInfo(m, ch))), 1) for ch in (0, 1)]},
+                'state': self._state()}
+
+    def mixer(self):
+        return self._guarded(self._mixer_impl, retry=True)
+
+    # ---- smooth, finger-anchored arrange zoom/pan ----------------------------------------------------
+    ARRANGE_LEFT_DEFAULT = 695  # REAPER display px where the arrange view starts; refined by _calibrate_left
+
+    def _view_impl(self, factor, anchor_x, pan_px):
+        r = self.r
+        v = r.GetSet_ArrangeView2(0, False, 0, 0, 0, 0)
+        start, end = float(v[4]), float(v[5])
+        hz = float(r.GetHZoomLevel()) or 100.0
+        left = getattr(self, '_arr_left', self.ARRANGE_LEFT_DEFAULT)
+        span = max(1e-3, end - start)
+        at = start + max(0.0, anchor_x - left) / hz
+        frac = min(1.0, max(0.0, (at - start) / span))
+        new_span = min(4 * 3600.0, max(0.05, span / float(factor)))
+        ns = at - frac * new_span - float(pan_px) / hz
+        ns = max(0.0, ns)
+        r.GetSet_ArrangeView2(0, True, 0, 0, ns, ns + new_span)
+        return {'start': ns, 'end': ns + new_span, 'anchor_seconds': at}
+
+    def view_zoom(self, factor=1.0, anchor_x=0, pan_px=0.0):
+        return self._guarded(self._view_impl, factor, anchor_x, pan_px)
+
+    # ---- direct manipulation of items (MOVER) -------------------------------------------------------
+    EDGE_PX = 44  # grab zone for trim handles, REAPER px (~6 mm on the phone)
+
+    def _hit(self, x, y):
+        h = self.r.GetItemFromPoint(int(x), int(y), False, None)
+        h = h[0] if isinstance(h, (list, tuple)) else h
+        return None if _is_null(h) else h
+
+    def _edge(self, item, x, y, step):
+        """Last px (walking by `step`) where `item` is still under the finger -> item screen edge."""
+        lo, hi = 0, 4096
+        while lo < hi:  # find largest d with item still hit at x + step*d
+            mid = (lo + hi + 1) // 2
+            px = x + step * mid
+            if 0 <= px <= 16383 and self._hit(px, y) == item:
+                lo = mid
+            else:
+                hi = mid - 1
+        return x + step * lo
+
+    def _drag_impl(self, phase, x, y):
+        r = self.r
+        if phase == 'grab':
+            self._drag = None
+            item = self._hit(x, y)
+            if item is None:
+                return {'grabbed': False}
+            if not r.IsMediaItemSelected(item):
+                r.SelectAllMediaItems(0, False)
+                r.SetMediaItemSelected(item, True)
+            hz = float(r.GetHZoomLevel()) or 100.0
+            pos = float(r.GetMediaItemInfo_Value(item, 'D_POSITION'))
+            length = float(r.GetMediaItemInfo_Value(item, 'D_LENGTH'))
+            lpx, rpx = self._edge(item, x, y, -1), self._edge(item, x, y, +1)
+            v = r.GetSet_ArrangeView2(0, False, 0, 0, 0, 0)
+            self._arr_left = int(round(lpx - (pos - float(v[4])) * hz)) if pos >= float(v[4]) else getattr(self, '_arr_left', self.ARRANGE_LEFT_DEFAULT)
+            edge = min(self.EDGE_PX, max(8, (rpx - lpx) // 3))
+            mode = 'trim_left' if x - lpx <= edge else ('trim_right' if rpx - x <= edge else 'move')
+            items = [r.GetSelectedMediaItem(0, i) for i in range(int(r.CountSelectedMediaItems(0)))] if mode == 'move' else [item]
+            tracks = [r.GetTrack(0, i) for i in range(int(r.CountTracks(0)))]
+            def tidx(it):
+                tr = r.GetMediaItemTrack(it)
+                return next((i for i, t in enumerate(tracks) if t == tr), 0)
+            orig = []
+            for it in items:
+                tk = r.GetActiveTake(it)
+                orig.append({'item': it, 'pos': float(r.GetMediaItemInfo_Value(it, 'D_POSITION')),
+                             'len': float(r.GetMediaItemInfo_Value(it, 'D_LENGTH')), 'track': tidx(it),
+                             'take': None if _is_null(tk) else tk,
+                             'offs': 0.0 if _is_null(tk) else float(r.GetMediaItemTakeInfo_Value(tk, 'D_STARTOFFS')),
+                             'rate': 1.0 if _is_null(tk) else float(r.GetMediaItemTakeInfo_Value(tk, 'D_PLAYRATE')) or 1.0})
+            self._drag = {'x0': x, 'y0': y, 'mode': mode, 'anchor': item, 'orig': orig, 'hz': hz, 'ntracks': len(tracks),
+                          'anchor_pos': pos, 'anchor_len': length, 'anchor_track': tidx(item)}
+            r.UpdateArrange()
+            tr = r.GetMediaItemTrack(item)
+            return {'grabbed': True, 'mode': mode, 'left_px': lpx, 'right_px': rpx, 'items': len(items),
+                    'track_h': int(r.GetMediaTrackInfo_Value(tr, 'I_TCPH')), 'arrange_left': self._arr_left}
+        d = getattr(self, '_drag', None)
+        if d is None:
+            return {'grabbed': False}
+        if phase in ('end', 'cancel'):
+            if phase == 'cancel' and d.get('changed'):
+                self._apply(d, 0.0, 0)
+            self._drag = None
+            if phase == 'end' and d.get('changed'):
+                r.Undo_OnStateChange('FyahReaper Remote: ' + d['mode'].replace('_', ' ') + ' (touch)')
+            return {'done': True, 'mode': d['mode'], 'changed': bool(d.get('changed')) and phase == 'end'}
+        dt = (x - d['x0']) / d['hz']
+        dtrack = 0
+        if d['mode'] == 'move':
+            hit = r.GetTrackFromPoint(int(x), int(y), 0)
+            tr = hit[0] if isinstance(hit, (list, tuple)) else hit
+            if not _is_null(tr):
+                n = int(r.GetMediaTrackInfo_Value(tr, 'IP_TRACKNUMBER'))
+                if n > 0:
+                    dtrack = (n - 1) - d['anchor_track']
+        d['changed'] = True
+        return self._apply(d, dt, dtrack)
+
+    def _snap(self, t):
+        r = self.r
+        return float(r.SnapToGrid(0, t)) if r.GetToggleCommandState(1157) == 1 else t
+
+    def _apply(self, d, dt, dtrack):
+        r = self.r
+        r.PreventUIRefresh(1)
+        try:
+            if d['mode'] == 'move':
+                target = self._snap(max(0.0, d['anchor_pos'] + dt))
+                delta = target - d['anchor_pos']
+                lo = min(o['pos'] for o in d['orig'])
+                delta = max(delta, -lo)
+                tmin = min(o['track'] for o in d['orig']); tmax = max(o['track'] for o in d['orig'])
+                dtrack = max(-tmin, min(d['ntracks'] - 1 - tmax, dtrack))
+                for o in d['orig']:
+                    r.SetMediaItemInfo_Value(o['item'], 'D_POSITION', o['pos'] + delta)
+                    want = r.GetTrack(0, o['track'] + dtrack)
+                    if not _is_null(want) and r.GetMediaItemTrack(o['item']) != want:
+                        r.MoveMediaItemToTrack(o['item'], want)
+                out = {'mode': 'move', 'delta_seconds': delta, 'delta_tracks': dtrack}
+            else:
+                o = d['orig'][0]
+                end = o['pos'] + o['len']
+                if d['mode'] == 'trim_left':
+                    floor = o['pos'] - o['offs'] / o['rate'] if o['take'] is not None else 0.0
+                    ns = min(end - 0.01, max(0.0, floor, self._snap(o['pos'] + dt)))
+                    r.SetMediaItemInfo_Value(o['item'], 'D_POSITION', ns)
+                    r.SetMediaItemInfo_Value(o['item'], 'D_LENGTH', end - ns)
+                    if o['take'] is not None:
+                        r.SetMediaItemTakeInfo_Value(o['take'], 'D_STARTOFFS', o['offs'] + (ns - o['pos']) * o['rate'])
+                    out = {'mode': 'trim_left', 'position': ns, 'length': end - ns}
+                else:
+                    ne = max(o['pos'] + 0.01, self._snap(end + dt))
+                    r.SetMediaItemInfo_Value(o['item'], 'D_LENGTH', ne - o['pos'])
+                    out = {'mode': 'trim_right', 'position': o['pos'], 'length': ne - o['pos']}
+        finally:
+            r.PreventUIRefresh(-1)
+            r.UpdateArrange()
+        return out
+
+    def drag(self, phase, x=0, y=0):
+        return self._guarded(self._drag_impl, phase, x, y)

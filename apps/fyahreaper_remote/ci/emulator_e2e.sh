@@ -110,26 +110,48 @@ gest(){ python3 apps/fyahreaper_remote/ci/mt.py $TDEV $MAXX $MAXY 1080 2340 $1 >
 for TDEV in $CANDS; do
   MAXX=$(axmax $TDEV ABS_MT_POSITION_X); MAXY=$(axmax $TDEV ABS_MT_POSITION_Y)
   n0=$(wc -l < $MOCK_LOG); gest pinch_out_h
-  if tail -n +$((n0+1)) $MOCK_LOG | grep -q '"zoom_in_h"'; then echo "touch device $TDEV max $MAXX x $MAXY" | tee $OUT/touchdev.txt; break; fi
+  if tail -n +$((n0+1)) $MOCK_LOG | grep -q '"view", [1-9]'; then echo "touch device $TDEV max $MAXX x $MAXY" | tee $OUT/touchdev.txt; break; fi
   echo "no gesture via $TDEV" | tee -a $OUT/touchdev.txt
 done
-grep -q "^touch device" $OUT/touchdev.txt && pass pinch_out_is_zoom_in_h || fail pinch_out_is_zoom_in_h
-n0=$(wc -l < $MOCK_LOG); gest pinch_in_h; tail -n +$((n0+1)) $MOCK_LOG | grep -q '"zoom_out_h"' && pass pinch_in_is_zoom_out_h || fail pinch_in_is_zoom_out_h
+grep -q "^touch device" $OUT/touchdev.txt && pass pinch_out_is_smooth_zoom_in || fail pinch_out_is_smooth_zoom_in
+grep '"view"' $MOCK_LOG | head -3 > $OUT/view-sample.txt
+n0=$(wc -l < $MOCK_LOG); gest pinch_in_h; tail -n +$((n0+1)) $MOCK_LOG | grep -q '"view", 0\.' && pass pinch_in_is_smooth_zoom_out || fail pinch_in_is_smooth_zoom_out
+tail -n +$((n0+1)) $MOCK_LOG | grep '"view"' | python3 -c "import sys,json;a=[json.loads(l)[2] for l in sys.stdin];print('anchors',a[:5]);sys.exit(0 if a and all(750<=x<=1250 for x in a) else 1)" && pass pinch_anchored_at_fingers || fail pinch_anchored_at_fingers
 n0=$(wc -l < $MOCK_LOG); gest pinch_out_v; tail -n +$((n0+1)) $MOCK_LOG | grep -q '"zoom_in_v"' && pass vertical_pinch_is_zoom_in_v || fail vertical_pinch_is_zoom_in_v
-n0=$(wc -l < $MOCK_LOG); gest pan_right; tail -n +$((n0+1)) $MOCK_LOG | grep -q '"scroll_left"' && pass two_finger_pan_right_scrolls_left || fail two_finger_pan_right_scrolls_left
+n0=$(wc -l < $MOCK_LOG); gest pan_right; tail -n +$((n0+1)) $MOCK_LOG | grep '"view"' | python3 -c "import sys,json;p=sum(json.loads(l)[3] for l in sys.stdin);print('pan',p);sys.exit(0 if p>300 else 1)" && pass two_finger_pan_right_scrolls_smoothly || fail two_finger_pan_right_scrolls_smoothly
 n0=$(wc -l < $MOCK_LOG); gest pan_down; tail -n +$((n0+1)) $MOCK_LOG | grep -q '"scroll_up"' && pass two_finger_pan_down_scrolls_up || fail two_finger_pan_down_scrolls_up
 c0=$(grep -c . $CL); n0=$(wc -l < $MOCK_LOG); gest double_tap
 tail -n +$((n0+1)) $MOCK_LOG | grep -q '"zoom_item"' && pass double_tap_zooms_to_item || fail double_tap_zooms_to_item
 [ "$(tail -n +$((c0+1)) $CL | grep -c '^LEFT')" -le 1 ] && pass double_tap_not_sent_as_double_click || fail double_tap_not_sent_as_double_click
 grep -q '"zoom_' $MOCK_LOG && ! grep -q '^MIDDLE\|^SCROLL' $CL && pass gestures_not_leaked_to_vnc || fail gestures_not_leaked_to_vnc
-# MOVE mode: tap selects (one click reaches REAPER), drag moves selected items via ReaHub with a final commit
+# MOVE mode: drag = grab item under finger + continuous drag + end; nothing reaches the VNC (no clicks)
 c=$(tapIn ui MOVER); sleep 1; c0=$(grep -c . $CL); n0=$(wc -l < $MOCK_LOG)
-adb shell input swipe 800 600 1300 600 900; sleep 6
-tail -n +$((n0+1)) $MOCK_LOG | grep -q '"move", [1-9]' && pass move_mode_drag_moves_items || fail move_mode_drag_moves_items
-tail -n +$((n0+1)) $MOCK_LOG | grep -q 'true, null, null]' && pass move_mode_commits_undo_point || fail move_mode_commits_undo_point
-tail -n +$((n0+1)) $MOCK_LOG | grep -q '"move", 0.0, false, [0-9]*, [0-9]*]' && pass move_mode_grabs_item_under_finger || fail move_mode_grabs_item_under_finger
+adb shell input swipe 800 600 1300 400 1200; sleep 4
+tail -n +$((n0+1)) $MOCK_LOG > $OUT/mover-calls.log
+grep -q '"drag", "grab", [0-9]*, [0-9]*' $OUT/mover-calls.log && pass mover_grabs_item_under_finger || fail mover_grabs_item_under_finger
+[ "$(grep -c '"drag", "drag"' $OUT/mover-calls.log)" -ge 3 ] && pass mover_streams_drag_positions || fail mover_streams_drag_positions
+grep -q '"drag", "end"' $OUT/mover-calls.log && pass mover_ends_with_commit || fail mover_ends_with_commit
 [ "$(tail -n +$((c0+1)) $CL | grep -c '^LEFT\|^RIGHT')" = 0 ] && pass move_mode_sends_no_clicks_to_reaper || fail move_mode_sends_no_clicks_to_reaper
+adb shell input swipe 800 600 1100 600 3000 & sleep 1.8; shot 08-mover-ghost; wait
 shot 07-move-mode; tapIn ui MOVER >/dev/null; sleep 1
+# Touch mixer
+c=$(tapIn ui MIX); sleep 3; dump mix; shot 09-mixer
+grep -q 'text="1  Kick"' $OUT/mix.xml && grep -q 'text="3  Vox"' $OUT/mix.xml && pass mixer_shows_reaper_track_names || fail mixer_shows_reaper_track_names
+n0=$(wc -l < $MOCK_LOG)
+c=$(python3 - "$OUT/mix.xml" <<'PY2'
+import re,sys
+x=open(sys.argv[1]).read()
+for m in re.finditer(r'<node [^>]*>',x):
+    n=m.group(0)
+    if 'content-desc="btn_M"' in n:
+        a=list(map(int,re.findall(r'\d+',re.search(r'bounds="([^"]+)"',n).group(1))));print((a[0]+a[2])//2,(a[1]+a[3])//2, a[2]-a[0], a[3]-a[1]);break
+PY2
+); echo "M button $c"; set -- $c; adb shell input tap $1 $2; sleep 2
+[ "${3:-0}" -ge 105 ] && [ "${4:-0}" -ge 115 ] && pass mixer_buttons_at_least_44x48dp || fail "mixer_buttons_at_least_44x48dp(${3}x${4})"
+tail -n +$((n0+1)) $MOCK_LOG | grep -q '"set_track", "{T1}", {"mute": true}' && pass mixer_mute_reaches_reaper || fail mixer_mute_reaches_reaper
+n0=$(wc -l < $MOCK_LOG); adb shell input swipe $1 750 $1 650 800; sleep 2
+tail -n +$((n0+1)) $MOCK_LOG | grep -q '"set_track", "{T1}", {"volume": [1-3]\.' && pass mixer_fader_drag_raises_volume || fail mixer_fader_drag_raises_volume
+c=$(tapIn mix FECHAR); sleep 1
 c=$(tapIn ui "⋯"); sleep 1; dump more2; c=$(tapIn more2 DIAG); sleep 2; dump u4
 c=$(tapIn u4 "TESTAR CONEXÃO"); sleep 8; shot 05-diagnostics; dump ui5
 grep -q 'REAPER (noVNC): conectado' $OUT/ui5.xml && pass diag_shows_novnc_connected || fail diag_shows_novnc_connected
