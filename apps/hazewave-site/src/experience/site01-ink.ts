@@ -45,6 +45,11 @@ export function mountSite01Ink(): void {
   if (!journey||!stage||!engine||!seed||!caption||verses.length!==7||brushPaths.length!==16) {
     throw new Error("HAZEWAVE_SITE01_REAL_INK_CONTRACT_MISSING");
   }
+  // Captured immutable non-null references remain valid in nested callbacks.
+  // This keeps TypeScript strictNullChecks enabled with no unsafe non-null casts.
+  const stageRoot=stage;
+  const seedNode=seed;
+  const captionNode=caption;
   const keys=new Set<string>();
   const paths:InkPath[]=brushPaths.map(element=>{
     const key=element.dataset.inkStroke;
@@ -87,26 +92,26 @@ export function mountSite01Ink(): void {
       if(completion>0)activePaths++;
       paintedLength+=item.length*completion;
     }
-    seed.style.opacity=String(smooth(segment(p,.006,.045)));
+    seedNode.style.opacity=String(smooth(segment(p,.006,.045)));
     const brand=segment(p,.69,.92);
-    stage.style.setProperty("--brand-visibility",String(brand>.008?1:0));
-    stage.style.setProperty("--brand-clip",String((1-brand)*100)+"%");
-    stage.style.setProperty("--signature-clip",String((1-segment(p,.91,.98))*100)+"%");
-    stage.style.setProperty("--arrival",String(segment(p,.92,.99)));
+    stageRoot.style.setProperty("--brand-visibility",String(brand>.008?1:0));
+    stageRoot.style.setProperty("--brand-clip",String((1-brand)*100)+"%");
+    stageRoot.style.setProperty("--signature-clip",String((1-segment(p,.91,.98))*100)+"%");
+    stageRoot.style.setProperty("--arrival",String(segment(p,.92,.99)));
     // Camera is SUBORDINATE to drawing. Reduced motion removes it entirely.
     if(!reduced.matches){
-      stage.style.setProperty("--camera-z",String(1+.065*smooth(segment(p,.26,.76))));
-      stage.style.setProperty("--camera-y",String(-26*smooth(segment(p,.39,.84)))+"px");
+      stageRoot.style.setProperty("--camera-z",String(1+.065*smooth(segment(p,.26,.76))));
+      stageRoot.style.setProperty("--camera-y",String(-26*smooth(segment(p,.39,.84)))+"px");
     } else {
-      stage.style.setProperty("--camera-z","1");
-      stage.style.setProperty("--camera-y","0px");
+      stageRoot.style.setProperty("--camera-z","1");
+      stageRoot.style.setProperty("--camera-y","0px");
     }
     let chapter=0;
     for(let index=1;index<chapterCuts.length;index++){
       if(p>=chapterCuts[index])chapter=index;
     }
     if(chapter!==previousChapter){
-      caption.textContent=verses[chapter]?.dataset.verse ?? "";
+      captionNode.textContent=verses[chapter]?.dataset.verse ?? "";
       previousChapter=chapter;
     }
     document.body.dataset.inkProgress=p.toFixed(4);
