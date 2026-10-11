@@ -1,0 +1,161 @@
+{
+  "schema": "HazewaveReplicaSkillsVendor/v1",
+  "repository": "https://github.com/Jakeschincariol/replica-skill",
+  "source_commit": "77c9436fb3d18c3d58169efb8caf4fe906b0dc51",
+  "license": "MIT",
+  "authority": "NONE",
+  "project_authority": "HAZEWAVE_HARNESS",
+  "scope": "project_local_skill_installation_only",
+  "enabled_side_effects": [],
+  "requires_explicit_harness_admission": true,
+  "human_approval_required_for": [
+    "publication",
+    "deployment",
+    "payments",
+    "external_account_write",
+    "private_media_egress"
+  ],
+  "audit_status": "source-reviewed; no automatic execution",
+  "files": [
+    {
+      "path": ".claude/skills/replica-architect/SKILL.md",
+      "git_blob_sha": "7d96f586d8d20f7e38b19772dbacc711b4cdd41b",
+      "size": 4586
+    },
+    {
+      "path": ".claude/skills/replica-architect/architecture.md",
+      "git_blob_sha": "b686c60c7205c6e1923aea3b8486913ca440574e",
+      "size": 716
+    },
+    {
+      "path": ".claude/skills/replica-backend/SKILL.md",
+      "git_blob_sha": "1aacf10acb4969dfe6795fd7f765fd5361ddf694",
+      "size": 3985
+    },
+    {
+      "path": ".claude/skills/replica-brand/SKILL.md",
+      "git_blob_sha": "08933c7cfd2b570b084a890c7874fc2c3372120c",
+      "size": 4328
+    },
+    {
+      "path": ".claude/skills/replica-brand/sweep.py",
+      "git_blob_sha": "1a204ff43d7958d1d3411c8808c6808e6141f702",
+      "size": 7386
+    },
+    {
+      "path": ".claude/skills/replica-build/SKILL.md",
+      "git_blob_sha": "c54a7990c50cdd97e40ad31d1e7605f5c871039b",
+      "size": 3710
+    },
+    {
+      "path": ".claude/skills/replica-deploy/SKILL.md",
+      "git_blob_sha": "cd0ab67170a96690a748bfa1975b1845b6731e50",
+      "size": 4412
+    },
+    {
+      "path": ".claude/skills/replica-deploy/preflight.md",
+      "git_blob_sha": "da1f28f3e2860b62521497ecf3869a26f78675d2",
+      "size": 1248
+    },
+    {
+      "path": ".claude/skills/replica-design/SKILL.md",
+      "git_blob_sha": "cfb3df4161d770770e5440f3d1d22344e24747f4",
+      "size": 3974
+    },
+    {
+      "path": ".claude/skills/replica-design/contrast.py",
+      "git_blob_sha": "d741081b99d555e2d9e9d607d3e76c5e793c48fd",
+      "size": 5373
+    },
+    {
+      "path": ".claude/skills/replica-design/tokens.json",
+      "git_blob_sha": "8951c03b5a7ba4cd2385585018b934ffddf04491",
+      "size": 1613
+    },
+    {
+      "path": ".claude/skills/replica-diff/SKILL.md",
+      "git_blob_sha": "1322d76e6f383171808491f691dbdc477f250343",
+      "size": 4099
+    },
+    {
+      "path": ".claude/skills/replica-diff/imgdiff.py",
+      "git_blob_sha": "74311b31472959ad81d5b62f951db83a54721aec",
+      "size": 16557
+    },
+    {
+      "path": ".claude/skills/replica-diff/parity.py",
+      "git_blob_sha": "bb4eabd6f59a6435b5d9ed3c9e4340ef58e3958d",
+      "size": 8943
+    },
+    {
+      "path": ".claude/skills/replica-entrepreneur/SKILL.md",
+      "git_blob_sha": "6d43280fb5026cf8eca3f7f73eea386141fdba79",
+      "size": 4863
+    },
+    {
+      "path": ".claude/skills/replica-entrepreneur/reviews.py",
+      "git_blob_sha": "8bc93fe39228aab38b12c61a6177f84fdb427096",
+      "size": 12372
+    },
+    {
+      "path": ".claude/skills/replica-entrepreneur/themes.json",
+      "git_blob_sha": "964751ac7d911bb5fc7fdb8226fca67b27d7156b",
+      "size": 4944
+    },
+    {
+      "path": ".claude/skills/replica-launch/SKILL.md",
+      "git_blob_sha": "0fe60edc02e4d8fc91db0716998632beb5dc5b91",
+      "size": 4128
+    },
+    {
+      "path": ".claude/skills/replica-launch/listing.example.json",
+      "git_blob_sha": "0c8c0ba94a80cd109b3f3bc2e20bf9534c569e4f",
+      "size": 1223
+    },
+    {
+      "path": ".claude/skills/replica-launch/listing.py",
+      "git_blob_sha": "57ac7d8f3349097324adf996c93d2f69a46540c2",
+      "size": 7345
+    },
+    {
+      "path": ".claude/skills/replica-recon/SKILL.md",
+      "git_blob_sha": "e877302e106c839b81835edaa2a409cd239c52e3",
+      "size": 5497
+    },
+    {
+      "path": ".claude/skills/replica-recon/features.csv",
+      "git_blob_sha": "8525a93fe14348f8b28db61b48987cab6d19a6b7",
+      "size": 1169
+    },
+    {
+      "path": ".claude/skills/replica-recon/recon-map.md",
+      "git_blob_sha": "bc82280372938d12b22bb6d84b45d13a46d24f62",
+      "size": 1245
+    },
+    {
+      "path": ".claude/skills/replica-test/SKILL.md",
+      "git_blob_sha": "7dbe9dafa4c75fe02b6fb9eca37cadd809a73a36",
+      "size": 3273
+    },
+    {
+      "path": ".claude/skills/replica-test/bug-report.md",
+      "git_blob_sha": "3920ab3c6c06109f44dabffeced28c742e307ba5",
+      "size": 462
+    },
+    {
+      "path": ".claude/skills/replica-test/e2e.example.spec.ts",
+      "git_blob_sha": "e8827434742d7b392ef5516dc724938f47c41b58",
+      "size": 1882
+    },
+    {
+      "path": ".claude/skills/replica-test/test-plan.md",
+      "git_blob_sha": "5ec36b20756440c4fa25b052db7a45ff947e9860",
+      "size": 671
+    },
+    {
+      "path": "docs/third_party/replica-skill-LICENSE",
+      "git_blob_sha": "ac31f09aba721de8d139c7bef3d5024421426472",
+      "size": 1073
+    }
+  ]
+}
