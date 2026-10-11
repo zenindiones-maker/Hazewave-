@@ -7,7 +7,16 @@ SHA=re.compile(r"^[\w.-]+/[\w.-]+@[0-9a-f]{40}$")
 
 def test_all_workflows_use_verified_immutable_action_commit_ids():
     flows=sorted((ROOT/".github/workflows").glob("*.yml"))
-    assert len(flows)==6
+    expected={
+        "acestep-runtime-smoke.yml",
+        "ci.yml",
+        "fetch-htdemucs.yml",
+        "wave-effectcraft-filmcraft-portal-proof.yml",
+        "wave-site-ci.yml",
+        "wave-vectorcraft-real-cli-proof.yml",
+        "wave-artcraft-four-real-bridge.yml",
+    }
+    assert {flow.name for flow in flows}==expected
     seen=[]
     for path in flows:
         source=path.read_text(encoding="utf8")
