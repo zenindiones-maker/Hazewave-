@@ -6,6 +6,7 @@ on:
       - "reaper/FyahGrabber/**"
       - "tests/fyahgrabber_core_smoke.lua"
       - "scripts/fyahgrabber-install-existing-haze-workstation.sh"
+      - "scripts/fyahgrabber-reaper-host-e2e-existing-workstation.sh"
       - ".github/workflows/fyahgrabber-reaper-gates.yml"
 
 permissions:
@@ -33,6 +34,7 @@ jobs:
           set -euo pipefail
           python3 -m py_compile reaper/FyahGrabber/fyahgrabber_analyze.py
           bash -n scripts/fyahgrabber-install-existing-haze-workstation.sh
+          bash -n scripts/fyahgrabber-reaper-host-e2e-existing-workstation.sh
       - name: Exact project isolation contract
         run: |
           python3 - <<'PY'
