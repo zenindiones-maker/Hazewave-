@@ -307,6 +307,48 @@
         "runtime"
       ],
       "description": "Operational reference for the Hazewave-governed zero-cost FreeLLMAPI fabric, supported surfaces, MCP restrictions, data boundaries and runtime adoption gates."
+    },
+    {
+      "id": "recon-reveng-002-obligation",
+      "path": "docs/obligations/OBRIGACAO_ENGENHARIA_REVERSA.md",
+      "type": "REFERENCE",
+      "authority": "NORMATIVE",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "harness",
+        "HAZE",
+        "WAVE",
+        "research"
+      ],
+      "description": "Normative RE inspection rule, mastery gate and explicitly incomplete scope for RECON-REVENG-002."
+    },
+    {
+      "id": "recon-reveng-002-media-patterns",
+      "path": "docs/research/MEDIA_PARSING_PATTERNS.md",
+      "type": "REFERENCE",
+      "authority": "EXPLANATORY",
+      "status": "DEVELOPMENT",
+      "owner": "WAVE",
+      "applies_to": [
+        "WAVE",
+        "research"
+      ],
+      "description": "Source-grounded ISO BMFF and HLS parsing patterns with bounded claims."
+    },
+    {
+      "id": "recon-reveng-002-binary-patterns",
+      "path": "docs/research/BINARY_ANALYSIS_PATTERNS.md",
+      "type": "REFERENCE",
+      "authority": "EXPLANATORY",
+      "status": "DEVELOPMENT",
+      "owner": "HAZEWAVE",
+      "applies_to": [
+        "HAZE",
+        "WAVE",
+        "research"
+      ],
+      "description": "Source-grounded executable header and disassembly patterns with bounded claims."
     }
   ]
 }
