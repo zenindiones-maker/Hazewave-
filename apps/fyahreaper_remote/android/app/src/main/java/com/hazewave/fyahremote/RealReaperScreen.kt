@@ -173,6 +173,7 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                             lastGesture = if (r.optBoolean("grabbed")) "pegou (${r.optString("mode")})" else "nenhum item aqui"
                         } else if (g.phase == "end" || g.phase == "cancel") { ghost = null; lastGesture = "soltou" }
                     }
+                }
                 android.util.Log.i("FyahGesture", lastGesture)
             } catch (e: Exception) { diag("gesto falhou: ${e.message?.take(100)}"); snackbar.showSnackbar(e.message ?: "Falha") }
             pending?.let { p -> pending = null; gestures.trySend(p) }
