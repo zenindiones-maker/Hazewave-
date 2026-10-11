@@ -20,7 +20,7 @@ class RPR:
         return (self.tracks.index(t)+1) if key=='IP_TRACKNUMBER' else t[key]
     def SetMediaTrackInfo_Value(self,t,key,val): t[key]=val;return True
     def TrackList_AdjustWindows(self,x): pass
-    def Main_OnCommand(self,action,flag): self.state={1013:4,1016:0,1007:1}[action]
+    def Main_OnCommand(self,action,flag): self.cmds=getattr(self,'cmds',[])+[action];self.state={1013:5,1016:0,40667:0,1007:1}[action]
     def CountSelectedMediaItems(self,p):return 1
     def GetSelectedMediaItem(self,p,i):return self.selected_item
     def GetActiveTake(self,item):return item.get('take',{'midi':False})
@@ -36,7 +36,7 @@ class RPR:
     def MIDI_DisableSort(self,take): pass
     def MIDI_GetPPQPosFromProjTime(self,take,sec):return sec*960.0
     def MIDI_InsertNote(self,take,selected,muted,a,b,chan,pitch,velocity,no_sort):
-        take['events'].append((pitch,a,b));self.created.append(pitch);return True
+        take['events'].append((pitch,a,b));self.created.append(pitch);self.events=take['events'];return True
     def MIDI_Sort(self,take):pass
     def MIDI_CountEvts(self,take,*others):return (True,take,len(take['events']),0,0)
     def UpdateArrange(self):pass
@@ -99,3 +99,15 @@ def test_rec_refused_by_reaper_is_reported_not_silent():
 
 def test_track_id_is_stable_guid_string_not_pointer():
     assert ReaperBridge(api=RPR()).tracks()[0]['id']=='{source}'
+
+def test_stop_while_recording_saves_without_modal_prompt():
+    api=RPR();b=ReaperBridge(api=api);b.set_track('{source}',{'armed':True})
+    b.transport('rec');assert b.transport('stop')['state']=='stopped'
+    assert api.cmds==[1013,40667]
+
+def test_three_note_spec_timing_maps_to_exact_ppq():
+    api=RPR();api.fx=0
+    req=MidiRequest(notes=[Note(pitch=36,start=0,duration=.2),Note(pitch=40,start=.25,duration=.2),Note(pitch=43,start=.5,duration=.2)])
+    ReaperBridge(api=api).create_midi(req)
+    # fake converter: 960 PPQ per second, item starts at 0
+    assert api.events==[(36,0.0,192.0),(40,240.0,432.0),(43,480.0,672.0)]

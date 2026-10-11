@@ -69,7 +69,10 @@ class ReaperBridge:
         elif action == 'stop':
             if state == 'stopped':
                 return {'state':state}
-            self.r.Main_OnCommand(1016,0)
+            # 1016 opens the modal "keep recorded media?" prompt when recording, which
+            # blocks REAPER's main thread (and the reapy server). 40667 = Transport:
+            # Stop (save all recorded media) ends recording without a dialog.
+            self.r.Main_OnCommand(40667 if state == 'recording' else 1016,0)
         else:
             raise ValueError('UNKNOWN_TRANSPORT_ACTION')
         return {'state':self._state()}
