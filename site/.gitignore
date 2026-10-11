@@ -1,0 +1,5 @@
+node_modules/
+shots/
+.lighthouseci/
+test-results/
+package-lock.json
