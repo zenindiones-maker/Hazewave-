@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SITE 01 — Ilhas Hazewave (protótipo privado, não publicado)</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="islands.css">
+</head>
+<body>
+<header class="tag">PROTÓTIPO PRIVADO · não publicado · arte de referência do Luiz (layers provisórias)</header>
+<main>
+  <section class="scene" id="road" data-len="7" aria-label="A estrada de onda liga o HAZEWAVE às ilhas">
+    <div class="pin">
+      <div class="world" id="world"><img id="worldImg" alt="Universo Hazewave: galáxia, logo e ilhas-MPC flutuantes" decoding="async">
+        <svg id="roadSvg" aria-hidden="true"><path id="roadGlow"/><path id="roadPath"/></svg>
+        <div id="slots"></div></div>
+      <p class="cap" id="roadCap">A onda nasce do HAZEWAVE…</p>
+    </div>
+  </section>
+  <section class="scene" id="island" data-len="5" aria-label="Ilha do artista">
+    <div class="pin island-pin">
+      <div class="island" id="islandBox">
+        <img id="islandColor" alt="" decoding="async">
+        <svg id="islandLine" role="img"></svg>
+      </div>
+      <div class="card" id="islandCard"></div>
+    </div>
+  </section>
+</main>
+<footer class="end">Fim do protótipo · motor próprio MIT, sem bibliotecas.</footer>
+<script src="islands.js"></script>
+</body>
+</html>

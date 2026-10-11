@@ -1,0 +1,125 @@
+{
+ "schema": "HazewaveSite01/v3",
+ "palette": {
+  "paper": "#f4efe6",
+  "ink": "#1d1b1a",
+  "light": "#e3ddd2",
+  "mid": "#c9c1b4",
+  "dark": "#968f85",
+  "deep": "#5e5a55",
+  "accent": "#c96f4a",
+  "slate": "#7a8694",
+  "_source": "derivada dos benchmarks: Who's Guilty (#ffffff/#d2d2d2/#b3b3b3 + tinta preta), SBS The Boat (aguada #222324…#7d7d7d…#dedede), NYT (papel branco, cinzas #d4d4d4/#afafaf); só um acento terracota"
+ },
+ "world": {
+  "width": 1000,
+  "height": 2700,
+  "tiles": [
+   "media/wash-0.webp",
+   "media/wash-1.webp",
+   "media/wash-2.webp"
+  ],
+  "tileHeight": 900,
+  "title": {
+   "src": "media/title.json",
+   "x": 90,
+   "y": 120,
+   "w": 820,
+   "h": 279
+  },
+  "road": "M500 470 C 560 560, 430 620, 500 700 S 640 820, 520 900 S 300 1010, 420 1110 S 700 1220, 600 1330 S 360 1430, 470 1540 S 640 1660, 520 1760 S 420 1880, 500 1990"
+ },
+ "islands": [
+  {
+   "id": "indionesbala",
+   "status": "active",
+   "name": "Indionesbala",
+   "art": {
+    "ink": "private-media/island-ink.json",
+    "flat": "private-media/island-flat.webp",
+    "w": 1280,
+    "h": 720,
+    "placement": {
+     "x": -40,
+     "y": 1980,
+     "w": 1080
+    }
+   },
+   "actions": [
+    {
+     "label": "Assistir clipe",
+     "url": null,
+     "kind": "clip"
+    },
+    {
+     "label": "Ouvir",
+     "url": null,
+     "kind": "listen"
+    },
+    {
+     "label": "Baixar música",
+     "url": null,
+     "kind": "download"
+    }
+   ]
+  }
+ ],
+ "sections": [
+  {
+   "id": "reaper",
+   "title": "FYAHREAPER Remote",
+   "text": "O REAPER de verdade no seu celular, pelo toque. Grátis.",
+   "icon": "phone",
+   "cta": {
+    "label": "Baixar APK",
+    "url": null
+   }
+  },
+  {
+   "id": "plugins",
+   "title": "Plugins grátis",
+   "text": "FyahComp FET e FyahTape — clean-room, código aberto (MIT). Mais em breve.",
+   "icon": "rack",
+   "cta": {
+    "label": "Baixar plugins",
+    "url": null
+   }
+  },
+  {
+   "id": "merch",
+   "title": "Loja dos artistas",
+   "text": "Produtos dos artistas do núcleo.",
+   "icon": "shirt",
+   "cta": {
+    "label": "Ver loja",
+    "url": null
+   },
+   "provisional": "PROVISÓRIO — loja print-on-demand a definir pelo Luiz"
+  },
+  {
+   "id": "apoie",
+   "title": "Apoie, se quiser",
+   "text": "Doação opcional, de qualquer valor. Os downloads são sempre grátis — sem doar.",
+   "icon": "heart",
+   "cta": {
+    "label": "Doar",
+    "url": null
+   },
+   "provisional": "PROVISÓRIO — Pix / GitHub Sponsors / apoia.se a fornecer"
+  }
+ ],
+ "lockedSlots": [
+  {
+   "src": "private-media/island-locked-sketch.webp",
+   "x": 40,
+   "y": 900,
+   "w": 300
+  },
+  {
+   "src": "private-media/island-locked-sketch.webp",
+   "x": 650,
+   "y": 1430,
+   "w": 300
+  }
+ ]
+}

@@ -1,0 +1,39 @@
+:root{--paper:#f4efe6;--ink:#1d1b1a;--light:#e3ddd2;--mid:#c9c1b4;--dark:#968f85;--deep:#5e5a55;--accent:#c96f4a;--slate:#7a8694}
+*{box-sizing:border-box}html,body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.5 "Trebuchet MS",system-ui,sans-serif}
+.skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;z-index:20;background:var(--ink);color:var(--paper);padding:8px}
+.tag{position:fixed;top:6px;right:6px;z-index:10;font-size:10px;padding:2px 6px;background:var(--ink);color:var(--paper);border-radius:4px;opacity:.7}
+.pin{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden}
+.world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+.world>*{position:absolute}
+.world img.tile{left:-500px;width:2000px;height:900px}
+.ink path{fill:none;stroke:var(--ink);stroke-linecap:round;stroke-linejoin:round}
+.title path{stroke-width:3;fill:var(--ink);fill-opacity:0}
+.road{overflow:visible}
+.road path{stroke-width:7}
+.road .wash{stroke:var(--dark);stroke-width:26;opacity:.28}
+.island svg path{stroke-width:1.6}
+.island img{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0}
+.island canvas{position:absolute;left:0;top:0;width:100%;height:100%;will-change:transform}
+.island-card{position:absolute;left:4vw;right:4vw;bottom:3vh;background:var(--paper);border:3px solid var(--ink);border-radius:14px;padding:.9rem 1rem;box-shadow:6px 6px 0 var(--ink);opacity:0;transform:translateY(24px);pointer-events:none}
+.island-card.on{pointer-events:auto}
+.island-card h2{margin:0 0 .5rem;font:2rem/1 "Bangers","Impact",sans-serif;letter-spacing:.06em}
+.btns{display:flex;flex-wrap:wrap;gap:.5rem}
+.btn{appearance:none;border:2.5px solid var(--ink);background:var(--light);color:var(--ink);font:inherit;font-weight:700;padding:.6rem .9rem;border-radius:999px;min-height:44px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
+.btn.main{background:var(--accent);color:var(--paper)}
+.btn[aria-disabled=true]{opacity:.75;cursor:not-allowed}
+.prov{color:#8a4b00;font-size:.85rem;margin:.4rem 0 0}
+.sec{position:relative}
+.sec .pin{display:grid;place-items:center;padding:1.5rem}
+.sec .box{max-width:560px;width:100%;text-align:center}
+.sec svg{width:min(56vw,240px);height:auto;display:block;margin:0 auto 1rem}
+.sec svg .fill{opacity:0}
+.sec h2{font:2.4rem/1 "Bangers","Impact",sans-serif;letter-spacing:.05em;margin:.2rem 0 .5rem}
+.sec p{margin:.3rem auto .9rem;max-width:34ch}
+.end{padding:4rem 1rem;text-align:center;border-top:3px solid var(--ink)}
+@font-face{font-family:"Bangers";src:local("Bangers"),url(media/Bangers-Regular.woff2) format("woff2");font-display:swap}
+.world img.locked{opacity:.32;filter:none}
+.locked-tag{font:700 22px/1 "Trebuchet MS",sans-serif;letter-spacing:.2em;color:var(--deep);text-align:center;opacity:.6}
+.ticks path{stroke:var(--deep)}
+@media (orientation:landscape){.island-card{left:auto;right:3vw;width:38vw;bottom:auto;top:10vh}}
+.hint{position:absolute;left:0;right:0;bottom:8vh;text-align:center;font:1.4rem "Bangers","Impact",sans-serif;letter-spacing:.08em;color:var(--deep)}
+@media (orientation:landscape){.sec svg{width:auto;height:30vh}.sec h2{font-size:1.9rem}.sec p{margin:.2rem auto .5rem}}

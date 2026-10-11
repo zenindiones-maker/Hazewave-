@@ -1,0 +1,48 @@
+{
+ "a15css": {
+  "overlap": 0,
+  "back": "ink px amostrados=14012; flat=0",
+  "perf": {
+   "frames": 419,
+   "avgFps": 58.7,
+   "p50": 16.7,
+   "p95": 16.8,
+   "jank_gt33ms": 1,
+   "longtasks": 0,
+   "ltMax": 0
+  },
+  "hscroll": false,
+  "errs": []
+ },
+ "a15phys": {
+  "overlap": 0,
+  "back": "ink px amostrados=14010; flat=0",
+  "perf": {
+   "frames": 419,
+   "avgFps": 57.9,
+   "p50": 16.7,
+   "p95": 16.8,
+   "jank_gt33ms": 0,
+   "longtasks": 0,
+   "ltMax": 0
+  },
+  "hscroll": false,
+  "errs": []
+ },
+ "a15land": {
+  "overlap": 0,
+  "back": "ink px amostrados=13996; flat=0",
+  "perf": {
+   "frames": 419,
+   "avgFps": 59.3,
+   "p50": 16.7,
+   "p95": 16.8,
+   "jank_gt33ms": 0,
+   "longtasks": 0,
+   "ltMax": 0
+  },
+  "hscroll": false,
+  "errs": []
+ },
+ "reducedMotion": 32816
+}

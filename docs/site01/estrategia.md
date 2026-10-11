@@ -247,3 +247,73 @@ Adicionar um artista = uma entrada no JSON + 3 camadas de arte. O código não m
 3. Zoom contínuo estrada→ilha, sem corte.
 4. Brilho pré-renderizado, tiles no mundo e meta p95 ≤ 20 ms no 1080×2340.
 5. Som opcional após toque, com o áudio do Indionesbala se autorizado.
+
+---
+
+# v3 (11/10, 13h–13h40 PT): estrutura final em 6 seções, sem neon, cartoon 2D chapado
+
+## Ordem do scroll (Luiz)
+1. **HAZEWAVE** grande: as letras (Bangers, OFL) nascem em contorno e depois a tinta preenche.
+2. **Ilha-MPC do Indionesbala:** a estrada de onda (traço + barras de waveform) desce do título até a ilha. Câmera contínua: segue a ponta do pincel e aproxima sem corte. A tinta da ilha nasce na ordem **silhueta → formas grandes → detalhes**, a cor chapada "lava" de cima para baixo e o cartão traz **Assistir clipe / Ouvir / Baixar música** (PROVISÓRIO, desabilitados até haver URL).
+3. **FYAHREAPER Remote**: download grátis (em breve).
+4. **Plugins grátis** clean-room: FyahComp FET e FyahTape (em breve).
+5. **Loja dos artistas** (PROVISÓRIO).
+6. **Apoie, se quiser**: qualquer valor; downloads sempre grátis sem doar (PROVISÓRIO).
+
+Nas seções 3–6, cada ícone nasce em tinta pelo scroll e depois recebe a cor chapada.
+
+## Direção de arte (derivada dos benchmarks, medida nas screenshots forenses)
+- **Who's Guilty:** papel branco, tinta preta, cinzas #d2d2d2/#b3b3b3.
+- **SBS The Boat:** aguada em escala de cinza, #222324 → #7d7d7d → #dedede.
+- **NYT:** papel branco com cinzas #d4d4d4/#afafaf.
+- **Paleta Hazewave v3** (variáveis CSS, editáveis em `site.json`): papel #f4efe6, tinta #1d1b1a, claro #e3ddd2, médio #c9c1b4, escuro #968f85, fundo #5e5a55, ardósia #7a8694 e **um único acento** terracota #c96f4a (pads, botões principais).
+- **Sem neon e sem blur ao vivo:** a aguada do céu é pré-renderizada em tiles WebP (3 × ~2 KB) com bordas pré-esfumadas.
+
+## Pipeline de arte (reprodutível, `apps/site01-critico/pipeline/`)
+- **Fonte:** a line art aprovada `island-ink.jpg` (1280×720, gerada por IA a partir da referência do Luiz). **Privada:** `private-media/` fica no `.gitignore` até o Luiz aprovar o uso público.
+- **`vectorize.py`:** binariza, faz **skeletonize** (linha central real, sem contorno duplo), percorre o grafo de pixels (nós = pontas/junções) e simplifica com RDP.
+  - Resultado: **3.158 traços de linha central** em 136 KB.
+  - Agrupamento: **g0 silhueta (205)**, ordenada por ângulo em volta do centro; **g1 formas grandes (186)**, de cima para baixo; **g2 detalhes (2.767)**.
+- **`fill.py`:** flood-fill das regiões fechadas pela tinta, com as fendas da tinta fechadas por dilatação de 2 px.
+  - Paleta por regra: área, posição (parte de baixo um tom mais escuro), pads detectados (11 de 12 em terracota), alto-falantes.
+  - As regiões crescem para dentro da tinta, então **a cor fica alinhada ao traço**. Saída: `island-flat.webp` com 36 KB.
+- **Ilhas livres:** a mesma tinta em cinza e sem cor, rotulada "ILHA LIVRE", que aparece quando a estrada passa. **Nenhum artista inventado.**
+
+## Engenharia (correções pedidas)
+- **Transição estrada → ilha:** uma única câmera (interpolação de foco, escala e âncora com smoothstep). Sem corte.
+- **Cartão sem sobreposição:** em retrato a ilha é enquadrada nos 62% de cima; em paisagem a ilha fica à esquerda e o cartão à direita. O teste mede a área de interseção (0 em todas as viewports). O rodapé não colide porque o cartão vive dentro do palco fixo.
+- **Stutter:** a medição mostrou que o custo era o **SVG com 3.158 paths**, não a imagem do mundo.
+  - Solução: tinta da ilha em **`<canvas>` com desenho incremental** (só o trecho novo do pincel; redesenho completo só ao voltar o scroll), em **camada própria** (`will-change`).
+  - A estrada é amostrada uma vez (600 pontos), sem `getPointAtLength` por frame.
+  - O mundo foi dividido em 3 tiles.
+- **Reversível:** voltando para t=0,66 o canvas é redesenhado no estado exato. Reduced-motion desenha tudo.
+
+## Resultados v3 (Playwright, CPU 4× throttled, headless)
+| Viewport | FPS médio | p95 | > 33 ms | long tasks | sobreposição do cartão | erros |
+|---|---|---|---|---|---|---|
+| 412×915 @2,625 | 58,7 | 16,8 ms | 1 | 0 | 0 | 0 |
+| 1080×2340 @1 | 57,9 | 16,8 ms | 0 | 0 | 0 | 0 |
+| 915×412 @2,625 | 59,3 | 16,8 ms | 0 | 0 | 0 | 0 |
+
+- **Lighthouse mobile:** perf 0,91, a11y 1,0, best-practices 0,89, LCP 2,7 s, TBT 270 ms (parse dos 3.158 traços), CLS 0,001, 338 KB no total. O SEO 0,54 vem do `noindex`.
+- **Ressalvas:** headless não é o A15 real (falta prova no aparelho), e o TBT de 270 ms pede um JSON binário/compacto.
+
+## Nota brutal v3 (0–10) contra os 7 benchmarks
+| Critério | v2 | **v3** | Por quê |
+|---|---|---|---|
+| Traço gerado pelo scroll (Who's Guilty) | 6 | **8** | Linha central real de uma line art de verdade, ordem silhueta → formas → detalhes, 3.158 traços, reversível. Falta wobble/peso de pincel variável e a ordem humana do artista. |
+| Cor/arte final (SBS, NYT) | 6 | **6** | O flat cartoon alinhado funciona e a paleta é editável, mas a cor é por regra (1 pad errado, regiões grandes um pouco monótonas). Falta sombra chapada de 2 tons e uma revisão humana da cor. |
+| Pan & zoom / profundidade (SBS, NYT) | 6 | **6** | Câmera contínua e boa, mas ainda é um plano só; não há parallax de céu, ilhas distantes e cabos. |
+| Transições (Genie, Who's Guilty) | 3 | **7** | Estrada → ilha sem corte e cartão sem sobreposição. A passagem jornada → seções ainda é um scroll comum. |
+| Seções 3–6 | — | **6** | Cada ícone nasce em tinta e o texto é claro, mas os ícones são simples e geométricos; não estão à altura da ilha. |
+| Som | 0 | **0** | Não há. |
+| Performance A15 | 8 | **9** | p95 de 16,8 ms nas 3 viewports sob throttle; TBT de 270 ms no load. |
+| Acessibilidade / retrato + paisagem | 8 | **9** | Skip link, botões ≥ 44 px, `aria-disabled`, reduced-motion e as duas orientações. |
+| Template de ilhas | 8 | **8** | `site.json`: ilhas, ações e seções como dados. |
+| **Média** | 5,1 | **≈6,6/10** | O código já está forte. O que falta para passar de 8 é arte (ícones 3–6 no mesmo traço da ilha, planos de parallax) e sombra/cor revisadas. |
+
+## O que falta para "tudo pronto" (precisa do Luiz/arte)
+1. Aprovar o uso público da line art e da cor geradas por IA (hoje privadas).
+2. Line art no mesmo estilo para: FYAHREAPER (celular com a interface do REAPER), rack de plugins, camiseta/loja, cofrinho/coração, a cidade Indionesbala e os planos de parallax (céu e ilhas distantes).
+3. Clipe, faixa e arquivo de download do Indionesbala (URLs), o APK e os plugins publicados como Release, a loja e os dados de doação.
+4. Teste no Samsung A15 real.
