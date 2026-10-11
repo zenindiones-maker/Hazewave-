@@ -21,6 +21,7 @@ local top, left, pitch_h, lo, hi = 142, 104, 9, 36, 84
 local source_item, ctx, source_file
 local painted, previous, draft = {}, {}, nil
 local cursor_down = false
+local paint_started_at=nil
 local png_loaded, image_slot = false, 7
 local status = "Clique e arraste para pintar notas; CREATE MIDI BELOW insere MIDI tocando 808."
 local last_midi_created = nil
@@ -111,7 +112,14 @@ local function create_midi()
   r.Undo_EndBlock2(0,ok and ("FyahGrabber: "..#painted.." notes -> 808 track") or
     "FyahGrabber: rolled back failed creation",-1)
   if ok then
-    status=("MIDI CRIADO • %d notas em faixa com 808. Verifique áudio na DAW."):format(#painted)
+    local paint_seconds=paint_started_at and (r.time_precise()-paint_started_at) or -1
+    if #painted>=3 and paint_seconds>=0 then
+      status=("MIDI + 808 • %d notas • pintura até CREATE: %.2fs • alvo <10s: %s"):format(
+        #painted,paint_seconds,paint_seconds<10 and "PASS" or "FAIL")
+      r.ShowConsoleMsg("FYAH_PAINT_TO_MIDI_SECONDS="..string.format("%.3f",paint_seconds).."\n")
+    else
+      status=("MIDI CRIADO • %d notas. Pinte 3 para medir tempo real."):format(#painted)
+    end
   else fail(err) end
 end
 
@@ -206,7 +214,12 @@ local function draw()
   box(left,top,width,height,.07,.11,.155)
   -- Optional CQT image is visualization only, never treated as pitch truth.
   if png_loaded then
-    gfx.a=.42;gfx.blit(image_slot,1,0,0,0,0,0,left,top,width,height);gfx.a=1
+    local iw,ih=gfx.getimgdim(image_slot)
+    if iw>0 and ih>0 then
+      gfx.a=.42
+      gfx.blit(image_slot,1,0,0,0,iw,ih,left,top,width,height)
+      gfx.a=1
+    end
   end
   for pitch=lo,hi do
     local y=top+(hi-pitch)*pitch_h
@@ -253,6 +266,7 @@ local function window_loop()
   local within=x>=left and x<gfx.w-17 and y>=top and y<top+(hi-lo+1)*pitch_h
   if down and not cursor_down then
     if not on_click(x,y) and within then
+      if not paint_started_at then paint_started_at=r.time_precise() end
       local pitch=core.grid_note(y,top,pitch_h,hi,lo)
       local start=core.grid_time(x,left,px_per_s(),ctx.duration,get_seconds_per_grid())
       if start<ctx.duration then
