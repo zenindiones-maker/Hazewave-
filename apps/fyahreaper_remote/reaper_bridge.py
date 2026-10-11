@@ -295,7 +295,7 @@ class ReaperBridge:
         With x/y (screen px of the REAPER display) first grab the item under that point; no item there -> no-op."""
         r = self.r
         if x is not None and y is not None:
-            hit = r.GetItemFromPoint(int(x), int(y), False)
+            hit = r.GetItemFromPoint(int(x), int(y), False, None)
             hit = hit[0] if isinstance(hit, (list, tuple)) else hit
             if _is_null(hit):
                 return {'moved': 0, 'delta_seconds': 0.0, 'grabbed': False}
