@@ -1,11 +1,17 @@
 name: WAVE Seven ArtCraft Same-Run Integration
 on:
+  workflow_call:
   workflow_dispatch:
   pull_request:
     paths:
       - "scripts/wave_artcraft_external_tools.py"
       - "scripts/wave_artcraft-seven-lock.json"
       - "scripts/wave_artcraft_seven_handoff.py"
+      - "apps/hazewave-site/scripts/artcraft-build-gate.mjs"
+      - "apps/hazewave-site/astro.config.mjs"
+      - "apps/hazewave-site/src/pages/index.astro"
+      - "apps/hazewave-site/scripts/enforce-indionesbala-only.mjs"
+      - "apps/hazewave-site/tests/artcraft-manifest.spec.ts"
       - "src/hazewave/wave_artcraft.py"
       - "tests/test_wave_artcraft_external_tools.py"
       - "tests/test_wave_artcraft_seven_handoff.py"
@@ -21,7 +27,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: wave-seven-same-run-${{ github.event.pull_request.number || github.ref }}
+  group: wave-seven-same-run-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -44,7 +50,7 @@ jobs:
     name: Verify ALL seven actual executables and offline WAVE handoff in same run
     needs: [wave-image-editorial, wave-vector, wave-effects-film]
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -53,6 +59,11 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+
+      - name: Set up Node for gated real Astro build and Chromium
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24"
 
       - name: Download SAME RUN PhotoCraft and LightCraft authenticated output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -96,11 +107,79 @@ jobs:
           python3 scripts/wave_artcraft_seven_handoff.py verify \
             --output "$output" --run-id "${{ github.run_id }}" \
             --head-sha "${{ github.event.pull_request.head.sha || github.sha }}"
+          node apps/hazewave-site/scripts/artcraft-build-gate.mjs verify \
+            --bundle "$output" --run-id "${{ github.run_id }}" \
+            --head-sha "${{ github.event.pull_request.head.sha || github.sha }}"
           echo "HAZEWAVE_ARTCRAFT_SEVEN_REAL_EXECUTABLES_SAME_RUN=VERIFIED" >> "$GITHUB_STEP_SUMMARY"
           echo "LAB_ASSETS_READY_FOR_PRIVATE_REVIEW=TRUE" >> "$GITHUB_STEP_SUMMARY"
           echo "OWNER_PRIVATE_MEDIA_ACCESSED=FALSE" >> "$GITHUB_STEP_SUMMARY"
           echo "WEBSITE_PRODUCTION_APPROVED=FALSE" >> "$GITHUB_STEP_SUMMARY"
           echo "PRODUCTION_PUBLISHED=FALSE" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install exact locked Astro/Playwright site dependencies
+        shell: bash
+        working-directory: apps/hazewave-site
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Prove invalid DesignCraft output and absent integration manifest fail CLOSED
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle="$RUNNER_TEMP/wave-artcraft-seven-verified-handoff"
+          altered="$RUNNER_TEMP/wave-artcraft-adversarial"
+          cp -a "$bundle" "$altered"
+          printf 'tampered' >> "$altered/assets/designcraft.pdf"
+          if node apps/hazewave-site/scripts/artcraft-build-gate.mjs verify \
+              --bundle "$altered" --run-id "${{ github.run_id }}" \
+              --head-sha "${{ github.event.pull_request.head.sha || github.sha }}"; then
+            echo "TAMPERED_DESIGNCRAFT_INCORRECTLY_ADMITTED"; exit 74
+          fi
+          if (cd apps/hazewave-site && \
+              env -u HAZEWAVE_ARTCRAFT_BUNDLE -u HAZEWAVE_ARTCRAFT_RUN_ID \
+              -u HAZEWAVE_ARTCRAFT_HEAD_SHA npm run build); then
+            echo "MISSING_MANIFEST_INCORRECTLY_ADMITTED"; exit 75
+          fi
+          echo "HAZEWAVE_SEVEN_ARTCRAFT_NEGATIVE_GATES=PASS"
+
+      - name: Real Astro build consuming ONLY validated seven-Craft manifest
+        working-directory: apps/hazewave-site
+        shell: bash
+        env:
+          HAZEWAVE_ARTCRAFT_BUNDLE: ${{ runner.temp }}/wave-artcraft-seven-verified-handoff
+          HAZEWAVE_ARTCRAFT_RUN_ID: ${{ github.run_id }}
+          HAZEWAVE_ARTCRAFT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          npm run build
+          test -s dist/integration_manifest.json
+          node scripts/verify-owner-art.mjs --dist
+          node scripts/check-bundle-budget.mjs
+          test ! -e dist/living-universe-p0
+          test ! -e dist/experimental
+          echo "HAZEWAVE_SEVEN_CRAFT_ASTRO_BUILD_REAL=PASS" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Actual Chromium mobile and desktop checks on ArtCraft-integrated Astro
+        working-directory: apps/hazewave-site
+        shell: bash
+        env:
+          CI: "true"
+        run: |
+          set -euo pipefail
+          npx playwright install chromium
+          npx playwright test tests/artcraft-manifest.spec.ts \
+            --project=chromium-mobile --project=chromium-desktop --workers=1
+          echo "HAZEWAVE_SEVEN_CRAFT_CHROMIUM_E2E_REAL=PASS" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preserve SHA-bound browser-tested local static site (not published)
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: hazewave-seven-artcraft-site-e2e-${{ github.run_id }}
+          path: |
+            apps/hazewave-site/dist/
+            apps/hazewave-site/test-results/
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Preserve single SHA-bound seven-tool integration evidence and public synthetic assets
         if: success()
