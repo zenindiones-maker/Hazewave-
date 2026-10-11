@@ -23,9 +23,27 @@ sleep 4; curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:6090/vnc.html |
 # Device: A15 geometry, rotation LOCKED in portrait
 adb shell wm size 1080x2340; adb shell wm density 400; sleep 3; adb shell wm size | tee $OUT/wm-size.txt; adb shell wm density | tee -a $OUT/wm-size.txt
 adb shell settings put system accelerometer_rotation 0; adb shell settings put system user_rotation 0
-adb install -r apps/fyahreaper_remote/android/app/build/outputs/apk/debug/app-debug.apk && pass apk_install || fail apk_install
-adb shell am start -W -n $APP/.MainActivity --es vnc_url http://10.0.2.2:6090 --es vnc_password ciPass12 \
-   --es hub_url http://10.0.2.2:8787 --es hub_token $MOCK_TOKEN
+D=apps/fyahreaper_remote/android/app/build/outputs/apk/debug
+vc(){ adb shell dumpsys package $APP | grep -m1 -o "versionCode=[0-9]*"; }
+# 1) Upgrade path: older build (same stable key, lower versionCode) -> new build in place
+adb uninstall $APP >/dev/null 2>&1
+adb install $D/app-debug-prev.apk && echo "prev $(vc)" | tee $OUT/upgrade.txt
+adb install -r $D/app-debug.apk 2>&1 | tee -a $OUT/upgrade.txt | grep -q Success && pass upgrade_install_in_place || fail upgrade_install_in_place
+echo "after $(vc)" | tee -a $OUT/upgrade.txt
+[ "$(grep -o 'versionCode=[0-9]*' $OUT/upgrade.txt | sort -u | wc -l)" = 2 ] && pass upgrade_versioncode_increased || fail upgrade_versioncode_increased
+# 2) Clean install, first launch without provisioning -> new settings screen (not the old CONECTAR screen), landscape
+adb uninstall $APP >/dev/null 2>&1
+adb install $D/app-debug.apk && pass apk_install || fail apk_install
+adb shell am start -W -n $APP/.MainActivity >/dev/null; sleep 6; shot 00-first-run
+adb shell uiautomator dump /sdcard/fr.xml >/dev/null; adb pull /sdcard/fr.xml $OUT/first-run.xml >/dev/null
+grep -q 'Senha VNC' $OUT/first-run.xml && ! grep -q 'CONECTAR' $OUT/first-run.xml && pass first_run_opens_new_settings_not_old_ui || fail first_run_opens_new_settings_not_old_ui
+grep -o 'v0\.[0-9.]*[^"]*' $OUT/first-run.xml | head -1 > $OUT/version-shown.txt; [ -s $OUT/version-shown.txt ] && pass version_shown_in_settings || fail version_shown_in_settings
+read w0 h0 < <(dims $OUT/00-first-run.png); [ "$w0" -gt "$h0" ] && pass first_run_landscape || fail first_run_landscape
+adb shell am force-stop $APP
+# 3) Pasted values with trailing newlines/spaces must be trimmed
+NL=$'\n'
+# values deliberately carry trailing newline/spaces (like a paste); app must trim them
+adb shell "am start -W -n $APP/.MainActivity --es vnc_url 'http://10.0.2.2:6090 ' --es vnc_password 'ciPass12${NL}' --es hub_url ' http://10.0.2.2:8787' --es hub_token '${MOCK_TOKEN}${NL} '"
 sleep 25; shot 01-launch
 PID=$(adb shell pidof $APP | tr -d '\r'); adb forward tcp:9222 localabstract:webview_devtools_remote_$PID >/dev/null
 python3 apps/fyahreaper_remote/ci/cdp_probe.py > $OUT/webview-probe.json 2>&1; cat $OUT/webview-probe.json

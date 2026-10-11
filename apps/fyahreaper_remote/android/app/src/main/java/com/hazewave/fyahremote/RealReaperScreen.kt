@@ -28,10 +28,10 @@ import org.json.JSONObject
 /** Settings live only in app-private SharedPreferences on the phone; nothing is hardcoded. */
 internal class RemoteSettings(ctx: Context) {
     private val p = ctx.getSharedPreferences("fyahreaper_remote", Context.MODE_PRIVATE)
-    var vncUrl: String get() = p.getString("vnc_url", "http://100.113.8.91:6090")!!; set(v) = p.edit().putString("vnc_url", v.trim()).apply()
-    var vncPassword: String get() = p.getString("vnc_password", "")!!; set(v) = p.edit().putString("vnc_password", v).apply()
-    var hubUrl: String get() = p.getString("hub_url", "http://100.113.8.91:8787")!!; set(v) = p.edit().putString("hub_url", v.trim()).apply()
-    var hubToken: String get() = p.getString("hub_token", "")!!; set(v) = p.edit().putString("hub_token", v).apply()
+    var vncUrl: String get() = p.getString("vnc_url", "http://100.113.8.91:6090")!!.trim(); set(v) = p.edit().putString("vnc_url", v.trim()).apply()
+    var vncPassword: String get() = p.getString("vnc_password", "")!!.trim(); set(v) = p.edit().putString("vnc_password", v.trim()).apply()
+    var hubUrl: String get() = p.getString("hub_url", "http://100.113.8.91:8787")!!.trim(); set(v) = p.edit().putString("hub_url", v.trim()).apply()
+    var hubToken: String get() = p.getString("hub_token", "")!!.trim(); set(v) = p.edit().putString("hub_token", v.trim()).apply()
     val configured get() = vncPassword.isNotBlank()
 }
 
@@ -188,7 +188,10 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
     var tok by remember { mutableStateOf(s.hubToken) }
     Surface(Modifier.fillMaxSize(), color = Color(0xFF15151B)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("FyahReaper Remote · conexão", color = Color.White, fontWeight = FontWeight.Bold)
+            val ctx = LocalContext.current
+            val ver = remember { runCatching { val i = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
+                "${i.versionName} (${if (android.os.Build.VERSION.SDK_INT >= 28) i.longVersionCode else @Suppress("DEPRECATION") i.versionCode.toLong()})" }.getOrDefault("?") }
+            Text("FyahReaper Remote · conexão · v$ver", color = Color.White, fontWeight = FontWeight.Bold)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(vnc, { vnc = it }, label = { Text("REAPER (noVNC)") }, singleLine = true, modifier = Modifier.weight(1f))
                 OutlinedTextField(pw, { pw = it }, label = { Text("Senha VNC") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.weight(1f))
@@ -197,8 +200,8 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                 OutlinedTextField(hub, { hub = it }, label = { Text("ReaHub") }, singleLine = true, modifier = Modifier.weight(1f))
                 OutlinedTextField(tok, { tok = it }, label = { Text("Token ReaHub") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.weight(1f))
             }
-            Button(onClick = { s.vncUrl = vnc; s.vncPassword = pw; s.hubUrl = hub; s.hubToken = tok; onDone() },
-                enabled = vnc.startsWith("http") && pw.isNotBlank(), modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("ABRIR REAPER") }
+            Button(onClick = { s.vncUrl = vnc.trim(); s.vncPassword = pw.trim(); s.hubUrl = hub.trim(); s.hubToken = tok.trim(); onDone() },
+                enabled = vnc.trim().startsWith("http") && pw.isNotBlank(), modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("ABRIR REAPER") }
         }
     }
 }

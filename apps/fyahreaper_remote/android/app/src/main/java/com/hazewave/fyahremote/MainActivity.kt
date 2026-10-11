@@ -36,7 +36,10 @@ internal data class Track(val id:String, val name:String, val volume:Float,
                          val mute:Boolean, val solo:Boolean, val armed:Boolean)
 internal data class PaintedNote(val pitch:Int, val start:Double, val duration:Double=0.20)
 
-internal class ReaHub(private val url:String, private val token:String) {
+internal class ReaHub(rawUrl:String, rawToken:String) {
+    // Pasted values often carry newlines/spaces ("Unexpected char 0x0a in Authorization").
+    private val url = rawUrl.trim()
+    private val token = rawToken.trim()
     private val http = OkHttpClient()
     init { require(url.startsWith("http://") || url.startsWith("https://")) }
     private fun route(path:String) = url.trimEnd('/') + path
@@ -89,7 +92,7 @@ class MainActivity : ComponentActivity() {
         // Optional provisioning via launch extras (adb / CI); values are stored only in private prefs.
         intent?.extras?.let { e ->
             val st = RemoteSettings(this)
-            e.getString("vnc_url")?.let { st.vncUrl = it }
+            e.getString("vnc_url")?.let { st.vncUrl = it.trim() }
             e.getString("vnc_password")?.let { st.vncPassword = it }
             e.getString("hub_url")?.let { st.hubUrl = it }
             e.getString("hub_token")?.let { st.hubToken = it }

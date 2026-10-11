@@ -42,13 +42,36 @@ jobs:
       - uses: android-actions/setup-android@v4
         with:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
-      - name: Build unsigned debug APK
+      - name: Build debug APKs (stable key; "prev" = same key, lower versionCode, for the upgrade test)
         working-directory: apps/fyahreaper_remote/android
-        run: gradle --no-daemon :app:assembleDebug
+        env:
+          KS_B64: ${{ secrets.FYAH_DEBUG_KEYSTORE_B64 }}
+          FYAH_KEYSTORE_PASSWORD: ${{ secrets.FYAH_DEBUG_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KS_B64" ]; then echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/fyah.p12"; export FYAH_KEYSTORE_FILE="$RUNNER_TEMP/fyah.p12"; else echo "::warning::no stable keystore secret; random debug key"; fi
+          mkdir -p "$RUNNER_TEMP/out"
+          FYAH_VERSION_OFFSET=-5 gradle --no-daemon :app:assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/out/app-debug-prev.apk"
+          gradle --no-daemon :app:assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/out/app-debug.apk"
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          "$BT/aapt2" dump badging "$RUNNER_TEMP/out/app-debug.apk" > "$RUNNER_TEMP/out/badging.txt"
+          "$BT/aapt2" dump xmltree --file AndroidManifest.xml "$RUNNER_TEMP/out/app-debug.apk" > "$RUNNER_TEMP/out/manifest-xmltree.txt"
+          "$BT/apksigner" verify --print-certs "$RUNNER_TEMP/out/app-debug.apk" | grep -E "SHA-256|DN" > "$RUNNER_TEMP/out/signer.txt"
+          "$BT/apksigner" verify --print-certs "$RUNNER_TEMP/out/app-debug-prev.apk" | grep -E "SHA-256" > "$RUNNER_TEMP/out/signer-prev.txt"
+          cat "$RUNNER_TEMP/out/badging.txt" | head -3; cat "$RUNNER_TEMP/out/signer.txt"
+          grep -q "launchable-activity: name='com.hazewave.fyahremote.MainActivity'" "$RUNNER_TEMP/out/badging.txt"
+          grep -q "screenOrientation.*=12\|screenOrientation.*0xc\|screenOrientation(0x0101001e)=6\|screenOrientation(0x0101001e)=0x6" "$RUNNER_TEMP/out/manifest-xmltree.txt" || grep -n screenOrientation "$RUNNER_TEMP/out/manifest-xmltree.txt"
       - uses: actions/upload-artifact@v4
         with:
           name: fyahreaper-remote-debug-apk
-          path: apps/fyahreaper_remote/android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            ${{ runner.temp }}/out/app-debug.apk
+            ${{ runner.temp }}/out/app-debug-prev.apk
+            ${{ runner.temp }}/out/badging.txt
+            ${{ runner.temp }}/out/manifest-xmltree.txt
+            ${{ runner.temp }}/out/signer.txt
+            ${{ runner.temp }}/out/signer-prev.txt
           if-no-files-found: error
 
   android-emulator-e2e:

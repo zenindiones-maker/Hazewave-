@@ -3,6 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+// CI: stable signing key from repo secrets so every build updates in place; version from the run number.
+val fyahKeystore: String? = System.getenv("FYAH_KEYSTORE_FILE")
+val fyahRun: Int = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
+val fyahOffset: Int = System.getenv("FYAH_VERSION_OFFSET")?.toIntOrNull() ?: 0
 android {
     namespace = "com.hazewave.fyahremote"
     compileSdk = 35
@@ -10,8 +14,20 @@ android {
         applicationId = "com.hazewave.fyahremote"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 1000 + fyahRun * 10 + fyahOffset
+        versionName = "0.2.$fyahRun" + (if (fyahOffset != 0) ".$fyahOffset" else "")
+    }
+    signingConfigs {
+        if (fyahKeystore != null) create("stable") {
+            storeFile = file(fyahKeystore)
+            storePassword = System.getenv("FYAH_KEYSTORE_PASSWORD")
+            keyAlias = "fyahdebug"
+            keyPassword = System.getenv("FYAH_KEYSTORE_PASSWORD")
+            storeType = "pkcs12"
+        }
+    }
+    buildTypes {
+        getByName("debug") { if (fyahKeystore != null) signingConfig = signingConfigs.getByName("stable") }
     }
     buildFeatures { compose = true }
     compileOptions {
