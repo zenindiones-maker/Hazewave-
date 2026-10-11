@@ -167,3 +167,33 @@ def test_mutations_stay_serialized():
     ts=[threading.Thread(target=lambda:c.patch('/api/tracks/{source}',json={'mute':True},headers=H)) for _ in range(6)]
     [t.start() for t in ts];[t.join() for t in ts]
     assert peak[0]==1
+
+# --- Contract tests replaying the exact request shapes MainActivity.kt sends ---
+def _app_client():
+    from reahub_server import app_factory
+    from fastapi.testclient import TestClient
+    api=RPR();tok='k'*32
+    return TestClient(app_factory(ReaperBridge(api=api),tok)),{'Authorization':'Bearer '+tok},api
+
+def test_app_patch_with_urlencoded_guid_and_json_body():
+    import urllib.parse
+    c,H,api=_app_client()
+    url='/api/tracks/'+urllib.parse.quote_plus('{source}')   # URLEncoder.encode(id,"UTF-8")
+    r=c.patch(url,content='{"armed":true}',headers={**H,'Content-Type':'application/json; charset=utf-8'})
+    assert r.status_code==200 and r.json()['armed'] is True
+
+def test_app_transport_post_with_empty_json_body_returns_state():
+    c,H,api=_app_client()
+    hdr={**H,'Content-Type':'application/json; charset=utf-8'}
+    r=c.post('/api/transport/rec',content='{}',headers=hdr)
+    assert r.status_code==409 and r.json()['detail']=='NO_TRACK_ARMED'
+    c.patch('/api/tracks/%7Bsource%7D',content='{"armed":true}',headers=hdr)
+    assert c.post('/api/transport/rec',content='{}',headers=hdr).json()['state']=='recording'
+    assert c.post('/api/transport/stop',content='{}',headers=hdr).json()['state']=='stopped'
+    assert c.post('/api/transport/play',content='{}',headers=hdr).json()['state']=='playing'
+
+def test_app_websocket_receives_transport_frames():
+    c,H,api=_app_client()
+    with c.websocket_connect('/ws',headers=H) as ws:
+        m=ws.receive_json()
+    assert m['type']=='transport' and m['state']=='stopped'

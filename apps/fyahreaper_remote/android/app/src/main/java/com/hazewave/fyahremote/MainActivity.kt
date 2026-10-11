@@ -48,7 +48,7 @@ private class ReaHub(private val url:String, private val token:String) {
             .build()
         http.newCall(req).execute().use { response ->
             val text = response.body?.string() ?: ""
-            if (!response.isSuccessful) throw IOException("HTTP ${response.code}: $text")
+            if (!response.isSuccessful) throw IOException("HTTP ${response.code}: " + (runCatching { JSONObject(text).optString("detail", text) }.getOrDefault(text)))
             text
         }
     }
@@ -75,7 +75,8 @@ private class ReaHub(private val url:String, private val token:String) {
         return http.newWebSocket(req,object:WebSocketListener() {
             override fun onMessage(webSocket:WebSocket, text:String) {
                 val json=JSONObject(text)
-                onState(json.optString("state","unknown"))
+                if (json.optString("type")=="error") onError("HTTP ${json.optInt("status")}: ${json.optString("detail")}")
+                else onState(json.optString("state","unknown"))
             }
             override fun onFailure(webSocket:WebSocket, t:Throwable, response:Response?) { onError(t.message ?: "WebSocket disconnected") }
         })
@@ -99,10 +100,24 @@ class MainActivity : ComponentActivity() {
     var tracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     val notes= remember { mutableStateListOf<PaintedNote>() }
     val scope= rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+    var busy by remember { mutableStateOf(false) }
     fun perform(job:suspend (ReaHub)->Unit) {
         val client=hub ?: return
         scope.launch {
-            try { job(client); error="" } catch(e:Exception) { error=e.message ?: "Falha de rede" }
+            busy=true
+            try { job(client); error="" } catch(e:Exception) {
+                error=e.message ?: "Falha de rede"
+                snackbar.showSnackbar(error)
+            } finally { busy=false }
+        }
+    }
+    // Fallback polling: transport state stays truthful even if the WebSocket is down.
+    LaunchedEffect(hub) {
+        val client=hub ?: return@LaunchedEffect
+        while (true) {
+            kotlinx.coroutines.delay(1000)
+            try { currentState=JSONObject(client.request("/health")).getString("state") } catch(_:Exception) {}
         }
     }
     DisposableEffect(hub) {
@@ -111,7 +126,8 @@ class MainActivity : ComponentActivity() {
             onError={ scope.launch(Dispatchers.Main) { error=it } })
         onDispose { socket?.close(1000,"Screen closed") }
     }
-    Column(Modifier.fillMaxSize().background(Color(0xFF101017)).padding(16.dp)) {
+    Scaffold(snackbarHost={ SnackbarHost(snackbar) }, containerColor=Color(0xFF101017)) { pad ->
+    Column(Modifier.fillMaxSize().padding(pad).padding(16.dp)) {
         Text("HAZEWAVE",fontSize=36.sp,fontWeight=FontWeight.Black,color=Color(0xFFFF6D35))
         Text("FYAHREAPER REMOTE · WORKSTATION",fontSize=12.sp,color=Color.LightGray)
         if (hub==null) {
@@ -131,14 +147,17 @@ class MainActivity : ComponentActivity() {
                 }
             }, modifier=Modifier.fillMaxWidth().height(64.dp)) { Text("CONECTAR") }
         } else {
-            Text("REAPER: $currentState",color=Color(0xFFACD8B4))
+            Text("REAPER: $currentState",fontSize=20.sp,fontWeight=FontWeight.Bold,
+                color=when(currentState){ "recording"->Color(0xFFFF5A5A); "playing"->Color(0xFF7CE38B); else->Color(0xFFDDDDDD) })
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.fillMaxWidth()) {
                 listOf("play" to "PLAY","stop" to "STOP","rec" to "REC").forEach { (action,label) ->
-                    Button(onClick={ perform { c -> c.request("/api/transport/$action","POST"); tracks=c.tracks() } },
+                    Button(enabled=!busy, onClick={ perform { c ->
+                        currentState=JSONObject(c.request("/api/transport/$action","POST")).optString("state",currentState)
+                        tracks=c.tracks() } },
                         modifier=Modifier.weight(1f).height(120.dp),
-                        colors=ButtonDefaults.buttonColors(containerColor=if(action=="rec") Color(0xFFBB3341) else Color(0xFF32323C))) {
-                        Text(label,fontWeight=FontWeight.Bold)
+                        colors=ButtonDefaults.buttonColors(containerColor=if(action=="rec") Color(0xFFBB3341) else Color(0xFF3A3A46), contentColor=Color.White)) {
+                        Text(label,fontWeight=FontWeight.Bold,fontSize=20.sp,color=Color.White)
                     }
                 }
             }
@@ -151,10 +170,10 @@ class MainActivity : ComponentActivity() {
             if (tab=="Mixer") {
                 LazyColumn(verticalArrangement=Arrangement.spacedBy(12.dp)) {
                     items(tracks,key={it.id}) { t ->
-                        Card(colors=CardDefaults.cardColors(containerColor=Color(0xFF24242D))) {
+                        Card(colors=CardDefaults.cardColors(containerColor=Color(0xFF24242D), contentColor=Color.White)) {
                             Row(Modifier.fillMaxWidth().padding(12.dp),horizontalArrangement=Arrangement.SpaceBetween) {
                                 Column(modifier=Modifier.weight(1f)) {
-                                    Text(t.name,fontWeight=FontWeight.Bold,fontSize=18.sp)
+                                    Text(t.name.ifBlank { "(sem nome)" },fontWeight=FontWeight.Bold,fontSize=18.sp,color=Color.White)
                                     Row {
                                         FilterChip(selected=t.armed,onClick={perform { c->c.update(t,"armed",!t.armed);tracks=c.tracks() }},label={Text("ARM")})
                                         Spacer(Modifier.width(4.dp))
@@ -193,6 +212,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         if (error.isNotBlank()) Text(error,color=Color(0xFFFF8B8B),fontSize=12.sp)
+    }
     }
 }
 
