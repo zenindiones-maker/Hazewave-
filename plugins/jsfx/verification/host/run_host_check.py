@@ -34,7 +34,7 @@ RPR.Main_OnCommand(42230, 0)  # render w/ last settings, auto-close
 time.sleep(3)
 out["render_exists"] = os.path.exists(T + "/render_out.wav")
 # close our tab without saving prompt
-RPR.Main_OnCommand(40026, 0)  # save
+RPR.Main_openProject("noprompt:" + T + "/plugins-host-test.rpp")  # reload saved copy so tab is clean (40026 opened a modal Save dialog and blocked REAPER)
 RPR.Main_OnCommand(40860, 0)  # close current project tab
 RPR.SelectProjectInstance(before_proj)
 out["after_project"] = RPR.GetProjectName(0, "", 512)[1]
