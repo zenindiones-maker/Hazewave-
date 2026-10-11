@@ -97,7 +97,9 @@ export function mountSite01Ink(): void {
     stageRoot.style.setProperty("--brand-visibility",String(brand>.008?1:0));
     stageRoot.style.setProperty("--brand-clip",String((1-brand)*100)+"%");
     stageRoot.style.setProperty("--signature-clip",String((1-segment(p,.91,.98))*100)+"%");
-    stageRoot.style.setProperty("--arrival",String(segment(p,.92,.99)));
+    // The CTA is outside the sticky stage. Put its reveal variable on body
+    // so the final real destination becomes visually actionable.
+    document.body.style.setProperty("--arrival",String(segment(p,.92,.99)));
     // Camera is SUBORDINATE to drawing. Reduced motion removes it entirely.
     if(!reduced.matches){
       stageRoot.style.setProperty("--camera-z",String(1+.065*smooth(segment(p,.26,.76))));
