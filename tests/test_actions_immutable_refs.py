@@ -10,6 +10,8 @@ def test_all_workflows_use_verified_immutable_action_commit_ids():
     expected={
         "acestep-runtime-smoke.yml",
         "ci.yml",
+        "hazewave-site-v1.yml",
+        "hazewave-site-v1-pages.yml",
         "fetch-htdemucs.yml",
         "wave-effectcraft-filmcraft-portal-proof.yml",
         "wave-site-ci.yml",
