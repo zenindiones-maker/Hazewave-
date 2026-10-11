@@ -179,7 +179,27 @@ def verify_pdf(path: Path) -> None:
         raise ValueError("ARTCRAFT_OUTPUT_NOT_PDF")
 
 
-def smoke(name: str, executable: Path, root: Path, *, task_id: str) -> Path:
+def select_image_input(name: str, root: Path, *, upstream_task_id: str | None) -> Path:
+    """PhotoCraft→LightCraft sequential handoff; never read an unverified artifact."""
+    if name == "photocraft":
+        if upstream_task_id is not None:
+            raise ValueError("PHOTOCRAFT_MUST_BE_FIRST_STAGE")
+        path = root / "hazewave-synthetic-signal.png"
+        if not path.exists():
+            small_png(path)
+    elif name == "lightcraft":
+        if upstream_task_id is None:
+            raise ValueError("LIGHTCRAFT_PREVIOUS_TASK_ID_REQUIRED")
+        verify("photocraft", root, task_id=upstream_task_id)
+        path = root / "photocraft-render.png"
+    else:
+        raise ValueError("ARTCRAFT_CROSS_STAGE_TYPE_INVALID")
+    verify_png(path)
+    return path
+
+
+def smoke(name: str, executable: Path, root: Path, *, task_id: str,
+          upstream_task_id: str | None = None) -> Path:
     if name not in {"photocraft", "lightcraft", "designcraft", "pdfcraft"}:
         raise ValueError("SMOKE_ONLY_NEW_FOUR")
     admission = admit_artcraft(task_id=task_id, tool=name,
@@ -189,10 +209,16 @@ def smoke(name: str, executable: Path, root: Path, *, task_id: str) -> Path:
         raise ValueError("ARTCRAFT_EXACT_EXECUTABLE_REQUIRED")
     if not root.is_dir() or root.is_symlink():
         raise ValueError("ARTCRAFT_WORKDIR_MUST_EXIST")
-    input_png = root / "hazewave-synthetic-signal.png"
-    if not input_png.exists():
-        small_png(input_png)
-    verify_png(input_png)
+    if name in {"photocraft", "lightcraft"}:
+        input_png = select_image_input(name, root,
+                                       upstream_task_id=upstream_task_id)
+    else:
+        if upstream_task_id is not None:
+            raise ValueError("EDITORIAL_TOOL_HAS_NO_IMAGE_UPSTREAM")
+        input_png = root / "hazewave-synthetic-signal.png"
+        if not input_png.exists():
+            small_png(input_png)
+        verify_png(input_png)
     target = root / (name + "-render.png")
     if name == "photocraft":
         run_one([str(executable), "run", str(input_png), "--cmd",
@@ -231,13 +257,17 @@ def smoke(name: str, executable: Path, root: Path, *, task_id: str) -> Path:
         "output_sha256": sha256(target),
         "real_execution": True,
         "admission": admission.__dict__,
+        "input": input_png.name,
+        "input_sha256": sha256(input_png),
+        "upstream_task_id": upstream_task_id,
     }
     receipt_file = root / (name + "-receipt.json")
     receipt_file.write_text(json.dumps(receipt, indent=2) + "\n")
     return receipt_file
 
 
-def verify(name: str, root: Path, *, task_id: str) -> None:
+def verify(name: str, root: Path, *, task_id: str,
+           upstream_task_id: str | None = None) -> None:
     data = json.loads((root / (name + "-receipt.json")).read_text())
     if (data.get("schema") != "HazewaveArtCraftExternalRealSmoke/v1"
         or data.get("tool") != name or data.get("authority") != "NONE"
@@ -256,6 +286,22 @@ def verify(name: str, root: Path, *, task_id: str) -> None:
     if observed_admission != expected_admission.__dict__:
         raise ValueError("ARTCRAFT_RECEIPT_HARNESS_ROUTE_INVALID")
     verify_admission(expected_admission, expected_tool=name, expected_task_id=task_id)
+    if data.get("upstream_task_id") != upstream_task_id:
+        raise ValueError("ARTCRAFT_UPSTREAM_TASK_MISMATCH")
+    if name in {"photocraft", "lightcraft"}:
+        if name == "lightcraft":
+            if upstream_task_id is None:
+                raise ValueError("LIGHTCRAFT_PREVIOUS_TASK_ID_REQUIRED")
+            verify("photocraft", root, task_id=upstream_task_id)
+            expected_input = "photocraft-render.png"
+        else:
+            if upstream_task_id is not None:
+                raise ValueError("PHOTOCRAFT_MUST_BE_FIRST_STAGE")
+            expected_input = "hazewave-synthetic-signal.png"
+        if data.get("input") != expected_input or sha256(root / expected_input) != data.get("input_sha256"):
+            raise ValueError("ARTCRAFT_IMAGE_SOURCE_HASH_DRIFT")
+    elif upstream_task_id is not None:
+        raise ValueError("ARTCRAFT_UNEXPECTED_UPSTREAM_TASK")
     path = root / data["output"]
     if path.parent != root or sha256(path) != data["output_sha256"]:
         raise ValueError("ARTCRAFT_OUTPUT_HASH_DRIFT")
@@ -277,6 +323,7 @@ def main() -> None:
         p = sub.add_parser(action)
         p.add_argument("name", choices=sorted(NAMES))
         p.add_argument("--task-id", required=True)
+        p.add_argument("--upstream-task-id")
         if action == "smoke":
             p.add_argument("executable", type=Path)
         p.add_argument("output", type=Path)
@@ -301,9 +348,11 @@ def main() -> None:
         print("ARTCRAFT_EXACT_CLI=" + str(extracted))
     elif args.action == "smoke":
         print("ARTCRAFT_SMOKE_RECEIPT=" + str(smoke(args.name, args.executable, args.output,
-                                                           task_id=args.task_id)))
+                                                           task_id=args.task_id,
+                                                           upstream_task_id=args.upstream_task_id)))
     elif args.action == "verify":
-        verify(args.name, args.output, task_id=args.task_id)
+        verify(args.name, args.output, task_id=args.task_id,
+               upstream_task_id=args.upstream_task_id)
         print("ARTCRAFT_REAL_OUTPUT_VERIFIED=" + args.name)
 
 
