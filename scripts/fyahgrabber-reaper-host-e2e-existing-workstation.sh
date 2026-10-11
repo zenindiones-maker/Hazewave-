@@ -7,14 +7,15 @@ REAPER="/home/vscode/.local/opt/reaper/7.82/REAPER/reaper"
 REPO="/workspaces/Hazewave-"
 ROOT="$HOME/.local/share/hazewave/fyahgrabber-open"
 BRANCH="work/fyahgrabber-reaper-native-v1"
-if [[ -n "$${CODESPACE_NAME:-}" && "$CODESPACE_NAME" != "$TARGET" ]]; then
+if [[ -n "${CODESPACE_NAME:-}" && "$CODESPACE_NAME" != "$TARGET" ]]; then
   echo "BLOCKED:WRONG_CODESPACE";exit 2
 fi
 [[ -x "$REAPER" ]] || { echo "BLOCKED:REAPER_NOT_INSTALLED";exit 2; }
 [[ -d "$REPO/.git" || -f "$REPO/.git" ]] || {
   echo "BLOCKED:REPO_NOT_AT_EXPECTED_PATH";exit 2;
 }
-srcsha="$(git -C "$REPO" ls-remote origin "refs/heads/$BRANCH" | awk 'NR==1{print $1}')"
+srcsha="26868b4bbce8fce372159332a09ceffc882f6ef2"
+git -C "$REPO" cat-file -e "${srcsha}^{commit}" || { echo "BLOCKED:PINNED_SOURCE_NOT_LOCAL"; exit 2; }
 [[ "$srcsha" =~ ^[a-f0-9]{40}$ ]] || { echo "BLOCKED:SOURCE_REF_MISSING";exit 2; }
 scripts="$HOME/.config/REAPER/Scripts/FyahGrabber-${srcsha:0:12}"
 test_script="$scripts/FyahGrabber_Disposable_Host_E2E.lua"
