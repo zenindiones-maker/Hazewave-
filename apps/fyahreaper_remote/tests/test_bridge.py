@@ -111,3 +111,30 @@ def test_three_note_spec_timing_maps_to_exact_ppq():
     ReaperBridge(api=api).create_midi(req)
     # fake converter: 960 PPQ per second, item starts at 0
     assert api.events==[(36,0.0,192.0),(40,240.0,432.0),(43,480.0,672.0)]
+
+def test_broken_pipe_reconnects_and_health_recovers():
+    dead=RPR();dead.GetAppVersion=lambda:(_ for _ in ()).throw(BrokenPipeError(32,'Broken pipe'))
+    fresh=RPR();calls=[]
+    b=ReaperBridge(api=dead,reconnect=lambda:(calls.append(1),fresh)[1])
+    assert b.health()['reaper_connected'] is True and calls==[1]
+
+def test_broken_pipe_on_mutation_is_typed_and_not_retried():
+    dead=RPR();dead.CountTracks=lambda p:(_ for _ in ()).throw(BrokenPipeError())
+    fresh=RPR();fresh.Main_OnCommand=lambda *a:(_ for _ in ()).throw(AssertionError('must not retry'))
+    b=ReaperBridge(api=dead,reconnect=lambda:fresh)
+    with pytest.raises(RuntimeError,match='REAPER_CONNECTION_LOST'):b.transport('rec')
+    assert b.r is fresh
+
+def test_reconnect_failure_is_typed():
+    dead=RPR();dead.GetAppVersion=lambda:(_ for _ in ()).throw(ConnectionResetError())
+    def boom():raise ConnectionRefusedError()
+    with pytest.raises(RuntimeError,match='REAPER_CONNECTION_LOST'):ReaperBridge(api=dead,reconnect=boom).health()
+
+def test_server_maps_connection_loss_to_503():
+    from reahub_server import app_factory
+    from fastapi.testclient import TestClient
+    dead=RPR();dead.GetAppVersion=lambda:(_ for _ in ()).throw(BrokenPipeError())
+    def boom():raise OSError()
+    tok='x'*32;c=TestClient(app_factory(ReaperBridge(api=dead,reconnect=boom),tok))
+    r=c.get('/health',headers={'Authorization':'Bearer '+tok})
+    assert r.status_code==503

@@ -90,7 +90,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable private fun FyahScreen() {
-    var host by remember { mutableStateOf("http://192.168.1.10:8000") }
+    var host by remember { mutableStateOf("http://100.113.8.91:8787") }
     var token by remember { mutableStateOf("") }
     var hub by remember { mutableStateOf<ReaHub?>(null) }
     var currentState by remember { mutableStateOf("desconectado") }

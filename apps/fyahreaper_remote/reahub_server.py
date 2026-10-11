@@ -62,7 +62,9 @@ def app_factory(studio, token: str) -> FastAPI:
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from exc
             except RuntimeError as exc:
-                raise HTTPException(503, 'REAPER_NOT_READY') from exc
+                raise HTTPException(503, str(exc) or 'REAPER_NOT_READY') from exc
+            except OSError as exc:
+                raise HTTPException(503, 'REAPER_CONNECTION_LOST') from exc
 
     @app.get('/health', dependencies=[Depends(authenticate)])
     async def health():

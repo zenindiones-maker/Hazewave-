@@ -23,7 +23,7 @@ def _is_null(ptr):
 
 
 class ReaperBridge:
-    def __init__(self, api=None, context=None):
+    def __init__(self, api=None, context=None, reconnect=None):
         if api is None:
             try:
                 import reapy
@@ -37,16 +37,50 @@ class ReaperBridge:
             context = reapy.inside_reaper
         self.r = api
         self._context = context or (lambda: nullcontext())
+        self._reconnect = reconnect if reconnect is not None else (self._reapy_reconnect if context is not None else None)
+
+    @staticmethod
+    def _reapy_reconnect():
+        # reapy keeps one cached socket; after REAPER stalls/restarts it is dead
+        # (BrokenPipeError). reapy.reconnect() drops it and reloads reascript_api.
+        import reapy
+        reapy.reconnect()
+        if not reapy.dist_api_is_enabled():
+            raise RuntimeError('REAPER_DIST_API_UNAVAILABLE')
+        from reapy import reascript_api
+        return reascript_api
+
+    def _guarded(self, fn, *args, retry=False):
+        """Turn transport failures into typed errors; reconnect for the next call.
+        Only read-only calls are retried, so a mutation is never applied twice."""
+        try:
+            return fn(*args)
+        except (OSError, EOFError) as exc:
+            lost = exc
+        if self._reconnect is None:
+            raise RuntimeError('REAPER_CONNECTION_LOST') from lost
+        try:
+            api = self._reconnect()
+            if api is not None:
+                self.r = api
+        except Exception as exc:
+            raise RuntimeError('REAPER_CONNECTION_LOST') from exc
+        if not retry:
+            raise RuntimeError('REAPER_CONNECTION_LOST_RECONNECTED_RETRY') from lost
+        try:
+            return fn(*args)
+        except (OSError, EOFError) as exc:
+            raise RuntimeError('REAPER_CONNECTION_LOST') from exc
 
     def _state(self):
         state = int(self.r.GetPlayState())
         return 'recording' if state & 4 else ('playing' if state & 1 else ('paused' if state & 2 else 'stopped'))
 
-    def health(self):
+    def _health_impl(self):
         version = self.r.GetAppVersion()
         return {'reaper_connected': bool(version), 'reaper_version': str(version), 'state': self._state()}
 
-    def transport(self, action):
+    def _transport_impl(self, action):
         state = self._state()
         if action == 'rec':
             if state == 'recording':
@@ -104,11 +138,11 @@ class ReaperBridge:
             'volume':round(float(self.r.GetMediaTrackInfo_Value(track,'D_VOL')),6),
         }
 
-    def tracks(self):
+    def _tracks_impl(self):
         with self._context():
             return [self._snapshot(self.r.GetTrack(0,i)) for i in range(int(self.r.CountTracks(0)))]
 
-    def set_track(self, guid, update):
+    def _set_track_impl(self, guid, update):
         with self._context():
             track = self._by_guid(guid)
             for name,param in (('mute','B_MUTE'),('solo','I_SOLO'),('armed','I_RECARM'),('volume','D_VOL')):
@@ -122,7 +156,7 @@ class ReaperBridge:
             self.r.TrackList_AdjustWindows(False)
             return self._snapshot(track)
 
-    def create_midi(self, request):
+    def _create_midi_impl(self, request):
         if self._state() == 'recording':
             raise ValueError('TRANSPORT_RECORDING')
         with self._context():
@@ -187,3 +221,18 @@ class ReaperBridge:
             finally:
                 r.PreventUIRefresh(-1)
                 r.Undo_EndBlock2(0,'FyahReaper Remote: create MIDI below selected sample',-1)
+
+    def health(self):
+        return self._guarded(self._health_impl, retry=True)
+
+    def tracks(self):
+        return self._guarded(self._tracks_impl, retry=True)
+
+    def transport(self, action):
+        return self._guarded(self._transport_impl, action)
+
+    def set_track(self, guid, update):
+        return self._guarded(self._set_track_impl, guid, update)
+
+    def create_midi(self, request):
+        return self._guarded(self._create_midi_impl, request)
