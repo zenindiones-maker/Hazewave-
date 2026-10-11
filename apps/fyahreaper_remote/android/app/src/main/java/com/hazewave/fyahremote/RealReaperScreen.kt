@@ -56,6 +56,11 @@ internal const val FIT_WATCHDOG_JS = "(function(){if(window.__fyahFit)return;win
     "var c=document.querySelector('#noVNC_container canvas');if(c&&(c.clientWidth===0||c.clientHeight===0))window.dispatchEvent(new Event('resize'));}" +
     "window.addEventListener('resize',function(){setTimeout(fit,50)});fit();setInterval(fit,700);})()"
 
+internal const val NOVNC_STATUS_JS = "(function(){var d=document.documentElement.classList;var s=(document.getElementById('noVNC_status')||{}).textContent||'';" +
+    "var c=document.querySelector('#noVNC_container canvas');var cred=document.getElementById('noVNC_credentials_dlg');" +
+    "var needPw=cred&&cred.classList.contains('noVNC_open');" +
+    "return (d.contains('noVNC_connected')?'conectado':(d.contains('noVNC_connecting')?'conectando':'desconectado'))+(needPw?' · PEDE SENHA':'')+' · '+s.trim().slice(0,80)+(c?' · tela '+c.clientWidth+'x'+c.clientHeight:'');})()"
+
 // JS helpers operating on the noVNC page's own controls (ids from noVNC vnc.html).
 private fun clickJs(id: String) = "(function(){var b=document.getElementById('$id');if(b){b.click();return 'ok'}return 'missing'})()"
 private fun shiftJs(down: Boolean): String {
@@ -80,6 +85,12 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val diagLog = remember { mutableStateListOf<String>() }
+    fun diag(msg: String) { diagLog.add(0, msg); while (diagLog.size > 40) diagLog.removeAt(diagLog.size - 1) }
+    var showDiag by remember { mutableStateOf(false) }
+    var vncStatus by remember { mutableStateOf("—") }
+    var hubStatus by remember { mutableStateOf("—") }
+    var testReport by remember { mutableStateOf("") }
 
     fun hub(): ReaHub? = runCatching {
         if (prefs.hubToken.isBlank()) null else ReaHub(prefs.hubUrl, prefs.hubToken)
@@ -94,12 +105,31 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
             finally { busy = false }
         }
     }
-    // Truthful transport state from the real REAPER (no fake data).
+    // Truthful transport state from the real REAPER (no fake data) + self-diagnostics.
     LaunchedEffect(reloadKey, showSettings) {
         while (true) {
-            hub()?.let { h -> state = runCatching { JSONObject(h.request("/health")).getString("state") }.getOrDefault("offline") }
-            delay(1000)
+            val h = hub()
+            if (h == null) hubStatus = "sem token" else try {
+                val j = JSONObject(h.request("/health")); state = j.getString("state"); hubStatus = "OK (${j.optString("state")})"
+            } catch (e: Exception) { state = "offline"; hubStatus = "ERRO: ${e.message?.take(120)}" }
+            webView?.evaluateJavascript(NOVNC_STATUS_JS) { v -> vncStatus = v?.trim('"') ?: "?" }
+            delay(1500)
         }
+    }
+    suspend fun testConnection(): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val http = okhttp3.OkHttpClient.Builder().callTimeout(8, java.util.concurrent.TimeUnit.SECONDS).build()
+        fun probe(label: String, url: String, token: String? = null): String = try {
+            val b = okhttp3.Request.Builder().url(url); if (token != null) b.header("Authorization", "Bearer $token")
+            http.newCall(b.build()).execute().use { r -> "$label: HTTP ${r.code}" + if (r.code == 200) " ✓" else " ✗ ${r.body?.string()?.take(80)}" }
+        } catch (e: Exception) { "$label: FALHA ${e.javaClass.simpleName}: ${e.message?.take(100)}" }
+        listOf(
+            probe("noVNC página", prefs.vncUrl.trimEnd('/') + "/vnc.html"),
+            probe("ReaHub sem token (espera 401)", prefs.hubUrl.trimEnd('/') + "/health"),
+            probe("ReaHub com token", prefs.hubUrl.trimEnd('/') + "/health", prefs.hubToken),
+            "senha VNC: " + (if (prefs.vncPassword.isBlank()) "VAZIA ✗" else "${prefs.vncPassword.length} caracteres"),
+            "noVNC estado: $vncStatus",
+            "WebView: " + (android.webkit.WebView.getCurrentWebViewPackage()?.let { "${it.packageName} ${it.versionName}" } ?: "?"),
+        ).joinToString("\n")
     }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }, containerColor = Color.Black) { pad ->
@@ -115,11 +145,20 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                             settings.builtInZoomControls = false
                             settings.mediaPlaybackRequiresUserGesture = false
                             webViewClient = object : WebViewClient() {
-                                override fun onPageFinished(view: WebView, url: String?) { view.evaluateJavascript(FIT_WATCHDOG_JS, null) }
+                                override fun onPageFinished(view: WebView, url: String?) { view.evaluateJavascript(FIT_WATCHDOG_JS, null); diag("page loaded") }
+                                override fun onReceivedError(v: WebView, r: android.webkit.WebResourceRequest, e: android.webkit.WebResourceError) {
+                                    diag("LOAD ERROR ${e.errorCode} ${e.description} ${r.url.path}")
+                                }
+                                override fun onReceivedHttpError(v: WebView, r: android.webkit.WebResourceRequest, e: android.webkit.WebResourceResponse) {
+                                    if (r.isForMainFrame || e.statusCode >= 500) diag("HTTP ${e.statusCode} ${r.url.path}")
+                                }
                             }
                             webChromeClient = object : WebChromeClient() {
                                 override fun onConsoleMessage(m: android.webkit.ConsoleMessage): Boolean {
-                                    android.util.Log.i("FyahWebView", "${m.messageLevel()} ${m.message()} @${m.sourceId()}:${m.lineNumber()}"); return true
+                                    android.util.Log.i("FyahWebView", "${m.messageLevel()} ${m.message()} @${m.sourceId()}:${m.lineNumber()}")
+                                    if (m.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.ERROR || m.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.WARNING)
+                                        diag("JS ${m.messageLevel()}: ${m.message().take(160)}")
+                                    return true
                                 }
                             }
                             if ((c.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) WebView.setWebContentsDebuggingEnabled(true)
@@ -160,8 +199,26 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                             BarBtn("⌨", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_keyboard_button"), null) }
                             BarBtn("⚙", Color(0xFF37474F), true) { showSettings = true }
                         }
-                        BarBtn("NATIVO", Color(0xFF37474F), true) { onOpenNative() }
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            BarBtn("DIAG", if (vncStatus.startsWith("conectado")) Color(0xFF37474F) else Color(0xFFE65100), true) { showDiag = !showDiag }
+                            BarBtn("NATIVO", Color(0xFF37474F), true) { onOpenNative() }
+                        }
                     }
+                }
+            }
+            if (showDiag) Surface(Modifier.align(Alignment.TopStart).fillMaxWidth(0.62f).fillMaxHeight().padding(6.dp), color = Color(0xEE111116)) {
+                Column(Modifier.padding(10.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Diagnóstico", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("REAPER (noVNC): $vncStatus", color = Color.White, fontSize = 13.sp)
+                    Text("ReaHub: $hubStatus", color = Color.White, fontSize = 13.sp)
+                    Text("noVNC: ${prefs.vncUrl}   ReaHub: ${prefs.hubUrl}", color = Color.LightGray, fontSize = 11.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Button(onClick = { scope.launch { testReport = "testando…"; testReport = testConnection() } }, modifier = Modifier.heightIn(min = 48.dp)) { Text("TESTAR CONEXÃO") }
+                        Button(onClick = { reloadKey++ }, modifier = Modifier.heightIn(min = 48.dp)) { Text("RECARREGAR") }
+                        Button(onClick = { showDiag = false }, modifier = Modifier.heightIn(min = 48.dp)) { Text("FECHAR") }
+                    }
+                    if (testReport.isNotBlank()) Text(testReport, color = Color(0xFFB2FF59), fontSize = 12.sp)
+                    diagLog.forEach { Text(it, color = Color(0xFFFFCC80), fontSize = 11.sp) }
                 }
             }
             if (showSettings) SettingsPanel(prefs) { showSettings = false; reloadKey++ }

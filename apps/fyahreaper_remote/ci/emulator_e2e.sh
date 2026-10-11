@@ -84,6 +84,21 @@ c=$(tapText REC); sleep 3; shot 03-recording-state
 adb shell uiautomator dump /sdcard/ui2.xml >/dev/null; adb pull /sdcard/ui2.xml $OUT/ui2.xml >/dev/null
 grep -q 'text="RECORDING"' $OUT/ui2.xml && pass state_label_shows_RECORDING || fail state_label_shows_RECORDING
 tapText STOP >/dev/null; sleep 1
+adb shell uiautomator dump /sdcard/u3.xml >/dev/null; adb pull /sdcard/u3.xml $OUT/ui3.xml >/dev/null
+c=$(tapText DIAG); sleep 2; adb shell uiautomator dump /sdcard/u4.xml >/dev/null; adb pull /sdcard/u4.xml $OUT/ui4.xml >/dev/null
+OUTX=$OUT/ui4.xml; c=$(python3 - "$OUTX" "TESTAR CONEXÃO" <<'PY'
+import re,sys
+x=open(sys.argv[1]).read()
+for m in re.finditer(r'<node [^>]*>',x):
+    n=m.group(0)
+    if f'text="{sys.argv[2]}"' in n:
+        a=list(map(int,re.findall(r'\d+',re.search(r'bounds="([^"]+)"',n).group(1))));print((a[0]+a[2])//2,(a[1]+a[3])//2);break
+PY
+); [ -n "$c" ] && adb shell input tap $c; sleep 8; shot 05-diagnostics
+adb shell uiautomator dump /sdcard/u5.xml >/dev/null; adb pull /sdcard/u5.xml $OUT/ui5.xml >/dev/null
+grep -q 'REAPER (noVNC): conectado' $OUT/ui5.xml && pass diag_shows_novnc_connected || fail diag_shows_novnc_connected
+grep -q 'ReaHub com token: HTTP 200' $OUT/ui5.xml && pass diag_test_reahub_token_200 || fail diag_test_reahub_token_200
+grep -q 'noVNC página: HTTP 200' $OUT/ui5.xml && pass diag_test_novnc_page_200 || fail diag_test_novnc_page_200
 adb logcat -d > $OUT/logcat.txt 2>&1; grep FyahWebView $OUT/logcat.txt > $OUT/webview-console.txt
 grep -q "FATAL EXCEPTION" $OUT/logcat.txt && fail no_crash || pass no_crash
 ffmpeg -loglevel error -f x11grab -video_size ${W}x${H} -i :99 -frames:v 1 -y $OUT/04-host-display-end.png
