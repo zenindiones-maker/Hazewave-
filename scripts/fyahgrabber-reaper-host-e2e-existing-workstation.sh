@@ -7,7 +7,7 @@ REAPER="/home/vscode/.local/opt/reaper/7.82/REAPER/reaper"
 REPO="/workspaces/Hazewave-"
 ROOT="$HOME/.local/share/hazewave/fyahgrabber-open"
 BRANCH="work/fyahgrabber-reaper-native-v1"
-if [[ -n "$${CODESPACE_NAME:-}" && "$CODESPACE_NAME" != "$TARGET" ]]; then
+if [[ -n "${CODESPACE_NAME:-}" && "$CODESPACE_NAME" != "$TARGET" ]]; then
   echo "BLOCKED:WRONG_CODESPACE";exit 2
 fi
 [[ -x "$REAPER" ]] || { echo "BLOCKED:REAPER_NOT_INSTALLED";exit 2; }
@@ -25,21 +25,27 @@ test_script="$scripts/FyahGrabber_Disposable_Host_E2E.lua"
   echo "BLOCKED:808_JSFX_NOT_PRESENT";exit 3;
 }
 [[ -d "$ROOT" && ! -L "$ROOT" ]] || { echo "BLOCKED:INSTALL_ROOT_MISSING";exit 3; }
-# Locate DISPLAY only from the current existing REAPER user session, when present.
-if [[ -z "${DISPLAY:-}" ]]; then
-  while IFS= read -r pid; do
-    [[ -r "/proc/$pid/environ" ]] || continue
-    display="$(tr '\0' '\n' <"/proc/$pid/environ" | sed -n 's/^DISPLAY=//p' | head -n1)"
-    if [[ -n "$display" ]]; then export DISPLAY="$display";break;fi
-  done < <(pgrep -u "$(id -u)" -x reaper || true)
-fi
-[[ -n "${DISPLAY:-}" ]] || {
-  echo "BLOCKED:NO_XPRA_DISPLAY:OPEN_A_TERMINAL_IN_EXISTING_XPRA_SESSION";exit 3;
-}
-if command -v xdpyinfo >/dev/null 2>&1; then
-  xdpyinfo -display "$DISPLAY" >/dev/null 2>&1 || {
-    echo "BLOCKED:XPRA_DISPLAY_UNREACHABLE";exit 3;
-  }
+# Prefer an ephemeral offscreen framebuffer for the disposable REAPER E2E.
+# This avoids dependence on the SSH DISPLAY and does not attach to the active Xpra desktop.
+# xvfb-run -a starts and cleans up an X server *on this existing Codespace*.
+display_mode="UNRESOLVED"
+if command -v xvfb-run >/dev/null 2>&1 && command -v Xvfb >/dev/null 2>&1; then
+  display_mode="ISOLATED_XVFB"
+elif [[ -n "${DISPLAY:-}" ]] && command -v xdpyinfo >/dev/null 2>&1 && \
+    xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
+  display_mode="EXISTING_XPRA_DISPLAY"
+else
+  echo "BLOCKED:NO_VALID_GRAPHICAL_TEST_DISPLAY"
+  echo "FYAH_XVFB_RUN_PRESENT=$(command -v xvfb-run || echo missing)"
+  echo "FYAH_XVFB_BINARY_PRESENT=$(command -v Xvfb || echo missing)"
+  echo "FYAH_EXISTING_DISPLAY=${DISPLAY:-unset}"
+  if command -v xpra >/dev/null 2>&1; then
+    echo "FYAH_XPRA_SESSIONS_DIAGNOSTIC_BEGIN"
+    xpra list-sessions 2>&1 | head -n 25 || true
+    echo "FYAH_XPRA_SESSIONS_DIAGNOSTIC_END"
+  fi
+  echo "FYAH_NEXT_STEP=RUN_ON_EXISTING_WORKSTATION_WITH_XVFB_RUN_OR_ACCESSIBLE_XPRA"
+  exit 3
 fi
 proofbase="$HOME/.local/state/hazewave/fyahgrabber/proofs"
 mkdir -p "$proofbase"
@@ -49,23 +55,42 @@ chmod 700 "$proofdir"
 headbefore="$(git -C "$REPO" rev-parse HEAD)"
 statusbefore="$(git -C "$REPO" status --porcelain=v1)"
 echo "FYAH_E2E_PROOF_DIR=$proofdir"
-echo "FYAH_SELECTED_DISPLAY=$DISPLAY"
+echo "FYAH_GRAPHICS_MODE=$display_mode"
 echo "FYAH_HOST_SOURCE_SHA=$srcsha"
-echo "FYAH_REAPER_INSTANCE_ISOLATION=-newinst -new -noactivate"
-# REAPER CLI supports script.lua directly on startup; timeout terminates ONLY
-# the isolated process it starts. Never send command to an existing instance.
+echo "FYAH_REAPER_INSTANCE_ISOLATION=-newinst -new -cfgfile"
+# Isolate REAPER preferences, FX registration and recent-project lists as well
+# as its display. Never write preferences into the owner's active resource dir.
+resource_dir="$proofdir/reaper-resource"
+mkdir -p "$resource_dir/Effects"
+printf '[REAPER]\\n' > "$resource_dir/reaper.ini"
+fx_source="$HOME/.config/REAPER/Effects/FyahGrabber_808.jsfx"
+[[ -f "$fx_source" && ! -L "$fx_source" ]] || {
+  echo "BLOCKED:APPROVED_FYAH_JSFX_MISSING_OR_SYMLINK";exit 4;
+}
+cp -- "$fx_source" "$resource_dir/Effects/FyahGrabber_808.jsfx"
+cmp -s "$fx_source" "$resource_dir/Effects/FyahGrabber_808.jsfx" || {
+  echo "BLOCKED:ISOLATED_JSFX_COPY_MISMATCH";exit 4;
+}
+reaper_args=("$REAPER" -nosplash -newinst -new -noactivate
+  -cfgfile "$resource_dir/reaper.ini" "$test_script")
+if [[ "$display_mode" == "ISOLATED_XVFB" ]]; then
+  reaper_args=(xvfb-run -a -s "-screen 0 1280x800x24" "${reaper_args[@]}")
+fi
+# The timeout applies ONLY to the isolated REAPER process (and its Xvfb
+# wrapper, if used). It never kills/restarts the owner's Xpra/REAPER session.
 set +e
-FYAH_E2E_ISOLATED=1 FYAH_E2E_DIR="$proofdir" \
-  timeout --signal=TERM --kill-after=3s 35s \
-  "$REAPER" -nosplash -newinst -new -noactivate "$test_script" \
-  >"$proofdir/reaper-stdout.log" 2>"$proofdir/reaper-stderr.log"
+(
+ cd "$proofdir" || exit 7
+ FYAH_E2E_ISOLATED=1 FYAH_E2E_DIR="$proofdir" \
+   timeout --signal=TERM --kill-after=3s 35s "${reaper_args[@]}"
+) >"$proofdir/reaper-stdout.log" 2>"$proofdir/reaper-stderr.log"
 exit_code=$?
 set -e
 echo "FYAH_REAPER_EXIT_CODE=$exit_code"
 proof="$proofdir/reaper-host-proof.json"
 [[ -s "$proof" ]] || {
   echo "BLOCKED:REAPER_DID_NOT_WRITE_EVIDENCE"
-  tail -n 30 "$proofdir/reaper-stderr.log" || true
+  tail -n 60 "$proofdir/reaper-stderr.log" || true
   exit 5
 }
 python3 - "$proof" "$proofdir" <<'PY'
