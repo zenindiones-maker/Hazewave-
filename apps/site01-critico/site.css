@@ -58,3 +58,26 @@
 @keyframes capin{from{opacity:0;transform:translate(-50%,8px)}}
 @media (prefers-reduced-motion:reduce){.cap.in{animation:none}}
 .sec svg.divider{width:min(70vw,300px);height:24px}
+
+#loader{position:fixed;inset:0;z-index:50;display:grid;place-content:center;justify-items:center;background:var(--paper);transition:opacity .5s}
+#loader.done{opacity:0;pointer-events:none}
+#loader svg{width:min(60vw,260px);overflow:visible}
+#loader path{fill:none;stroke:var(--ink);stroke-width:5;stroke-linecap:round;stroke-dasharray:420;stroke-dashoffset:420;animation:ld 1.6s ease-in-out infinite}
+#loader p{font:700 .8rem system-ui;letter-spacing:.2em;text-transform:uppercase;color:var(--deep)}
+@keyframes ld{50%{stroke-dashoffset:0}100%{stroke-dashoffset:-420}}
+.sec .pin{position:sticky}
+.back{position:absolute;left:50%;top:8vh;width:max(120vw,100vh);aspect-ratio:16/9;opacity:.45;contain:strict;will-change:transform;pointer-events:none}
+.back img{width:100%;height:100%}
+.sec .box{position:relative;z-index:1}
+.sec .art{will-change:transform;cursor:pointer}
+.wig{animation:wig .5s ease-out}
+@keyframes wig{20%{rotate:-2.5deg;scale:1.04}45%{rotate:2deg}70%{rotate:-1deg}100%{rotate:0}}
+.btn{transition:transform .08s,box-shadow .08s}
+.btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+.island{cursor:pointer}
+@media (prefers-reduced-motion:reduce){#loader path{animation:none;stroke-dashoffset:0}.wig{animation:none}}
+@media (orientation:landscape){.sec .box{display:grid;grid-template-columns:1fr 1fr;align-items:center;column-gap:4vw;text-align:left;max-width:92vw;margin:0 auto}
+ .sec .box>.art{grid-row:1/span 6;height:auto;width:min(44vw,520px);margin:0}
+ .sec .box>*:not(.art){grid-column:2}.sec svg.divider{margin:0}.sec p{margin-left:0}
+ .sec.big .box>.art{width:min(52vw,700px)}}
+@media (orientation:landscape){.sec .box>.art{height:62vh;width:auto;max-width:44vw;justify-self:center}.sec.big .box>.art{height:70vh;max-width:54vw}.sec .box>.btn{justify-self:start}.sec .box{min-height:80vh}}

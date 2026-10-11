@@ -3,6 +3,7 @@
 (async () => {
   const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const C = await (await fetch('site.json')).json();
+  const ease3 = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   const clamp = v => Math.min(1, Math.max(0, v)), seg = (t, a, b) => clamp((t - a) / (b - a)), ease = t => t * t * (3 - 2 * t);
   const NS = 'http://www.w3.org/2000/svg';
   const el = (tag, attrs = {}, parent) => { const e = tag.startsWith('svg:') ? document.createElementNS(NS, tag.slice(4)) : document.createElement(tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e; };
@@ -17,7 +18,9 @@
       const g = dv.getUint8(o), n = dv.getUint16(o + 2, true); let x = dv.getInt16(o + 4, true), y = dv.getInt16(o + 6, true); o += 8;
       const P = new Float32Array(n * 2), cum = new Float32Array(n); P[0] = x; P[1] = y;
       for (let i = 1; i < n; i++) { x += dv.getInt8(o); y += dv.getInt8(o + 1); o += 2; P[i * 2] = x; P[i * 2 + 1] = y; cum[i] = cum[i - 1] + Math.hypot(P[i * 2] - P[i * 2 - 2], P[i * 2 + 1] - P[i * 2 - 1]); }
-      S.push({ g, P, cum, len: cum[n - 1] || 1, f: 0 });
+      let hs = (s * 2654435761) >>> 0; const rnd = () => (hs = (hs * 1664525 + 1013904223) >>> 0) / 4294967296;
+      for (let i = 1; i < n - 1; i++) { P[i * 2] += (rnd() - .5) * 1.1; P[i * 2 + 1] += (rnd() - .5) * 1.1; } /* tremor de mão, determinístico */
+      S.push({ g, P, cum, len: cum[n - 1] || 1, f: 0, w: [1.45, 1, .7][g] * (.8 + .4 * rnd()) });
     }
     return { W, H, S };
   }
@@ -26,13 +29,13 @@
   function InkLayer(parent, src, { w, h, lw = 1.7, groups = [.25, .12, .04], label = '' }) {
     const cv = el('canvas', { role: 'img', 'aria-label': label, class: 'inkcv' }, parent); cv.width = w; cv.height = h;
     const cx = cv.getContext('2d'); cx.lineCap = 'round'; cx.lineJoin = 'round'; cx.strokeStyle = INKC;
-    let data = null, byG = null, st = null, pending = null, decoding = false;
+    let data = null, byG = null, st = null, pending = null, decoding = false, LW = lw;
     const ready = () => !!data;
-    function load() { if (decoding) return; decoding = true; fetchBuf(src).then(ab => idle(() => { data = decode(ab); cv.width = data.W; cv.height = data.H; cx.lineCap = 'round'; cx.lineJoin = 'round'; cx.strokeStyle = INKC; cx.lineWidth = lw; byG = [0, 1, 2].map(g => data.S.filter(s => s.g === g)); st = byG.map(() => 0); if (pending) draw(pending); })); }
+    function load() { if (decoding) return; decoding = true; fetchBuf(src).then(ab => idle(() => { data = decode(ab); cv.width = data.W; cv.height = data.H; cx.lineCap = 'round'; cx.lineJoin = 'round'; cx.strokeStyle = INKC; cx.lineWidth = lw; LW = lw; byG = [0, 1, 2].map(g => data.S.filter(s => s.g === g)); st = byG.map(() => 0); if (pending) draw(pending); })); }
     function piece(s, a, b) { const A = a * s.len, B = b * s.len, P = s.P, Cm = s.cum; cx.beginPath(); let on = false;
       for (let i = 1; i < Cm.length; i++) { if (Cm[i] < A) continue; const s0 = Math.max(A, Cm[i - 1]), s1 = Math.min(B, Cm[i]); if (s1 < s0) break; const L = Cm[i] - Cm[i - 1] || 1, u0 = (s0 - Cm[i - 1]) / L, u1 = (s1 - Cm[i - 1]) / L, x0 = P[i * 2 - 2], y0 = P[i * 2 - 1], dx = P[i * 2] - x0, dy = P[i * 2 + 1] - y0;
         if (!on) { cx.moveTo(x0 + dx * u0, y0 + dy * u0); on = true; } cx.lineTo(x0 + dx * u1, y0 + dy * u1); if (Cm[i] >= B) break; }
-      if (on) cx.stroke(); }
+      if (on) { cx.lineWidth = LW * s.w; cx.stroke(); } }
     function draw(ks) {
       if (!data) { pending = ks; load(); return; }
       ks = ks.map(k => RM ? 1 : k);
@@ -71,6 +74,7 @@
   const I = C.islands.find(i => i.status === 'active'), P = I.art.placement, ih = P.w * I.art.h / I.art.w;
   const ibox = el('div', { class: 'island', style: `left:${P.x}px;top:${P.y}px;width:${P.w}px;height:${ih}px` }, world);
   const flat = el('img', { src: I.art.flat, alt: `Ilha-MPC de ${I.name}, colorida`, width: I.art.w, height: I.art.h, decoding: 'async' }, ibox);
+  ibox.addEventListener('click', () => { ibox.classList.remove('wig'); void ibox.offsetWidth; ibox.classList.add('wig'); });
   const islandInk = InkLayer(ibox, I.art.ink, { w: I.art.w, h: I.art.h, label: `Ilha-MPC de ${I.name} sendo desenhada` });
   const card = document.getElementById('card'); const capEl = el('p', { class: 'cap', id: 'cap' }, pin);
   card.innerHTML = `<h2>${I.name}</h2><div class="btns">` + I.actions.map((a, i) => a.url ? `<a class="btn${i ? '' : ' main'}" href="${a.url}">${a.label}</a>` : `<button class="btn${i ? '' : ' main'}" aria-disabled="true" title="em breve">${a.label}</button>`).join('') + `</div><p class="prov">PROVISÓRIO — clipe, faixa e arquivo para download a fornecer.</p>`;
@@ -80,11 +84,14 @@
     const vw = innerWidth, vh = innerHeight, land = vw > vh;
     const sRoad = Math.min(vw / W.width, vh / 760), s0 = Math.min(vw / (W.title.w * 1.1), vh / 500);
     const sIsl = land ? Math.min(vw * .56 / P.w, vh * .9 / ih) : Math.min(vw / (P.w * .98), (vh * .62) / ih);
-    let fx, fy, s, ay = .45; const tRoad = seg(t, .12, .5), tZoom = ease(seg(t, .46, .58));
+    let fx, fy, s, ay = .45; const tRoad = seg(t, .12, .5), tZoom = ease3(seg(t, .45, .58)), tour = RM ? 0 : Math.sin(Math.PI * seg(t, .6, .84));
     if (t < .12) { fx = 500; fy = W.title.y + W.title.h / 2; s = s0; }
     else { const p = roadPt(tRoad), kx = seg(t, .16, .24); fx = 500 + (p.x - 500) * .35 * kx; fy = p.y; s = s0 + (sRoad - s0) * ease(seg(t, .12, .2)); }
     const iCX = P.x + P.w / 2, iCY = P.y + ih / 2, tgX = land ? iCX + (vw * .2) / sIsl : iCX;
     fx += (tgX - fx) * tZoom; fy += (iCY - fy) * tZoom; s += (sIsl - s) * tZoom; ay += ((land ? .5 : .36) - ay) * tZoom;
+    /* passeio de câmera (NASA Prospect): aproxima dos pads enquanto a tinta corre e recua para a cor */
+    const tx = P.x + P.w * (.42 + .16 * seg(t, .6, .84)), ty = P.y + ih * .4;
+    fx += (tx - fx) * .55 * tour; fy += (ty - fy) * .55 * tour; s *= 1 + .38 * tour;
     const x = vw / 2 - fx * s, y = vh * ay - fy * s;
     world.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) scale(${s.toFixed(4)})`;
     // parallax do céu: anda uma fração do deslocamento vertical e some quando a câmera mergulha
@@ -115,7 +122,9 @@
   function makeSection(S, { len = 1.7, big = false } = {}) {
     const sec = el('section', { id: S.id, class: 'scene sec' + (big ? ' big' : ''), 'data-len': String(len), 'aria-labelledby': S.id + '-h' }, secRoot);
     const pinS = el('div', { class: 'pin' }, sec), box = el('div', { class: 'box' }, pinS);
-    const art = el('div', { class: 'art' }, box);
+    const back = el('div', { class: 'back', 'aria-hidden': 'true' }, pinS); el('img', { src: C.sky.far, alt: '', loading: 'lazy', decoding: 'async' }, back);
+    const art = el('div', { class: 'art', tabindex: '-1' }, box);
+    art.addEventListener('click', () => { art.classList.remove('wig'); void art.offsetWidth; art.classList.add('wig'); });
     const fl = el('img', { src: S.flat || S.icon.flat, alt: '', decoding: 'async', loading: 'lazy' }, art);
     const ink = InkLayer(art, S.ink || S.icon.ink, { w: big ? 1280 : 560, h: big ? 720 : 360, lw: big ? 3.2 : 2.6, label: S.title });
     fl.onload = () => { art.style.aspectRatio = `${fl.naturalWidth}/${fl.naturalHeight}`; };
@@ -126,7 +135,7 @@
     const p = el('p', {}, box); p.textContent = S.text;
     if (S.cta) { const b = S.cta.url ? el('a', { class: 'btn main', href: S.cta.url }, box) : el('button', { class: 'btn main', 'aria-disabled': 'true', title: 'em breve' }, box); b.textContent = S.cta.url ? S.cta.label : S.cta.label + ' — em breve'; }
     if (S.provisional) { const q = el('p', { class: 'prov' }, box); q.textContent = S.provisional; }
-    secs.push({ sec, ink, fl, big, dp, DL });
+    secs.push({ sec, ink, fl, big, dp, DL, back, art });
   }
   C.sections.forEach(S => makeSection(S));
   makeSection(C.finale, { len: 2.6, big: true });
@@ -151,11 +160,12 @@
   const frame = () => {
     q = 0; const t = prog(journeyEl); journeyEl.dataset.p = t.toFixed(3); journey(t);
     secs.forEach(o => { const k = secProg(o.sec); o.sec.dataset.p = k.toFixed(3); if (k > 0 && k < 1.01 || o.ink.ready()) { if (k > 0) o.ink.draw(o.big ? [seg(k, .12, .3), seg(k, .2, .45), seg(k, .28, .62)] : [seg(k, .1, .25), seg(k, .15, .38), seg(k, .2, .5)]); }
-      const f = RM ? 1 : (o.big ? seg(k, .6, .75) : seg(k, .45, .6)); o.fl.style.opacity = f; o.dp.style.strokeDashoffset = o.DL * (1 - (RM ? 1 : seg(k, .05, .3))); o.fl.style.clipPath = `inset(0 0 ${(100 * (1 - f)).toFixed(1)}% 0)`; });
+      const f = RM ? 1 : (o.big ? seg(k, .6, .75) : seg(k, .45, .6)); o.fl.style.opacity = f;
+      if (!RM && k > 0 && k < 1) { const z = ease3(seg(k, .05, .55)); o.back.style.transform = `translate3d(-50%,${((.5 - k) * 120).toFixed(1)}px,0)`; o.art.style.transform = `translate3d(0,${((.5 - k) * 36).toFixed(1)}px,0) scale(${(1.14 - .14 * z).toFixed(4)})`; } o.dp.style.strokeDashoffset = o.DL * (1 - (RM ? 1 : seg(k, .05, .3))); o.fl.style.clipPath = `inset(0 0 ${(100 * (1 - f)).toFixed(1)}% 0)`; });
   };
   addEventListener('scroll', () => { if (!q) q = requestAnimationFrame(frame); }, { passive: true });
   addEventListener('resize', frame); frame();
   if (RM) { islandInk.load(); secs.forEach(o => o.ink.load()); }
   idle(() => islandInk.load());
-  document.documentElement.dataset.ready = '1';
+  document.documentElement.dataset.ready = '1'; const ld = document.getElementById('loader'); if (ld) { ld.classList.add('done'); setTimeout(() => ld.remove(), 600); }
 })();
