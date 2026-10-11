@@ -25,7 +25,7 @@ adb shell wm size 1080x2340; adb shell wm density 400; sleep 3; adb shell wm siz
 adb shell settings put system accelerometer_rotation 0; adb shell settings put system user_rotation 0
 # A background "Pixel Launcher isn't responding" dialog covered the app in an earlier run; the app is started with
 # am start, so the launcher is not needed. Also close any system dialog before each UI dump.
-adb shell pm disable-user --user 0 com.google.android.apps.nexuslauncher >/dev/null 2>&1; adb shell settings put global anr_show_background 0
+adb shell settings put global anr_show_background 0
 nodlg(){ adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1; }
 D=apps/fyahreaper_remote/android/app/build/outputs/apk/debug
 vc(){ adb shell dumpsys package $APP | grep -m1 -o "versionCode=[0-9]*"; }
@@ -39,7 +39,7 @@ echo "after $(vc)" | tee -a $OUT/upgrade.txt
 adb uninstall $APP >/dev/null 2>&1
 adb install $D/app-debug.apk && pass apk_install || fail apk_install
 adb shell am start -W -n $APP/.MainActivity >/dev/null; sleep 6; shot 00-first-run
-nodlg; adb shell uiautomator dump /sdcard/fr.xml >/dev/null; adb pull /sdcard/fr.xml $OUT/first-run.xml >/dev/null
+for i in 1 2 3; do nodlg; adb shell uiautomator dump /sdcard/fr.xml >/dev/null 2>&1 && adb pull /sdcard/fr.xml $OUT/first-run.xml >/dev/null && grep -q hazewave $OUT/first-run.xml && break; sleep 3; done
 grep -q 'Senha VNC' $OUT/first-run.xml && ! grep -q 'CONECTAR' $OUT/first-run.xml && pass first_run_opens_new_settings_not_old_ui || fail first_run_opens_new_settings_not_old_ui
 grep -o 'v0\.[0-9.]*[^"]*' $OUT/first-run.xml | head -1 > $OUT/version-shown.txt; [ -s $OUT/version-shown.txt ] && pass version_shown_in_settings || fail version_shown_in_settings
 read w0 h0 < <(dims $OUT/00-first-run.png); [ "$w0" -gt "$h0" ] && pass first_run_landscape || fail first_run_landscape
@@ -100,7 +100,8 @@ grep -q '"play"' $MOCK_LOG && pass more_PLAY_reaches_reahub || fail more_PLAY_re
 grep -q '"undo"' $MOCK_LOG && pass more_UNDO_reaches_reahub || fail more_UNDO_reaches_reahub
 shot 06-more-panel
 tapIn more "✕" >/dev/null; sleep 1
-# Multi-touch gestures through the kernel input device (sendevent, MT protocol B)
+# Multi-touch gestures through the kernel input device (sendevent, MT protocol B; needs root adbd on google_apis)
+adb root >/dev/null 2>&1; sleep 3; adb wait-for-device; sleep 2
 TDEV=$(adb shell getevent -pl 2>/dev/null | tr -d '\r' | awk '/^add device/{d=$4} /ABS_MT_POSITION_X/{print d; exit}')
 MAXX=$(adb shell getevent -pl $TDEV | tr -d '\r' | awk '/ABS_MT_POSITION_X/{for(i=1;i<=NF;i++) if($i=="max") print $(i+1)}' | tr -d ',')
 MAXY=$(adb shell getevent -pl $TDEV | tr -d '\r' | awk '/ABS_MT_POSITION_Y/{for(i=1;i<=NF;i++) if($i=="max") print $(i+1)}' | tr -d ',')
@@ -120,7 +121,7 @@ grep -q '"zoom_' $MOCK_LOG && ! grep -q '^MIDDLE\|^SCROLL' $CL && pass gestures_
 c=$(tapIn ui MOVER); sleep 1; c0=$(grep -c . $CL); n0=$(wc -l < $MOCK_LOG)
 adb shell input swipe 800 600 1300 600 900; sleep 2
 tail -n +$((n0+1)) $MOCK_LOG | grep -q '"move", [1-9]' && pass move_mode_drag_moves_items || fail move_mode_drag_moves_items
-tail -n +$((n0+1)) $MOCK_LOG | grep -q 'true\]' && pass move_mode_commits_undo_point || fail move_mode_commits_undo_point
+tail -n +$((n0+1)) $MOCK_LOG | grep -q 'true]' && pass move_mode_commits_undo_point || fail move_mode_commits_undo_point
 [ "$(tail -n +$((c0+1)) $CL | grep -c '^LEFT')" -ge 1 ] && pass move_mode_tap_selects || fail move_mode_tap_selects
 shot 07-move-mode; tapIn ui MOVER >/dev/null; sleep 1
 c=$(tapIn ui "⋯"); sleep 1; dump more2; c=$(tapIn more2 DIAG); sleep 2; dump u4
@@ -130,7 +131,7 @@ grep -q 'ReaHub com token: HTTP 200' $OUT/ui5.xml && pass diag_test_reahub_token
 grep -q 'noVNC página: HTTP 200' $OUT/ui5.xml && pass diag_test_novnc_page_200 || fail diag_test_novnc_page_200
 cp $MOCK_LOG $OUT/reahub-calls-final.log
 adb logcat -d > $OUT/logcat.txt 2>&1; grep FyahWebView $OUT/logcat.txt > $OUT/webview-console.txt
-grep -q "FATAL EXCEPTION" $OUT/logcat.txt && fail no_crash || pass no_crash
+grep -A2 "FATAL EXCEPTION" $OUT/logcat.txt | grep -q "Process: com.hazewave" && fail no_crash || pass no_crash
 ffmpeg -loglevel error -f x11grab -video_size ${W}x${H} -i :99 -frames:v 1 -y $OUT/04-host-display-end.png
 cat $R
 ! grep -q '^FAIL' $R

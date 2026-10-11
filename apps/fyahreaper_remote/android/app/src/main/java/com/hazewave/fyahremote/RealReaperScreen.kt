@@ -57,6 +57,7 @@ internal const val FIT_WATCHDOG_JS = "(function(){if(window.__fyahFit)return;win
     "function fit(){var k=document.getElementById('noVNC_container');if(k){k.style.position='fixed';k.style.left='0';k.style.top='0';" +
     "k.style.width=window.innerWidth+'px';k.style.height=window.innerHeight+'px';}" +
     "var c=document.querySelector('#noVNC_container canvas');if(c&&(c.clientWidth===0||c.clientHeight===0))window.dispatchEvent(new Event('resize'));}" +
+    "var h=document.getElementById('noVNC_control_bar_anchor');if(h)h.style.display='none';" +
     "window.addEventListener('resize',function(){setTimeout(fit,50)});fit();setInterval(fit,700);})()"
 
 internal const val NOVNC_STATUS_JS = "(function(){var d=document.documentElement.classList;var s=(document.getElementById('noVNC_status')||{}).textContent||'';" +
@@ -210,6 +211,7 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         BarBtn("FIT", Color(0xFF1565C0), true) { gestures.trySend(Gesture.Action("zoom_project")) }
+                        BarBtn("⌨", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_keyboard_button"), null) }
                         BarBtn("NATIVO", Color(0xFF37474F), true) { onOpenNative() }
                         BarBtn("✕", Color(0xFF424242), true) { moreOpen = false }
                     }
@@ -245,7 +247,6 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
             Toggle("CTRL", ctrl) { ctrl = !ctrl; webView?.evaluateJavascript(clickJs("noVNC_toggle_ctrl_button"), null) }
             Toggle("SHIFT", shift) { shift = !shift; webView?.evaluateJavascript(shiftJs(shift), null) }
             BarBtn("ESC", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_send_esc_button"), null) }
-            BarBtn("⌨", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_keyboard_button"), null) }
             Toggle("⋯", moreOpen) { moreOpen = !moreOpen }
         }
       }
