@@ -7,6 +7,8 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -117,19 +119,31 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                     Text(if (barOpen) "▸" else "◂ $state", color = Color.White)
                 }
                 if (barOpen) {
-                    Column(Modifier.background(Color(0xCC1E1E24)).padding(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    // Two columns so every control (>=48dp) fits the A15 landscape height (~432dp); scrolls if smaller.
+                    Column(Modifier.background(Color(0xCC1E1E24)).padding(4.dp)
+                        .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         val stateColor = when (state) { "recording" -> Color(0xFFFF4040); "playing" -> Color(0xFF52D16A); "offline" -> Color.Gray; else -> Color(0xFFDDDDDD) }
                         Text(state.uppercase(), color = stateColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        BarBtn("PLAY", Color(0xFF2E7D32), !busy) { call("/api/transport/play") }
-                        BarBtn("STOP", Color(0xFF455A64), !busy) { call("/api/transport/stop") }
-                        BarBtn("REC", if (state == "recording") Color(0xFFFF1744) else Color(0xFFB71C1C), !busy) { call("/api/transport/rec") }
-                        BarBtn("UNDO", Color(0xFF37474F), !busy) { call("/api/edit/undo") }
-                        Toggle("CTRL", ctrl) { ctrl = !ctrl; webView?.evaluateJavascript(clickJs("noVNC_toggle_ctrl_button"), null) }
-                        Toggle("ALT", alt) { alt = !alt; webView?.evaluateJavascript(clickJs("noVNC_toggle_alt_button"), null) }
-                        Toggle("SHIFT", shift) { shift = !shift; webView?.evaluateJavascript(shiftJs(shift), null) }
-                        BarBtn("ESC", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_send_esc_button"), null) }
-                        BarBtn("⌨", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_keyboard_button"), null) }
-                        BarBtn("⚙", Color(0xFF37474F), true) { showSettings = true }
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            BarBtn("PLAY", Color(0xFF2E7D32), !busy) { call("/api/transport/play") }
+                            BarBtn("STOP", Color(0xFF455A64), !busy) { call("/api/transport/stop") }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            BarBtn("REC", if (state == "recording") Color(0xFFFF1744) else Color(0xFFB71C1C), !busy) { call("/api/transport/rec") }
+                            BarBtn("UNDO", Color(0xFF37474F), !busy) { call("/api/edit/undo") }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Toggle("CTRL", ctrl) { ctrl = !ctrl; webView?.evaluateJavascript(clickJs("noVNC_toggle_ctrl_button"), null) }
+                            Toggle("ALT", alt) { alt = !alt; webView?.evaluateJavascript(clickJs("noVNC_toggle_alt_button"), null) }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Toggle("SHIFT", shift) { shift = !shift; webView?.evaluateJavascript(shiftJs(shift), null) }
+                            BarBtn("ESC", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_send_esc_button"), null) }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            BarBtn("⌨", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_keyboard_button"), null) }
+                            BarBtn("⚙", Color(0xFF37474F), true) { showSettings = true }
+                        }
                         BarBtn("NATIVO", Color(0xFF37474F), true) { onOpenNative() }
                     }
                 }
@@ -141,7 +155,7 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
 
 
 @Composable private fun BarBtn(label: String, color: Color, enabled: Boolean, onClick: () -> Unit) {
-    Button(onClick = onClick, enabled = enabled, modifier = Modifier.width(76.dp).heightIn(min = 48.dp),
+    Button(onClick = onClick, enabled = enabled, modifier = Modifier.width(72.dp).heightIn(min = 48.dp),
         contentPadding = PaddingValues(2.dp),
         colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = Color.White)) {
         Text(label, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
