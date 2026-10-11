@@ -20,8 +20,14 @@ from pathlib import Path, PurePosixPath
 import re
 import struct
 import subprocess
+import sys
 import tarfile
 import zlib
+
+# Do not duplicate routing authority: import only the project-owned Harness.
+# Scripts run from /src/scripts in the isolated container without editable installs.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from hazewave.wave_artcraft import ArtCraftHarnessAdmission, admit_artcraft, verify_admission
 
 LOCK = Path(__file__).with_name("wave_artcraft-seven-lock.json")
 NAMES = frozenset({"photocraft", "lightcraft", "designcraft", "pdfcraft",
@@ -173,9 +179,12 @@ def verify_pdf(path: Path) -> None:
         raise ValueError("ARTCRAFT_OUTPUT_NOT_PDF")
 
 
-def smoke(name: str, executable: Path, root: Path) -> Path:
+def smoke(name: str, executable: Path, root: Path, *, task_id: str) -> Path:
     if name not in {"photocraft", "lightcraft", "designcraft", "pdfcraft"}:
         raise ValueError("SMOKE_ONLY_NEW_FOUR")
+    admission = admit_artcraft(task_id=task_id, tool=name,
+                               data_classification="PUBLIC", requested_domain="WAVE")
+    verify_admission(admission, expected_tool=name, expected_task_id=task_id)
     if executable.name != name + "-cli" or not executable.is_file():
         raise ValueError("ARTCRAFT_EXACT_EXECUTABLE_REQUIRED")
     if not root.is_dir() or root.is_symlink():
@@ -220,14 +229,15 @@ def smoke(name: str, executable: Path, root: Path) -> Path:
         "executable_sha256": sha256(executable),
         "output": target.name,
         "output_sha256": sha256(target),
-        "real_execution": True
+        "real_execution": True,
+        "admission": admission.__dict__,
     }
     receipt_file = root / (name + "-receipt.json")
     receipt_file.write_text(json.dumps(receipt, indent=2) + "\n")
     return receipt_file
 
 
-def verify(name: str, root: Path) -> None:
+def verify(name: str, root: Path, *, task_id: str) -> None:
     data = json.loads((root / (name + "-receipt.json")).read_text())
     if (data.get("schema") != "HazewaveArtCraftExternalRealSmoke/v1"
         or data.get("tool") != name or data.get("authority") != "NONE"
@@ -237,6 +247,15 @@ def verify(name: str, root: Path) -> None:
         or data.get("production_approved") is not False
         or data.get("publication_attempted") is not False):
         raise ValueError("ARTCRAFT_SMOKE_RECEIPT_INCOMPATIBLE")
+    # Admission IDs are correlation evidence only, not cryptographic capabilities.
+    # The isolated workflow identity and sandbox still enforce the actual boundary.
+    observed_admission = data.get("admission")
+    expected_admission = admit_artcraft(task_id=task_id, tool=name,
+                                       data_classification="PUBLIC",
+                                       requested_domain="WAVE")
+    if observed_admission != expected_admission.__dict__:
+        raise ValueError("ARTCRAFT_RECEIPT_HARNESS_ROUTE_INVALID")
+    verify_admission(expected_admission, expected_tool=name, expected_task_id=task_id)
     path = root / data["output"]
     if path.parent != root or sha256(path) != data["output_sha256"]:
         raise ValueError("ARTCRAFT_OUTPUT_HASH_DRIFT")
@@ -254,6 +273,7 @@ def main() -> None:
     for action in ("smoke", "verify"):
         p = sub.add_parser(action)
         p.add_argument("name", choices=sorted(NAMES))
+        p.add_argument("--task-id", required=True)
         if action == "smoke":
             p.add_argument("executable", type=Path)
         p.add_argument("output", type=Path)
@@ -268,9 +288,10 @@ def main() -> None:
         extracted = extract_cli(args.archive, args.output, args.name)
         print("ARTCRAFT_EXACT_CLI=" + str(extracted))
     elif args.action == "smoke":
-        print("ARTCRAFT_SMOKE_RECEIPT=" + str(smoke(args.name, args.executable, args.output)))
+        print("ARTCRAFT_SMOKE_RECEIPT=" + str(smoke(args.name, args.executable, args.output,
+                                                           task_id=args.task_id)))
     elif args.action == "verify":
-        verify(args.name, args.output)
+        verify(args.name, args.output, task_id=args.task_id)
         print("ARTCRAFT_REAL_OUTPUT_VERIFIED=" + args.name)
 
 
