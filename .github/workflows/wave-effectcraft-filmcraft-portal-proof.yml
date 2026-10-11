@@ -1,5 +1,6 @@
 name: WAVE EffectCraft + FilmCraft real portal proof
 on:
+  workflow_call:
   pull_request:
     paths:
       - "apps/hazewave-site/experiments/travessia-v4/**"
@@ -13,7 +14,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: wave-effect-film-portal-${{ github.event.pull_request.number || github.ref }}
+  group: wave-effect-film-portal-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
