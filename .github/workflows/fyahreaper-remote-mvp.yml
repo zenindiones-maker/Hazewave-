@@ -50,3 +50,38 @@ jobs:
           name: fyahreaper-remote-debug-apk
           path: apps/fyahreaper_remote/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+  android-emulator-e2e:
+    needs: android-debug-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: fyahreaper-remote-debug-apk
+          path: apps/fyahreaper_remote/android/app/build/outputs/apk/debug
+      - name: Host tools (Xvfb, x11vnc, noVNC, websockify, Tk) + mock ReaHub deps
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q xvfb x11vnc novnc websockify python3-tk
+          python3 -m pip install --break-system-packages -q 'fastapi>=0.115,<1' 'pydantic>=2.8,<3' 'uvicorn>=0.30,<1'
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Emulator E2E (API 34, A15 geometry 1080x2340 @400dpi, rotation locked portrait)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash apps/fyahreaper_remote/ci/emulator_e2e.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fyahreaper-emulator-e2e
+          path: emu-out

@@ -86,6 +86,14 @@ internal class ReaHub(private val url:String, private val token:String) {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState:Bundle?) {
         super.onCreate(savedInstanceState)
+        // Optional provisioning via launch extras (adb / CI); values are stored only in private prefs.
+        intent?.extras?.let { e ->
+            val st = RemoteSettings(this)
+            e.getString("vnc_url")?.let { st.vncUrl = it }
+            e.getString("vnc_password")?.let { st.vncPassword = it }
+            e.getString("hub_url")?.let { st.hubUrl = it }
+            e.getString("hub_token")?.let { st.hubToken = it }
+        }
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         androidx.core.view.WindowInsetsControllerCompat(window, window.decorView).apply {
