@@ -49,6 +49,14 @@ for (const viewport of [{ width: 360, height: 800 }, { width: 393, height: 852 }
     await expect.poll(async () => page.evaluate(
       () => Boolean((window as Window & { __HAZEWAVE_RIG_V3?: { ready: boolean } }).__HAZEWAVE_RIG_V3?.ready)
     )).toBe(true);
+    // The engine publishes its state object BEFORE its first requestAnimationFrame.
+    // Waiting on ready alone can capture the browser's unset inline transform ""
+    // and falsely compare it with the equivalent initialized "rotate(0deg)".
+    // Require one genuine full render before capturing the baseline, preserving
+    // the strict reverse-pose comparison after visiting the end of the scroll.
+    await expect.poll(async () => page.locator('img[data-rig-id="knob_00"]').evaluate(
+      element => (element as HTMLImageElement).style.transform
+    )).toMatch(/^rotate\\(-?\\d+(?:\\.\\d+)?deg\\)$/);
 
     // A fully broken data URL must fail even if the JS claims 'mounted:24'.
     const decoded = await page.locator("img").evaluateAll(images => images.map(img => {
