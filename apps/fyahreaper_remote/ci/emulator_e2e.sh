@@ -27,6 +27,9 @@ adb install -r apps/fyahreaper_remote/android/app/build/outputs/apk/debug/app-de
 adb shell am start -W -n $APP/.MainActivity --es vnc_url http://10.0.2.2:6090 --es vnc_password ciPass12 \
    --es hub_url http://10.0.2.2:8787 --es hub_token $MOCK_TOKEN
 sleep 25; shot 01-launch
+PID=$(adb shell pidof $APP | tr -d '\r'); adb forward tcp:9222 localabstract:webview_devtools_remote_$PID >/dev/null
+python3 apps/fyahreaper_remote/ci/cdp_probe.py > $OUT/webview-probe.json 2>&1; cat $OUT/webview-probe.json
+grep -q '"connected": *true\|"connected":true' $OUT/webview-probe.json && pass novnc_ui_connected_state || fail novnc_ui_connected_state
 read w h < <(dims $OUT/01-launch.png); echo "screenshot ${w}x${h}"
 [ "$w" -gt "$h" ] && pass "landscape_with_rotation_lock_portrait(${w}x${h})" || fail "landscape_with_rotation_lock_portrait(${w}x${h})"
 [ "$w" = 2340 ] && [ "$h" = 1080 ] && pass a15_geometry_2340x1080 || fail "a15_geometry_2340x1080(${w}x${h})"
@@ -62,7 +65,7 @@ c=$(tapText REC); sleep 3; shot 03-recording-state
 adb shell uiautomator dump /sdcard/ui2.xml >/dev/null; adb pull /sdcard/ui2.xml $OUT/ui2.xml >/dev/null
 grep -q 'text="RECORDING"' $OUT/ui2.xml && pass state_label_shows_RECORDING || fail state_label_shows_RECORDING
 tapText STOP >/dev/null; sleep 1
-adb logcat -d -t 400 > $OUT/logcat.txt 2>&1
+adb logcat -d > $OUT/logcat.txt 2>&1; grep FyahWebView $OUT/logcat.txt > $OUT/webview-console.txt
 grep -q "FATAL EXCEPTION" $OUT/logcat.txt && fail no_crash || pass no_crash
 ffmpeg -loglevel error -f x11grab -video_size ${W}x${H} -i :99 -frames:v 1 -y $OUT/04-host-display-end.png
 cat $R

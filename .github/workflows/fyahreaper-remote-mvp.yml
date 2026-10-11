@@ -65,7 +65,7 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q xvfb x11vnc novnc websockify python3-tk x11-utils ffmpeg fonts-dejavu-core
-          python3 -m pip install --break-system-packages -q 'fastapi>=0.115,<1' 'pydantic>=2.8,<3' 'uvicorn>=0.30,<1'
+          python3 -m pip install --break-system-packages -q 'fastapi>=0.115,<1' 'pydantic>=2.8,<3' 'uvicorn>=0.30,<1' 'websockets>=12,<16'
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -78,7 +78,7 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -skin 1080x2340 -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash apps/fyahreaper_remote/ci/emulator_e2e.sh
       - uses: actions/upload-artifact@v4
         if: always()

@@ -106,7 +106,12 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                             settings.builtInZoomControls = false
                             settings.mediaPlaybackRequiresUserGesture = false
                             webViewClient = WebViewClient()
-                            webChromeClient = WebChromeClient()
+                            webChromeClient = object : WebChromeClient() {
+                                override fun onConsoleMessage(m: android.webkit.ConsoleMessage): Boolean {
+                                    android.util.Log.i("FyahWebView", "${m.messageLevel()} ${m.message()} @${m.sourceId()}:${m.lineNumber()}"); return true
+                                }
+                            }
+                            if ((c.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) WebView.setWebContentsDebuggingEnabled(true)
                             loadUrl(noVncPage(prefs.vncUrl, prefs.vncPassword))
                             webView = this
                         }
