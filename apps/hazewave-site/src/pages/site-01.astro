@@ -49,9 +49,9 @@ const acts = [
   #ink-seed{fill:#fff7ee;filter:drop-shadow(0 0 13px #cf83ff);opacity:0}
   #ink-bleed{opacity:var(--bleed,.13)}
   #ink-revealed-original{opacity:.93}
-  .site01-brand{position:absolute;z-index:17;left:50%;top:16%;transform:translateX(-50%);width:min(83vw,740px);max-height:23svh;aspect-ratio:1024/475;overflow:hidden;opacity:var(--brand-visibility,0);clip-path:inset(0 calc((1 - var(--brand-brush,0))*100%) 0 0);filter:drop-shadow(0 0 28px #b16ffa70);pointer-events:none}
+  .site01-brand{position:absolute;z-index:17;left:50%;top:16%;transform:translateX(-50%);width:min(83vw,740px);max-height:23svh;aspect-ratio:1024/475;overflow:hidden;opacity:var(--brand-visibility,0);clip-path:inset(0 var(--brand-clip,100%) 0 0);filter:drop-shadow(0 0 28px #b16ffa70);pointer-events:none}
   .site01-brand img{display:block;width:100%;height:100%;object-fit:cover;object-position:center top;-webkit-mask-image:linear-gradient(to bottom,#000 72%,transparent 100%);mask-image:linear-gradient(to bottom,#000 72%,transparent 100%)}
-  .site01-artist-mark{position:absolute;z-index:20;bottom:clamp(76px,14svh,145px);left:50%;transform:translateX(-50%);width:min(17vw,135px);max-height:54px;opacity:.7;overflow:hidden;clip-path:inset(0 calc((1 - var(--signature-brush,0))*100%) 0 0);mix-blend-mode:screen;pointer-events:none}
+  .site01-artist-mark{position:absolute;z-index:20;bottom:clamp(76px,14svh,145px);left:50%;transform:translateX(-50%);width:min(17vw,135px);max-height:54px;opacity:.7;overflow:hidden;clip-path:inset(0 var(--signature-clip,100%) 0 0);mix-blend-mode:screen;pointer-events:none}
   .site01-artist-mark img{display:block;width:100%;height:auto;max-height:54px;object-fit:contain}
   .ink-caption-wrap{position:absolute;z-index:18;left:50%;bottom:clamp(135px,21svh,210px);transform:translateX(-50%);width:min(88vw,540px);text-align:center;pointer-events:none}
   .ink-caption{margin:0;font:italic 400 clamp(24px,5.5vw,56px)/1.12 Georgia,serif;letter-spacing:-.028em;color:#fff1ec;text-wrap:balance;text-shadow:0 10px 42px #09050fe8}
