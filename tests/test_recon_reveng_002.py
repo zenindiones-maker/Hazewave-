@@ -163,3 +163,38 @@ def test_parser_bounded_runtime_for_1mb_local_file(tmp_path):
     out = inspect_file("media_container_deep_parser", p)
     assert out["boxes"][0]["size"] == p.stat().st_size
     assert time.monotonic() - start < 3.0
+
+
+def test_hls_bom_is_forbidden_by_rfc8216(tmp_path):
+    p = tmp_path / "bom.m3u8"
+    p.write_bytes(b"\xef\xbb\xbf#EXTM3U\n#EXTINF:1,\nsegment.ts\n")
+    with pytest.raises(ValueError, match="INVALID_HLS_HEADER"):
+        inspect_file("streaming_manifest_parser", p)
+
+
+def test_hls_method_none_is_not_encryption(tmp_path):
+    p = tmp_path / "clear.m3u8"
+    p.write_text("#EXTM3U\n#EXT-X-KEY:METHOD=NONE\n#EXTINF:1,\nsegment.ts\n")
+    out = inspect_file("protection_detector", p)
+    assert out["detected"] is False
+    assert out["status"] == "NOT_DETECTED"
+
+
+def test_mp4_chunk_offsets_must_reference_file_bytes(tmp_path):
+    p = tmp_path / "broken-offset.mp4"
+    stco = _box(b"stco", b"\x00\x00\x00\x00"
+                + struct.pack(">I", 1) + struct.pack(">I", 2**32-1))
+    p.write_bytes(_box(b"ftyp", b"isom\x00\x00\x00\x00") +
+                  _box(b"moov", _box(b"trak", _box(b"mdia",
+                      _box(b"minf", _box(b"stbl", stco))))))
+    with pytest.raises(ValueError, match="MP4_CHUNK_OFFSET_OUT_OF_BOUNDS"):
+        inspect_file("media_container_deep_parser", p)
+
+
+def test_symlink_file_does_not_pass_inspection(tmp_path):
+    p = tmp_path / "real.m3u8"
+    p.write_text("#EXTM3U\n")
+    link = tmp_path / "link.m3u8"
+    link.symlink_to(p)
+    with pytest.raises(ValueError, match="INPUT_MUST_BE_REGULAR_LOCAL_FILE"):
+        inspect_file("streaming_manifest_parser", link)
