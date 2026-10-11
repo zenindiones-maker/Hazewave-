@@ -266,6 +266,9 @@ def main() -> None:
     cli = argparse.ArgumentParser()
     sub = cli.add_subparsers(dest="action", required=True)
     sub.add_parser("validate")
+    admission = sub.add_parser("admit")
+    admission.add_argument("name", choices=sorted(NAMES))
+    admission.add_argument("--task-id", required=True)
     ex = sub.add_parser("extract")
     ex.add_argument("name", choices=sorted(NAMES))
     ex.add_argument("archive", type=Path)
@@ -281,6 +284,15 @@ def main() -> None:
     entries = validate_lock(json.loads(LOCK.read_text()))
     if args.action == "validate":
         print("HAZEWAVE_ARTCRAFT_SEVEN_LOCK=PASS")
+    elif args.action == "admit":
+        admitted = admit_artcraft(task_id=args.task_id, tool=args.name,
+                                  data_classification="PUBLIC",
+                                  requested_domain="WAVE")
+        verify_admission(admitted, expected_tool=args.name,
+                         expected_task_id=args.task_id)
+        # The ID is a non-secret correlation hash; no privileged token issued.
+        print("HAZEWAVE_ARTCRAFT_HARNESS_WAVE_ADMISSION=PASS:" + args.name)
+        print("HAZEWAVE_ARTCRAFT_BOUND_CAPABILITY=" + admitted.capability_id)
     elif args.action == "extract":
         tool = entries[args.name]
         if sha256(args.archive) != tool["sha256"]:
