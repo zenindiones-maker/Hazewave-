@@ -159,3 +159,91 @@ As 3 cenas pedidas pelo Luiz, com motor próprio:
 4. Liberação de uma das 5 pinturas privadas, se quiser que entrem no site público.
 5. Uma faixa de áudio do Indionesbala para a cena (opcional), com permissão.
 6. Decidir se aceita lottie-web (MIT) para o personagem.
+
+---
+
+# ATUALIZAÇÃO (11/10, 12h50 PT): universo das ilhas-MPC — cada ilha é um artista
+
+## A. Inventário rápido (a busca exaustiva foi interrompida por ordem nova)
+- **Repo, branches de site** (`work/wave-v12…`, `work/hazewave-site-v1`): logo Indionesbala (raster 1536×643), `indionesbala-v6` (render 1672×941), mundos dos outros artistas (fora do escopo). **Não há line art nem personagem.** Na branch da PR #62 (`work/wave-canonical-art-rig-pilot-v1`), `git ls-tree` **não lista nenhum PNG/WEBP/JPG/SVG**: as "dez peças MPC pintadas" não estão versionadas (consistente com a regra "arte privada fora do GitHub"). A varredura de todas as 111 branches, LFS, releases e artifacts ficou **incompleta** (parada por ordem).
+- **Google Drive** (conector): "Áudio de indionesbala" (MP3, 2,7 MB, 22/09/2026) e "hazewave_final-2.mp4" (200 MB, 16/04/2026). Ambos privados e não lidos. Nenhuma imagem Indionesbala encontrada por nome.
+- **Codespace:** não inspecionado (ordem de parar a busca).
+- **Referências enviadas pelo Luiz** (6 PNG, `/workspace/site01/refs/`, **privadas, fora do git**):
+
+| Arquivo (prefixo) | Resolução | Conteúdo | Uso |
+|---|---|---|---|
+| 460eaf | 1448×1086 RGBA (fundo transparente) | ilha-MPC com caixas de som, cabos roxos, pads laranja | **ilha-herói Indionesbala** (camada de cor e fonte da line art) |
+| 4d1cdc | 1448×1086 RGBA | ilha-MPC apagada/escura | **ilha bloqueada** (template "ILHA LIVRE") |
+| 9f8619 | 1672×941 RGBA | arquipélago com feixes azuis e estrada roxa | plano médio (futuro) |
+| b40285 | 941×1672 | vertical: céu, galáxia, logo HAZEWAVE, cidade ao fundo | plano céu/longe (futuro) |
+| e5d1f0 | 1536×1024 RGBA | MPC com motores (versão "nave") | variação de ilha (futuro) |
+| ff50ca | 941×1672 | vertical: logo, estrada de onda serpenteando até a MPC grande | **mundo/estrada da cena 1** |
+
+Todas são **raster pixel-art-ish com cor**: não existe versão em traço (ink). A line art atual é **derivada** por detecção de bordas + potrace (611 paths). Ela não é traço de artista: os contornos saem duplos, as bordas são ruidosas e a ordem é de cima para baixo, não a de um desenhista.
+
+## B. Pipeline de arte (o que precisa ser produzido)
+O gerador de imagens **não está disponível neste executor**: o pai deve gerar ou encomendar. Para cada objeto-chave, em 3 versões alinhadas pixel a pixel (mesmo enquadramento):
+1. **INK:** só o traço preto ou creme, linha central, espessura 2–4 px a 2000 px, fundo transparente. Vetoriza limpo com `autotrace --centerline` e vira stroke animável.
+2. **COR** chapada, sem neon.
+3. **NEON/LUZ** (pads laranja, cabos roxos, feixes azuis) como camada aditiva separada.
+
+Objetos:
+- ilha-MPC do artista (herói), com caixas, cabos e pads;
+- ilha bloqueada genérica;
+- estrada de onda roxa como path vetorial puro (desenhada direto em SVG, não rasterizada);
+- caixas de som, cabos de frente e feixes de propulsão como sprites separados;
+- planos: céu com galáxia e logo, ilhas distantes, ilhas médias, ilha-herói, cabos em primeiro plano;
+- a cidade Indionesbala ao longe (destino da estrada).
+
+Mais detalhe que as referências (mínimo exigido): resolução 2× (≥ 2000 px no lado maior), mais componentes de MPC (faders, knobs, telas), fiação com rotas e vida na cidade.
+**Prompt-base sugerido:** "isometric floating MPC drum-machine island, speakers, purple glowing cables, orange neon pads, blue thruster beams, dark navy metal, detailed pixel-art-inspired illustration, transparent background, [INK ONLY: clean black centerline line art, no fill, no shading]".
+
+## C. Arquitetura de cena (substitui a §5/§6 da versão anterior)
+**Modelo de dados reutilizável:** `apps/site01-critico/islands.json` (schema `HazewaveIsland/v1`):
+- `world` {image, width, height, road (path SVG da estrada no espaço da imagem)}
+- `islands[]` {id, status: active|locked, name, roadT (posição 0..1 na estrada), colors {neon, energy, ink}, layers {line, color, width, height}, clips[], music[]}
+
+Ilhas `locked` não têm nome: aparecem apagadas como "ILHA LIVRE". Nenhum artista foi inventado.
+
+| Cena | Distância | Scroll faz |
+|---|---|---|
+| 1. Estrada | 7 vh | A câmera parte do logo HAZEWAVE e **segue a ponta da estrada roxa que o scroll vai desenhando** (stroke + brilho). As ilhas livres surgem apagadas quando a estrada passa por elas. |
+| 2. Ilha do artista | 5 vh | 0–55%: line art da ilha nasce (611 traços, overlap 8%); 50–75%: a cor entra apagada; 72–85%: o neon acende (saturação/brilho); 82–95%: cartão com nome, clipes e música (PROVISÓRIO). |
+| Futuro | — | A transição contínua estrada→ilha (zoom da câmera na ilha, sem corte), parallax com 5 planos e a cidade Indionesbala no fim. |
+
+Adicionar um artista = uma entrada no JSON + 3 camadas de arte. O código não muda.
+
+## D. Protótipo v2 (privado, não publicado)
+`apps/site01-critico/` (o v1 foi para `v1/`). As camadas privadas ficam em `private-media/`, que está **no .gitignore**: só código e config vão para o git. **Sem as refs do Luiz o protótipo não renderiza a arte.**
+
+**Resultados (Playwright, CPU 4× throttled):**
+| Viewport | FPS médio | p95 | quadros > 33 ms | long tasks |
+|---|---|---|---|---|
+| 412×915 @2,625 | 60 | 16,7 ms | 0 | 0 |
+| 1080×2340 @1 | 50,8 | **33,4 ms** | **10** | 0 |
+| 915×412 | 58,1 | 16,8 ms | 3 | 0 |
+
+- **Reversível:** voltando para t=0,75, 137 de 611 traços ficam não desenhados.
+- **Reduced motion:** tudo desenhado. ✔
+- **Ponto fraco:** o viewport 1080×2340 @1 tem jank. A imagem do mundo escalada fica com ~2370 px de largura e há blur no brilho da estrada. Remédio: brilho pré-renderizado em vez de `filter:blur`, e mundo em tiles.
+
+**Nota brutal v2 (0–10) contra os 7 benchmarks:**
+| Critério | v1 | v2 | Por quê |
+|---|---|---|---|
+| Traço gerado pelo scroll (Who's Guilty) | 4 | **6** | A estrada é desenhada pelo scroll e guia a câmera, e a ilha nasce em traço antes da cor. Mas a line art é derivada por bordas (contorno duplo e ruidoso), não ink de artista. Teto atual: 6. |
+| Revelação de cor/luz | — | **6** | Traço → cor apagada → neon acende funciona, mas é um crossfade da imagem inteira, não por camada (pads, cabos e feixes separados). |
+| Personagem/quadros (Ponpon, NASA) | 2 | **1** | Removido: o universo agora é de ilhas. Falta definir se haverá personagem. |
+| Pan & zoom / profundidade (SBS, NYT) | 5 | **6** | A câmera segue a estrada pelo mundo vertical, mas é um plano só, sem parallax real. |
+| Transições (Genie, Who's Guilty) | 3 | **3** | Corte seco estrada→ilha, e o cartão do fim se sobrepõe ao rodapé. |
+| Som | 0 | **0** | Há um áudio do Indionesbala no Drive, ainda não usado (precisa de permissão e de toque do usuário). |
+| Performance A15 | 9 | **8** | Jank no 1080×2340 @1. |
+| Acessibilidade/retrato | 9 | **8** | Retrato ok e reduced-motion ok. As ilhas livres ainda não têm alternativa textual na lista. |
+| Template reutilizável | — | **8** | Uma ilha por artista via JSON. Ilhas livres sem nomes inventados. |
+| **Média** | 4,6 | **≈5,1/10** | A arte INK, as camadas de luz e os planos de parallax são o que falta para passar de 8. |
+
+## E. Próximos passos
+1. Gerar ou encomendar as versões INK/COR/NEON da ilha-herói, da ilha bloqueada e dos 5 planos (§B).
+2. Estrada como SVG autoral alinhada à arte nova (não traçada sobre raster).
+3. Zoom contínuo estrada→ilha, sem corte.
+4. Brilho pré-renderizado, tiles no mundo e meta p95 ≤ 20 ms no 1080×2340.
+5. Som opcional após toque, com o áudio do Indionesbala se autorizado.

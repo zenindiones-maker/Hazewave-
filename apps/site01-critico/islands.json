@@ -1,0 +1,14 @@
+{
+  "schema": "HazewaveIsland/v1",
+  "world": { "image": "private-media/world-road.webp", "width": 941, "height": 1672,
+    "road": "M430 250 C470 290 380 300 430 330 S470 385 410 412 S600 470 760 560 S770 660 690 722 S640 820 560 880 S300 960 268 1062 S330 1150 400 1185 S520 1215 562 1242" },
+  "islands": [
+    { "id": "indionesbala", "status": "active", "name": "Indionesbala", "roadT": 1.0,
+      "colors": { "neon": "#ff8a1f", "energy": "#a34dff", "ink": "#ffd9a8" },
+      "layers": { "line": "private-media/island-indionesbala-line.json", "color": "private-media/island-indionesbala-color.webp", "width": 1086, "height": 815 },
+      "clips": [ { "title": "PROVISÓRIO — clipe a fornecer", "url": null } ],
+      "music": [ { "title": "PROVISÓRIO — faixa a fornecer", "url": null } ] },
+    { "id": "slot-2", "status": "locked", "roadT": 0.62, "layers": { "color": "private-media/island-locked.webp", "width": 724, "height": 543 } },
+    { "id": "slot-3", "status": "locked", "roadT": 0.30, "layers": { "color": "private-media/island-locked.webp", "width": 724, "height": 543 } }
+  ]
+}
