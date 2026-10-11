@@ -1,0 +1,8 @@
+{
+ "host_rms_dbfs": -16.547,
+ "python_rms_dbfs": -16.547,
+ "lag_samples": 144,
+ "max_abs_diff": 2.000133192960052e-05,
+ "residual_db_rel_signal": -85.2,
+ "input_rms_dbfs": -9.01
+}

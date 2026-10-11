@@ -1,0 +1,49 @@
+desc:Hazewave FyahComp FET (original clean-room FET-style peak compressor)
+// Copyright (c) 2026 Fyah Records / Hazewave. MIT License.
+// Original DSP written from public analog/DSP knowledge. No third-party code.
+slider1:0<-24,36,0.1>Input (dB)
+slider2:0<-24,24,0.1>Output (dB)
+slider3:0<0,4,1{4:1,8:1,12:1,20:1,All-buttons}>Ratio
+slider4:200<20,800,1>Attack (us)
+slider5:300<50,1100,1>Release (ms)
+slider6:0<0,100,1>Topology (0=feedforward,100=feedback) %
+slider7:30<0,100,1>Output saturation %
+slider8:100<0,100,1>Mix %
+in_pin:left input
+in_pin:right input
+out_pin:left output
+out_pin:right output
+@init
+function tanh(x) local(e) (e=exp(2*max(min(x,20),-20)); (e-1)/(e+1););
+thr = -18; gr = 0; fbl = fbr = 0;
+@slider
+ing = 10^(slider1/20); outg = 10^(slider2/20);
+slider3==0 ? ratio=4 : slider3==1 ? ratio=8 : slider3==2 ? ratio=12 : ratio=20;
+allb = slider3==4; knee = allb ? 12 : 6;
+att = exp(-1/(srate*slider4*0.000001*(allb?0.5:1)));
+rel = exp(-1/(srate*slider5*0.001));
+fb = slider6/100; drv = 1 + 4*slider7/100; sat = slider7/100; mix = slider8/100;
+bias = 0.15*sat;
+@sample
+xl = spl0*ing; xr = spl1*ing;
+det = max(abs(xl),abs(xr))*(1-fb) + max(abs(fbl),abs(fbr))*fb;
+lev = 20*log10(max(det,0.000001));
+ov = lev - thr;
+// soft-knee static curve (target gain reduction in dB, >=0)
+ov <= -knee/2 ? t = 0 :
+ov >= knee/2 ? t = ov*(1-1/ratio) :
+ t = (1-1/ratio)*(ov+knee/2)^2/(2*knee);
+// all-buttons: over-compression beyond +6 dB of overshoot
+allb && ov > 6 ? t += 0.25*(ov-6);
+// feedback detector needs extra loop gain to reach the same static curve
+fb > 0 ? t *= 1 + fb*(ratio-1)/ratio;
+gr = t > gr ? att*gr + (1-att)*t : rel*gr + (1-rel)*t;
+g = 10^(-gr/20);
+yl = xl*g; yr = xr*g; fbl = yl; fbr = yr;
+// asymmetric output stage saturation
+sat > 0 ? (
+ yl = ((tanh(drv*yl+bias) - tanh(bias))/drv)*sat + yl*(1-sat);
+ yr = ((tanh(drv*yr+bias) - tanh(bias))/drv)*sat + yr*(1-sat);
+);
+spl0 = (yl*mix + xl*(1-mix))*outg;
+spl1 = (yr*mix + xr*(1-mix))*outg;
