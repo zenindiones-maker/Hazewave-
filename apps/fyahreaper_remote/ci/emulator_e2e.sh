@@ -30,6 +30,7 @@ sleep 25; shot 01-launch
 PID=$(adb shell pidof $APP | tr -d '\r'); adb forward tcp:9222 localabstract:webview_devtools_remote_$PID >/dev/null
 python3 apps/fyahreaper_remote/ci/cdp_probe.py > $OUT/webview-probe.json 2>&1; cat $OUT/webview-probe.json
 grep -q '"connected": *true\|"connected":true' $OUT/webview-probe.json && pass novnc_ui_connected_state || fail novnc_ui_connected_state
+python3 -c "import json,sys;d=json.load(open(sys.argv[1]));c=d['canvases'][0];sys.exit(0 if c['cw']>=0.9*d['w'] or c['ch']>=0.9*d['h'] else 1)" $OUT/webview-probe.json && pass remote_canvas_fills_screen || fail remote_canvas_fills_screen
 read w h < <(dims $OUT/01-launch.png); echo "screenshot ${w}x${h}"
 [ "$w" -gt "$h" ] && pass "landscape_with_rotation_lock_portrait(${w}x${h})" || fail "landscape_with_rotation_lock_portrait(${w}x${h})"
 [ "$w" = 2340 ] && [ "$h" = 1080 ] && pass a15_geometry_2340x1080 || fail "a15_geometry_2340x1080(${w}x${h})"

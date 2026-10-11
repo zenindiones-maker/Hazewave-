@@ -47,6 +47,12 @@ internal fun noVncPage(base: String, password: String): String =
         .appendQueryParameter("password", password)
         .build().toString()
 
+/** noVNC can compute its scale while the WebView is still 0x0 (canvas ends up 0px wide). Re-trigger its
+ *  resize handling until the canvas has a real size. */
+internal const val FIT_WATCHDOG_JS = "(function(){if(window.__fyahFit)return;window.__fyahFit=1;" +
+    "setInterval(function(){var c=document.querySelector('#noVNC_container canvas');" +
+    "if(c&&(c.clientWidth===0||c.clientHeight===0)){window.dispatchEvent(new Event('resize'));}},700);})()"
+
 // JS helpers operating on the noVNC page's own controls (ids from noVNC vnc.html).
 private fun clickJs(id: String) = "(function(){var b=document.getElementById('$id');if(b){b.click();return 'ok'}return 'missing'})()"
 private fun shiftJs(down: Boolean): String {
@@ -105,7 +111,9 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                             settings.loadWithOverviewMode = true
                             settings.builtInZoomControls = false
                             settings.mediaPlaybackRequiresUserGesture = false
-                            webViewClient = WebViewClient()
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageFinished(view: WebView, url: String?) { view.evaluateJavascript(FIT_WATCHDOG_JS, null) }
+                            }
                             webChromeClient = object : WebChromeClient() {
                                 override fun onConsoleMessage(m: android.webkit.ConsoleMessage): Boolean {
                                     android.util.Log.i("FyahWebView", "${m.messageLevel()} ${m.message()} @${m.sourceId()}:${m.lineNumber()}"); return true

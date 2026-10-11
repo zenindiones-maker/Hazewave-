@@ -2,6 +2,7 @@
 import asyncio, json, sys, urllib.request, websockets
 JS = """JSON.stringify({w:innerWidth,h:innerHeight,dpr:devicePixelRatio,
  canvases:[...document.querySelectorAll('canvas')].map(c=>({w:c.width,h:c.height,cw:c.clientWidth,ch:c.clientHeight,vis:getComputedStyle(c).visibility,disp:getComputedStyle(c).display})),
+ box:['noVNC_container','noVNC_screen'].map(i=>{var e=document.getElementById(i);return e?[i,e.clientWidth,e.clientHeight]:[i,null]}),
  status:(document.getElementById('noVNC_status')||{}).textContent,
  connected:document.documentElement.classList.contains('noVNC_connected'),
  bodyClass:document.documentElement.className})"""
