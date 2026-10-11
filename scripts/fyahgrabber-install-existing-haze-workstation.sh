@@ -27,9 +27,6 @@ fi
 if [[ -L "$ROOT" ]]; then
   echo "BLOCKED:INSTALL_ROOT_SYMLINK";exit 3
 fi
-if [[ -e "$RESOURCE/Effects/FyahGrabber_808.jsfx" ]]; then
-  echo "BLOCKED:EXISTING_JSFX_PRESERVE_DO_NOT_OVERWRITE";exit 4
-fi
 before_head="$(git -C "$REPO" rev-parse HEAD)"
 before_status="$(git -C "$REPO" status --porcelain=v1)"
 echo "HAZE_EXISTING_HEAD=$before_head"
@@ -38,9 +35,6 @@ git -C "$REPO" fetch --no-tags origin "refs/heads/$BRANCH"
 source_sha="$(git -C "$REPO" rev-parse FETCH_HEAD)"
 if [[ ! "$source_sha" =~ ^[a-f0-9]{40}$ ]]; then
   echo "BLOCKED:INVALID_FETCHED_SHA";exit 3
-fi
-if [[ -e "$ROOT/source-$source_sha" ]]; then
-  echo "BLOCKED:ALREADY_INSTALLED_SOURCE_PRESERVED";exit 4
 fi
 mkdir -p "$ROOT" "$RESOURCE/Scripts" "$RESOURCE/Effects"
 staged="$(mktemp -d "$ROOT/.stage.XXXXXXXX")"
@@ -53,20 +47,53 @@ for f in FyahGrabber_Analyze_Selected_Item.lua FyahGrabber_Core.lua \
   [[ -s "$files/$f" ]] || { echo "BLOCKED:MISSING:$f";exit 3; }
 done
 source_dir="$ROOT/source-$source_sha"
-mkdir -p "$source_dir"
-cp -R "$staged/reaper" "$source_dir/"
 scripts_target="$RESOURCE/Scripts/FyahGrabber-${source_sha:0:12}"
-if [[ -e "$scripts_target" ]]; then
-  echo "BLOCKED:VERSION_DIRECTORY_EXISTS";exit 4
+fx_target="$RESOURCE/Effects/FyahGrabber_808.jsfx"
+# Validate all existing files; NEVER overwrite conflicting user state.
+if [[ -e "$fx_target" || -L "$fx_target" ]]; then
+  [[ ! -L "$fx_target" ]] && cmp -s "$files/FyahGrabber_808.jsfx" "$fx_target" || {
+    echo "BLOCKED:CONFLICTING_JSFX_PRESERVED";exit 4;
+  }
 fi
-mkdir "$scripts_target"
-cp "$files/"*.lua "$files/"*.py "$scripts_target/"
-install -m 0644 "$files/FyahGrabber_808.jsfx" "$RESOURCE/Effects/FyahGrabber_808.jsfx"
+if [[ -e "$scripts_target" || -L "$scripts_target" ]]; then
+  [[ -d "$scripts_target" && ! -L "$scripts_target" ]] || {
+    echo "BLOCKED:CONFLICTING_SCRIPTS_TARGET";exit 4;
+  }
+  for existing in "$files/"*.lua "$files/"*.py; do
+    [[ -f "$scripts_target/$(basename "$existing")" ]] &&
+      cmp -s "$existing" "$scripts_target/$(basename "$existing")" || {
+      echo "BLOCKED:CONFLICTING_SCRIPT_VERSION";exit 4;
+    }
+  done
+fi
+if [[ -e "$source_dir" || -L "$source_dir" ]]; then
+  [[ -d "$source_dir" && ! -L "$source_dir" ]] || {
+    echo "BLOCKED:CONFLICTING_SOURCE_PATH";exit 4;
+  }
+  for existing in "$files/"*; do
+    [[ -f "$source_dir/reaper/FyahGrabber/$(basename "$existing")" ]] &&
+      cmp -s "$existing" "$source_dir/reaper/FyahGrabber/$(basename "$existing")" || {
+      echo "BLOCKED:CHANGED_SOURCE_VERSION";exit 4;
+    }
+  done
+fi
+# Dependencies first: retry-safe, no half-installed JSFX if pip fails.
 if [[ "$WITH_CQT" == true ]]; then
   if [[ ! -x "$PYTHON" ]]; then python3 -m venv "$ROOT/.venv"; fi
   "$PYTHON" -m pip install --disable-pip-version-check --no-input \
     'librosa==0.11.0' 'pillow==11.3.0'
   "$PYTHON" -c 'import librosa, PIL, soundfile, numpy;print("CQT_IMPORT_PASS")'
+fi
+if [[ ! -e "$source_dir" ]]; then
+  mkdir "$source_dir"
+  cp -R "$staged/reaper" "$source_dir/"
+fi
+if [[ ! -e "$scripts_target" ]]; then
+  mkdir "$scripts_target"
+  cp "$files/"*.lua "$files/"*.py "$scripts_target/"
+fi
+if [[ ! -e "$fx_target" ]]; then
+  install -m 0644 "$files/FyahGrabber_808.jsfx" "$fx_target"
 fi
 after_head="$(git -C "$REPO" rev-parse HEAD)"
 after_status="$(git -C "$REPO" status --porcelain=v1)"
