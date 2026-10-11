@@ -45,3 +45,18 @@ Causa raiz dos quadros perdidos (perfil CDP, `tests/profile-scroll.mjs`): `getBo
 | 14 | Som **[B]** | 3 | 3 | |
 
 Ponderada v7 ≈ **7,9/10**; sem bloqueados ≈ **8,7/10**.
+
+## v8
+- Causa raiz paisagem: `camera()` lia `innerWidth/innerHeight` a cada quadro (em viewport móvel isso força layout) → 324 ms/rolagem; agora cacheado no resize (52 ms). Jank mediano paisagem 23 → 8.
+- Achado: em v7 a revelação das seções ainda usava `clip-path` (a troca não tinha sido aplicada) — corrigido agora; e um SVG de fio global (altura de 11 telas) com dashoffset por quadro dobrava o jank em 1080×2340 (A/B contra v7 na mesma máquina) — substituído por cabo por cena + dashoffset quantizado (1/160).
+- Perf final (mediana de 5, CPU 4×, máquina compartilhada com outro job rodando): p95 16,8 ms nos 3 viewports, 25/25 execuções ≤16,8 ms, 0 long tasks; jank mediano 10 / 14 / 8 por 700 quadros.
+
+| # | Critério | v7 | v8 | Por quê |
+|---|---|---|---|---|
+| 4 | Profundidade | 8,5 | 9 | 4 planos por cena: fundo (0,3×), arte, texto, cabo de primeiro plano (1,1×) desenhado pelo scroll |
+| 5 | Câmera | 8,5 | 8,5 | cabo contínuo liga as seções, mas ainda não é UMA câmera num mundo único ilha→seções→cidade |
+| 8 | Tipografia | 8,5 | 9 | escala 4/8, kicker→título→texto→CTA com ritmo fixo; borda de onda não fica mais presa no topo |
+| 10 | Paisagem | 8,5 | 9 | 2 colunas + jank igual ao retrato |
+| 11 | Desempenho | 9 | 9 | |
+
+Ponderada v8 ≈ **8,0/10**; sem bloqueados ≈ **8,85/10**. Único não bloqueado abaixo de 9: câmera (5).

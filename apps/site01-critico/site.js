@@ -60,6 +60,12 @@
   function ripple(host, ev) { const r = host.getBoundingClientRect(), d = el('i', { class: 'ripple' }, host); d.style.left = (ev.clientX - r.left) + 'px'; d.style.top = (ev.clientY - r.top) + 'px'; setTimeout(() => d.remove(), 700); }
   function retrace(ink, ks) { if (RM || !ink.ready()) return; const t0 = performance.now(); const go = t => { const u = Math.min(1, (t - t0) / 650); ink.draw(ks.map(k => k * ease(u))); if (u < 1) requestAnimationFrame(go); }; ink.draw([0, 0, 0]); requestAnimationFrame(go); }
 
+  /* cabo desenhado à mão (determinístico) para planos de primeiro plano */
+  function cable(x0, y0, y1, amp, seed) { let d = `M${x0} ${y0}`, y = y0, i = 0, h = seed; const r = () => (h = (h * 9301 + 49297) % 233280) / 233280;
+    while (y < y1) { const ny = Math.min(y1, y + 60 + r() * 50); d += ` Q ${(x0 + (i++ % 2 ? amp : -amp) * (.6 + r() * .6)).toFixed(1)} ${((y + ny) / 2).toFixed(1)} ${(x0 + (r() - .5) * amp * .3).toFixed(1)} ${ny.toFixed(1)}`; y = ny; } return d; }
+  function inkPath(svg, d, cls) { const p = el('svg:path', { d, class: cls || '' }, svg); const L = p.getTotalLength(); p.style.strokeDasharray = L; p.style.strokeDashoffset = L; p._L = L; p._k = -1;
+    return k => { k = RM ? 1 : Math.round(k * 160) / 160; if (k === p._k) return; p._k = k; p.style.strokeDashoffset = (p._L * (1 - k)).toFixed(1); }; }
+
   /* ================= JORNADA ================= */
   const W = C.world, pin = document.querySelector('#journey .pin'), world = document.getElementById('world');
   // céu: camada de profundidade atrás do mundo (parallax), galáxia e luas desenhadas pelo scroll
@@ -87,12 +93,14 @@
   const flat = el('img', { src: I.art.flat, alt: `Ilha-MPC de ${I.name}, colorida`, width: I.art.w, height: I.art.h, decoding: 'async' }, ibox); const flatWipe = Wipe(flat);
   let islandKs = [1, 1, 1]; ibox.addEventListener('click', ev => { ripple(ibox, ev); ibox.classList.remove('wig'); void ibox.offsetWidth; ibox.classList.add('wig'); });
   const islandInk = InkLayer(ibox, I.art.ink, { w: I.art.w, h: I.art.h, label: `Ilha-MPC de ${I.name} sendo desenhada` });
+  const fgJ = el('div', { class: 'fg', 'aria-hidden': 'true' }, pin), fgS = el('svg:svg', { viewBox: '0 0 100 1000', preserveAspectRatio: 'none' }, fgJ);
+  const fgL = inkPath(fgS, cable(3, -20, 1020, 4, 7), 'c1'), fgR = inkPath(fgS, cable(97, -20, 1020, 4, 11), 'c2');
   const card = document.getElementById('card'); const capEl = el('p', { class: 'cap', id: 'cap' }, pin);
   card.innerHTML = `<h2>${I.name}</h2><div class="btns">` + I.actions.map((a, i) => a.url ? `<a class="btn${i ? '' : ' main'}" href="${a.url}">${a.label}</a>` : `<button class="btn${i ? '' : ' main'}" aria-disabled="true" title="em breve">${a.label}</button>`).join('') + `</div><p class="prov">PROVISÓRIO — clipe, faixa e arquivo para download a fornecer.</p>`;
   const roadPt = k => { const f = k * RS, i = Math.floor(f), j = Math.min(RS, i + 1), u = f - i; return { x: RPTS[i][0] + (RPTS[j][0] - RPTS[i][0]) * u, y: RPTS[i][1] + (RPTS[j][1] - RPTS[i][1]) * u }; };
   let lastTick = -1;
   function camera(t) {
-    const vw = innerWidth, vh = innerHeight, land = vw > vh;
+    const vw = VW, vh = VH, land = vw > vh;
     const sRoad = Math.min(vw / W.width, vh / 760), s0 = Math.min(vw / (W.title.w * 1.1), vh / 500);
     const sIsl = land ? Math.min(vw * .56 / P.w, vh * .9 / ih) : Math.min(vw / (P.w * .98), (vh * .62) / ih);
     let fx, fy, s, ay = .45; const tRoad = seg(t, .12, .5), tZoom = ease3(seg(t, .45, .58)), tour = RM ? 0 : Math.sin(Math.PI * seg(t, .6, .84));
@@ -125,6 +133,8 @@
     const ci = C.captions.reduce((b, c, i) => t >= c[0] ? i : b, 0);
     if (ci !== capEl._i) { capEl._i = ci; capEl.textContent = C.captions[ci][1]; }
     const co = (t < .04 || t > .87) ? '0' : '1'; if (capEl._o !== co) { capEl._o = co; capEl.style.opacity = co; }
+    fgL(seg(t, .1, .55)); fgR(seg(t, .2, .7));
+    const fy = Math.round(-t * VH * 1.1); if (fy !== fgJ._y) { fgJ._y = fy; fgJ.style.transform = `translate3d(0,${fy}px,0)`; }
     camera(t);
   }
 
@@ -134,6 +144,8 @@
     const sec = el('section', { id: S.id, class: 'scene sec' + (big ? ' big' : ''), 'data-len': String(len), 'aria-labelledby': S.id + '-h' }, secRoot);
     const pinS = el('div', { class: 'pin' }, sec), box = el('div', { class: 'box' }, pinS);
     const back = el('div', { class: 'back', 'aria-hidden': 'true' }, pinS); el('img', { src: C.sky.far, alt: '', loading: 'lazy', decoding: 'async' }, back);
+    const fg = el('div', { class: 'fg sfg', 'aria-hidden': 'true' }, pinS), fs = el('svg:svg', { viewBox: '0 0 100 1000', preserveAspectRatio: 'none' }, fg);
+    const fgd = inkPath(fs, cable(3.5, -20, 1020, 2, 3 + secs.length * 5), 'c1');
     const art = el('div', { class: 'art', tabindex: '-1' }, box);
     art.addEventListener('click', ev => { ripple(art, ev); art.classList.remove('wig'); void art.offsetWidth; art.classList.add('wig'); const o = secs.find(o => o.art === art); o && retrace(o.ink, o.ks || [1, 1, 1]); });
     const fl = el('img', { src: S.flat || S.icon.flat, alt: '', decoding: 'async', loading: 'lazy' }, art);
@@ -147,10 +159,12 @@
     const p = el('p', {}, box); p.textContent = S.text;
     if (S.cta) { const b = S.cta.url ? el('a', { class: 'btn main', href: S.cta.url }, box) : el('button', { class: 'btn main', 'aria-disabled': 'true', title: 'em breve' }, box); b.textContent = S.cta.url ? S.cta.label : S.cta.label + ' — em breve'; }
     if (S.provisional) { const q = el('p', { class: 'prov' }, box); q.textContent = S.provisional; }
-    secs.push({ sec, ink, fl, flW, big, dp, DL, back, art });
+    secs.push({ sec, ink, fl, flW, big, dp, DL, back, art, fg, fgd });
   }
   C.sections.forEach(S => makeSection(S));
   makeSection(C.finale, { len: 2.6, big: true });
+  /* fio contínuo: a estrada de onda continua da ilha, atravessa todas as seções e termina na cidade */
+  /* fio contínuo: cada seção continua o cabo da borda esquerda (camada pequena por cena, sem SVG gigante) */
 
   /* ---------- som opcional: só liga por toque; sem arquivo ainda ---------- */
   const sb = el('button', { class: 'sound', 'aria-pressed': 'false', title: 'Som opcional' }, document.body); sb.textContent = '♪ Som: desligado';
@@ -168,18 +182,18 @@
   scenes.forEach(s => s.style.height = (+s.dataset.len * 100) + 'vh');
   /* posições cacheadas no resize: nenhum getBoundingClientRect por quadro (evitava layout forçado entre escritas) */
   const POS = new Map(); const measure = () => { const y = scrollY; scenes.forEach(s => { const r = s.getBoundingClientRect(); POS.set(s, [r.top + y, r.height]); }); };
-  let SY = 0; const prog = s => { const [t, h] = POS.get(s); return clamp((SY - t) / Math.max(1, h - VH)); };
+  let SY = 0, VW = innerWidth; const prog = s => { const [t, h] = POS.get(s); return clamp((SY - t) / Math.max(1, h - VH)); };
   const secProg = s => { const [t, h] = POS.get(s); return clamp((VH - (t - SY)) / h); }; let VH = innerHeight;
   measure();
   const journeyEl = document.getElementById('journey'); let q = 0;
   const frame = () => {
-    q = 0; SY = scrollY; VH = innerHeight; const t = prog(journeyEl); journeyEl.dataset.p = t.toFixed(3); journey(t);
+    q = 0; SY = scrollY; const t = prog(journeyEl); journeyEl.dataset.p = t.toFixed(3); journey(t);
     secs.forEach(o => { const k = secProg(o.sec); o.sec.dataset.p = k.toFixed(3); if (k > 0 && k < 1.01 || o.ink.ready()) { if (k > 0) o.ink.draw(o.ks = o.big ? [seg(k, .12, .3), seg(k, .2, .45), seg(k, .28, .62)] : [seg(k, .1, .25), seg(k, .15, .38), seg(k, .2, .5)]); }
-      const f = RM ? 1 : (o.big ? seg(k, .6, .75) : seg(k, .45, .6)); o.fl.style.opacity = f;
-      if (!RM && k > 0 && k < 1) { const z = ease3(seg(k, .05, .55)); o.back.style.transform = `translate3d(-50%,${((.5 - k) * 120).toFixed(1)}px,0)`; o.art.style.transform = `translate3d(0,${((.5 - k) * 36).toFixed(1)}px,0) scale(${(1.14 - .14 * z).toFixed(4)})`; } o.dp.style.strokeDashoffset = o.DL * (1 - (RM ? 1 : seg(k, .05, .3))); o.fl.style.clipPath = `inset(0 0 ${(100 * (1 - f)).toFixed(1)}% 0)`; });
+      const f = RM ? 1 : (o.big ? seg(k, .6, .75) : seg(k, .45, .6)); o.flW(f); o.fgd(seg(k, 0, .7)); if (!RM && k > 0 && k < 1) o.fg.style.transform = `translate3d(0,${((.5 - k) * VH * 1.1).toFixed(1)}px,0)`;
+      if (!RM && k > 0 && k < 1) { const z = ease3(seg(k, .05, .55)); o.back.style.transform = `translate3d(-50%,${((.5 - k) * 120).toFixed(1)}px,0)`; o.art.style.transform = `translate3d(0,${((.5 - k) * 36).toFixed(1)}px,0) scale(${(1.14 - .14 * z).toFixed(4)})`; } o.dp.style.strokeDashoffset = o.DL * (1 - (RM ? 1 : seg(k, .05, .3))); });
   };
   addEventListener('scroll', () => { if (!q) q = requestAnimationFrame(frame); }, { passive: true });
-  addEventListener('resize', () => { measure(); frame(); }); addEventListener('load', () => { measure(); frame(); }); frame();
+  addEventListener('resize', () => { VW = innerWidth; VH = innerHeight; measure(); frame(); }); addEventListener('load', () => { measure(); frame(); }); frame();
   if (RM) { islandInk.load(); secs.forEach(o => o.ink.load()); }
   idle(() => islandInk.load());
   document.documentElement.dataset.ready = '1'; const ld = document.getElementById('loader'); if (ld) { ld.classList.add('done'); setTimeout(() => ld.remove(), 600); }
