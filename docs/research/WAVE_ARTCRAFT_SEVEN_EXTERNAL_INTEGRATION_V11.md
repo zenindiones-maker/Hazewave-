@@ -77,3 +77,34 @@ Upstream technical references:
 - https://github.com/storytold/designcraft/tree/main/apps/designcraft-cli
 - https://github.com/storytold/pdfcraft/tree/main/apps/pdfcraft-cli
 - https://github.com/storytold/craft-launcher
+
+## Actual Harness capability wiring (V11 update)
+
+P0 root cause: a successful CLI smoke could be launched by a GitHub Actions
+step without any Hazewave Harness admission. This integration binds all seven
+`storytold/*` workers to **existing** WAVE visual capabilities through the
+first-party `src/hazewave/wave_artcraft.py`. The module uses
+`route_task` + `issue_authorization` from the real `hazewave.harness` and
+never establishes its own control plane:
+
+- PhotoCraft / LightCraft / VectorCraft → `visual.image`.
+- EffectCraft → `visual.animate`.
+- FilmCraft → `visual.video`.
+- DesignCraft → `visual.storyboard`.
+- PdfCraft → `visual.analyze`.
+
+An admission is restricted to an explicit task ID, WAVE domain, PUBLIC
+synthetic data, and offline boundary. Invalid tool names, HAZE/BRIDGE routes
+and PRIVATE_MEDIA credentials fail closed. Route IDs are **not** signed
+bearer credentials; actual execution authority comes from the trusted,
+read-only GitHub Actions sandbox with pinned binaries and `contents:read`.
+
+Four newer CLIs must call admission inside their real smoke wrapper, then
+validate the same admission in the synthetic artifact receipt. The three
+pre-existing CLIs must execute their now-required Harness gate before their
+original isolated proof jobs. These additions do **not** change three
+previously verified exact release versions or route private media.
+
+Only passing runs of all three workflows on the final exact commit establish
+seven-tool offline-lab availability. This is not yet a production artistic
+processing service or approval of the owner-supplied five original paintings.

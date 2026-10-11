@@ -5,6 +5,10 @@ on:
       - "apps/hazewave-site/experiments/travessia-v4/**"
       - "tests/test_wave_artcraft_portal_v7.py"
       - ".github/workflows/wave-effectcraft-filmcraft-portal-proof.yml"
+      - "scripts/wave_artcraft_external_tools.py"
+      - "scripts/wave_artcraft-seven-lock.json"
+      - "src/hazewave/wave_artcraft.py"
+      - "tests/test_wave_artcraft_external_tools.py"
 
 permissions:
   contents: read
@@ -72,6 +76,17 @@ jobs:
                   (dest/(name+".sha256")).write_text(binary_sha+"\n")
                   print("HAZEWAVE_VERIFIED_BINARY="+name+":"+binary_sha)
           PY
+
+      - name: Admit both pinned real CLI workers via canonical Hazewave Harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p 'test_wave_artcraft_external_tools.py' -v
+          python3 scripts/wave_artcraft_external_tools.py validate
+          python3 scripts/wave_artcraft_external_tools.py admit effectcraft \
+            --task-id artcraft-${{ github.run_id }}-effectcraft
+          python3 scripts/wave_artcraft_external_tools.py admit filmcraft \
+            --task-id artcraft-${{ github.run_id }}-filmcraft
 
       - name: Execute authentic EffectCraft and FilmCraft offline in sandbox
         shell: bash
