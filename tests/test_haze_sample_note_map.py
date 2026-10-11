@@ -125,3 +125,19 @@ def test_denies_oversize_and_symlink(tmp_path):
     link.symlink_to(original)
     with pytest.raises(ValueError, match="INPUT_MUST_BE_REGULAR_FILE"):
         analyze_sample(link)
+
+
+def test_existing_hazewave_cli_exposes_notes_and_exports(tmp_path):
+    import subprocess
+    import sys
+    source = tone_wav(tmp_path / "cli.wav")
+    output = tmp_path / "cli.mid"
+    proc = subprocess.run(
+        [sys.executable, "-m", "hazewave.cli", "notes", str(source),
+         "--out", str(output), "--task-id", "haze-cli-notes"],
+        capture_output=True, text=True, timeout=20,
+    )
+    assert proc.returncode == 0, proc.stdout + "\n" + proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["receipt"]["status"] == "EXECUTED_HAZE_LOCAL"
+    assert output.read_bytes().startswith(b"MThd")
