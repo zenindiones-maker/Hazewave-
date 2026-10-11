@@ -95,9 +95,16 @@ def _validate_sources(
             "pdfcraft": "designcraft",
         }.get(name)
         root = sources["image" if name in ("photocraft", "lightcraft") else "editorial"]
+        provenance_kwargs = (
+            {
+                "provenance_receipt": root / "receipt.json",
+                "provenance_id": f"artcraft-{run_id}-designcraft",
+            } if name == "pdfcraft" else {}
+        )
         verify_craft(
             name, root, task_id=f"artcraft-{run_id}-{name}",
             upstream_task_id=f"artcraft-{run_id}-{upstream}" if upstream else None,
+            **provenance_kwargs,
         )
 
     vector_root = sources["vector"]
@@ -154,6 +161,12 @@ def assemble(
         _safe_file(group_root, rel)
     for group, relative in EVIDENCE.values():
         _safe_file(sources[group], relative)
+    from wave_artcraft_external_tools import verify_designcraft_provenance
+    editorial_provenance = verify_designcraft_provenance(
+        sources["editorial"],
+        receipt=_safe_file(sources["editorial"], "receipt.json"),
+        stage_id=f"artcraft-{run_id}-designcraft",
+    )
     # Motion requires ALL eight frames, not a still-image substitute.
     frames = [
         (sources["motion"], f"frames/sonic-portal-{i:02d}.png",
@@ -187,6 +200,15 @@ def assemble(
         shutil.copyfile(item, destination)
         proof_receipts[name] = {"path": dest, "sha256": sha256(destination)}
 
+    external_receipt = _safe_file(sources["editorial"], "receipt.json")
+    provenance_dest = target / "receipts" / "designcraft-provenance.json"
+    shutil.copyfile(external_receipt, provenance_dest)
+    provenance = {
+        "path": "receipts/designcraft-provenance.json",
+        "sha256": sha256(provenance_dest),
+        "stage_id": editorial_provenance["stage_id"],
+        "artifact_hash": editorial_provenance["artifact_hash"],
+    }
     receipt = {
         "schema": SCHEMA, "repository": REPO, "run_id": run_id,
         "head_sha": head_sha, "domain": "WAVE",
@@ -196,8 +218,9 @@ def assemble(
         "all_seven_external_clis_executed": True,
         "artifacts": asset_receipts, "evidence": proof_receipts,
         "motion_frames": frame_receipts,
+        "designcraft_provenance": provenance,
     }
-    (target / "manifest.json").write_text(
+    (target / "integration_manifest.json").write_text(
         json.dumps(receipt, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
@@ -209,7 +232,7 @@ def verify_bundle(root: Path, *, run_id: str, head_sha: str) -> dict:
     _require_identity(run_id, head_sha)
     if not root.is_dir() or root.is_symlink():
         raise ValueError("SEVEN_TOOL_BUNDLE_DIRECTORY_INVALID")
-    manifest = json.loads(_safe_file(root, "manifest.json").read_text())
+    manifest = json.loads(_safe_file(root, "integration_manifest.json").read_text())
     if not isinstance(manifest, dict) or (
         manifest.get("schema") != SCHEMA
         or manifest.get("repository") != REPO
@@ -228,6 +251,7 @@ def verify_bundle(root: Path, *, run_id: str, head_sha: str) -> dict:
     artifacts = manifest.get("artifacts")
     evidence = manifest.get("evidence")
     frames = manifest.get("motion_frames")
+    prov = manifest.get("designcraft_provenance")
     if (
         not isinstance(artifacts, dict) or set(artifacts) != TOOLS
         or not isinstance(evidence, dict) or set(evidence) != TOOLS
@@ -246,6 +270,22 @@ def verify_bundle(root: Path, *, run_id: str, head_sha: str) -> dict:
                 raise ValueError("SEVEN_TOOL_MANIFEST_PATH_CHANGED:" + name)
             if sha256(_safe_file(root, expected)) != item["sha256"]:
                 raise ValueError("SEVEN_TOOL_MANIFEST_HASH_CHANGED:" + name)
+    if not isinstance(prov, dict) or set(prov) != {
+        "path", "sha256", "stage_id", "artifact_hash"
+    }:
+        raise ValueError("SEVEN_TOOL_DESIGNCRAFT_PROVENANCE_MISSING")
+    if (prov["path"] != "receipts/designcraft-provenance.json"
+        or prov["stage_id"] != f"artcraft-{run_id}-designcraft"
+        or prov["artifact_hash"] != artifacts["designcraft"]["sha256"]
+        or sha256(_safe_file(root, prov["path"])) != prov["sha256"]):
+        raise ValueError("SEVEN_TOOL_DESIGNCRAFT_PROVENANCE_MISMATCH")
+    record = json.loads(_safe_file(root, prov["path"]).read_text(encoding="utf-8"))
+    if (record.get("stage_id") != prov["stage_id"]
+        or record.get("artifact_hash") != prov["artifact_hash"]
+        or record.get("source_path") != "designcraft-layout.pdf"
+        or record.get("schema") != "HazewaveDesignCraftProvenance/v1"
+        or record.get("producer") != "designcraft"):
+        raise ValueError("SEVEN_TOOL_DESIGNCRAFT_RECEIPT_CHANGED")
     for i, item in enumerate(frames):
         expected = f"assets/sonic-portal-{i:02d}.png"
         if (
