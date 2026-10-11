@@ -1,3 +1,9 @@
+---
+import {verifiedSiteAssets} from "../../scripts/artcraft-build-gate.mjs";
+// The ONLY source for emitted ArtCraft URLs is the fully validated 7-tool bundle.
+// Absence, drift or private/unauthorized media terminates the production build.
+const artcraft = verifiedSiteAssets();
+---
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -124,6 +130,17 @@
 .copy-resonance{opacity:var(--copy-resonance,0);transform:translateY(var(--copy-resonance-y,0px))}
 @media(max-width:700px){.resonance-front{width:174vw;height:67svh}.resonance-fog{filter:blur(17px)}}
 @media(prefers-reduced-motion:reduce){.resonance-front,.resonance-fog,.resonance-ripple{will-change:auto}}
+
+/* Seven authentic ArtCraft outputs: composited only after receipt/sha admission.
+   Lab imagery is deliberately subtle; no synthetic frame claims owner approval. */
+#artcraft-chain{position:absolute;inset:0;pointer-events:none;z-index:3;overflow:hidden;isolation:isolate}
+.craft-plane{position:absolute;inset:0;background-position:center;background-repeat:no-repeat;background-size:cover;mix-blend-mode:screen;pointer-events:none;will-change:opacity,transform}
+.craft-photo{opacity:var(--craft-photo-opacity,.10);filter:blur(23px) saturate(.65);transform:scale(1.2)}
+.craft-grade{opacity:var(--craft-grade-opacity,.04);filter:blur(20px);transform:scale(1.25)}
+.craft-vector{opacity:var(--craft-vector-opacity,.11);background-size:contain;filter:blur(.7px) drop-shadow(0 0 18px #b48cff44)}
+.craft-editorial{opacity:var(--craft-editorial-opacity,0);background-size:contain;filter:blur(14px) saturate(.4)}
+.craft-motion{opacity:var(--craft-motion-opacity,0);background-size:contain;filter:blur(1px)}
+@media(prefers-reduced-motion:reduce){.craft-plane{will-change:auto}}
 </style>
 </head>
 <body data-experience="indionesbala-only">
@@ -132,6 +149,16 @@
 <section id="journey" aria-label="A onda percorre o universo Hazewave e revela Indionesbala">
 <div id="stage">
 <svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true"><filter id="indionesbala-background-key" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  1.1 .10 -.40 0 -.17"/></filter></svg>
+ <div id="artcraft-chain" aria-hidden="true" data-artcraft-validated="seven" data-artcraft-run={artcraft.manifest.run_id} data-artcraft-sha={artcraft.manifest.head_sha}
+   data-designcraft-pdf={artcraft.media.designcraft} data-filmcraft-qc={artcraft.media.filmcraft}
+   data-provenance-id={artcraft.manifest.designcraft_provenance.stage_id}>
+  <div class="craft-plane craft-photo" style={`background-image:url("${artcraft.media.photocraft}")`}></div>
+  <div class="craft-plane craft-grade" style={`background-image:url("${artcraft.media.lightcraft}")`}></div>
+  <div class="craft-plane craft-vector" style={`background-image:url("${artcraft.media.vectorcraft}")`}></div>
+  <div class="craft-plane craft-editorial" style={`background-image:url("${artcraft.media.pdfcraft}")`}></div>
+  <div id="craft-motion" class="craft-plane craft-motion" style={`background-image:url("${artcraft.frames[0]}")`}></div>
+ </div>
+ <script type="application/json" id="artcraft-approved-frames" set:html={JSON.stringify(artcraft.frames)}></script>
  <div class="cosmos" aria-hidden="true"></div><div class="depth-universe" aria-hidden="true"><div class="depth-plane far"></div><div class="depth-plane middle"></div><div class="depth-plane stars"></div><div class="depth-plane near"></div></div><div class="nebula" aria-hidden="true"></div><div class="nebula nebula-right" aria-hidden="true"></div>
  <div class="brand"><img id="hazewave-logo" fetchpriority="high" src="/media/hazewave-world.jpg" alt="HAZEWAVE" width="955" height="416"/></div>
  <div class="wave-field" aria-hidden="true"><svg viewBox="0 0 1440 900" preserveAspectRatio="none"><path class="signal-trail" pathLength="1" d="M-140 552 C210 540 343 630 470 501 S770 250 960 440 S1210 620 1540 380"/><path class="signal-mid" pathLength="1" d="M-140 544 C202 531 341 618 462 500 S782 267 960 434 S1202 615 1540 373"/><path class="signal-core" pathLength="1" d="M-140 538 C200 528 344 610 453 499 S770 279 960 426 S1213 604 1540 364"/></svg></div>
@@ -153,6 +180,11 @@
  "use strict";
  const section=document.querySelector('#journey'),stage=document.querySelector('#stage');
  const entry=document.getElementById('artist-entry');
+ const craft=document.getElementById('artcraft-chain');
+ const craftMotion=document.getElementById('craft-motion');
+ const craftFrames=JSON.parse(document.getElementById('artcraft-approved-frames').textContent);
+ if(!craft||!craftMotion||craftFrames.length!==8)throw Error('ARTCRAFT_MANIFEST_RUNTIME_MISSING');
+ let currentCraftFrame=-1;
  const clamp=(v)=>Math.max(0,Math.min(1,v));
  const smooth=(a,b,p)=>{const v=clamp((p-a)/(b-a));return v*v*(3-2*v)};
  const bell=(a,b,c,d,p)=>smooth(a,b,p)*(1-smooth(c,d,p));
@@ -165,6 +197,16 @@
   const extent=Math.max(1,section.offsetHeight-window.innerHeight);
   const p=clamp((window.scrollY-top)/extent); progress=p;
   const wave=smooth(.08,.37,p),ignite=smooth(.23,.58,p),arrival=smooth(.70,.94,p);
+  craft.style.setProperty('--craft-photo-opacity',(.05+.12*smooth(.05,.45,p)).toFixed(3));
+  craft.style.setProperty('--craft-grade-opacity',(.02+.13*bell(.27,.47,.66,.88,p)).toFixed(3));
+  craft.style.setProperty('--craft-vector-opacity',(.07+.21*bell(.12,.32,.67,.88,p)).toFixed(3));
+  craft.style.setProperty('--craft-editorial-opacity',(.07*bell(.48,.65,.81,.94,p)).toFixed(3));
+  craft.style.setProperty('--craft-motion-opacity',(.27*bell(.47,.64,.81,.94,p)).toFixed(3));
+  const index=Math.max(0,Math.min(7,Math.floor(smooth(.40,.86,p)*7.999)));
+  if(index!==currentCraftFrame){
+    craftMotion.style.backgroundImage='url("'+craftFrames[index]+'")';
+    currentCraftFrame=index;
+  }
   set('drift',(p*-74).toFixed(2));set('lift',(p*-34).toFixed(2));set('breath',(1+p*.12).toFixed(3));
   set('mist-x',(p*-92).toFixed(2)+'px');set('mist-right',(p*135).toFixed(2)+'px');set('nebula-opacity',(.26+bell(.18,.40,.67,.91,p)*.42).toFixed(3));
    const crossing=smooth(.09,.64,p),rupture=bell(.47,.64,.77,.94,p),gateway=bell(.59,.74,.84,.985,p);
