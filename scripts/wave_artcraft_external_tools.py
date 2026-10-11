@@ -200,7 +200,7 @@ def write_designcraft_provenance(root: Path, *, stage_id: str) -> Path:
         "project": "zenindiones-maker/Hazewave-",
         "authority": "NONE",
     }
-    receipt.write_text(json.dumps(info, indent=2, sort_keys=True) + "\\n", encoding="utf-8")
+    receipt.write_text(json.dumps(info, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return receipt
 
 
@@ -225,7 +225,7 @@ def verify_designcraft_provenance(root: Path, *, receipt: Path, stage_id: str) -
         or not isinstance(data["artifact_hash"], str)
         or not re.fullmatch(r"[0-9a-f]{64}", data["artifact_hash"])
         or not isinstance(data["timestamp"], str)
-        or not re.fullmatch(r"\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ", data["timestamp"])):
+        or not re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", data["timestamp"])):
         raise ValueError("PDFCRAFT_DESIGNCRAFT_RECEIPT_INVALID")
     try:
         datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
