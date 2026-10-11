@@ -1,0 +1,49 @@
+desc:Hazewave FyahTape (original clean-room tape machine model)
+// Copyright (c) 2026 Fyah Records / Hazewave. MIT License.
+// Original DSP written from public magnetic-recording knowledge. No third-party code.
+slider1:0<-24,24,0.1>Input drive (dB)
+slider2:0<-24,24,0.1>Output (dB)
+slider3:1<0,2,1{7.5 ips,15 ips,30 ips}>Speed
+slider4:50<0,100,1>Bias %
+slider5:20<0,100,1>Wow & flutter %
+slider6:-70<-100,-40,0.5>Hiss (dB)
+slider7:100<0,100,1>Mix %
+in_pin:left input
+in_pin:right input
+out_pin:left output
+out_pin:right output
+@init
+function tanh(x) local(e) (e=exp(2*max(min(x,20),-20)); (e-1)/(e+1););
+buf = 0; bsz = 4096; wp = 0; ph1 = ph2 = 0; m0 = m1 = 0;
+function bq_set(b0_,b1_,b2_,a1_,a2_) instance(b0,b1,b2,a1,a2) (b0=b0_;b1=b1_;b2=b2_;a1=a1_;a2=a2_;);
+function bq(x) instance(b0,b1,b2,a1,a2,z1,z2) local(y) (y=b0*x+z1; z1=b1*x-a1*y+z2; z2=b2*x-a2*y; y;);
+function peak(f,q,db) local(A,w,al,a0) (A=10^(db/40); w=2*$pi*f/srate; al=sin(w)/(2*q); a0=1+al/A;
+ this.bq_set((1+al*A)/a0,-2*cos(w)/a0,(1-al*A)/a0,-2*cos(w)/a0,(1-al/A)/a0););
+function lp(f,q) local(w,al,a0,c) (w=2*$pi*min(f,0.45*srate)/srate; al=sin(w)/(2*q); c=cos(w); a0=1+al;
+ this.bq_set((1-c)/2/a0,(1-c)/a0,(1-c)/2/a0,-2*c/a0,(1-al)/a0););
+function hp(f) local(w,al,a0,c) (w=2*$pi*f/srate; al=sin(w)/(2*0.707); c=cos(w); a0=1+al;
+ this.bq_set((1+c)/2/a0,-(1+c)/a0,(1+c)/2/a0,-2*c/a0,(1-al)/a0););
+@slider
+drv = 10^(slider1/20); outg = 10^(slider2/20);
+slider3==0 ? (bf=45; bdb=3.0; hf=9000) : slider3==1 ? (bf=65; bdb=2.5; hf=16000) : (bf=110; bdb=2.0; hf=22000);
+bl.peak(bf,1.0,bdb); br.peak(bf,1.0,bdb); ll.lp(hf,0.6); lr.lp(hf,0.6);
+dl.hp(bf*0.35); dr.hp(bf*0.35);
+bias = slider4/100; alpha = 0.6*(1-bias); rate = 0.25 + 0.75*bias; // less bias = more memory/hysteresis
+wf = slider5/100; hiss = 10^(slider6/20); mix = slider7/100;
+@sample
+xl = spl0; xr = spl1;
+// hysteresis-style magnetisation: tanh with state feedback and slew memory
+m0 += (tanh(drv*xl + alpha*m0) - m0)*rate;
+m1 += (tanh(drv*xr + alpha*m1) - m1)*rate;
+yl = m0*(1-alpha)/drv; yr = m1*(1-alpha)/drv;
+// wow (0.6 Hz) + flutter (7 Hz) via modulated delay
+buf[wp] = yl; buf[wp+bsz] = yr;
+ph1 += 0.6/srate; ph2 += 7/srate; ph1 -= floor(ph1); ph2 -= floor(ph2);
+d = 0.002*srate + wf*(0.0015*srate*sin(2*$pi*ph1) + 0.0002*srate*sin(2*$pi*ph2));
+rp = wp - d; rp < 0 ? rp += bsz; i = floor(rp); fr = rp - i; j = (i+1)%bsz;
+yl = buf[i]*(1-fr) + buf[j]*fr; yr = buf[i+bsz]*(1-fr) + buf[j+bsz]*fr;
+wp = (wp+1)%bsz;
+yl = dl.bq(ll.bq(bl.bq(yl))) + hiss*(rand(2)-1);
+yr = dr.bq(lr.bq(br.bq(yr))) + hiss*(rand(2)-1);
+spl0 = (yl*mix + xl*(1-mix))*outg;
+spl1 = (yr*mix + xr*(1-mix))*outg;
