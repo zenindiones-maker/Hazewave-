@@ -1,0 +1,82 @@
+name: RECON-REVENG-002 Native E2E Proof
+
+on:
+  pull_request:
+    paths:
+      - "src/hazewave/re_inspectors.py"
+      - "src/hazewave/harness.py"
+      - "tests/test_recon_reveng_002.py"
+      - "scripts/recon_reveng_002_proof.py"
+      - ".github/workflows/recon-reveng-002-proof.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inspector-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Hazewave and video proof dependency
+        run: python -m pip install -e ".[dev]" "Pillow==11.3.0"
+      - name: Install Ubuntu FFmpeg and FFprobe (no paid runner)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          ffmpeg -version | head -n 1
+      - name: Tier 1 deterministic tests
+        run: python -m pytest tests/test_recon_reveng_002.py -q
+      - name: Produce controlled real MP4 and WAV using FFmpeg
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          command -v ffmpeg
+          ffmpeg -hide_banner -nostdin -loglevel error -y \
+            -f lavfi -i 'testsrc2=size=320x180:rate=12' \
+            -t 2 -c:v mpeg4 -q:v 4 -an -movflags +faststart \
+            evidence/unknown-sample.mp4
+          ffmpeg -hide_banner -nostdin -loglevel error -y \
+            -f lavfi -i 'sine=frequency=440:sample_rate=48000' \
+            -t 2 -c:a pcm_s16le -ac 1 evidence/tone.wav
+          ffprobe -v error -show_entries format=format_name,duration,size \
+            -of json evidence/unknown-sample.mp4 | tee evidence/ffprobe_comparison.json
+          sha256sum evidence/unknown-sample.mp4 evidence/tone.wav \
+            | tee evidence/input_sha256.txt
+      - name: Execute five inspectors and issue verified receipts
+        run: |
+          set -euo pipefail
+          python scripts/recon_reveng_002_proof.py --evidence-dir evidence --video \
+            | tee evidence/proof_summary.json
+      - name: Verify precisely 30s MP4 video with independent ffprobe
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          p=Path("evidence/RECON_REVENG_002_REAL_EVIDENCE_30S.mp4")
+          doc=json.loads(subprocess.check_output(
+              ["ffprobe","-v","error","-show_entries","format=duration",
+               "-of","json",str(p)], text=True))
+          duration=float(doc["format"]["duration"])
+          assert abs(duration-30.0)<0.05, duration
+          ledger=[json.loads(line) for line in Path("evidence/RE_EXECUTION_LEDGER.jsonl").read_text().splitlines()]
+          assert len(ledger)==5
+          assert len({x["capability"] for x in ledger})==5
+          assert all(x["receipt"]["status"]=="EXECUTED_READ_ONLY" for x in ledger)
+          print(json.dumps({"video_duration":duration,"ledger_entries":len(ledger),
+                            "proof_kind":"CI_EXECUTION_REPLAY_NOT_TERMINAL_SCREEN_CAPTURE"}))
+          PY
+      - name: Upload immutable run-scoped evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recon-reveng-002-real-evidence
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
