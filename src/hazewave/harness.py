@@ -24,6 +24,7 @@ _CAPABILITY_DOMAINS: Final[dict[str, str]] = {
     "audio.reason": HAZE,
     "audio.describe": HAZE,
     "audio.structure": HAZE,
+    "audio.sample_to_midi": HAZE,
     "visual.render": WAVE,
     "visual.image": WAVE,
     "visual.video": WAVE,
