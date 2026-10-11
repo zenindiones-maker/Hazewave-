@@ -189,5 +189,43 @@ class ArtCraftSevenContract(unittest.TestCase):
                 module.verify("pdfcraft", root, task_id="artcraft-ci-pdfcraft")
 
 
+    def test_designcraft_receipt_has_exact_stage_hash_timestamp_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pdf = root / "designcraft-layout.pdf"
+            pdf.write_bytes(b"%PDF-1.7\\n" + b"A" * 210 + b"\\n%%EOF")
+            stage_id = "artcraft-1234567890-designcraft"
+            module.write_designcraft_provenance(root, stage_id=stage_id)
+            data = json.loads((root / "receipt.json").read_text())
+            self.assertEqual(data["stage_id"], stage_id)
+            self.assertEqual(data["artifact_hash"], module.sha256(pdf))
+            self.assertEqual(data["source_path"], "designcraft-layout.pdf")
+            self.assertTrue(data["timestamp"].endswith("Z"))
+            module.verify_designcraft_provenance(
+                root, receipt=root / "receipt.json", stage_id=stage_id
+            )
+            pdf.write_bytes(pdf.read_bytes() + b"MUTATED")
+            with self.assertRaises(ValueError):
+                module.verify_designcraft_provenance(
+                    root, receipt=root / "receipt.json", stage_id=stage_id
+                )
+
+    def test_pdfcraft_cli_hard_fails_without_explicit_provenance_flags(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            exe = root / "pdfcraft-cli"
+            exe.write_bytes(b"this is not executed")
+            with patch.object(module, "run_one") as run:
+                with self.assertRaises((ValueError, PermissionError)):
+                    module.smoke(
+                        "pdfcraft", exe, root,
+                        task_id="artcraft-1234567890-pdfcraft",
+                        upstream_task_id="artcraft-1234567890-designcraft",
+                        provenance_receipt=None, provenance_id=None,
+                    )
+                run.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
