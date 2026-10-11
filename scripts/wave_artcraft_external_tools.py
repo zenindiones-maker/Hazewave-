@@ -13,6 +13,7 @@ a bounded writable temporary mount. No app is installed into the site or A15.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -178,6 +179,66 @@ def verify_pdf(path: Path) -> None:
     if not path.open("rb").read(5) == b"%PDF-":
         raise ValueError("ARTCRAFT_OUTPUT_NOT_PDF")
 
+def write_designcraft_provenance(root: Path, *, stage_id: str) -> Path:
+    """Write an independent, explicit PDF producer receipt (not a bearer credential)."""
+    admit_artcraft(task_id=stage_id, tool="designcraft",
+                   data_classification="PUBLIC", requested_domain="WAVE")
+    pdf = root / "designcraft-layout.pdf"
+    if pdf.is_symlink():
+        raise ValueError("DESIGNCRAFT_PDF_SYMLINK_FORBIDDEN")
+    verify_pdf(pdf)
+    receipt = root / "receipt.json"
+    if receipt.exists() or receipt.is_symlink():
+        raise ValueError("DESIGNCRAFT_RECEIPT_ALREADY_EXISTS")
+    info = {
+        "schema": "HazewaveDesignCraftProvenance/v1",
+        "producer": "designcraft",
+        "stage_id": stage_id,
+        "artifact_hash": sha256(pdf),
+        "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "source_path": "designcraft-layout.pdf",
+        "project": "zenindiones-maker/Hazewave-",
+        "authority": "NONE",
+    }
+    receipt.write_text(json.dumps(info, indent=2, sort_keys=True) + "\\n", encoding="utf-8")
+    return receipt
+
+
+def verify_designcraft_provenance(root: Path, *, receipt: Path, stage_id: str) -> dict:
+    """Hard fail BEFORE PdfCraft invocation on unbound receipt, path or digest."""
+    expected = root / "receipt.json"
+    if (root.is_symlink() or receipt.is_symlink() or not receipt.is_file()
+        or receipt.resolve(strict=True) != expected.resolve(strict=False)):
+        raise ValueError("PDFCRAFT_PROVENANCE_RECEIPT_REQUIRED_AT_BOUND_PATH")
+    admit_artcraft(task_id=stage_id, tool="designcraft",
+                   data_classification="PUBLIC", requested_domain="WAVE")
+    data = json.loads(receipt.read_text(encoding="utf-8"))
+    if (not isinstance(data, dict)
+        or set(data) != {"schema", "producer", "stage_id", "artifact_hash",
+                          "timestamp", "source_path", "project", "authority"}
+        or data["schema"] != "HazewaveDesignCraftProvenance/v1"
+        or data["producer"] != "designcraft"
+        or data["stage_id"] != stage_id
+        or data["source_path"] != "designcraft-layout.pdf"
+        or data["project"] != "zenindiones-maker/Hazewave-"
+        or data["authority"] != "NONE"
+        or not isinstance(data["artifact_hash"], str)
+        or not re.fullmatch(r"[0-9a-f]{64}", data["artifact_hash"])
+        or not isinstance(data["timestamp"], str)
+        or not re.fullmatch(r"\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ", data["timestamp"])):
+        raise ValueError("PDFCRAFT_DESIGNCRAFT_RECEIPT_INVALID")
+    try:
+        datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
+    except ValueError as err:
+        raise ValueError("PDFCRAFT_PROVENANCE_TIME_INVALID") from err
+    source = root / data["source_path"]
+    if source.is_symlink():
+        raise ValueError("PDFCRAFT_PROVENANCE_PDF_SYMLINK")
+    verify_pdf(source)
+    if sha256(source) != data["artifact_hash"]:
+        raise ValueError("PDFCRAFT_PROVENANCE_HASH_MISMATCH")
+    return data
+
 
 def select_image_input(name: str, root: Path, *, upstream_task_id: str | None) -> Path:
     """PhotoCraft→LightCraft sequential handoff; never read an unverified artifact."""
@@ -199,7 +260,9 @@ def select_image_input(name: str, root: Path, *, upstream_task_id: str | None) -
 
 
 def smoke(name: str, executable: Path, root: Path, *, task_id: str,
-          upstream_task_id: str | None = None) -> Path:
+          upstream_task_id: str | None = None,
+          provenance_receipt: Path | None = None,
+          provenance_id: str | None = None) -> Path:
     if name not in {"photocraft", "lightcraft", "designcraft", "pdfcraft"}:
         raise ValueError("SMOKE_ONLY_NEW_FOUR")
     admission = admit_artcraft(task_id=task_id, tool=name,
@@ -215,7 +278,14 @@ def smoke(name: str, executable: Path, root: Path, *, task_id: str,
     elif name == "pdfcraft":
         if upstream_task_id is None:
             raise ValueError("PDFCRAFT_DESIGNCRAFT_TASK_REQUIRED")
+        if provenance_receipt is None or provenance_id is None:
+            raise ValueError("PDFCRAFT_PROVENANCE_FLAGS_REQUIRED")
+        if provenance_id != upstream_task_id:
+            raise ValueError("PDFCRAFT_PROVENANCE_ID_MISMATCH")
         verify("designcraft", root, task_id=upstream_task_id)
+        verify_designcraft_provenance(
+            root, receipt=provenance_receipt, stage_id=provenance_id
+        )
         input_png = root / "designcraft-layout.pdf"
         verify_pdf(input_png)
     else:
@@ -249,6 +319,8 @@ def smoke(name: str, executable: Path, root: Path, *, task_id: str,
         verify_png(target)
     if name in {"photocraft", "lightcraft"} and sha256(target) == sha256(input_png):
         raise ValueError("ARTCRAFT_EXPECTED_PIXEL_CHANGE_MISSING")
+    if name == "designcraft":
+        write_designcraft_provenance(root, stage_id=task_id)
     receipt = {
         "schema": "HazewaveArtCraftExternalRealSmoke/v1",
         "project": "zenindiones-maker/Hazewave-",
@@ -273,7 +345,9 @@ def smoke(name: str, executable: Path, root: Path, *, task_id: str,
 
 
 def verify(name: str, root: Path, *, task_id: str,
-           upstream_task_id: str | None = None) -> None:
+           upstream_task_id: str | None = None,
+           provenance_receipt: Path | None = None,
+           provenance_id: str | None = None) -> None:
     data = json.loads((root / (name + "-receipt.json")).read_text())
     if (data.get("schema") != "HazewaveArtCraftExternalRealSmoke/v1"
         or data.get("tool") != name or data.get("authority") != "NONE"
@@ -309,11 +383,19 @@ def verify(name: str, root: Path, *, task_id: str,
     elif name == "pdfcraft":
         if upstream_task_id is None:
             raise ValueError("PDFCRAFT_DESIGNCRAFT_TASK_REQUIRED")
+        if provenance_receipt is None or provenance_id != upstream_task_id:
+            raise ValueError("PDFCRAFT_PROVENANCE_FLAGS_REQUIRED_OR_ID_MISMATCH")
         verify("designcraft", root, task_id=upstream_task_id)
+        verify_designcraft_provenance(
+            root, receipt=provenance_receipt, stage_id=provenance_id
+        )
         if (data.get("input") != "designcraft-layout.pdf"
             or sha256(root / "designcraft-layout.pdf") != data.get("input_sha256")):
             raise ValueError("PDFCRAFT_LAYOUT_PROVENANCE_DRIFT")
     elif name == "designcraft":
+        verify_designcraft_provenance(
+            root, receipt=root / "receipt.json", stage_id=task_id
+        )
         if upstream_task_id is not None:
             raise ValueError("DESIGNCRAFT_MUST_PRECEDE_PDFCRAFT")
         if (data.get("input") != "hazewave-synthetic-signal.png"
@@ -353,6 +435,8 @@ def main() -> None:
         p.add_argument("name", choices=sorted(NAMES))
         p.add_argument("--task-id", required=True)
         p.add_argument("--upstream-task-id")
+        p.add_argument("--provenance-receipt", type=Path)
+        p.add_argument("--provenance-id")
         if action == "smoke":
             p.add_argument("executable", type=Path)
         p.add_argument("output", type=Path)
@@ -378,10 +462,14 @@ def main() -> None:
     elif args.action == "smoke":
         print("ARTCRAFT_SMOKE_RECEIPT=" + str(smoke(args.name, args.executable, args.output,
                                                            task_id=args.task_id,
-                                                           upstream_task_id=args.upstream_task_id)))
+                                                           upstream_task_id=args.upstream_task_id,
+                                                           provenance_receipt=args.provenance_receipt,
+                                                           provenance_id=args.provenance_id)))
     elif args.action == "verify":
         verify(args.name, args.output, task_id=args.task_id,
-               upstream_task_id=args.upstream_task_id)
+               upstream_task_id=args.upstream_task_id,
+               provenance_receipt=args.provenance_receipt,
+               provenance_id=args.provenance_id)
         print("ARTCRAFT_REAL_OUTPUT_VERIFIED=" + args.name)
 
 
