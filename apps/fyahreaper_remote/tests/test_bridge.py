@@ -138,3 +138,32 @@ def test_server_maps_connection_loss_to_503():
     tok='x'*32;c=TestClient(app_factory(ReaperBridge(api=dead,reconnect=boom),tok))
     r=c.get('/health',headers={'Authorization':'Bearer '+tok})
     assert r.status_code==503
+
+def test_hung_reaper_call_times_out_503_marks_stale_and_recovers():
+    import threading, time
+    from reahub_server import app_factory
+    from fastapi.testclient import TestClient
+    release=threading.Event()
+    hung=RPR();hung.GetAppVersion=lambda:(release.wait(5),'7.82')[1]
+    fresh=RPR();calls=[]
+    b=ReaperBridge(api=hung,reconnect=lambda:(calls.append(1),fresh)[1])
+    tok='y'*32;c=TestClient(app_factory(b,tok,call_timeout=0.3));H={'Authorization':'Bearer '+tok}
+    t0=time.time();r=c.get('/health',headers=H)
+    assert r.status_code==503 and r.json()['detail']=='REAPER_TIMEOUT' and time.time()-t0<2
+    r=c.get('/health',headers=H)
+    assert r.status_code==200 and r.json()['reaper_connected'] and calls==[1]
+    release.set()
+
+def test_mutations_stay_serialized():
+    import threading, time
+    from reahub_server import app_factory
+    from fastapi.testclient import TestClient
+    api=RPR();active=[0];peak=[0]
+    orig=api.SetMediaTrackInfo_Value
+    def slow(*a):
+        active[0]+=1;peak[0]=max(peak[0],active[0]);time.sleep(0.05);active[0]-=1;return orig(*a)
+    api.SetMediaTrackInfo_Value=slow
+    tok='z'*32;c=TestClient(app_factory(ReaperBridge(api=api),tok,call_timeout=5));H={'Authorization':'Bearer '+tok}
+    ts=[threading.Thread(target=lambda:c.patch('/api/tracks/{source}',json={'mute':True},headers=H)) for _ in range(6)]
+    [t.start() for t in ts];[t.join() for t in ts]
+    assert peak[0]==1

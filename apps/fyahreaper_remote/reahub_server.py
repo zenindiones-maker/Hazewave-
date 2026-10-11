@@ -7,7 +7,8 @@ from __future__ import annotations
 import asyncio
 import hmac
 import os
-from threading import RLock
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+from threading import Lock
 from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
@@ -42,11 +43,16 @@ class TrackPatch(BaseModel):
         return self
 
 
-def app_factory(studio, token: str) -> FastAPI:
+def app_factory(studio, token: str, call_timeout: float | None = None) -> FastAPI:
     if len(token) < 24:
         raise ValueError('FYAH_REMOTE_TOKEN must contain at least 24 characters')
     app = FastAPI(title='FyahReaper ReaHub', version='0.1.0')
-    lock = RLock()
+    lock = Lock()
+    timeout = float(call_timeout if call_timeout is not None else os.environ.get('FYAH_REAPER_TIMEOUT', '8'))
+    # One dedicated worker: REAPER calls stay strictly serialized. If REAPER blocks
+    # (modal dialog), the stuck worker is abandoned, a fresh one is created and the
+    # bridge is marked stale so its next call reconnects first.
+    worker = {'pool': ThreadPoolExecutor(max_workers=1, thread_name_prefix='reaper')}
 
     def authenticate(authorization: Annotated[str | None, Header()] = None):
         expected = 'Bearer ' + token
@@ -54,9 +60,20 @@ def app_factory(studio, token: str) -> FastAPI:
             raise HTTPException(401, 'UNAUTHORIZED', headers={'WWW-Authenticate':'Bearer'})
 
     def guarded(method, *args):
-        with lock:
+        if not lock.acquire(timeout=timeout):
+            raise HTTPException(503, 'REAPER_BUSY')
+        try:
+            future = worker['pool'].submit(method, *args)
             try:
-                return method(*args)
+                return future.result(timeout=timeout)
+            except FutureTimeout as exc:
+                stuck = worker['pool']
+                worker['pool'] = ThreadPoolExecutor(max_workers=1, thread_name_prefix='reaper')
+                stuck.shutdown(wait=False, cancel_futures=True)
+                mark = getattr(studio, 'mark_stale', None)
+                if mark:
+                    mark()
+                raise HTTPException(503, 'REAPER_TIMEOUT') from exc
             except KeyError as exc:
                 raise HTTPException(404, 'TRACK_NOT_FOUND') from exc
             except ValueError as exc:
@@ -65,6 +82,8 @@ def app_factory(studio, token: str) -> FastAPI:
                 raise HTTPException(503, str(exc) or 'REAPER_NOT_READY') from exc
             except OSError as exc:
                 raise HTTPException(503, 'REAPER_CONNECTION_LOST') from exc
+        finally:
+            lock.release()
 
     @app.get('/health', dependencies=[Depends(authenticate)])
     async def health():
@@ -95,8 +114,11 @@ def app_factory(studio, token: str) -> FastAPI:
         await socket.accept()
         try:
             while True:
-                status = await run_in_threadpool(guarded, studio.health)
-                await socket.send_json({'type': 'transport', **status})
+                try:
+                    status = await run_in_threadpool(guarded, studio.health)
+                    await socket.send_json({'type': 'transport', **status})
+                except HTTPException as exc:
+                    await socket.send_json({'type': 'error', 'status': exc.status_code, 'detail': exc.detail})
                 await asyncio.sleep(0.5)
         except (WebSocketDisconnect, RuntimeError):
             return

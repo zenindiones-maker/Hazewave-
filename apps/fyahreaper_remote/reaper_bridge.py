@@ -50,9 +50,21 @@ class ReaperBridge:
         from reapy import reascript_api
         return reascript_api
 
+    def mark_stale(self):
+        """Called by ReaHub after a call timed out: reconnect before the next call."""
+        self._stale = True
+
     def _guarded(self, fn, *args, retry=False):
         """Turn transport failures into typed errors; reconnect for the next call.
         Only read-only calls are retried, so a mutation is never applied twice."""
+        if getattr(self, '_stale', False) and self._reconnect is not None:
+            try:
+                api = self._reconnect()
+                if api is not None:
+                    self.r = api
+                self._stale = False
+            except Exception as exc:
+                raise RuntimeError('REAPER_CONNECTION_LOST') from exc
         try:
             return fn(*args)
         except (OSError, EOFError) as exc:
