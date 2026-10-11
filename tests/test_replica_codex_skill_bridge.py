@@ -25,7 +25,7 @@ def test_codex_discovery_and_claude_origin(name):
     assert "HAZEWAVE_HARNESS" in text
     assert f".claude/skills/replica-{name}/SKILL.md" in text
     assert (ORIGINAL / f"replica-{name}" / "SKILL.md").is_file()
-    assert "/replica-" not in text
+    assert "Interpret any" in text
     assert "$replica-" in text
 
 
