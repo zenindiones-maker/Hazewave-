@@ -1,0 +1,49 @@
+name: FYAHGRABBER REAPER source and contracts
+
+on:
+  pull_request:
+    paths:
+      - "reaper/FyahGrabber/**"
+      - "tests/fyahgrabber_core_smoke.lua"
+      - "scripts/fyahgrabber-install-existing-haze-workstation.sh"
+      - "scripts/fyahgrabber-reaper-host-e2e-existing-workstation.sh"
+      - ".github/workflows/fyahgrabber-reaper-gates.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  source-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install official Lua interpreter for native syntax checks
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lua5.4
+      - name: REAPER Lua parser checks
+        run: |
+          set -euo pipefail
+          find reaper/FyahGrabber -name '*.lua' -print0 | xargs -0 -n1 luac5.4 -p
+          lua5.4 tests/fyahgrabber_core_smoke.lua reaper/FyahGrabber
+      - name: Sidecar compile and shell syntax
+        run: |
+          set -euo pipefail
+          python3 -m py_compile reaper/FyahGrabber/fyahgrabber_analyze.py
+          bash -n scripts/fyahgrabber-install-existing-haze-workstation.sh
+          bash -n scripts/fyahgrabber-reaper-host-e2e-existing-workstation.sh
+      - name: Exact project isolation contract
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("scripts/fyahgrabber-install-existing-haze-workstation.sh").read_text()
+          assert "hazewave-zero-cost-4jxp45676rq6279xx" in s
+          assert "/home/vscode/.local/opt/reaper/7.82/REAPER/reaper" in s
+          assert "git -C \"$REPO\" archive" in s
+          assert 'before_status=' in s and 'after_status=' in s
+          assert "sudo " not in s and "rm -rf \"$REPO\"" not in s
+          print("FYAH_WORKSTATION_SCOPE=PASS")
+          PY

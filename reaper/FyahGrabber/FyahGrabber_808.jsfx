@@ -1,0 +1,70 @@
+// @description FyahGrabber 808 Instrument
+// @version 0.1.0
+// @author Hazewave
+// @about Original MIT monophonic 808-style synthesizer, generated from MIDI.
+// @changelog
+//   Initial pitch envelope, amplitude envelope and saturation.
+desc:FyahGrabber 808 Instrument
+tags:instrument bass 808 midi
+in_pin:none
+out_pin:Left output
+out_pin:Right output
+
+slider1:0.65<0,1,0.01>Output level
+slider2:320<60,1500,1>Decay time (ms)
+slider3:18<0,36,0.5>Pitch drop (semitones)
+slider4:45<8,150,1>Pitch glide (ms)
+slider5:0.25<0,1,0.01>Drive
+slider6:35<20,80,1>Pitch floor (Hz)
+
+@init
+voice_on=0;
+midi_note=-1;
+velocity=0;
+phase=0;
+age=0;
+release_gain=1;
+
+@block
+while(midirecv(offset,status,data1,data2)) (
+  msg=status&240;
+  msg==144 && data2>0 ? (
+    midi_note=data1;
+    base_hz=max(slider6, 440*2^((midi_note-69)/12));
+    velocity=data2/127;
+    voice_on=1;
+    phase=0;
+    age=0;
+    release_gain=1;
+  ) : (
+    (msg==128 || (msg==144 && data2==0)) && data1==midi_note ? (
+      release_gain=0.75;
+    ) : (
+      msg==176 && data1==123 ? voice_on=0 : midisend(offset,status,data1,data2);
+    );
+  );
+);
+
+@sample
+voice_on ? (
+  decay_samples=max(1, slider2*0.001*srate);
+  glide_samples=max(1, slider4*0.001*srate);
+  drop=slider3*exp(-age/glide_samples);
+  hz=min(srate*.45,base_hz*2^(drop/12));
+  phase+=2*$pi*hz/srate;
+  phase>2*$pi ? phase-=2*$pi;
+  envelope=exp(-age/decay_samples);
+  release_gain<1 ? release_gain*=0.995;
+  signal=sin(phase)*envelope*velocity*release_gain;
+  click=age<(.004*srate) ? (1-age/(.004*srate))*0.10 : 0;
+  signal+=(click*velocity*envelope);
+  signal=signal/(1+abs(signal)*slider5*8);
+  signal*=slider1*.8;
+  spl0=signal;
+  spl1=signal;
+  age+=1;
+  envelope<.0001 || release_gain<.0002 ? voice_on=0;
+) : (
+  spl0=0;
+  spl1=0;
+);
