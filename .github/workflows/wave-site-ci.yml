@@ -39,6 +39,12 @@ permissions:
   contents: read
 
 jobs:
+  wave-artcraft-e2e:
+    name: Seven Craft CLIs + manifesto obrigatório + navegador
+    uses: ./.github/workflows/wave-artcraft-seven-integrated-proof.yml
+    permissions:
+      contents: read
+
   repository-contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -67,6 +73,7 @@ jobs:
         run: pytest
 
   build-and-browser-test:
+    needs: [wave-artcraft-e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -84,7 +91,25 @@ jobs:
         with:
           node-version: "24"
 
-      - name: One-command clean install, build, live preview and Chromium E2E
+      - name: Download SAME RUN fully verified seven-Craft integration manifest
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: hazewave-seven-artcraft-integrated-lab-${{ github.run_id }}
+          path: ${{ runner.temp }}/wave-site-seven-artcraft
+
+      - name: Pin exact SHA, run and external bundle for EVERY site build
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "HAZEWAVE_ARTCRAFT_BUNDLE=$RUNNER_TEMP/wave-site-seven-artcraft" >> "$GITHUB_ENV"
+          echo "HAZEWAVE_ARTCRAFT_RUN_ID=${{ github.run_id }}" >> "$GITHUB_ENV"
+          echo "HAZEWAVE_ARTCRAFT_HEAD_SHA=${{ github.event.pull_request.head.sha || github.sha }}" >> "$GITHUB_ENV"
+          node scripts/artcraft-build-gate.mjs verify \
+            --bundle "$RUNNER_TEMP/wave-site-seven-artcraft" \
+            --run-id "${{ github.run_id }}" \
+            --head-sha "${{ github.event.pull_request.head.sha || github.sha }}"
+
+      - name: One-command clean install, manifest-gated build and real Chromium E2E
         run: bash ../../scripts/verify.sh
 
       - name: Preserve static runtime

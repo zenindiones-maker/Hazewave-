@@ -3,6 +3,7 @@ import sharp from "sharp";
 import {readFile,writeFile,readdir} from "node:fs/promises";
 import {resolve,join} from "node:path";
 import {createHash} from "node:crypto";
+import {validateArtcraftBundle} from "./artcraft-build-gate.mjs";
 const dist=resolve("dist");
 const original=await readFile(join(dist,"media/hazewave-world.jpg"));
 if(createHash("sha256").update(original).digest("hex")!=="0e89d371159947552a0c1ff5d36e856868680a03756a88d16a2c230dea1764ab")throw Error("HAZEWAVE_MASTER_SHA_DRIFT");
@@ -52,6 +53,21 @@ if(process.env.HAZEWAVE_TEST_EXPERIMENTS!=="1"){
  }
  await walk(dist);
  const approved=[/^index\.html$/,/^artists\/indionesbala\/index\.html$/,/^media\/artists\/indionesbala\.jpg$/,/^media\/artists\/indionesbala-signature-(160|400)\.webp$/,/^media\/hazewave-world\.jpg$/,/^media\/hazewave-hero-(440|1024)\.webp$/,/^_astro\/index\.[^.]+\.css$/,/^_astro\/_id_\.[^.]+\.css$/];
- if(observed.length!==10||observed.some(x=>!approved.some(re=>re.test(x))))throw Error("UNAPPROVED_DIST_OUTPUT:"+observed.join(","));
+ // Preserve the original ten-file artist/hero distribution baseline. Extend
+ // ONLY with entries from the already verified seven-Craft manifest, never
+ // with arbitrary generated media, prototypes or folders.
+ const manifest=validateArtcraftBundle().manifest;
+ const allowArtcraft=new Set([
+   "integration_manifest.json",
+   ...Object.values(manifest.artifacts).map(x=>"artcraft/"+x.path),
+   ...Object.values(manifest.evidence).map(x=>"artcraft/"+x.path),
+   ...manifest.motion_frames.map(x=>"artcraft/"+x.path),
+   "artcraft/"+manifest.designcraft_provenance.path,
+ ]);
+ const missing=[...allowArtcraft].filter(x=>!observed.includes(x));
+ const unexpected=observed.filter(x=>!approved.some(re=>re.test(x))&&!allowArtcraft.has(x));
+ if(missing.length||unexpected.length||observed.length!==10+allowArtcraft.size)
+   throw Error("UNAPPROVED_DIST_OUTPUT:"+JSON.stringify({missing,unexpected,count:observed.length}));
+ console.log("HAZEWAVE_ARTCRAFT_OPTIMIZED_HERO_MANIFEST_WHITELIST=PASS");
 }
 console.log("HAZEWAVE_MASTER_PRESERVED_AND_RESPONSIVE_WEBP=PASS");

@@ -1,16 +1,21 @@
 name: WAVE VectorCraft Real CLI Proof
 on:
+  workflow_call:
   pull_request:
     paths:
       - "apps/hazewave-site/experiments/travessia-v4/artcraft_vector_bridge.py"
       - "apps/hazewave-site/experiments/travessia-v4/index.html"
       - "tests/test_wave_artcraft_vector_bridge.py"
       - ".github/workflows/wave-vectorcraft-real-cli-proof.yml"
+      - "scripts/wave_artcraft_external_tools.py"
+      - "scripts/wave_artcraft-seven-lock.json"
+      - "src/hazewave/wave_artcraft.py"
+      - "tests/test_wave_artcraft_external_tools.py"
 
 permissions:
   contents: read
 concurrency:
-  group: vectorcraft-real-proof-${{ github.event.pull_request.number || github.ref }}
+  group: vectorcraft-real-proof-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -71,6 +76,15 @@ jobs:
               (directory/"CLI_SHA256").write_text(digest+"\n")
               print("HAZEWAVE_VECTOCRAFT_BINARY_SHA256="+digest)
           PY
+
+      - name: Admit pinned VectorCraft via Hazewave Harness only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p 'test_wave_artcraft_external_tools.py' -v
+          python3 scripts/wave_artcraft_external_tools.py validate
+          python3 scripts/wave_artcraft_external_tools.py admit vectorcraft \
+            --task-id artcraft-${{ github.run_id }}-vectorcraft
 
       - name: Execute genuine VectorCraft only inside offline read-only Docker
         shell: bash

@@ -1,0 +1,101 @@
+{
+  "schema": "HazewaveArtCraftSevenExternalLock/v1",
+  "repo": "zenindiones-maker/Hazewave-",
+  "scope": "WAVE_ONLY",
+  "approval": "CANDIDATE_NOT_PUBLISHED",
+  "auto_install": false,
+  "auto_activate": false,
+  "tools": {
+    "photocraft": {
+      "repository": "storytold/photocraft",
+      "version": "0.6.0",
+      "url": "https://github.com/storytold/photocraft/releases/download/v0.6.0/photocraft-0.6.0-linux-x86_64.tar.gz",
+      "asset": "photocraft-0.6.0-linux-x86_64.tar.gz",
+      "sha256": "b65fd701b6360d3ba0b05900474bf92d9926c76802fefa7be996690fcbc396c6",
+      "binary": "photocraft-cli",
+      "capability": "IMAGE_LAYER_EDIT",
+      "authority": "NONE",
+      "data_classification": "PUBLIC",
+      "execution": "OFFLINE_ISOLATED",
+      "publication": "FORBIDDEN"
+    },
+    "lightcraft": {
+      "repository": "storytold/lightcraft",
+      "version": "0.5.0",
+      "url": "https://github.com/storytold/lightcraft/releases/download/v0.5.0/lightcraft-0.5.0-linux-x86_64.tar.gz",
+      "asset": "lightcraft-0.5.0-linux-x86_64.tar.gz",
+      "sha256": "164170bb3745b94cffc1e05d59b20778eb51698558224f846e9e1f5424da3265",
+      "binary": "lightcraft-cli",
+      "capability": "IMAGE_COLOR_DEVELOP",
+      "authority": "NONE",
+      "data_classification": "PUBLIC",
+      "execution": "OFFLINE_ISOLATED",
+      "publication": "FORBIDDEN"
+    },
+    "designcraft": {
+      "repository": "storytold/designcraft",
+      "version": "0.5.0",
+      "url": "https://github.com/storytold/designcraft/releases/download/v0.5.0/designcraft-0.5.0-linux-x86_64.tar.gz",
+      "asset": "designcraft-0.5.0-linux-x86_64.tar.gz",
+      "sha256": "c249e7b694c02cbfadd8781f6ea3f52926cb623d6e5924d8974ed66019ec0562",
+      "binary": "designcraft-cli",
+      "capability": "EDITORIAL_LAYOUT",
+      "authority": "NONE",
+      "data_classification": "PUBLIC",
+      "execution": "OFFLINE_ISOLATED",
+      "publication": "FORBIDDEN"
+    },
+    "pdfcraft": {
+      "repository": "storytold/pdfcraft",
+      "version": "0.5.0",
+      "url": "https://github.com/storytold/pdfcraft/releases/download/v0.5.0/pdfcraft-cli-0.5.0-linux-x86_64.tar.gz",
+      "asset": "pdfcraft-cli-0.5.0-linux-x86_64.tar.gz",
+      "sha256": "9fe5d1ef82924667184d68dc6aea2f23c98bdcd4d3802327c8cf17cc5d9da72b",
+      "binary": "pdfcraft-cli",
+      "capability": "PDF_PREVIEW_QA",
+      "authority": "NONE",
+      "data_classification": "PUBLIC",
+      "execution": "OFFLINE_ISOLATED",
+      "publication": "FORBIDDEN"
+    },
+    "vectorcraft": {
+      "repository": "storytold/vectorcraft",
+      "version": "0.7.0",
+      "url": "https://github.com/storytold/vectorcraft/releases/download/v0.7.0/vectorcraft-0.7.0-linux-x86_64.tar.gz",
+      "asset": "vectorcraft-0.7.0-linux-x86_64.tar.gz",
+      "sha256": "d6b0ee57e1bdbd377b44c8524e8569ad2b4dff46b792fc10b0edbf8d74292acd",
+      "binary": "vectorcraft-cli",
+      "capability": "SVG_INK_DRAW",
+      "authority": "NONE",
+      "data_classification": "PUBLIC",
+      "execution": "OFFLINE_ISOLATED",
+      "publication": "FORBIDDEN"
+    },
+    "effectcraft": {
+      "repository": "storytold/effectcraft",
+      "version": "0.6.0",
+      "url": "https://github.com/storytold/effectcraft/releases/download/v0.6.0/effectcraft-0.6.0-linux-x86_64.tar.gz",
+      "asset": "effectcraft-0.6.0-linux-x86_64.tar.gz",
+      "sha256": "71810719903378cdab32a1fe328f23c874d38cd3d833abb19c6263dd2bad218c",
+      "binary": "effectcraft-cli",
+      "capability": "MOTION_COMPOSITION",
+      "authority": "NONE",
+      "data_classification": "PUBLIC",
+      "execution": "OFFLINE_ISOLATED",
+      "publication": "FORBIDDEN"
+    },
+    "filmcraft": {
+      "repository": "storytold/filmcraft",
+      "version": "0.4.0",
+      "url": "https://github.com/storytold/filmcraft/releases/download/v0.4.0/filmcraft-0.4.0-linux-x86_64.tar.gz",
+      "asset": "filmcraft-0.4.0-linux-x86_64.tar.gz",
+      "sha256": "841790ff6649f0d49daa4a8ade1cb18d948e5ca43d00771046663e06c8d8ce83",
+      "binary": "filmcraft-cli",
+      "capability": "VIDEO_QC",
+      "authority": "NONE",
+      "data_classification": "PUBLIC",
+      "execution": "OFFLINE_ISOLATED",
+      "publication": "FORBIDDEN"
+    }
+  }
+}

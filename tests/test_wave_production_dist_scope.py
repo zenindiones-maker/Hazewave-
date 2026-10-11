@@ -47,4 +47,6 @@ def test_waves_replace_unapproved_mpc_and_artist_styles_remain_strictly_scoped()
     assert "resonance-front" in page
     assert "A FREQUÊNCIA INTERFERE NA NÉVOA" in page
     assert "machine-field" not in page and "rig-wing" not in page
-    assert 'if(actual.length!==6)' in guard and "_id_" in guard
+    assert 'if(actual.length!==6+approvedArtcraft.size)' in guard and "_id_" in guard
+    assert 'integration_manifest.json' in guard
+    assert 'validateArtcraftBundle()' in guard
