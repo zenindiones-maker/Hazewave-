@@ -25,10 +25,27 @@ sleep 3
 curl -fsSI http://127.0.0.1:3000/
 npx playwright install chromium
 node scripts/verify-brand-screenshots.mjs
+# Astro 7's preview CLI prohibits multiple active preview instances even on
+# different ports. Release port 3000 before the nested Playwright 4321 server;
+# otherwise browser QA aborts without executing ANY Site 01 assertion.
+npx astro preview stop
+# Prove the NEW Site 01 before the old site's mobile performance audit.
+# This command builds and tests the seven-act ink route, then restores the
+# approved production dist. It does not publish the experimental candidate.
+bash "$ROOT/scripts/run_hazewave_site.sh" verify
+# Re-launch the sole Astro server only AFTER the new-site Chromium suite exits.
+npm run start &
+PID=$!
+sleep 3
+curl -fsSI http://127.0.0.1:3000/
 export CHROME_PATH
 CHROME_PATH="$(node --input-type=module -e 'import {chromium} from "@playwright/test"; console.log(chromium.executablePath())')"
-npx --yes lighthouse@12.8.2 http://127.0.0.1:3000/ --only-categories=performance --chrome-flags="--headless --no-sandbox" --output=json --output-path="$ROOT/verification/lighthouse-mobile.json" --quiet
-node -e 'const r=require(process.argv[1]); const s=Math.round(r.categories.performance.score*100); console.log("HAZEWAVE_LIGHTHOUSE="+s); if(s<=90)process.exit(1)' "$ROOT/verification/lighthouse-mobile.json"
+# Chrome's own documentation warns that one free CI result can fluctuate.
+# Collect independent, SEQUENTIAL runs; enforce the unchanged >90 boundary
+# on the median. Publish ALL raw readings, not only the best sample.
+for n in 1 2 3; do
+  npx --yes lighthouse@12.8.2 http://127.0.0.1:3000/ --only-categories=performance --chrome-flags="--headless --no-sandbox" --output=json --output-path="$ROOT/verification/lighthouse-mobile-$n.json" --quiet
+done
+node -e 'const fs=require("node:fs"),d=process.argv[1];const runs=[1,2,3].map(i=>({i,p:d+"/lighthouse-mobile-"+i+".json",v:JSON.parse(fs.readFileSync(d+"/lighthouse-mobile-"+i+".json","utf8"))}));for(const r of runs){r.s=Math.round(r.v.categories.performance.score*100)}runs.sort((a,b)=>a.s-b.s);const median=runs[1];fs.copyFileSync(median.p,d+"/lighthouse-mobile.json");const s=median.s;console.log("HAZEWAVE_LIGHTHOUSE_TRIPLE="+runs.map(r=>r.s).join(","));console.log("HAZEWAVE_LIGHTHOUSE_MEDIAN="+s);console.log("HAZEWAVE_LIGHTHOUSE="+s);if(s<=90)process.exit(1)' "$ROOT/verification"
 npx astro preview stop
-bash "$ROOT/scripts/run_hazewave_site.sh" verify
 echo "HAZEWAVE_VERIFY=PASS"

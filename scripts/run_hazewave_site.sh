@@ -59,6 +59,22 @@ fi
 CI=true npm test -- --workers=1 --project=chromium-desktop --project=chromium-mobile
 printf 'HAZEWAVE_SITE_EXPERIMENTAL_QA=PASS\n'
 
+# Preserve the ACTUAL new seven-act ink-scroll website from the verified QA
+# build before the approved legacy site build replaces dist/. This is an
+# unhosted review artifact, not a public deployment, and contains only existing
+# versioned PUBLIC brand images. Private paintings remain outside GitHub.
+if [[ -f "dist/site-01/index.html" ]]; then
+  REVIEW="$ROOT/verification/site01-review"
+  rm -rf -- "$REVIEW"
+  mkdir -p "$REVIEW/media/artists"
+  cp -a dist/site-01 "$REVIEW/"
+  cp -a dist/_astro "$REVIEW/"
+  cp dist/media/hazewave-world.jpg "$REVIEW/media/hazewave-world.jpg"
+  cp dist/media/artists/indionesbala.jpg "$REVIEW/media/artists/indionesbala.jpg"
+  cp dist/integration_manifest.json "$REVIEW/integration_manifest.json"
+  printf 'HAZEWAVE_SITE01_SCROLL_INK_REVIEW_CAPTURED=PASS\n'
+fi
+
 # This second, ordinary Astro build is the ONLY deliverable `dist/`.
 # Experiments are proven above but excluded from this distribution.
 printf 'HAZEWAVE_SITE_STAGE=APPROVED_PRODUCTION_BUILD\n'

@@ -152,11 +152,11 @@ const artcraft = verifiedSiteAssets();
  <div id="artcraft-chain" aria-hidden="true" data-artcraft-validated="seven" data-artcraft-run={artcraft.manifest.run_id} data-artcraft-sha={artcraft.manifest.head_sha}
    data-designcraft-pdf={artcraft.media.designcraft} data-filmcraft-qc={artcraft.media.filmcraft}
    data-provenance-id={artcraft.manifest.designcraft_provenance.stage_id}>
-  <div class="craft-plane craft-photo" style={`background-image:url("${artcraft.media.photocraft}")`}></div>
-  <div class="craft-plane craft-grade" style={`background-image:url("${artcraft.media.lightcraft}")`}></div>
-  <div class="craft-plane craft-vector" style={`background-image:url("${artcraft.media.vectorcraft}")`}></div>
-  <div class="craft-plane craft-editorial" style={`background-image:url("${artcraft.media.pdfcraft}")`}></div>
-  <div id="craft-motion" class="craft-plane craft-motion" style={`background-image:url("${artcraft.frames[0]}")`}></div>
+  <div class="craft-plane craft-photo" data-bg={artcraft.media.photocraft}></div>
+  <div class="craft-plane craft-grade" data-bg={artcraft.media.lightcraft}></div>
+  <div class="craft-plane craft-vector" data-bg={artcraft.media.vectorcraft}></div>
+  <div class="craft-plane craft-editorial" data-bg={artcraft.media.pdfcraft}></div>
+  <div id="craft-motion" class="craft-plane craft-motion" data-bg={artcraft.frames[0]}></div>
  </div>
  <script type="application/json" id="artcraft-approved-frames" set:html={JSON.stringify(artcraft.frames)}></script>
  <div class="cosmos" aria-hidden="true"></div><div class="depth-universe" aria-hidden="true"><div class="depth-plane far"></div><div class="depth-plane middle"></div><div class="depth-plane stars"></div><div class="depth-plane near"></div></div><div class="nebula" aria-hidden="true"></div><div class="nebula nebula-right" aria-hidden="true"></div>
@@ -184,7 +184,10 @@ const artcraft = verifiedSiteAssets();
  const craftMotion=document.getElementById('craft-motion');
  const craftFrames=JSON.parse(document.getElementById('artcraft-approved-frames').textContent);
  if(!craft||!craftMotion||craftFrames.length!==8)throw Error('ARTCRAFT_MANIFEST_RUNTIME_MISSING');
- let currentCraftFrame=-1;
+ let currentCraftFrame=-1,craftArmed=false;
+ /* Perf (Lighthouse TBT): the blurred, screen-blended Craft planes are invisible at p=0, so their
+    images are only attached once the visitor actually scrolls; nothing paints/decodes them at load. */
+ const armCraft=()=>{if(craftArmed)return;craftArmed=true;craft.querySelectorAll('.craft-plane[data-bg]').forEach(e=>{e.style.backgroundImage='url("'+e.dataset.bg+'")'});};
  const clamp=(v)=>Math.max(0,Math.min(1,v));
  const smooth=(a,b,p)=>{const v=clamp((p-a)/(b-a));return v*v*(3-2*v)};
  const bell=(a,b,c,d,p)=>smooth(a,b,p)*(1-smooth(c,d,p));
@@ -203,7 +206,8 @@ const artcraft = verifiedSiteAssets();
   craft.style.setProperty('--craft-editorial-opacity',(.07*bell(.48,.65,.81,.94,p)).toFixed(3));
   craft.style.setProperty('--craft-motion-opacity',(.27*bell(.47,.64,.81,.94,p)).toFixed(3));
   const index=Math.max(0,Math.min(7,Math.floor(smooth(.40,.86,p)*7.999)));
-  if(index!==currentCraftFrame){
+  if(!craftArmed&&p>0.001)armCraft();
+  if(craftArmed&&index!==currentCraftFrame){
     craftMotion.style.backgroundImage='url("'+craftFrames[index]+'")';
     currentCraftFrame=index;
   }

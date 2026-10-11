@@ -146,6 +146,15 @@ jobs:
           path: apps/hazewave-site/test-results
           if-no-files-found: warn
 
+      - name: Preserve new Site 01 real scroll-as-brush review build (no private paintings)
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: hazewave-site01-seven-act-ink-review-${{ github.run_id }}
+          path: verification/site01-review/
+          retention-days: 30
+          if-no-files-found: error
+
   wave-v4-source-candidate-delivery:
     name: Auto-CD · reviewed WAVE source only
     # Fail-closed: depends on BOTH Python governance and real site/browser CI.
