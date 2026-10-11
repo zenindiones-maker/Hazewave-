@@ -8,6 +8,19 @@ import math
 from contextlib import nullcontext
 
 
+def _is_null(ptr):
+    """reapy dist API returns pointers as strings like '(MediaTrack*)0x0000000000000000',
+    which are truthy; treat those (and None/empty) as NULL."""
+    if not ptr:
+        return True
+    if isinstance(ptr, str) and ')0x' in ptr:
+        try:
+            return int(ptr.rsplit('0x', 1)[1], 16) == 0
+        except ValueError:
+            return False
+    return False
+
+
 class ReaperBridge:
     def __init__(self, api=None, context=None):
         if api is None:
@@ -16,6 +29,10 @@ class ReaperBridge:
                 from reapy import reascript_api as api
             except ImportError as exc:
                 raise RuntimeError('python-reapy not installed on workstation') from exc
+            if not reapy.is_inside_reaper() and not reapy.dist_api_is_enabled():
+                # reapy 0.10.0 defines no reascript_api functions and inside_reaper()
+                # dereferences a None client when the distant API is unreachable.
+                raise RuntimeError('REAPER_DIST_API_UNAVAILABLE')
             context = reapy.inside_reaper
         self.r = api
         self._context = context or (lambda: nullcontext())
@@ -93,8 +110,10 @@ class ReaperBridge:
             if int(r.CountSelectedMediaItems(0)) != 1:
                 raise ValueError('SELECT_EXACTLY_ONE_AUDIO_ITEM')
             source = r.GetSelectedMediaItem(0,0)
+            if _is_null(source):
+                raise ValueError('SELECT_EXACTLY_ONE_AUDIO_ITEM')
             source_take = r.GetActiveTake(source)
-            if not source_take or r.TakeIsMIDI(source_take):
+            if _is_null(source_take) or r.TakeIsMIDI(source_take):
                 raise ValueError('SELECTED_TAKE_NOT_AUDIO')
             track = r.GetMediaItemTrack(source)
             index = int(r.GetMediaTrackInfo_Value(track,'IP_TRACKNUMBER'))
@@ -111,14 +130,16 @@ class ReaperBridge:
             try:
                 r.InsertTrackAtIndex(index, True)
                 created = r.GetTrack(0,index)
-                if not created:
+                if _is_null(created):
                     raise RuntimeError('MIDI_TRACK_INSERT_FAILED')
                 fx = r.TrackFX_AddByName(created,'JS: FyahGrabber 808 Instrument',False,-1)
                 if int(fx) < 0:
                     raise ValueError('FYAHGRABBER_808_JSFX_MISSING')
                 midi_item = r.CreateNewMIDIItemInProj(created,start,start+duration,False)
+                if _is_null(midi_item):
+                    raise RuntimeError('MIDI_TAKE_CREATE_FAILED')
                 take = r.GetActiveTake(midi_item)
-                if not take or not r.TakeIsMIDI(take):
+                if _is_null(take) or not r.TakeIsMIDI(take):
                     raise RuntimeError('MIDI_TAKE_CREATE_FAILED')
                 r.MIDI_DisableSort(take)
                 for n in request.notes:
@@ -136,7 +157,7 @@ class ReaperBridge:
                 return {'notes_created':len(request.notes),'track_id':str(r.GetTrackGUID(created)),
                         'position_seconds':start}
             except Exception:
-                if created:
+                if not _is_null(created):
                     r.DeleteTrack(created)
                 raise
             finally:

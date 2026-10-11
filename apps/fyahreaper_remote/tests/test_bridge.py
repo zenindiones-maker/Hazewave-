@@ -68,3 +68,25 @@ def test_note_outside_item_does_not_mutate_project():
     req=MidiRequest(notes=[Note(pitch=36,start=.95,duration=.2)])
     with pytest.raises(ValueError,match='NOTE_OUTSIDE'):bridge.create_midi(req)
     assert len(api.tracks)==1
+
+NULL_TAKE='(MediaItem_Take*)0x0000000000000000'
+
+def test_null_pointer_string_take_is_rejected():
+    api=RPR();api.fx=0;api.selected_item['take']=NULL_TAKE
+    api.TakeIsMIDI=lambda take: (_ for _ in ()).throw(AssertionError('must not deref NULL'))
+    req=MidiRequest(notes=[Note(pitch=36,start=0,duration=.2)])
+    with pytest.raises(ValueError,match='SELECTED_TAKE_NOT_AUDIO'):ReaperBridge(api=api).create_midi(req)
+    assert len(api.tracks)==1
+
+def test_null_created_midi_take_rolls_back_track():
+    api=RPR();api.fx=0
+    api.CreateNewMIDIItemInProj=lambda *a:{'take':NULL_TAKE}
+    api.GetActiveTake=lambda item:item.get('take',{'midi':False}) if item is api.selected_item else NULL_TAKE
+    req=MidiRequest(notes=[Note(pitch=36,start=0,duration=.2)])
+    with pytest.raises(RuntimeError,match='MIDI_TAKE_CREATE_FAILED'):ReaperBridge(api=api).create_midi(req)
+    assert len(api.tracks)==1
+
+def test_is_null_helper():
+    from reaper_bridge import _is_null
+    assert _is_null(None) and _is_null('') and _is_null(NULL_TAKE)
+    assert not _is_null('(MediaTrack*)0x00007f1234567890') and not _is_null({'x':1})
