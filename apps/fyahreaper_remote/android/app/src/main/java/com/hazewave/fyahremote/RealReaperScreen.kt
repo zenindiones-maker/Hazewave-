@@ -50,8 +50,11 @@ internal fun noVncPage(base: String, password: String): String =
 /** noVNC can compute its scale while the WebView is still 0x0 (canvas ends up 0px wide). Re-trigger its
  *  resize handling until the canvas has a real size. */
 internal const val FIT_WATCHDOG_JS = "(function(){if(window.__fyahFit)return;window.__fyahFit=1;" +
-    "setInterval(function(){var c=document.querySelector('#noVNC_container canvas');" +
-    "if(c&&(c.clientWidth===0||c.clientHeight===0)){window.dispatchEvent(new Event('resize'));}},700);})()"
+    // In Android WebView noVNC's #noVNC_container can resolve to 0px height; pin it to the real viewport.
+    "function fit(){var k=document.getElementById('noVNC_container');if(k){k.style.position='fixed';k.style.left='0';k.style.top='0';" +
+    "k.style.width=window.innerWidth+'px';k.style.height=window.innerHeight+'px';}" +
+    "var c=document.querySelector('#noVNC_container canvas');if(c&&(c.clientWidth===0||c.clientHeight===0))window.dispatchEvent(new Event('resize'));}" +
+    "window.addEventListener('resize',function(){setTimeout(fit,50)});fit();setInterval(fit,700);})()"
 
 // JS helpers operating on the noVNC page's own controls (ids from noVNC vnc.html).
 private fun clickJs(id: String) = "(function(){var b=document.getElementById('$id');if(b){b.click();return 'ok'}return 'missing'})()"
