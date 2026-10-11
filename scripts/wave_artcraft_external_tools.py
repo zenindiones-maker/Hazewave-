@@ -212,9 +212,15 @@ def smoke(name: str, executable: Path, root: Path, *, task_id: str,
     if name in {"photocraft", "lightcraft"}:
         input_png = select_image_input(name, root,
                                        upstream_task_id=upstream_task_id)
+    elif name == "pdfcraft":
+        if upstream_task_id is None:
+            raise ValueError("PDFCRAFT_DESIGNCRAFT_TASK_REQUIRED")
+        verify("designcraft", root, task_id=upstream_task_id)
+        input_png = root / "designcraft-layout.pdf"
+        verify_pdf(input_png)
     else:
         if upstream_task_id is not None:
-            raise ValueError("EDITORIAL_TOOL_HAS_NO_IMAGE_UPSTREAM")
+            raise ValueError("DESIGNCRAFT_MUST_PRECEDE_PDFCRAFT")
         input_png = root / "hazewave-synthetic-signal.png"
         if not input_png.exists():
             small_png(input_png)
@@ -300,10 +306,33 @@ def verify(name: str, root: Path, *, task_id: str,
             expected_input = "hazewave-synthetic-signal.png"
         if data.get("input") != expected_input or sha256(root / expected_input) != data.get("input_sha256"):
             raise ValueError("ARTCRAFT_IMAGE_SOURCE_HASH_DRIFT")
-    elif upstream_task_id is not None:
-        raise ValueError("ARTCRAFT_UNEXPECTED_UPSTREAM_TASK")
-    path = root / data["output"]
-    if path.parent != root or sha256(path) != data["output_sha256"]:
+    elif name == "pdfcraft":
+        if upstream_task_id is None:
+            raise ValueError("PDFCRAFT_DESIGNCRAFT_TASK_REQUIRED")
+        verify("designcraft", root, task_id=upstream_task_id)
+        if (data.get("input") != "designcraft-layout.pdf"
+            or sha256(root / "designcraft-layout.pdf") != data.get("input_sha256")):
+            raise ValueError("PDFCRAFT_LAYOUT_PROVENANCE_DRIFT")
+    elif name == "designcraft":
+        if upstream_task_id is not None:
+            raise ValueError("DESIGNCRAFT_MUST_PRECEDE_PDFCRAFT")
+        if (data.get("input") != "hazewave-synthetic-signal.png"
+            or sha256(root / "hazewave-synthetic-signal.png") != data.get("input_sha256")):
+            raise ValueError("DESIGNCRAFT_LAYOUT_SOURCE_DRIFT")
+    else:
+        raise ValueError("ARTCRAFT_UNSUPPORTED_VERIFICATION")
+    expected_outputs = {
+        "photocraft": "photocraft-render.png",
+        "lightcraft": "lightcraft-render.png",
+        "designcraft": "designcraft-layout.pdf",
+        "pdfcraft": "pdfcraft-render.png",
+    }
+    if data.get("output") != expected_outputs.get(name):
+        raise ValueError("ARTCRAFT_OUTPUT_FILE_IDENTITY_MISMATCH")
+    path = root / expected_outputs[name]
+    if root.is_symlink() or path.is_symlink() or not path.is_file():
+        raise ValueError("ARTCRAFT_OUTPUT_UNSAFE_PATH")
+    if sha256(path) != data["output_sha256"]:
         raise ValueError("ARTCRAFT_OUTPUT_HASH_DRIFT")
     verify_pdf(path) if name == "designcraft" else verify_png(path)
 
