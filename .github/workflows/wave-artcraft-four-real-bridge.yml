@@ -1,0 +1,120 @@
+name: WAVE ArtCraft Four Real External Bridges
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/wave_artcraft_external_tools.py"
+      - "scripts/wave_artcraft-seven-lock.json"
+      - "tests/test_wave_artcraft_external_tools.py"
+      - ".github/workflows/wave-artcraft-four-real-bridge.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wave-artcraft-four-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  external-artcraft-proofs:
+    name: "Real isolated Craft CLIs / ${{ matrix.couple }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        couple: [image, editorial]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact approved Hazewave candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Test pinned manifest, authority and hostile archive handling before executable work
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p 'test_wave_artcraft_external_tools.py' -v
+          python3 scripts/wave_artcraft_external_tools.py validate
+
+      - name: Download and verify exact upstream public releases without executing
+        shell: bash
+        run: |
+          set -euo pipefail
+          directory="$RUNNER_TEMP/hazewave-artcraft-tools"
+          mkdir -p "$directory"
+          if [[ "${{ matrix.couple }}" == "image" ]]; then
+            names=(photocraft lightcraft)
+          else
+            names=(designcraft pdfcraft)
+          fi
+          for name in "${names[@]}"; do
+            url="$(jq -r --arg n "$name" '.tools[$n].url' scripts/wave_artcraft-seven-lock.json)"
+            test -n "$url" && [[ "$url" == https://github.com/storytold/"$name"/releases/download/* ]]
+            archive="$directory/$name.tar.gz"
+            curl --proto '=https' --tlsv1.2 -fL --retry 2 --max-time 210 \
+              --output "$archive" "$url"
+            # Python independently checks the exact SHA from the locked approved manifest,
+            # rejects unsafe tar members and extracts ONLY one CLI binary.
+            python3 scripts/wave_artcraft_external_tools.py extract "$name" "$archive" "$directory/$name"
+            test -s "$directory/$name/$name-cli"
+            echo "ARTCRAFT_RELEASE_HASH_AND_CLI=PASS:$name"
+            rm -f -- "$archive"
+          done
+
+      - name: Run REAL tools on first-party synthetic WAVE media in read-only offline sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/hazewave-artcraft-proof-${{ matrix.couple }}"
+          mkdir -p "$work"
+          tools="$RUNNER_TEMP/hazewave-artcraft-tools"
+          if [[ "${{ matrix.couple }}" == "image" ]]; then
+            docker run --rm --network none --read-only \
+              --cap-drop ALL --security-opt no-new-privileges \
+              --pids-limit 130 --cpus 2 --memory 3g \
+              --user "$(id -u):$(id -g)" \
+              --tmpfs /tmp:rw,nosuid,nodev,size=256m \
+              -v "$GITHUB_WORKSPACE:/src:ro" \
+              -v "$tools/photocraft/photocraft-cli:/tools/photocraft-cli:ro" \
+              -v "$tools/lightcraft/lightcraft-cli:/tools/lightcraft-cli:ro" \
+              -v "$work:/work:rw" \
+              python:3.12-slim-bookworm sh -ec '
+                python3 /src/scripts/wave_artcraft_external_tools.py smoke photocraft /tools/photocraft-cli /work
+                python3 /src/scripts/wave_artcraft_external_tools.py smoke lightcraft /tools/lightcraft-cli /work
+              '
+            python3 scripts/wave_artcraft_external_tools.py verify photocraft "$work"
+            python3 scripts/wave_artcraft_external_tools.py verify lightcraft "$work"
+          else
+            docker run --rm --network none --read-only \
+              --cap-drop ALL --security-opt no-new-privileges \
+              --pids-limit 130 --cpus 2 --memory 3g \
+              --user "$(id -u):$(id -g)" \
+              --tmpfs /tmp:rw,nosuid,nodev,size=256m \
+              -v "$GITHUB_WORKSPACE:/src:ro" \
+              -v "$tools/designcraft/designcraft-cli:/tools/designcraft-cli:ro" \
+              -v "$tools/pdfcraft/pdfcraft-cli:/tools/pdfcraft-cli:ro" \
+              -v "$work:/work:rw" \
+              python:3.12-slim-bookworm sh -ec '
+                python3 /src/scripts/wave_artcraft_external_tools.py smoke designcraft /tools/designcraft-cli /work
+                python3 /src/scripts/wave_artcraft_external_tools.py smoke pdfcraft /tools/pdfcraft-cli /work
+              '
+            python3 scripts/wave_artcraft_external_tools.py verify designcraft "$work"
+            python3 scripts/wave_artcraft_external_tools.py verify pdfcraft "$work"
+          fi
+          echo "HAZEWAVE_WAVE_REAL_APP_BRIDGE=${{ matrix.couple }}:PASS" >> "$GITHUB_STEP_SUMMARY"
+          echo "OWNER_ART_PRIVATE=NOT_ACCESSED" >> "$GITHUB_STEP_SUMMARY"
+          echo "PRODUCTION_PUBLISHED=FALSE" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preserve only public synthetic tool output, hashes and real receipts
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: hazewave-artcraft-${{ matrix.couple }}-real-proof-${{ github.run_id }}
+          path: ${{ runner.temp }}/hazewave-artcraft-proof-${{ matrix.couple }}/
+          retention-days: 14
+          if-no-files-found: error
