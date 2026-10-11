@@ -30,8 +30,10 @@ def test_all_workflows_use_verified_immutable_action_commit_ids():
                 "./.github/workflows/wave-effectcraft-filmcraft-portal-proof.yml",
             }
             is_same_commit_local = (
-                path.name == "wave-artcraft-seven-integrated-proof.yml"
-                and action in local_reusable
+                (path.name == "wave-artcraft-seven-integrated-proof.yml"
+                 and action in local_reusable)
+                or (path.name == "wave-site-ci.yml"
+                    and action == "./.github/workflows/wave-artcraft-seven-integrated-proof.yml")
             )
             assert SHA.fullmatch(action) or is_same_commit_local, f"{path}: {action}"
         seen.extend(actions)
