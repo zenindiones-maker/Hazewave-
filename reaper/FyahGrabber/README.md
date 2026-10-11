@@ -54,3 +54,35 @@ Perform this only in a disposable REAPER project with a **selected audio item at
 - https://github.com/spotify/basic-pitch — potential optional inference, Apache-2.0, **not installed by this REAPER-first installer**
 
 Every capability is subordinate to `HAZEWAVE_HARNESS`. Publication and production promotion require separate human approval.
+
+
+## Isolated host proof without modifying the current music project
+
+A separate, guarded host E2E action is now available as
+\`FyahGrabber_Disposable_Host_E2E.lua\`. It generates its **own** test WAV,
+starts from an empty project in a **separate REAPER instance**,
+verifies true REAPER pre-FX accessor output, inserts a track directly
+below the audio, checks 3 MIDI pitches, and verifies the bundled JSFX.
+
+Do **not** pass \`-nonewinst\`. Do **not** run this E2E action inside the
+owner's active session. Use only
+\`scripts/fyahgrabber-reaper-host-e2e-existing-workstation.sh\`, which
+requires \`FYAH_E2E_ISOLATED=1\`, checks the existing Xpra DISPLAY,
+generates a private run-specific evidence directory, bounds execution
+time and verifies JSON/byte hashes. It never approves human timing.
+
+After updating the versioned installation using the normal installer
+(without \`--with-cqt\` when CQT is already available), the Codespace
+may execute the checked-out runner script from the exact remote Git
+SHA through an SSH command. The proof file remains under
+\`~/.local/state/hazewave/fyahgrabber/proofs/reaper-host-*/reaper-host-proof.json\`.
+
+Proof states:
+- \`FYAH_REAL_REAPER_HOST_E2E=PASS\`: REAPER host API, original synthetic
+  WAV accessor, 3 MIDI notes, JSFX plug-in presence and track geometry.
+- \`FYAH_HUMAN_3_NOTES_UNDER_10S=NOT_MEASURED\`: requires a separate
+  live GUI interaction test; API execution time is not a UX benchmark.
+- \`BLOCKED:*\`: do not promote; investigate exact error, do not restart
+  the workstation or use an unrelated remote REAPER.
+
+A static Lua unit test is not a valid substitute for the real host proof.
