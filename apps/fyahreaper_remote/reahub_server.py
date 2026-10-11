@@ -29,6 +29,11 @@ class MidiRequest(BaseModel):
     notes: list[Note] = Field(min_length=1, max_length=2048)
 
 
+class MovePayload(BaseModel):
+    delta_px: float = Field(ge=-4000, le=4000)
+    commit: bool = False
+
+
 class TrackPatch(BaseModel):
     model_config = ConfigDict(extra='forbid')
     mute: bool | None = None
@@ -104,6 +109,17 @@ def app_factory(studio, token: str, call_timeout: float | None = None) -> FastAP
     @app.post('/api/edit/{action}', dependencies=[Depends(authenticate)])
     async def edit(action: Literal['undo', 'redo']):
         return await run_in_threadpool(guarded, studio.edit, action)
+
+    @app.post('/api/action/{name}', dependencies=[Depends(authenticate)])
+    async def action(name: str, repeat: int = 1):
+        allowed = getattr(studio, 'TOUCH_ACTIONS', None)
+        if allowed is not None and name not in allowed:
+            raise HTTPException(404, 'UNKNOWN_ACTION')
+        return await run_in_threadpool(guarded, studio.action, name, repeat)
+
+    @app.post('/api/items/move', dependencies=[Depends(authenticate)])
+    async def move_items(payload: MovePayload):
+        return await run_in_threadpool(guarded, studio.move_selected, payload.delta_px, payload.commit)
 
     @app.post('/api/project/create_midi', dependencies=[Depends(authenticate)])
     async def create_midi(payload: MidiRequest):

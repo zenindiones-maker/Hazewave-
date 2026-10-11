@@ -20,7 +20,7 @@ class RPR:
         return (self.tracks.index(t)+1) if key=='IP_TRACKNUMBER' else t[key]
     def SetMediaTrackInfo_Value(self,t,key,val): t[key]=val;return True
     def TrackList_AdjustWindows(self,x): pass
-    def Main_OnCommand(self,action,flag): self.cmds=getattr(self,'cmds',[])+[action];self.state={1013:5,1016:0,40667:0,1007:1,40029:self.state,40030:self.state}[action]
+    def Main_OnCommand(self,action,flag): self.cmds=getattr(self,'cmds',[])+[action];self.state={1013:5,1016:0,40667:0,1007:1}.get(action,self.state)
     def CountSelectedMediaItems(self,p):return 1
     def GetSelectedMediaItem(self,p,i):return self.selected_item
     def GetActiveTake(self,item):return item.get('take',{'midi':False})
@@ -204,3 +204,33 @@ def test_app_undo_redo_allowlisted_actions():
     assert c.post('/api/edit/redo',content='{}',headers=hdr).json()['command_id']==40030
     assert c.post('/api/edit/delete_everything',content='{}',headers=hdr).status_code==422
     assert api.cmds==[40029,40030]
+
+
+def test_touch_actions_allowlist_and_repeat():
+    c,H,api=_app_client();hdr={**H,'Content-Type':'application/json'}
+    r=c.post('/api/action/zoom_in_h?repeat=2',content='{}',headers=hdr)
+    assert r.status_code==200 and r.json()['command_id']==1012 and api.cmds==[1012,1012]
+    assert c.post('/api/action/40001',content='{}',headers=hdr).status_code==404
+    assert c.post('/api/action/quit',content='{}',headers=hdr).status_code==404
+    assert c.post('/api/action/scroll_left?repeat=99',content='{}',headers=hdr).json()['repeat']==8
+    assert c.post('/api/action/zoom_in_h',content='{}').status_code==401
+
+def test_insert_track_gets_touch_height():
+    api=RPR();api.GetSelectedTrack=lambda p,i: api.tracks[0]
+    ReaperBridge(api=api).action('insert_track')
+    assert api.tracks[0]['I_HEIGHTOVERRIDE']==150
+
+def test_move_selected_items_converts_px_with_zoom_and_clamps_at_zero():
+    api=RPR();api.GetHZoomLevel=lambda:100.0;item=api.selected_item;item['position']=1.0
+    def setv(it,k,v): it['position']=v
+    api.SetMediaItemInfo_Value=setv;api.undo=[];api.Undo_OnStateChange=lambda d: api.undo.append(d)
+    b=ReaperBridge(api=api)
+    assert abs(b.move_selected(50)['delta_seconds']-0.5)<1e-9 and abs(item['position']-1.5)<1e-9
+    b.move_selected(-1000,commit=True)
+    assert item['position']==0.0 and len(api.undo)==1
+
+def test_move_endpoint_validates_payload():
+    c,H,api=_app_client();api.GetHZoomLevel=lambda:100.0;api.SetMediaItemInfo_Value=lambda it,k,v:it.update(position=v)
+    hdr={**H,'Content-Type':'application/json'}
+    assert c.post('/api/items/move',json={'delta_px':20},headers=H).json()['moved']==1
+    assert c.post('/api/items/move',json={'delta_px':99999},headers=H).status_code==422

@@ -23,6 +23,10 @@ sleep 4; curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:6090/vnc.html |
 # Device: A15 geometry, rotation LOCKED in portrait
 adb shell wm size 1080x2340; adb shell wm density 400; sleep 3; adb shell wm size | tee $OUT/wm-size.txt; adb shell wm density | tee -a $OUT/wm-size.txt
 adb shell settings put system accelerometer_rotation 0; adb shell settings put system user_rotation 0
+# A background "Pixel Launcher isn't responding" dialog covered the app in an earlier run; the app is started with
+# am start, so the launcher is not needed. Also close any system dialog before each UI dump.
+adb shell pm disable-user --user 0 com.google.android.apps.nexuslauncher >/dev/null 2>&1; adb shell settings put global anr_show_background 0
+nodlg(){ adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1; }
 D=apps/fyahreaper_remote/android/app/build/outputs/apk/debug
 vc(){ adb shell dumpsys package $APP | grep -m1 -o "versionCode=[0-9]*"; }
 # 1) Upgrade path: older build (same stable key, lower versionCode) -> new build in place
@@ -35,7 +39,7 @@ echo "after $(vc)" | tee -a $OUT/upgrade.txt
 adb uninstall $APP >/dev/null 2>&1
 adb install $D/app-debug.apk && pass apk_install || fail apk_install
 adb shell am start -W -n $APP/.MainActivity >/dev/null; sleep 6; shot 00-first-run
-adb shell uiautomator dump /sdcard/fr.xml >/dev/null; adb pull /sdcard/fr.xml $OUT/first-run.xml >/dev/null
+nodlg; adb shell uiautomator dump /sdcard/fr.xml >/dev/null; adb pull /sdcard/fr.xml $OUT/first-run.xml >/dev/null
 grep -q 'Senha VNC' $OUT/first-run.xml && ! grep -q 'CONECTAR' $OUT/first-run.xml && pass first_run_opens_new_settings_not_old_ui || fail first_run_opens_new_settings_not_old_ui
 grep -o 'v0\.[0-9.]*[^"]*' $OUT/first-run.xml | head -1 > $OUT/version-shown.txt; [ -s $OUT/version-shown.txt ] && pass version_shown_in_settings || fail version_shown_in_settings
 read w0 h0 < <(dims $OUT/00-first-run.png); [ "$w0" -gt "$h0" ] && pass first_run_landscape || fail first_run_landscape
@@ -61,44 +65,70 @@ grep -q '^LEFT' $CL && pass tap_is_left_click || fail tap_is_left_click
 adb shell input swipe 900 600 900 600 1800; sleep 2
 grep -q '^RIGHT' $CL && pass longpress_is_right_click || fail longpress_is_right_click
 shot 02-after-gestures
-# Side bar (find buttons by text via uiautomator)
-adb shell uiautomator dump /sdcard/ui.xml >/dev/null; adb pull /sdcard/ui.xml $OUT/ui.xml >/dev/null
-tapText(){ c=$(python3 - "$OUT/ui.xml" "$1" <<'PY'
+# Side rail + "more" panel (find buttons by text via uiautomator)
+dump(){ nodlg; adb shell uiautomator dump /sdcard/$1.xml >/dev/null; adb pull /sdcard/$1.xml $OUT/$1.xml >/dev/null; }
+tapIn(){ c=$(python3 - "$OUT/$1.xml" "$2" <<'PY2'
 import re,sys
 x=open(sys.argv[1]).read()
 for m in re.finditer(r'<node [^>]*>',x):
     n=m.group(0)
     if f'text="{sys.argv[2]}"' in n:
         a=list(map(int,re.findall(r'\d+',re.search(r'bounds="([^"]+)"',n).group(1))));print((a[0]+a[2])//2,(a[1]+a[3])//2);break
-PY
+PY2
 ); [ -n "$c" ] && adb shell input tap $c; echo "$c"; }
-for b in PLAY REC STOP UNDO; do c=$(tapText $b); sleep 2; [ -n "$c" ] || { fail "sidebar_${b}_found"; continue; }; done
-grep -q '"play"' $MOCK_LOG && pass sidebar_PLAY_reaches_reahub || fail sidebar_PLAY_reaches_reahub
-grep -q '"rec"' $MOCK_LOG && pass sidebar_REC_reaches_reahub || fail sidebar_REC_reaches_reahub
-grep -q '"stop"' $MOCK_LOG && pass sidebar_STOP_reaches_reahub || fail sidebar_STOP_reaches_reahub
-grep -q '"undo"' $MOCK_LOG && pass sidebar_UNDO_reaches_reahub || fail sidebar_UNDO_reaches_reahub
-c=$(tapText ESC); sleep 2; grep -q 'KEY.*Escape' $CL && pass sidebar_ESC_key || fail sidebar_ESC_key
-c=$(tapText SHIFT); sleep 2; grep -q 'KEY.*Shift' $CL && pass sidebar_SHIFT_key || fail sidebar_SHIFT_key
-tapText SHIFT >/dev/null; sleep 1
-c=$(tapText REC); sleep 3; shot 03-recording-state
-adb shell uiautomator dump /sdcard/ui2.xml >/dev/null; adb pull /sdcard/ui2.xml $OUT/ui2.xml >/dev/null
+dump ui
+for b in REC STOP; do c=$(tapIn ui $b); sleep 2; [ -n "$c" ] || fail "rail_${b}_found"; done
+grep -q '"rec"' $MOCK_LOG && pass rail_REC_reaches_reahub || fail rail_REC_reaches_reahub
+grep -q '"stop"' $MOCK_LOG && pass rail_STOP_reaches_reahub || fail rail_STOP_reaches_reahub
+c=$(tapIn ui ESC); sleep 2; grep -q 'KEY.*Escape' $CL && pass rail_ESC_key || fail rail_ESC_key
+c=$(tapIn ui SHIFT); sleep 2; grep -q 'KEY.*Shift' $CL && pass rail_SHIFT_key || fail rail_SHIFT_key
+tapIn ui SHIFT >/dev/null; sleep 1
+c=$(tapIn ui REC); sleep 3; shot 03-recording-state; dump ui2
 grep -q 'text="RECORDING"' $OUT/ui2.xml && pass state_label_shows_RECORDING || fail state_label_shows_RECORDING
-tapText STOP >/dev/null; sleep 1
-adb shell uiautomator dump /sdcard/u3.xml >/dev/null; adb pull /sdcard/u3.xml $OUT/ui3.xml >/dev/null
-c=$(tapText DIAG); sleep 2; adb shell uiautomator dump /sdcard/u4.xml >/dev/null; adb pull /sdcard/u4.xml $OUT/ui4.xml >/dev/null
-OUTX=$OUT/ui4.xml; c=$(python3 - "$OUTX" "TESTAR CONEXÃO" <<'PY'
+tapIn ui STOP >/dev/null; sleep 1
+# Rail must not cover the remote screen: WebView ends where the rail starts.
+python3 - "$OUT/ui.xml" <<'PY2' && pass rail_does_not_overlap_reaper || fail rail_does_not_overlap_reaper
 import re,sys
 x=open(sys.argv[1]).read()
-for m in re.finditer(r'<node [^>]*>',x):
-    n=m.group(0)
-    if f'text="{sys.argv[2]}"' in n:
-        a=list(map(int,re.findall(r'\d+',re.search(r'bounds="([^"]+)"',n).group(1))));print((a[0]+a[2])//2,(a[1]+a[3])//2);break
-PY
-); [ -n "$c" ] && adb shell input tap $c; sleep 8; shot 05-diagnostics
-adb shell uiautomator dump /sdcard/u5.xml >/dev/null; adb pull /sdcard/u5.xml $OUT/ui5.xml >/dev/null
+wv=[list(map(int,re.findall(r'\d+',m))) for m in re.findall(r'class="android.webkit.WebView"[^>]*bounds="([^"]+)"',x)]
+rec=[list(map(int,re.findall(r'\d+',m))) for m in re.findall(r'text="REC"[^>]*bounds="([^"]+)"',x)]
+print('webview',wv,'rec',rec); sys.exit(0 if wv and rec and wv[0][2]<=rec[0][0] else 1)
+PY2
+c=$(tapIn ui "⋯"); sleep 2; dump more
+for b in PLAY UNDO; do c=$(tapIn more $b); sleep 2; done
+grep -q '"play"' $MOCK_LOG && pass more_PLAY_reaches_reahub || fail more_PLAY_reaches_reahub
+grep -q '"undo"' $MOCK_LOG && pass more_UNDO_reaches_reahub || fail more_UNDO_reaches_reahub
+shot 06-more-panel
+tapIn more "✕" >/dev/null; sleep 1
+# Multi-touch gestures through the kernel input device (sendevent, MT protocol B)
+TDEV=$(adb shell getevent -pl 2>/dev/null | tr -d '\r' | awk '/^add device/{d=$4} /ABS_MT_POSITION_X/{print d; exit}')
+MAXX=$(adb shell getevent -pl $TDEV | tr -d '\r' | awk '/ABS_MT_POSITION_X/{for(i=1;i<=NF;i++) if($i=="max") print $(i+1)}' | tr -d ',')
+MAXY=$(adb shell getevent -pl $TDEV | tr -d '\r' | awk '/ABS_MT_POSITION_Y/{for(i=1;i<=NF;i++) if($i=="max") print $(i+1)}' | tr -d ',')
+echo "touch device $TDEV max $MAXX x $MAXY" | tee $OUT/touchdev.txt
+gest(){ python3 apps/fyahreaper_remote/ci/mt.py $TDEV $MAXX $MAXY 1080 2340 $1 > $OUT/g-$1.sh; adb push $OUT/g-$1.sh /data/local/tmp/g.sh >/dev/null; adb shell sh /data/local/tmp/g.sh; sleep 2; }
+n0=$(wc -l < $MOCK_LOG)
+gest pinch_out_h; tail -n +$((n0+1)) $MOCK_LOG | grep -q '"zoom_in_h"' && pass pinch_out_is_zoom_in_h || fail pinch_out_is_zoom_in_h
+n0=$(wc -l < $MOCK_LOG); gest pinch_in_h; tail -n +$((n0+1)) $MOCK_LOG | grep -q '"zoom_out_h"' && pass pinch_in_is_zoom_out_h || fail pinch_in_is_zoom_out_h
+n0=$(wc -l < $MOCK_LOG); gest pinch_out_v; tail -n +$((n0+1)) $MOCK_LOG | grep -q '"zoom_in_v"' && pass vertical_pinch_is_zoom_in_v || fail vertical_pinch_is_zoom_in_v
+n0=$(wc -l < $MOCK_LOG); gest pan_right; tail -n +$((n0+1)) $MOCK_LOG | grep -q '"scroll_left"' && pass two_finger_pan_right_scrolls_left || fail two_finger_pan_right_scrolls_left
+n0=$(wc -l < $MOCK_LOG); gest pan_down; tail -n +$((n0+1)) $MOCK_LOG | grep -q '"scroll_up"' && pass two_finger_pan_down_scrolls_up || fail two_finger_pan_down_scrolls_up
+c0=$(grep -c . $CL); n0=$(wc -l < $MOCK_LOG); gest double_tap
+tail -n +$((n0+1)) $MOCK_LOG | grep -q '"zoom_item"' && pass double_tap_zooms_to_item || fail double_tap_zooms_to_item
+[ "$(tail -n +$((c0+1)) $CL | grep -c '^LEFT')" -le 1 ] && pass double_tap_not_sent_as_double_click || fail double_tap_not_sent_as_double_click
+grep -q '"zoom_' $MOCK_LOG && ! grep -q '^MIDDLE\|^SCROLL' $CL && pass gestures_not_leaked_to_vnc || fail gestures_not_leaked_to_vnc
+# MOVE mode: tap selects (one click reaches REAPER), drag moves selected items via ReaHub with a final commit
+c=$(tapIn ui MOVER); sleep 1; c0=$(grep -c . $CL); n0=$(wc -l < $MOCK_LOG)
+adb shell input swipe 800 600 1300 600 900; sleep 2
+tail -n +$((n0+1)) $MOCK_LOG | grep -q '"move", [1-9]' && pass move_mode_drag_moves_items || fail move_mode_drag_moves_items
+tail -n +$((n0+1)) $MOCK_LOG | grep -q 'true\]' && pass move_mode_commits_undo_point || fail move_mode_commits_undo_point
+[ "$(tail -n +$((c0+1)) $CL | grep -c '^LEFT')" -ge 1 ] && pass move_mode_tap_selects || fail move_mode_tap_selects
+shot 07-move-mode; tapIn ui MOVER >/dev/null; sleep 1
+c=$(tapIn ui "⋯"); sleep 1; dump more2; c=$(tapIn more2 DIAG); sleep 2; dump u4
+c=$(tapIn u4 "TESTAR CONEXÃO"); sleep 8; shot 05-diagnostics; dump ui5
 grep -q 'REAPER (noVNC): conectado' $OUT/ui5.xml && pass diag_shows_novnc_connected || fail diag_shows_novnc_connected
 grep -q 'ReaHub com token: HTTP 200' $OUT/ui5.xml && pass diag_test_reahub_token_200 || fail diag_test_reahub_token_200
 grep -q 'noVNC página: HTTP 200' $OUT/ui5.xml && pass diag_test_novnc_page_200 || fail diag_test_novnc_page_200
+cp $MOCK_LOG $OUT/reahub-calls-final.log
 adb logcat -d > $OUT/logcat.txt 2>&1; grep FyahWebView $OUT/logcat.txt > $OUT/webview-console.txt
 grep -q "FATAL EXCEPTION" $OUT/logcat.txt && fail no_crash || pass no_crash
 ffmpeg -loglevel error -f x11grab -video_size ${W}x${H} -i :99 -frames:v 1 -y $OUT/04-host-display-end.png

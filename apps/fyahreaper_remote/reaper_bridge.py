@@ -260,3 +260,58 @@ class ReaperBridge:
 
     def edit(self, action):
         return self._guarded(self._edit_impl, action)
+
+
+    # Touch actions: fixed allowlist of REAPER command IDs (never arbitrary IDs from the client).
+    TOUCH_ACTIONS = {
+        'play': 1007, 'stop': 1016, 'record': 1013, 'loop': 1068, 'undo': 40029, 'redo': 40030,
+        'split': 40012, 'delete': 40697, 'zoom_in_h': 1012, 'zoom_out_h': 1011, 'zoom_in_v': 40111,
+        'zoom_out_v': 40112, 'zoom_project': 40295, 'zoom_item': 41622, 'scroll_left': 40140,
+        'scroll_right': 40141, 'scroll_up': 40138, 'scroll_down': 40139, 'insert_track': 40001,
+        'arm_selected': 9, 'metronome': 40364, 'mixer': 40078, 'midi_editor': 40153,
+        'select_all_items': 40182, 'unselect_items': 40289, 'marker': 40157, 'save': 40026,
+    }
+    TOUCH_TRACK_HEIGHT = 150
+
+    def _action_impl(self, name, repeat=1):
+        if name not in self.TOUCH_ACTIONS:
+            raise ValueError('UNKNOWN_ACTION')
+        repeat = max(1, min(int(repeat), 8))
+        cmd = self.TOUCH_ACTIONS[name]
+        for _ in range(repeat):
+            self.r.Main_OnCommand(cmd, 0)
+        if name == 'insert_track':
+            t = self.r.GetSelectedTrack(0, 0)
+            if not _is_null(t):
+                self.r.SetMediaTrackInfo_Value(t, 'I_HEIGHTOVERRIDE', self.TOUCH_TRACK_HEIGHT)
+                self.r.TrackList_AdjustWindows(False)
+        return {'action': name, 'command_id': cmd, 'repeat': repeat, 'state': self._state()}
+
+    def action(self, name, repeat=1):
+        return self._guarded(self._action_impl, name, repeat)
+
+    def _move_impl(self, delta_px, commit):
+        """Move selected items by a horizontal screen delta (REAPER arrange pixels)."""
+        r = self.r
+        n = int(r.CountSelectedMediaItems(0))
+        if n == 0:
+            return {'moved': 0, 'delta_seconds': 0.0}
+        dpx = max(-4000.0, min(4000.0, float(delta_px)))
+        zoom = float(r.GetHZoomLevel()) or 100.0
+        dt = dpx / zoom
+        items = [r.GetSelectedMediaItem(0, i) for i in range(n)]
+        first = min(float(r.GetMediaItemInfo_Value(it, 'D_POSITION')) for it in items)
+        if first + dt < 0:
+            dt = -first
+        if dt:
+            r.PreventUIRefresh(1)
+            for it in items:
+                r.SetMediaItemInfo_Value(it, 'D_POSITION', float(r.GetMediaItemInfo_Value(it, 'D_POSITION')) + dt)
+            r.PreventUIRefresh(-1)
+            r.UpdateArrange()
+        if commit:
+            r.Undo_OnStateChange('FyahReaper Remote: move items (touch)')
+        return {'moved': n, 'delta_seconds': dt, 'zoom_px_per_s': zoom}
+
+    def move_selected(self, delta_px, commit=False):
+        return self._guarded(self._move_impl, delta_px, commit)

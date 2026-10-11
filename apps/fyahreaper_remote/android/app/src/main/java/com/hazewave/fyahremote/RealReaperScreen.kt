@@ -42,7 +42,10 @@ internal fun noVncPage(base: String, password: String): String =
         .appendQueryParameter("resize", "scale")
         .appendQueryParameter("reconnect", "1")
         .appendQueryParameter("reconnect_delay", "1500")
-        .appendQueryParameter("show_dot", "1")
+        .appendQueryParameter("show_dot", "true")
+        .appendQueryParameter("quality", "6")
+        .appendQueryParameter("compression", "2")
+        .appendQueryParameter("view_only", "false")
         .appendQueryParameter("path", "websockify")
         .appendQueryParameter("password", password)
         .build().toString()
@@ -61,6 +64,9 @@ internal const val NOVNC_STATUS_JS = "(function(){var d=document.documentElement
     "var needPw=cred&&cred.classList.contains('noVNC_open');" +
     "return (d.contains('noVNC_connected')?'conectado':(d.contains('noVNC_connecting')?'conectando':'desconectado'))+(needPw?' · PEDE SENHA':'')+' · '+s.trim().slice(0,80)+(c?' · tela '+c.clientWidth+'x'+c.clientHeight:'');})()"
 
+/** remote framebuffer px per device px (canvas.width is the remote width; CSS width x DPR is device px). */
+internal const val SCALE_JS = "(function(){var c=document.querySelector('#noVNC_container canvas');if(!c||!c.clientWidth)return '';return String(c.width/(c.clientWidth*window.devicePixelRatio));})()"
+
 // JS helpers operating on the noVNC page's own controls (ids from noVNC vnc.html).
 private fun clickJs(id: String) = "(function(){var b=document.getElementById('$id');if(b){b.click();return 'ok'}return 'missing'})()"
 private fun shiftJs(down: Boolean): String {
@@ -77,7 +83,10 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
     var showSettings by remember { mutableStateOf(!prefs.configured) }
     var reloadKey by remember { mutableIntStateOf(0) }
     var webView by remember { mutableStateOf<WebView?>(null) }
-    var barOpen by remember { mutableStateOf(true) }
+    var moreOpen by remember { mutableStateOf(false) }
+    var moveMode by remember { mutableStateOf(false) }
+    var lastGesture by remember { mutableStateOf("") }
+    val gestures = remember { kotlinx.coroutines.channels.Channel<Gesture>(64) }
     var ctrl by remember { mutableStateOf(false) }
     var alt by remember { mutableStateOf(false) }
     var shift by remember { mutableStateOf(false) }
@@ -113,7 +122,21 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                 val j = JSONObject(h.request("/health")); state = j.getString("state"); hubStatus = "OK (${j.optString("state")})"
             } catch (e: Exception) { state = "offline"; hubStatus = "ERRO: ${e.message?.take(120)}" }
             webView?.evaluateJavascript(NOVNC_STATUS_JS) { v -> vncStatus = v?.trim('"') ?: "?" }
+            webView?.evaluateJavascript(SCALE_JS) { v -> v?.trim('"')?.toFloatOrNull()?.let { if (it > 0.2f && it < 5f) (webView as? TouchWebView)?.remotePerDevice = it } }
             delay(1500)
+        }
+    }
+    // Gestures -> allowlisted ReaHub actions, strictly in order (never floods REAPER).
+    LaunchedEffect(reloadKey) {
+        for (g in gestures) {
+            val h = hub() ?: continue
+            try {
+                when (g) {
+                    is Gesture.Action -> { h.request("/api/action/${g.name}?repeat=${g.repeat}", "POST"); lastGesture = "${g.name}×${g.repeat}" }
+                    is Gesture.Move -> { h.request("/api/items/move", "POST", JSONObject().put("delta_px", g.remotePx.toDouble()).put("commit", g.commit)); lastGesture = "move ${g.remotePx.toInt()}px" }
+                }
+                android.util.Log.i("FyahGesture", lastGesture)
+            } catch (e: Exception) { diag("gesto falhou: ${e.message?.take(100)}"); snackbar.showSnackbar(e.message ?: "Falha") }
         }
     }
     suspend fun testConnection(): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -133,11 +156,14 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
     }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }, containerColor = Color.Black) { pad ->
-        Box(Modifier.fillMaxSize().padding(pad)) {
+     Box(Modifier.fillMaxSize().padding(pad)) {
+      Row(Modifier.fillMaxSize()) {
+        Box(Modifier.weight(1f).fillMaxHeight()) {
             if (!showSettings) {
                 key(reloadKey) {
                     AndroidView(modifier = Modifier.fillMaxSize(), factory = { c ->
-                        WebView(c).apply {
+                        TouchWebView(c) { g -> gestures.trySend(g) }.apply {
+                            moveMode = false
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = true
                             settings.useWideViewPort = true
@@ -165,45 +191,31 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                             loadUrl(noVncPage(prefs.vncUrl, prefs.vncPassword))
                             webView = this
                         }
-                    })
+                    }, update = { (it as? TouchWebView)?.moveMode = moveMode })
                 }
             }
-            // Slim collapsible overlay bar
-            Column(Modifier.align(Alignment.TopEnd).padding(4.dp), horizontalAlignment = Alignment.End) {
-                FilledTonalButton(onClick = { barOpen = !barOpen }, contentPadding = PaddingValues(horizontal = 10.dp)) {
-                    Text(if (barOpen) "▸" else "◂ $state", color = Color.White)
-                }
-                if (barOpen) {
-                    // Two columns so every control (>=48dp) fits the A15 landscape height (~432dp); scrolls if smaller.
-                    Column(Modifier.background(Color(0xCC1E1E24)).padding(4.dp)
-                        .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        val stateColor = when (state) { "recording" -> Color(0xFFFF4040); "playing" -> Color(0xFF52D16A); "offline" -> Color.Gray; else -> Color(0xFFDDDDDD) }
-                        Text(state.uppercase(), color = stateColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            BarBtn("PLAY", Color(0xFF2E7D32), !busy) { call("/api/transport/play") }
-                            BarBtn("STOP", Color(0xFF455A64), !busy) { call("/api/transport/stop") }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            BarBtn("REC", if (state == "recording") Color(0xFFFF1744) else Color(0xFFB71C1C), !busy) { call("/api/transport/rec") }
-                            BarBtn("UNDO", Color(0xFF37474F), !busy) { call("/api/edit/undo") }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Toggle("CTRL", ctrl) { ctrl = !ctrl; webView?.evaluateJavascript(clickJs("noVNC_toggle_ctrl_button"), null) }
-                            Toggle("ALT", alt) { alt = !alt; webView?.evaluateJavascript(clickJs("noVNC_toggle_alt_button"), null) }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Toggle("SHIFT", shift) { shift = !shift; webView?.evaluateJavascript(shiftJs(shift), null) }
-                            BarBtn("ESC", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_send_esc_button"), null) }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            BarBtn("⌨", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_keyboard_button"), null) }
-                            BarBtn("⚙", Color(0xFF37474F), true) { showSettings = true }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            BarBtn("DIAG", if (vncStatus.startsWith("conectado")) Color(0xFF37474F) else Color(0xFFE65100), true) { showDiag = !showDiag }
-                            BarBtn("NATIVO", Color(0xFF37474F), true) { onOpenNative() }
-                        }
+            if (moveMode) Text("MODO MOVER: toque no item e arraste", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(6.dp).background(Color(0xFFFFC107)).padding(horizontal = 10.dp, vertical = 4.dp))
+            if (moreOpen) Surface(Modifier.align(Alignment.TopEnd).padding(6.dp), color = Color(0xEE1E1E24)) {
+                Column(Modifier.padding(6.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        BarBtn("PLAY", Color(0xFF2E7D32), !busy) { call("/api/transport/play") }
+                        BarBtn("UNDO", Color(0xFF37474F), !busy) { call("/api/edit/undo") }
+                        BarBtn("REDO", Color(0xFF37474F), !busy) { call("/api/edit/redo") }
                     }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Toggle("ALT", alt) { alt = !alt; webView?.evaluateJavascript(clickJs("noVNC_toggle_alt_button"), null) }
+                        BarBtn("⚙", Color(0xFF37474F), true) { moreOpen = false; showSettings = true }
+                        BarBtn("DIAG", if (vncStatus.startsWith("conectado")) Color(0xFF37474F) else Color(0xFFE65100), true) { moreOpen = false; showDiag = !showDiag }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        BarBtn("FIT", Color(0xFF1565C0), true) { gestures.trySend(Gesture.Action("zoom_project")) }
+                        BarBtn("NATIVO", Color(0xFF37474F), true) { onOpenNative() }
+                        BarBtn("✕", Color(0xFF424242), true) { moreOpen = false }
+                    }
+                    Text("Gestos: pinça = zoom · 2 dedos = rolar · toque duplo = zoom no item · segurar = clique direito",
+                        color = Color.LightGray, fontSize = 11.sp, modifier = Modifier.widthIn(max = 240.dp))
+                    if (lastGesture.isNotBlank()) Text("último gesto: $lastGesture", color = Color(0xFFB2FF59), fontSize = 11.sp)
                 }
             }
             if (showDiag) Surface(Modifier.align(Alignment.TopStart).fillMaxWidth(0.62f).fillMaxHeight().padding(6.dp), color = Color(0xEE111116)) {
@@ -221,8 +233,24 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                     diagLog.forEach { Text(it, color = Color(0xFFFFCC80), fontSize = 11.sp) }
                 }
             }
-            if (showSettings) SettingsPanel(prefs) { showSettings = false; reloadKey++ }
         }
+        // Fixed side rail (does not cover REAPER). Single column keeps the remote screen as large as possible.
+        Column(Modifier.width(80.dp).fillMaxHeight().background(Color(0xFF15151B)).padding(4.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(3.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            val stateColor = when (state) { "recording" -> Color(0xFFFF4040); "playing" -> Color(0xFF52D16A); "offline" -> Color.Gray; else -> Color(0xFFDDDDDD) }
+            Text(state.uppercase(), color = stateColor, fontWeight = FontWeight.Bold, fontSize = 11.sp, maxLines = 1)
+            BarBtn("REC", if (state == "recording") Color(0xFFFF1744) else Color(0xFFB71C1C), !busy) { call("/api/transport/rec") }
+            BarBtn("STOP", Color(0xFF455A64), !busy) { call("/api/transport/stop") }
+            Toggle("MOVER", moveMode) { moveMode = !moveMode }
+            Toggle("CTRL", ctrl) { ctrl = !ctrl; webView?.evaluateJavascript(clickJs("noVNC_toggle_ctrl_button"), null) }
+            Toggle("SHIFT", shift) { shift = !shift; webView?.evaluateJavascript(shiftJs(shift), null) }
+            BarBtn("ESC", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_send_esc_button"), null) }
+            BarBtn("⌨", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_keyboard_button"), null) }
+            Toggle("⋯", moreOpen) { moreOpen = !moreOpen }
+        }
+      }
+      if (showSettings) SettingsPanel(prefs) { showSettings = false; reloadKey++ }
+     }
     }
 }
 
