@@ -27,9 +27,12 @@ for(const slug of slugs){try{await readFile(join(dist,"artists",slug,"index.html
 if (process.env.HAZEWAVE_TEST_EXPERIMENTS !== "1") {
   await rm(join(dist,"living-universe-p0"),{recursive:true,force:true});
   await rm(join(dist,"experimental"),{recursive:true,force:true});
+  // The newly authored Site 01 scroll-as-brush candidate is real and tested,
+  // but human artistic approval has not authorized its public distribution.
+  await rm(join(dist,"site-01"),{recursive:true,force:true});
   const modules=join(dist,"_astro");
   for(const name of await readdir(modules)) {
-    if(/^(?:living-universe-p0|wave-p0-)/.test(name))await rm(join(modules,name),{force:true});
+    if(/^(?:living-universe-p0|wave-p0-|site-01[.-])/.test(name))await rm(join(modules,name),{force:true});
   }
   // Strict allowlist: an unreviewed Astro route or leaked asset fails the
   // build rather than silently returning to the production distribution.
