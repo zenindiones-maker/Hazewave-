@@ -1,0 +1,132 @@
+{
+ "url": "https://ponpon-mania.com/about",
+ "err": null,
+ "status": 200,
+ "final": "https://ponpon-mania.com/about",
+ "p0": {
+  "title": "About | Ponpon Mania - Interactive Comic",
+  "H": 915,
+  "libs": {
+   "gsap": false,
+   "ScrollTrigger": false,
+   "DrawSVG": false,
+   "TweenMax": false,
+   "ScrollMagic": false,
+   "skrollr": false,
+   "lottie": false,
+   "THREE": false,
+   "jQuery": false,
+   "Lenis": false,
+   "__NEXT": false,
+   "nuxt": true
+  },
+  "svg": 16,
+  "paths": 78,
+  "dashed": 1,
+  "dashSample": [
+   "400px|0px"
+  ],
+  "canvas": [
+   "618x1372:"
+  ],
+  "video": 0,
+  "img": 0,
+  "lottieEls": 0,
+  "pinned": 14
+ },
+ "p2": {
+  "title": "About | Ponpon Mania - Interactive Comic",
+  "H": 915,
+  "libs": {
+   "gsap": false,
+   "ScrollTrigger": false,
+   "DrawSVG": false,
+   "TweenMax": false,
+   "ScrollMagic": false,
+   "skrollr": false,
+   "lottie": false,
+   "THREE": false,
+   "jQuery": false,
+   "Lenis": false,
+   "__NEXT": false,
+   "nuxt": true
+  },
+  "svg": 16,
+  "paths": 78,
+  "dashed": 1,
+  "dashSample": [
+   "400px|0px"
+  ],
+  "canvas": [
+   "618x1372:"
+  ],
+  "video": 0,
+  "img": 0,
+  "lottieEls": 0,
+  "pinned": 14
+ },
+ "p4": {
+  "title": "About | Ponpon Mania - Interactive Comic",
+  "H": 915,
+  "libs": {
+   "gsap": false,
+   "ScrollTrigger": false,
+   "DrawSVG": false,
+   "TweenMax": false,
+   "ScrollMagic": false,
+   "skrollr": false,
+   "lottie": false,
+   "THREE": false,
+   "jQuery": false,
+   "Lenis": false,
+   "__NEXT": false,
+   "nuxt": true
+  },
+  "svg": 16,
+  "paths": 78,
+  "dashed": 1,
+  "dashSample": [
+   "400px|0px"
+  ],
+  "canvas": [
+   "618x1372:"
+  ],
+  "video": 0,
+  "img": 0,
+  "lottieEls": 0,
+  "pinned": 14
+ },
+ "bytesByType": {
+  "document": 0,
+  "script": 180239,
+  "stylesheet": 442,
+  "other": 0,
+  "font": 29336,
+  "xhr": 615994,
+  "ping": 0,
+  "fetch": 1852848
+ },
+ "scripts": [
+  "https://ponpon-mania.com/_nuxt/BRU4-Z4F.js 0",
+  "https://ponpon-mania.com/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js 0",
+  "https://ponpon-mania.com/_nuxt/CfE0pqJa.js 0",
+  "https://static.cloudflareinsights.com/beacon.min.js/v4bc70e2c01a94c73b74392e4234840661791215815920 0",
+  "https://ponpon-mania.com/_nuxt/demhRTyb.js 0",
+  "https://ponpon-mania.com/_nuxt/kRp8jEf0.js 0",
+  "https://www.googletagmanager.com/gtag/js?id=G-KL9SR46655 180239",
+  "https://ponpon-mania.com/_nuxt/koeOL3k0.js 0",
+  "https://ponpon-mania.com/_nuxt/DXexkJEA.js 0",
+  "https://ponpon-mania.com/_nuxt/Bg17DEuf.js 0"
+ ],
+ "mediaKinds": [
+  "text/html",
+  "application/javascript",
+  "text/css",
+  "application/json",
+  "text/javascript",
+  "font/woff2",
+  "text/plain",
+  "application/octet-stream",
+  "application/wasm"
+ ]
+}

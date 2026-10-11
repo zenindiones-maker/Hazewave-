@@ -1,0 +1,129 @@
+{
+ "url": "https://promo.whoisguilty.com/",
+ "err": null,
+ "status": 200,
+ "final": "https://promo.whoisguilty.com/",
+ "p0": {
+  "title": "WHO IS GUILTY",
+  "H": 915,
+  "libs": {
+   "gsap": false,
+   "ScrollTrigger": false,
+   "DrawSVG": false,
+   "TweenMax": false,
+   "ScrollMagic": false,
+   "skrollr": false,
+   "lottie": false,
+   "THREE": false,
+   "jQuery": false,
+   "Lenis": false,
+   "__NEXT": false,
+   "nuxt": false
+  },
+  "svg": 150,
+  "paths": 6827,
+  "dashed": 32,
+  "dashSample": [
+   "120px|120px",
+   "120px|120px",
+   "120px|120px"
+  ],
+  "canvas": [],
+  "video": 0,
+  "img": 23,
+  "lottieEls": 9,
+  "pinned": 16
+ },
+ "p2": {
+  "title": "WHO IS GUILTY",
+  "H": 915,
+  "libs": {
+   "gsap": false,
+   "ScrollTrigger": false,
+   "DrawSVG": false,
+   "TweenMax": false,
+   "ScrollMagic": false,
+   "skrollr": false,
+   "lottie": false,
+   "THREE": false,
+   "jQuery": false,
+   "Lenis": false,
+   "__NEXT": false,
+   "nuxt": false
+  },
+  "svg": 150,
+  "paths": 6827,
+  "dashed": 32,
+  "dashSample": [
+   "120px|120px",
+   "120px|120px",
+   "120px|120px"
+  ],
+  "canvas": [],
+  "video": 0,
+  "img": 23,
+  "lottieEls": 9,
+  "pinned": 16
+ },
+ "p4": {
+  "title": "WHO IS GUILTY",
+  "H": 915,
+  "libs": {
+   "gsap": false,
+   "ScrollTrigger": false,
+   "DrawSVG": false,
+   "TweenMax": false,
+   "ScrollMagic": false,
+   "skrollr": false,
+   "lottie": false,
+   "THREE": false,
+   "jQuery": false,
+   "Lenis": false,
+   "__NEXT": false,
+   "nuxt": false
+  },
+  "svg": 150,
+  "paths": 6827,
+  "dashed": 32,
+  "dashSample": [
+   "120px|120px",
+   "120px|120px",
+   "120px|120px"
+  ],
+  "canvas": [],
+  "video": 0,
+  "img": 23,
+  "lottieEls": 9,
+  "pinned": 16
+ },
+ "bytesByType": {
+  "document": 0,
+  "stylesheet": 0,
+  "script": 69783,
+  "image": 129,
+  "font": 265504,
+  "other": 371,
+  "xhr": 0,
+  "fetch": 4951277,
+  "ping": 0
+ },
+ "scripts": [
+  "https://promo.whoisguilty.com/assets/app.c47e06fc.js 0",
+  "https://static.cloudflareinsights.com/beacon.min.js/v4bc70e2c01a94c73b74392e4234840661791215815920 0",
+  "https://mc.yandex.ru/metrika/tag.js 69783"
+ ],
+ "mediaKinds": [
+  "text/html",
+  "text/css",
+  "application/javascript",
+  "image/svg+xml",
+  "application/octet-stream",
+  "font/woff2",
+  "text/javascript",
+  "application/json",
+  "text/plain",
+  "audio/mpeg",
+  "",
+  "image/gif"
+ ]
+}

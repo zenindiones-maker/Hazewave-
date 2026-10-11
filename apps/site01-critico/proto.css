@@ -1,0 +1,16 @@
+*{box-sizing:border-box}html,body{margin:0;background:#0a0807;color:#f4ece4;font:16px/1.5 system-ui,sans-serif}
+.tag{position:fixed;top:0;left:0;right:0;z-index:9;font-size:11px;padding:4px 8px;background:#ffd23f;color:#111}
+.scene{position:relative}.pin{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;display:grid;place-items:center}
+.logo{width:92vw;max-width:900px;height:auto;position:relative;z-index:2}
+.stroke{fill:#ff7a1a;fill-opacity:0;stroke:#ffb347;stroke-width:14;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.logo .stroke{stroke-width:2.2}
+.logo-raster{position:absolute;width:92vw;max-width:900px;height:auto;opacity:0}
+.cap,.prov{position:absolute;bottom:6vh;left:5vw;right:5vw;text-align:center;font-size:15px;margin:0}
+.prov{color:#ffd23f;top:9vh;bottom:auto}
+.walker{position:absolute;bottom:18vh;left:0;width:22vw;max-width:140px;height:auto;will-change:transform}
+.walker path,.walker circle{transform-box:fill-box}
+.legA,.legB,.armA,.armB{transform-origin:top center}
+.ground{position:absolute;left:0;right:0;bottom:18vh;height:2px;background:#ff7a1a55}
+.world{position:absolute;top:0;left:0;height:100%;width:auto;max-width:none;will-change:transform}
+.end{padding:30vh 1rem;text-align:center}
+@media (prefers-reduced-motion:reduce){.walker{transition:none}}
