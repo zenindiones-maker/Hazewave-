@@ -112,8 +112,8 @@ class MainActivity : ComponentActivity() {
         onDispose { socket?.close(1000,"Screen closed") }
     }
     Column(Modifier.fillMaxSize().background(Color(0xFF101017)).padding(16.dp)) {
-        Text("FYAHREAPER",fontSize=28.sp,fontWeight=FontWeight.Black,color=Color(0xFFFF6D35))
-        Text("HAZEWAVE · WORKSTATION REMOTE",fontSize=12.sp,color=Color.LightGray)
+        Text("HAZEWAVE",fontSize=36.sp,fontWeight=FontWeight.Black,color=Color(0xFFFF6D35))
+        Text("FYAHREAPER REMOTE · WORKSTATION",fontSize=12.sp,color=Color.LightGray)
         if (hub==null) {
             Spacer(Modifier.height(28.dp))
             OutlinedTextField(value=host,onValueChange={host=it},label={Text("Endereço da workstation")}, modifier=Modifier.fillMaxWidth())
