@@ -53,7 +53,7 @@ class WAVESevenToolHandoffContract(unittest.TestCase):
                     "path": "../escaped.png", "sha256": "1" * 64
                 }},
             }
-            (root / "manifest.json").write_text(json.dumps(manifest))
+            (root / "integration_manifest.json").write_text(json.dumps(manifest))
             with self.assertRaises((ValueError, PermissionError)):
                 module.verify_bundle(root, run_id="1234567890", head_sha="a" * 40)
 
