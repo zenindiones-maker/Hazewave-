@@ -179,8 +179,12 @@ def _media(data: bytes) -> dict:
             if count > 1000000 or at + 8 + count * width > end:
                 raise ValueError("MP4_INVALID_CHUNK_TABLE")
             # Bound displayed offsets while still validating the full table.
-            chunk_offsets.extend(_u(data, at + 8 + i * width, width)
-                                 for i in range(min(count, 1000)))
+            for i in range(count):
+                position = _u(data, at + 8 + i * width, width)
+                if position >= len(data):
+                    raise ValueError("MP4_CHUNK_OFFSET_OUT_OF_BOUNDS")
+                if len(chunk_offsets) < 1000:
+                    chunk_offsets.append(position)
     return {
         "format": "ISO_BMFF", "major_brand": brand, "duration_seconds": duration,
         "codecs": sorted(set(codecs)), "chunk_offsets_sample": chunk_offsets[:1000],
@@ -235,7 +239,7 @@ def _codec(data: bytes) -> dict:
 
 def _hls(data: bytes) -> dict:
     try:
-        s = data.decode("utf-8-sig")
+        s = data.decode("utf-8")
     except UnicodeError as e:
         raise ValueError("INVALID_HLS_UTF8") from e
     if s.startswith("\ufeff") or not s.startswith("#EXTM3U"):
@@ -255,7 +259,13 @@ def _hls(data: bytes) -> dict:
         if line.startswith("#"):
             if line.startswith("#EXT-X-KEY:") or line.startswith("#EXT-X-SESSION-KEY:"):
                 # Never emit key URIs, keys or raw encryption attributes.
-                protection.append("HLS_EXT_X_KEY")
+                # RFC 8216 METHOD=NONE explicitly disables encryption.
+                attributes = line.split(":", 1)[1].split(",")
+                methods = [item.split("=", 1)[1] for item in attributes if item.startswith("METHOD=")]
+                if len(methods) != 1:
+                    raise ValueError("INVALID_HLS_KEY_METHOD")
+                if methods[0] != "NONE":
+                    protection.append("HLS_EXT_X_KEY")
             elif line.startswith("#EXT-X-STREAM-INF:"):
                 next_variant = True
             elif line.startswith("#EXTINF:"):
