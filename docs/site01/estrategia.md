@@ -317,3 +317,13 @@ Nas seções 3–6, cada ícone nasce em tinta pelo scroll e depois recebe a cor
 2. Line art no mesmo estilo para: FYAHREAPER (celular com a interface do REAPER), rack de plugins, camiseta/loja, cofrinho/coração, a cidade Indionesbala e os planos de parallax (céu e ilhas distantes).
 3. Clipe, faixa e arquivo de download do Indionesbala (URLs), o APK e os plugins publicados como Release, a loja e os dados de doação.
 4. Teste no Samsung A15 real.
+
+## v4 (protótipo) — arte nova integrada
+- Ícones das seções 3–6 = recortes da folha 2×2 (celular-DAW, rack compressor+fita, camiseta+boné, pote de doação): traço nasce pelo scroll e depois a cor chapada neutra entra.
+- Céu (galáxia, luas, mar de nuvens, ilhas distantes) como camada de profundidade com parallax 0,18; galáxia e luas são **desenhadas pelo scroll**; o céu some quando a câmera mergulha na ilha.
+- Final: seção "A cidade Indionesbala" depois de Apoie (traço → cor), destino da estrada.
+- Pads da ilha corrigidos: grade 4×4 completa (16 pads terracota), sem o falso positivo à esquerda.
+- Traços em binário HZS1 (int16 + deltas int8, `pipeline/art.py`): ilha 136 KB JSON → 36,5 KB; decodificação preguiçosa em idle (~10 ms). Pontos da estrada pré-calculados no build. Long task de carregamento (A15, CPU 4×): 270 ms → 107 ms.
+- Botão "Som" opcional (só liga por toque, AudioContext pronto, sem arquivo ainda — `site.json > sound.src`).
+- Testes A15 (CPU 4×): 412×915, 1080×2340, 915×412 → p95 16,8 ms, 0 long tasks no scroll, sem sobreposição, sem scroll horizontal, reduced-motion ok.
+- Nota: 7,6/10. Falta para 8+: aprovação do Luiz para uso público da arte IA, links reais (clipe/faixa/APK/plugins/loja/Pix), áudio, fill dos ícones com acento (coração do pote) e revisão humana do traço da cidade (denso demais em tela pequena).

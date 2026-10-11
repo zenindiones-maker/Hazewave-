@@ -2,7 +2,7 @@
 *{box-sizing:border-box}html,body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.5 "Trebuchet MS",system-ui,sans-serif}
 .skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;z-index:20;background:var(--ink);color:var(--paper);padding:8px}
 .tag{position:fixed;top:6px;right:6px;z-index:10;font-size:10px;padding:2px 6px;background:var(--ink);color:var(--paper);border-radius:4px;opacity:.7}
-.pin{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden}
+.pin{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:var(--paper)}
 .world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
 .world>*{position:absolute}
 .world img.tile{left:-500px;width:2000px;height:900px}
@@ -25,8 +25,6 @@
 .sec{position:relative}
 .sec .pin{display:grid;place-items:center;padding:1.5rem}
 .sec .box{max-width:560px;width:100%;text-align:center}
-.sec svg{width:min(56vw,240px);height:auto;display:block;margin:0 auto 1rem}
-.sec svg .fill{opacity:0}
 .sec h2{font:2.4rem/1 "Bangers","Impact",sans-serif;letter-spacing:.05em;margin:.2rem 0 .5rem}
 .sec p{margin:.3rem auto .9rem;max-width:34ch}
 .end{padding:4rem 1rem;text-align:center;border-top:3px solid var(--ink)}
@@ -37,3 +35,15 @@
 @media (orientation:landscape){.island-card{left:auto;right:3vw;width:38vw;bottom:auto;top:10vh}}
 .hint{position:absolute;left:0;right:0;bottom:8vh;text-align:center;font:1.4rem "Bangers","Impact",sans-serif;letter-spacing:.08em;color:var(--deep)}
 @media (orientation:landscape){.sec svg{width:auto;height:30vh}.sec h2{font-size:1.9rem}.sec p{margin:.2rem auto .5rem}}
+
+.sky{position:absolute;left:50%;top:0;height:62vh;aspect-ratio:16/9;will-change:transform,opacity;pointer-events:none}
+.sky img{position:absolute;inset:0;width:100%;height:100%}
+.skytop{position:absolute;left:0;right:0;top:0}
+.skytop canvas{width:100%;height:100%;display:block}
+.inkcv{position:absolute;left:0;top:0;width:100%;height:100%;will-change:transform}
+.sec .art{position:relative;width:min(80vw,340px);aspect-ratio:560/360;margin:0 auto 1rem}
+.sec.big .art{width:min(96vw,900px);aspect-ratio:16/9}
+.sec .art img{position:absolute;inset:0;width:100%;height:100%;opacity:0}
+.sound{position:fixed;left:8px;top:8px;z-index:12;font:600 13px/1 system-ui;padding:.55rem .8rem;border:2px solid var(--ink);border-radius:999px;background:var(--paper);color:var(--ink);min-height:40px}
+.sound[aria-pressed=true]{background:var(--accent);color:var(--paper)}
+@media (orientation:landscape){.sec .art{height:34vh;width:auto}.sec.big .art{height:62vh;width:auto}}
