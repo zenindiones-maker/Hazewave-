@@ -68,6 +68,8 @@ test("the brush paints progressively and erases identically on reverse scroll, i
   const finished=await strokeState(page,"signature");
   expect(finished.offset / finished.length).toBeLessThan(.01);
   await expect(page.locator("#ink-arrival-link")).toHaveAttribute("href","/artists/indionesbala/");
+  await expect(page.locator("#ink-arrival-link")).toHaveCSS("pointer-events","auto");
+  expect(Number(await page.locator("#ink-arrival-link").evaluate(el=>getComputedStyle(el).opacity))).toBeGreaterThan(.95);
   await go(page,0);
   const reversed=await strokeState(page,"origin");
   const revertedMask=await strokeState(page,"owner-mask");
