@@ -85,10 +85,10 @@ jobs:
               -v "$work:/work:rw" \
               python:3.12-slim-bookworm sh -ec '
                 python3 /src/scripts/wave_artcraft_external_tools.py smoke photocraft /tools/photocraft-cli /work --task-id artcraft-${{ github.run_id }}-photocraft
-                python3 /src/scripts/wave_artcraft_external_tools.py smoke lightcraft /tools/lightcraft-cli /work --task-id artcraft-${{ github.run_id }}-lightcraft
+                python3 /src/scripts/wave_artcraft_external_tools.py smoke lightcraft /tools/lightcraft-cli /work --task-id artcraft-${{ github.run_id }}-lightcraft --upstream-task-id artcraft-${{ github.run_id }}-photocraft
               '
             python3 scripts/wave_artcraft_external_tools.py verify photocraft "$work" --task-id artcraft-${{ github.run_id }}-photocraft
-            python3 scripts/wave_artcraft_external_tools.py verify lightcraft "$work" --task-id artcraft-${{ github.run_id }}-lightcraft
+            python3 scripts/wave_artcraft_external_tools.py verify lightcraft "$work" --task-id artcraft-${{ github.run_id }}-lightcraft --upstream-task-id artcraft-${{ github.run_id }}-photocraft
           else
             docker run --rm --network none --read-only \
               --cap-drop ALL --security-opt no-new-privileges \
