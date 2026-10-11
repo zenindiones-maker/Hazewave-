@@ -209,6 +209,20 @@ def assemble(
         "stage_id": editorial_provenance["stage_id"],
         "artifact_hash": editorial_provenance["artifact_hash"],
     }
+    owner_source = ROOT / "apps/hazewave-site/owner-art-provenance.json"
+    identity_source = json.loads(owner_source.read_text(encoding="utf-8"))
+    approved = {a["asset"]: a for a in identity_source["assets"]}
+    site_public = ROOT / "apps/hazewave-site/public"
+    identities = {}
+    for key, original, final in (
+        ("hazewave", "/media/hazewave-world.jpg", "media/hazewave-world.jpg"),
+        ("indionesbala", "/media/artists/indionesbala.webp",
+         "media/artists/indionesbala.jpg"),
+    ):
+        actual = _safe_file(site_public, original.lstrip("/"))
+        if sha256(actual) != approved[original]["sha256"]:
+            raise ValueError("SEVEN_TOOL_OWNER_IDENTITY_SHA_MISMATCH")
+        identities[key] = {"path": final, "sha256": sha256(actual)}
     receipt = {
         "schema": SCHEMA, "repository": REPO, "run_id": run_id,
         "head_sha": head_sha, "domain": "WAVE",
@@ -219,6 +233,7 @@ def assemble(
         "artifacts": asset_receipts, "evidence": proof_receipts,
         "motion_frames": frame_receipts,
         "designcraft_provenance": provenance,
+        "identity_assets": identities,
     }
     (target / "integration_manifest.json").write_text(
         json.dumps(receipt, indent=2, sort_keys=True) + "\n",
@@ -286,6 +301,21 @@ def verify_bundle(root: Path, *, run_id: str, head_sha: str) -> dict:
         or record.get("schema") != "HazewaveDesignCraftProvenance/v1"
         or record.get("producer") != "designcraft"):
         raise ValueError("SEVEN_TOOL_DESIGNCRAFT_RECEIPT_CHANGED")
+    identity = manifest.get("identity_assets")
+    if (not isinstance(identity, dict) or set(identity) != {"hazewave", "indionesbala"}):
+        raise ValueError("SEVEN_TOOL_OWNER_BRAND_IDENTITY_MISSING")
+    canonical = {
+        "hazewave": ("media/hazewave-world.jpg", "media/hazewave-world.jpg"),
+        "indionesbala": ("media/artists/indionesbala.jpg",
+                        "media/artists/indionesbala.webp"),
+    }
+    public = ROOT / "apps/hazewave-site/public"
+    for key, (browser_path, source_path) in canonical.items():
+        row = identity[key]
+        if (not isinstance(row, dict) or set(row) != {"path", "sha256"}
+            or row["path"] != browser_path
+            or sha256(_safe_file(public, source_path)) != row["sha256"]):
+            raise ValueError("SEVEN_TOOL_OWNER_IDENTITY_PROVENANCE_MISMATCH")
     for i, item in enumerate(frames):
         expected = f"assets/sonic-portal-{i:02d}.png"
         if (
