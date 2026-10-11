@@ -56,7 +56,7 @@ for (const viewport of [{ width: 360, height: 800 }, { width: 393, height: 852 }
     // the strict reverse-pose comparison after visiting the end of the scroll.
     await expect.poll(async () => page.locator('img[data-rig-id="knob_00"]').evaluate(
       element => (element as HTMLImageElement).style.transform
-    )).toMatch(/^rotate\\(-?\\d+(?:\\.\\d+)?deg\\)$/);
+    )).toMatch(/^rotate\(-?\d+(?:\.\d+)?deg\)$/);
 
     // A fully broken data URL must fail even if the JS claims 'mounted:24'.
     const decoded = await page.locator("img").evaluateAll(images => images.map(img => {
