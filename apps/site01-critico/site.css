@@ -57,3 +57,4 @@
 .cap.in{animation:capin .35s ease-out}
 @keyframes capin{from{opacity:0;transform:translate(-50%,8px)}}
 @media (prefers-reduced-motion:reduce){.cap.in{animation:none}}
+.sec svg.divider{width:min(70vw,300px);height:24px}
