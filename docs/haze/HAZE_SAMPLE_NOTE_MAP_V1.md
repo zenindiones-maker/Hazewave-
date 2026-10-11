@@ -19,13 +19,12 @@ State: DEVELOPMENT_CANDIDATE. Harness domain: HAZE. Capability: `audio.sample_to
 ## Usage (checkout of this candidate branch)
 
 ```bash
-python -m hazewave.sample_note_map ./sample.wav \
+hazewave notes ./sample.wav \
   --out ./sample.mid \
-  --task-id haze-local-audio-to-midi-001 \
-  --json-out ./sample-note-map.json
+  --task-id haze-local-audio-to-midi-001
 ```
 
-The output can be opened in compatible DAW piano rolls for manual correction. For MP3/FLAC/etc, separately convert to PCM16 WAV using an approved offline decoder and verify both provenance and audio rights.
+The CLI prints JSON with receipts; redirect stdout to a new `.json` file to preserve the note map. The exported .mid can be opened in compatible DAW piano rolls for manual correction. For MP3/FLAC/etc, separately convert to PCM16 WAV using an approved offline decoder and verify both provenance and audio rights.
 
 ## Sources and alternatives
 - noteGRABBER2 official commercial Windows/macOS plugin: https://notegrabber.com/products/notegrabber
