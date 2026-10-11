@@ -51,6 +51,16 @@ _CROSS_DOMAIN_CAPABILITIES: Final[frozenset[str]] = frozenset(
 )
 
 
+# RECON-REVENG-002: domain-neutral read-only inspection, never BRIDGE.
+_INSPECTION_CAPABILITIES: Final[frozenset[str]] = frozenset({
+    "binary_header_inspector",
+    "media_container_deep_parser",
+    "codec_stream_analyzer",
+    "streaming_manifest_parser",
+    "protection_detector",
+})
+
+
 @dataclass(frozen=True)
 class HazewaveTask:
     task_id: str
@@ -82,6 +92,8 @@ class HazewaveAuthorization:
 
 def classify_capability_domain(capability_id: str) -> str:
     value = str(capability_id or "").strip()
+    if value in _INSPECTION_CAPABILITIES:
+        raise ValueError(f"INSPECTION_CAPABILITY_REQUIRES_REQUESTED_DOMAIN:{value}")
     if value in _CROSS_DOMAIN_CAPABILITIES:
         raise ValueError(f"CROSS_DOMAIN_CAPABILITY_REQUIRES_REQUESTED_DOMAIN:{value}")
     try:
@@ -92,6 +104,8 @@ def classify_capability_domain(capability_id: str) -> str:
 
 def capability_allows_domain(capability_id: str, domain: str) -> bool:
     value = str(capability_id or "").strip()
+    if value in _INSPECTION_CAPABILITIES:
+        return domain in {HAZE, WAVE}
     if value in _CROSS_DOMAIN_CAPABILITIES:
         return domain in {HAZE, WAVE, BRIDGE}
     return classify_capability_domain(value) == domain
@@ -160,7 +174,7 @@ def harness_status() -> dict[str, object]:
         "project_id": PROJECT_ID,
         "authority": AUTHORITY,
         "domains": [HAZE, WAVE, BRIDGE],
-        "capabilities": sorted(set(_CAPABILITY_DOMAINS) | set(_CROSS_DOMAIN_CAPABILITIES)),
+        "capabilities": sorted(set(_CAPABILITY_DOMAINS) | set(_CROSS_DOMAIN_CAPABILITIES) | set(_INSPECTION_CAPABILITIES)),
         "portfolio_authority": "NONE",
         "status": "ONLINE",
     }
