@@ -72,6 +72,59 @@ class ArtCraftSevenContract(unittest.TestCase):
             with self.assertRaises(ValueError):
                 module.extract_cli(archive, root / "duplicate", "photocraft")
 
+    def test_harness_is_real_routing_authority_for_all_seven(self):
+        import sys
+        sys.path.insert(0, str(ROOT / "src"))
+        from hazewave.harness import classify_capability_domain, WAVE
+        from hazewave.wave_artcraft import admit_artcraft
+        approved = {}
+        for app in sorted(module.NAMES):
+            receipt = admit_artcraft(task_id="ci-wave-artcraft-001", tool=app,
+                                     data_classification="PUBLIC",
+                                     requested_domain="WAVE")
+            self.assertEqual(receipt.schema, "HazewaveArtCraftHarnessAdmission/v1")
+            self.assertEqual(receipt.tool, app)
+            self.assertEqual(receipt.project_id, "HAZEWAVE")
+            self.assertEqual(receipt.domain, WAVE)
+            self.assertEqual(receipt.authority, "HAZEWAVE_HARNESS")
+            self.assertEqual(receipt.execution_boundary, "PUBLIC_SYNTHETIC_OFFLINE")
+            self.assertEqual(classify_capability_domain(receipt.capability_id), WAVE)
+            self.assertEqual(len(receipt.authorization_id), 64)
+            approved[app] = receipt.capability_id
+        self.assertEqual(set(approved), set(module.NAMES))
+
+    def test_harness_never_admits_private_media_wrong_domain_or_unknown_provider(self):
+        import sys
+        sys.path.insert(0, str(ROOT / "src"))
+        from hazewave.wave_artcraft import admit_artcraft
+        for invalid in [
+            {"tool": "photoshop"},
+            {"tool": "photocraft", "requested_domain": "HAZE"},
+            {"tool": "photocraft", "requested_domain": "BRIDGE"},
+            {"tool": "photocraft", "data_classification": "PRIVATE_MEDIA"},
+            {"tool": "photocraft", "data_classification": "CREDENTIAL"},
+            {"tool": "photocraft", "task_id": "../escape"},
+            {"tool": "photocraft", "task_id": " "},
+        ]:
+            options = {"task_id": "ci-wave-artcraft-001",
+                       "tool": "photocraft", "data_classification": "PUBLIC",
+                       "requested_domain": "WAVE"} | invalid
+            with self.subTest(invalid=invalid), self.assertRaises((ValueError, PermissionError)):
+                admit_artcraft(**options)
+
+    def test_smoke_uses_existing_harness_capability_and_rejects_self_authority(self):
+        import sys
+        sys.path.insert(0, str(ROOT / "src"))
+        from hazewave.wave_artcraft import admit_artcraft, verify_admission
+        admission = admit_artcraft(task_id="ci-wave-artcraft-001", tool="designcraft",
+                                   data_classification="PUBLIC", requested_domain="WAVE")
+        verify_admission(admission, expected_tool="designcraft", expected_task_id="ci-wave-artcraft-001")
+        with self.assertRaises(PermissionError):
+            verify_admission(admission, expected_tool="photocraft", expected_task_id="ci-wave-artcraft-001")
+        with self.assertRaises(PermissionError):
+            verify_admission(admission, expected_tool="designcraft", expected_task_id="other-task")
+        self.assertNotIn("artcraft", admission.authority.lower())
+
 
 if __name__ == "__main__":
     unittest.main()
