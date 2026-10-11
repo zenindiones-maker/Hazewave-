@@ -25,10 +25,18 @@ sleep 3
 curl -fsSI http://127.0.0.1:3000/
 npx playwright install chromium
 node scripts/verify-brand-screenshots.mjs
-# Prove the NEW Site 01 directly before the noisy legacy performance audit.
+# Astro 7's preview CLI prohibits multiple active preview instances even on
+# different ports. Release port 3000 before the nested Playwright 4321 server;
+# otherwise browser QA aborts without executing ANY Site 01 assertion.
+npx astro preview stop
+# Prove the NEW Site 01 before the old site's mobile performance audit.
 # This command builds and tests the seven-act ink route, then restores the
 # approved production dist. It does not publish the experimental candidate.
 bash "$ROOT/scripts/run_hazewave_site.sh" verify
+# Re-launch the sole Astro server only AFTER the new-site Chromium suite exits.
+npm run start &
+PID=$!
+sleep 3
 curl -fsSI http://127.0.0.1:3000/
 export CHROME_PATH
 CHROME_PATH="$(node --input-type=module -e 'import {chromium} from "@playwright/test"; console.log(chromium.executablePath())')"
