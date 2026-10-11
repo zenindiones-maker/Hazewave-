@@ -72,7 +72,7 @@
   const ibox = el('div', { class: 'island', style: `left:${P.x}px;top:${P.y}px;width:${P.w}px;height:${ih}px` }, world);
   const flat = el('img', { src: I.art.flat, alt: `Ilha-MPC de ${I.name}, colorida`, width: I.art.w, height: I.art.h, decoding: 'async' }, ibox);
   const islandInk = InkLayer(ibox, I.art.ink, { w: I.art.w, h: I.art.h, label: `Ilha-MPC de ${I.name} sendo desenhada` });
-  const card = document.getElementById('card');
+  const card = document.getElementById('card'); const capEl = el('p', { class: 'cap', id: 'cap' }, pin);
   card.innerHTML = `<h2>${I.name}</h2><div class="btns">` + I.actions.map((a, i) => a.url ? `<a class="btn${i ? '' : ' main'}" href="${a.url}">${a.label}</a>` : `<button class="btn${i ? '' : ' main'}" aria-disabled="true" title="em breve">${a.label}</button>`).join('') + `</div><p class="prov">PROVISÓRIO — clipe, faixa e arquivo para download a fornecer.</p>`;
   const roadPt = k => { const f = k * RS, i = Math.floor(f), j = Math.min(RS, i + 1), u = f - i; return { x: RPTS[i][0] + (RPTS[j][0] - RPTS[i][0]) * u, y: RPTS[i][1] + (RPTS[j][1] - RPTS[i][1]) * u }; };
   let lastTick = -1;
@@ -104,6 +104,9 @@
     islandInk.draw([seg(t, .5, .6), seg(t, .56, .7), seg(t, .62, .8)]);
     const f = RM ? 1 : seg(t, .78, .88); flat.style.opacity = f ? 1 : 0; flat.style.clipPath = `inset(0 0 ${(100 * (1 - f)).toFixed(1)}% 0)`;
     const c = RM ? 1 : ease(seg(t, .88, .96)); card.style.opacity = c; card.style.transform = `translateY(${24 * (1 - c)}px)`; card.classList.toggle('on', c > .5);
+    const ci = C.captions.reduce((b, c, i) => t >= c[0] ? i : b, 0);
+    if (ci !== capEl._i) { capEl._i = ci; capEl.textContent = C.captions[ci][1]; }
+    const co = (t < .04 || t > .87) ? '0' : '1'; if (capEl._o !== co) { capEl._o = co; capEl.style.opacity = co; }
     camera(t);
   }
 
@@ -116,11 +119,14 @@
     const fl = el('img', { src: S.flat || S.icon.flat, alt: '', decoding: 'async', loading: 'lazy' }, art);
     const ink = InkLayer(art, S.ink || S.icon.ink, { w: big ? 1280 : 560, h: big ? 720 : 360, lw: big ? 3.2 : 2.6, label: S.title });
     fl.onload = () => { art.style.aspectRatio = `${fl.naturalWidth}/${fl.naturalHeight}`; };
+    const dv = el('svg:svg', { class: 'divider', viewBox: '0 0 300 24', 'aria-hidden': 'true' }); box.insertBefore(dv, art);
+    const dp = el('svg:path', { d: 'M4 14 C 30 2, 50 22, 76 12 S 120 4, 150 13 S 200 22, 226 11 S 272 6, 296 13' }, dv); const DL = 300; dp.style.strokeDasharray = DL; dp.style.strokeDashoffset = DL;
+    const kk = el('p', { class: 'kicker' }, box); kk.textContent = S.kicker || '';
     const h = el('h2', { id: S.id + '-h' }, box); h.textContent = S.title;
     const p = el('p', {}, box); p.textContent = S.text;
     if (S.cta) { const b = S.cta.url ? el('a', { class: 'btn main', href: S.cta.url }, box) : el('button', { class: 'btn main', 'aria-disabled': 'true', title: 'em breve' }, box); b.textContent = S.cta.url ? S.cta.label : S.cta.label + ' — em breve'; }
     if (S.provisional) { const q = el('p', { class: 'prov' }, box); q.textContent = S.provisional; }
-    secs.push({ sec, ink, fl, big });
+    secs.push({ sec, ink, fl, big, dp, DL });
   }
   C.sections.forEach(S => makeSection(S));
   makeSection(C.finale, { len: 2.6, big: true });
@@ -145,7 +151,7 @@
   const frame = () => {
     q = 0; const t = prog(journeyEl); journeyEl.dataset.p = t.toFixed(3); journey(t);
     secs.forEach(o => { const k = secProg(o.sec); o.sec.dataset.p = k.toFixed(3); if (k > 0 && k < 1.01 || o.ink.ready()) { if (k > 0) o.ink.draw(o.big ? [seg(k, .12, .3), seg(k, .2, .45), seg(k, .28, .62)] : [seg(k, .1, .25), seg(k, .15, .38), seg(k, .2, .5)]); }
-      const f = RM ? 1 : (o.big ? seg(k, .6, .75) : seg(k, .45, .6)); o.fl.style.opacity = f; o.fl.style.clipPath = `inset(0 0 ${(100 * (1 - f)).toFixed(1)}% 0)`; });
+      const f = RM ? 1 : (o.big ? seg(k, .6, .75) : seg(k, .45, .6)); o.fl.style.opacity = f; o.dp.style.strokeDashoffset = o.DL * (1 - (RM ? 1 : seg(k, .05, .3))); o.fl.style.clipPath = `inset(0 0 ${(100 * (1 - f)).toFixed(1)}% 0)`; });
   };
   addEventListener('scroll', () => { if (!q) q = requestAnimationFrame(frame); }, { passive: true });
   addEventListener('resize', frame); frame();

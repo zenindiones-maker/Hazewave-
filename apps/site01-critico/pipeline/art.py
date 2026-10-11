@@ -6,7 +6,8 @@ from PIL import Image
 from scipy import ndimage as ndi
 from skimage.morphology import skeletonize, dilation, disk, remove_small_objects
 
-PAL = {'light': (227, 221, 210), 'mid': (201, 193, 180), 'dark': (150, 143, 133), 'deep': (94, 90, 85), 'accent': (201, 111, 74), 'slate': (122, 134, 148)}
+SEEDS = None; OFF = (0, 0)
+PAL = {'light': (227, 221, 210), 'mid': (201, 193, 180), 'dark': (150, 143, 133), 'deep': (94, 90, 85), 'accent': (201, 111, 74), 'slate': (122, 134, 148), 'ochre': (196, 160, 92), 'terra': (201, 111, 74)}
 
 def load(path, crop=None):
     im = Image.open(path).convert('L')
@@ -76,6 +77,16 @@ def order(strokes, ink, region_fn=None):
         tag = region_fn(my, mx) if region_fn else 0
         key = (tag, g, math.atan2(my - cy, mx - cx) if g == 0 else (round(my / 50), mx))
         out.append((key, g, tag, [(int(p[1]), int(p[0])) for p in rdp(s)]))
+    if '--prune' in sys.argv:
+        minlen = float(sys.argv[sys.argv.index('--prune') + 1]); cap = 6; cells = {}; kept = []
+        for t in sorted(out, key=lambda t: -length([(p[1], p[0]) for p in t[3]])):
+            L = length([(p[1], p[0]) for p in t[3]])
+            if t[1] == 0: kept.append(t); continue  # silhuetas sempre
+            if L < minlen: continue
+            c = (int(np.mean([p[0] for p in t[3]]) // 40), int(np.mean([p[1] for p in t[3]]) // 40))
+            if t[1] == 2 and cells.get(c, 0) >= cap: continue
+            cells[c] = cells.get(c, 0) + 1; kept.append(t)
+        out = kept
     out.sort(key=lambda t: t[0])
     return out, obj
 
@@ -100,20 +111,35 @@ def flat(ink, obj, path, rules='soft'):
     border = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]])))
     out = np.zeros((H, W, 4), np.uint8)
     for i, sl in enumerate(ndi.find_objects(lab), 1):
-        if i in border or areas[i] < 6: continue
+        if i in border or areas[i] < (400 if '--soft' in sys.argv else 6): continue
         m = lab[sl] == i; a = areas[i]; cy = (sl[0].start + sl[0].stop) / 2
         if not obj[min(H - 1, int(cy)), min(W - 1, int((sl[1].start + sl[1].stop) / 2))] and a > 20000: continue
         under = cy > .62 * H
         c = ('mid' if under else 'light') if a > 6000 else ('dark' if under else 'mid') if a > 900 else ('slate' if under else 'dark') if a > 120 else 'deep'
+        if '--soft' in sys.argv: c = ('mid' if under else 'light') if a > 3000 else ('dark' if under else 'mid')
         out[sl][m] = PAL[c] + (255,)
     for _ in range(3):
         m = out[..., 3] == 0; grow = ndi.grey_dilation(out, size=(3, 3, 1)); sel = m & barrier & obj & (grow[..., 3] > 0); out[sel] = grow[sel]
+    seeds = json.load(open(SEEDS)) if SEEDS else []
+    for sx, sy, c in seeds:
+        sx -= OFF[0]; sy -= OFF[1]; best = None
+        for r in range(0, 9):
+            for dy in range(-r, r + 1):
+                for dx in range(-r, r + 1):
+                    y, x = int(sy + dy), int(sx + dx)
+                    if 0 <= y < H and 0 <= x < W and lab[y, x] and lab[y, x] not in border: best = lab[y, x]; break
+                if best: break
+            if best: break
+        if best: out[lab == best] = PAL[c] + (255,)
+        else: print('seed miss', sx, sy)
     Image.fromarray(out, 'RGBA').save(path)
     return out
 
 if __name__ == '__main__':
     src, pref = sys.argv[1], sys.argv[2]
     crop = tuple(map(int, sys.argv[3:7])) if len(sys.argv) >= 7 and all(x.lstrip('-').isdigit() for x in sys.argv[3:7]) else None
+
+    SEEDS = sys.argv[sys.argv.index('--seeds') + 1] if '--seeds' in sys.argv else None; OFF = crop[:2] if crop else (0, 0)
     a, ink = load(src, crop); H, W = ink.shape
     out, obj = order(centerline(ink), ink)
     print(pref, 'strokes', len(out), 'bytes', encode(out, W, H, pref + '.hzs'))

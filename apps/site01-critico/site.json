@@ -683,7 +683,8 @@
    "cta": {
     "label": "Baixar APK",
     "url": null
-   }
+   },
+   "kicker": "03 · REAPER NO CELULAR"
   },
   {
    "id": "plugins",
@@ -696,7 +697,8 @@
    "cta": {
     "label": "Baixar plugins",
     "url": null
-   }
+   },
+   "kicker": "04 · PLUGINS LIVRES"
   },
   {
    "id": "merch",
@@ -710,7 +712,8 @@
     "label": "Ver loja",
     "url": null
    },
-   "provisional": "PROVISÓRIO — loja print-on-demand a definir pelo Luiz"
+   "provisional": "PROVISÓRIO — loja print-on-demand a definir pelo Luiz",
+   "kicker": "05 · LOJA"
   },
   {
    "id": "apoie",
@@ -724,7 +727,8 @@
     "label": "Doar",
     "url": null
    },
-   "provisional": "PROVISÓRIO — Pix / GitHub Sponsors / apoia.se a fornecer"
+   "provisional": "PROVISÓRIO — Pix / GitHub Sponsors / apoia.se a fornecer",
+   "kicker": "06 · APOIO"
   }
  ],
  "lockedSlots": [
@@ -756,11 +760,34 @@
   "ink": "private-media/city.hzs",
   "flat": "private-media/city-flat.webp",
   "w": 1280,
-  "h": 720
+  "h": 720,
+  "kicker": "FIM DA ESTRADA"
  },
  "sound": {
   "src": null,
   "label": "Som",
   "note": "gancho pronto; sem arquivo de áudio ainda"
- }
+ },
+ "captions": [
+  [
+   0,
+   "No começo, uma página em branco."
+  ],
+  [
+   0.12,
+   "Do HAZEWAVE nasce uma estrada de onda."
+  ],
+  [
+   0.3,
+   "Pelo caminho, ilhas esperando seus artistas."
+  ],
+  [
+   0.5,
+   "A primeira ilha se desenha: Indionesbala."
+  ],
+  [
+   0.8,
+   "Toque para ver, ouvir e baixar."
+  ]
+ ]
 }
