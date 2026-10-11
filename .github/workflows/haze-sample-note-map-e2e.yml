@@ -1,0 +1,77 @@
+name: HAZE Native Sample to MIDI E2E
+
+on:
+  pull_request:
+    paths:
+      - "src/hazewave/sample_note_map.py"
+      - "src/hazewave/harness.py"
+      - "src/hazewave/cli.py"
+      - "tests/test_haze_sample_note_map.py"
+      - ".github/workflows/haze-sample-note-map-e2e.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  wav-midi-real-execution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install project from selected commit (no model download)
+        run: python -m pip install -e ".[dev]" "mido==1.3.3"
+      - name: Deterministic acoustic assertions
+        run: python -m pytest tests/test_haze_sample_note_map.py -q
+      - name: Generate PCM samples with real sine-wave synthesis
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import math, wave, struct
+          with wave.open("evidence/source-a4.wav","wb") as f:
+              f.setnchannels(1)
+              f.setsampwidth(2)
+              f.setframerate(16000)
+              data = [int(0.6 * 32767 * math.sin(2 * math.pi * 440.0 * i / 16000)) for i in range(16000)]
+              f.writeframes(struct.pack(f"<{len(data)}h", *data))
+          PY
+      - name: RUN genuine Harness + inspector + MIDI export
+        run: |
+          set -euo pipefail
+          hazewave notes evidence/source-a4.wav \
+            --out evidence/source-a4.mid \
+            --task-id haze-sample-note-map-ci \
+            | tee evidence/source-a4-receipt.json
+          python - <<'PY'
+          import json, hashlib
+          from pathlib import Path
+          from mido import MidiFile
+          r = json.loads(Path("evidence/source-a4-receipt.json").read_text())
+          midi = Path("evidence/source-a4.mid").read_bytes()
+          audio = Path("evidence/source-a4.wav").read_bytes()
+          assert r["receipt"]["source_sha256"] == hashlib.sha256(audio).hexdigest()
+          assert r["receipt"]["midi_sha256"] == hashlib.sha256(midi).hexdigest()
+          assert midi[:4] == b"MThd"
+          independent = MidiFile("evidence/source-a4.mid")
+          assert independent.type == 0 and independent.ticks_per_beat == 480
+          assert any(msg.type == "note_on" and msg.note == 69 and msg.velocity > 0
+                     for msg in independent.tracks[0]), "MIDI parser did not find A4"
+          assert any(note["midi_note"] == 69 for note in r["result"]["notes"]), r["result"]["notes"]
+          assert r["receipt"]["publication_attempted"] is False
+          print(json.dumps({"status":"REAL_E2E_PASS","detected_notes":len(r["result"]["notes"]),
+             "source_sha256":r["receipt"]["source_sha256"],
+             "midi_sha256":r["receipt"]["midi_sha256"],
+             "header_verified":True},sort_keys=True))
+          PY
+      - name: Upload receipts and playable MIDI
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: haze-sample-note-map-real-e2e
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
