@@ -125,6 +125,34 @@ class ArtCraftSevenContract(unittest.TestCase):
             verify_admission(admission, expected_tool="designcraft", expected_task_id="other-task")
         self.assertNotIn("artcraft", admission.authority.lower())
 
+    def test_lightcraft_must_consume_harness_verified_photocraft_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with self.assertRaises((ValueError, FileNotFoundError)):
+                module.select_image_input("lightcraft", root, upstream_task_id="artcraft-ci-photocraft")
+            module.small_png(root / "hazewave-synthetic-signal.png")
+            module.small_png(root / "photocraft-render.png")
+            # Even a genuine PNG cannot bypass upstream receipt / exact task boundary.
+            (root / "photocraft-receipt.json").write_text(json.dumps({
+                "schema": "HazewaveArtCraftExternalRealSmoke/v1",
+                "tool": "photocraft",
+                "output": "photocraft-render.png",
+                "output_sha256": "0" * 64,
+                "admission": {"authority": "NONE"},
+            }))
+            with self.assertRaises((ValueError, PermissionError)):
+                module.select_image_input("lightcraft", root,
+                                          upstream_task_id="artcraft-ci-photocraft")
+
+    def test_unrelated_tool_cannot_claim_a_cross_stage_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with self.assertRaises(ValueError):
+                module.select_image_input("pdfcraft", root, upstream_task_id=None)
+            with self.assertRaises(ValueError):
+                module.select_image_input("photocraft", root,
+                                          upstream_task_id="artcraft-ci-photocraft")
+
 
 if __name__ == "__main__":
     unittest.main()
