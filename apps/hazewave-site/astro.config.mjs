@@ -1,10 +1,12 @@
 import { defineConfig } from "astro/config";
+import {artcraftBuildIntegration} from "./scripts/artcraft-build-gate.mjs";
 
 // PixiJS is used only by the isolated P0 cinematic proof route. Keeping its
 // chunks explicit prevents an experimental renderer from silently inflating
 // the existing website's CORE JavaScript budget.
 export default defineConfig({
   output: "static",
+  integrations: [artcraftBuildIntegration()],
   build: { inlineStylesheets: "auto" },
   vite: {
     build: {
