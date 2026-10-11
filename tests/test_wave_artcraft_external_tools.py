@@ -154,5 +154,40 @@ class ArtCraftSevenContract(unittest.TestCase):
                                           upstream_task_id="artcraft-ci-photocraft")
 
 
+    def test_pdfcraft_cannot_claim_an_unverified_designcraft_layout(self):
+        """Regression RED: a valid standalone PNG receipt is not a verified editorial chain."""
+        import sys
+        sys.path.insert(0, str(ROOT / "src"))
+        from hazewave.wave_artcraft import admit_artcraft
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            module.small_png(root / "hazewave-synthetic-signal.png")
+            module.small_png(root / "pdfcraft-render.png")
+            (root / "designcraft-layout.pdf").write_bytes(
+                b"%PDF-1.7\\n" + b"x" * 200 + b"\\n%%EOF\\n"
+            )
+            admission = admit_artcraft(
+                task_id="artcraft-ci-pdfcraft", tool="pdfcraft",
+                data_classification="PUBLIC", requested_domain="WAVE"
+            )
+            receipt = {
+                "schema": "HazewaveArtCraftExternalRealSmoke/v1",
+                "project": "zenindiones-maker/Hazewave-",
+                "tool": "pdfcraft", "authority": "NONE",
+                "source": "SYNTHETIC_FIRST_PARTY_ONLY",
+                "owner_private_media_used": False, "production_approved": False,
+                "publication_attempted": False, "real_execution": True,
+                "executable_sha256": "1" * 64,
+                "output": "pdfcraft-render.png",
+                "output_sha256": module.sha256(root / "pdfcraft-render.png"),
+                "input": "hazewave-synthetic-signal.png",
+                "input_sha256": module.sha256(root / "hazewave-synthetic-signal.png"),
+                "upstream_task_id": None, "admission": admission.__dict__
+            }
+            (root / "pdfcraft-receipt.json").write_text(json.dumps(receipt))
+            with self.assertRaises((ValueError, PermissionError)):
+                module.verify("pdfcraft", root, task_id="artcraft-ci-pdfcraft")
+
+
 if __name__ == "__main__":
     unittest.main()
