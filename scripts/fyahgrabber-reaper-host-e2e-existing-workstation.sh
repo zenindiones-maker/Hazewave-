@@ -62,7 +62,7 @@ echo "FYAH_REAPER_INSTANCE_ISOLATION=-newinst -new -cfgfile"
 # as its display. Never write preferences into the owner's active resource dir.
 resource_dir="$proofdir/reaper-resource"
 mkdir -p "$resource_dir/Effects"
-printf '[REAPER]\\n' > "$resource_dir/reaper.ini"
+printf '[REAPER]\n' > "$resource_dir/reaper.ini"
 fx_source="$HOME/.config/REAPER/Effects/FyahGrabber_808.jsfx"
 [[ -f "$fx_source" && ! -L "$fx_source" ]] || {
   echo "BLOCKED:APPROVED_FYAH_JSFX_MISSING_OR_SYMLINK";exit 4;
