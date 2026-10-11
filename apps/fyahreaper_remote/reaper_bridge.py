@@ -290,9 +290,19 @@ class ReaperBridge:
     def action(self, name, repeat=1):
         return self._guarded(self._action_impl, name, repeat)
 
-    def _move_impl(self, delta_px, commit):
-        """Move selected items by a horizontal screen delta (REAPER arrange pixels)."""
+    def _move_impl(self, delta_px, commit, x=None, y=None):
+        """Move selected items by a horizontal screen delta (REAPER arrange pixels).
+        With x/y (screen px of the REAPER display) first grab the item under that point; no item there -> no-op."""
         r = self.r
+        if x is not None and y is not None:
+            hit = r.GetItemFromPoint(int(x), int(y), False)
+            hit = hit[0] if isinstance(hit, (list, tuple)) else hit
+            if _is_null(hit):
+                return {'moved': 0, 'delta_seconds': 0.0, 'grabbed': False}
+            if not r.IsMediaItemSelected(hit):
+                r.SelectAllMediaItems(0, False)
+                r.SetMediaItemSelected(hit, True)
+                r.UpdateArrange()
         n = int(r.CountSelectedMediaItems(0))
         if n == 0:
             return {'moved': 0, 'delta_seconds': 0.0}
@@ -313,5 +323,5 @@ class ReaperBridge:
             r.Undo_OnStateChange('FyahReaper Remote: move items (touch)')
         return {'moved': n, 'delta_seconds': dt, 'zoom_px_per_s': zoom}
 
-    def move_selected(self, delta_px, commit=False):
-        return self._guarded(self._move_impl, delta_px, commit)
+    def move_selected(self, delta_px, commit=False, x=None, y=None):
+        return self._guarded(self._move_impl, delta_px, commit, x, y)

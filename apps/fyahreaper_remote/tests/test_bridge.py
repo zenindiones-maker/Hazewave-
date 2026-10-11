@@ -234,3 +234,15 @@ def test_move_endpoint_validates_payload():
     hdr={**H,'Content-Type':'application/json'}
     assert c.post('/api/items/move',json={'delta_px':20},headers=H).json()['moved']==1
     assert c.post('/api/items/move',json={'delta_px':99999},headers=H).status_code==422
+
+
+def test_move_grabs_item_under_finger_or_noops():
+    api=RPR();api.GetHZoomLevel=lambda:100.0;item=api.selected_item;item['position']=1.0
+    api.SetMediaItemInfo_Value=lambda it,k,v:it.update(position=v);sel=[]
+    api.IsMediaItemSelected=lambda it:False;api.SelectAllMediaItems=lambda p,v:sel.append('clear')
+    api.SetMediaItemSelected=lambda it,v:sel.append(it is item)
+    api.GetItemFromPoint=lambda x,y,l:'(MediaItem*)0x0000000000000000'
+    b=ReaperBridge(api=api)
+    assert b.move_selected(100,False,10,10)['moved']==0 and item['position']==1.0
+    api.GetItemFromPoint=lambda x,y,l:item
+    assert b.move_selected(100,False,10,10)['moved']==1 and sel==['clear',True] and abs(item['position']-2.0)<1e-9

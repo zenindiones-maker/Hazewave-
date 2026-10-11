@@ -126,8 +126,9 @@ grep -q '"zoom_' $MOCK_LOG && ! grep -q '^MIDDLE\|^SCROLL' $CL && pass gestures_
 c=$(tapIn ui MOVER); sleep 1; c0=$(grep -c . $CL); n0=$(wc -l < $MOCK_LOG)
 adb shell input swipe 800 600 1300 600 900; sleep 6
 tail -n +$((n0+1)) $MOCK_LOG | grep -q '"move", [1-9]' && pass move_mode_drag_moves_items || fail move_mode_drag_moves_items
-tail -n +$((n0+1)) $MOCK_LOG | grep -q 'true]' && pass move_mode_commits_undo_point || fail move_mode_commits_undo_point
-[ "$(tail -n +$((c0+1)) $CL | grep -c '^LEFT')" -ge 1 ] && pass move_mode_tap_selects || fail move_mode_tap_selects
+tail -n +$((n0+1)) $MOCK_LOG | grep -q 'true, null, null]' && pass move_mode_commits_undo_point || fail move_mode_commits_undo_point
+tail -n +$((n0+1)) $MOCK_LOG | grep -q '"move", 0.0, false, [0-9]*, [0-9]*]' && pass move_mode_grabs_item_under_finger || fail move_mode_grabs_item_under_finger
+[ "$(tail -n +$((c0+1)) $CL | grep -c '^LEFT\|^RIGHT')" = 0 ] && pass move_mode_sends_no_clicks_to_reaper || fail move_mode_sends_no_clicks_to_reaper
 shot 07-move-mode; tapIn ui MOVER >/dev/null; sleep 1
 c=$(tapIn ui "⋯"); sleep 1; dump more2; c=$(tapIn more2 DIAG); sleep 2; dump u4
 c=$(tapIn u4 "TESTAR CONEXÃO"); sleep 8; shot 05-diagnostics; dump ui5

@@ -11,7 +11,7 @@ import kotlin.math.hypot
 /** What a finger gesture asks REAPER to do (sent through ReaHub's allowlisted endpoints). */
 internal sealed class Gesture {
     data class Action(val name: String, val repeat: Int = 1) : Gesture()
-    data class Move(val remotePx: Float, val commit: Boolean) : Gesture()
+    data class Move(val remotePx: Float, val commit: Boolean, val grabX: Int? = null, val grabY: Int? = null) : Gesture()
 }
 
 /**
@@ -21,13 +21,18 @@ internal sealed class Gesture {
  *  - two-finger pan -> scroll the arrange view
  *  - double-tap -> zoom to the item under the finger (the 2nd tap is swallowed so REAPER never sees a
  *    double-click, which would open item properties)
- *  - MOVE mode: a tap selects the item under the finger, then dragging moves the selected items.
+ *  - MOVE mode: nothing reaches noVNC (no clicks, no long-press menus). Touching an item and dragging moves it
+ *    (ReaHub picks the item under the finger with GetItemFromPoint); a tap just selects that item.
  */
 @SuppressLint("ViewConstructor")
 internal class TouchWebView(ctx: Context, private val onGesture: (Gesture) -> Unit) : WebView(ctx) {
     var moveMode = false
     /** remote framebuffer pixels per device pixel; updated from the noVNC canvas. */
     var remotePerDevice = 1f
+    /** where the remote framebuffer starts inside this view, in device px (letterboxing). */
+    var offX = 0f; var offY = 0f
+    private fun rx(x: Float) = ((x - offX) * remotePerDevice).toInt()
+    private fun ry(y: Float) = ((y - offY) * remotePerDevice).toInt()
     private val dp = resources.displayMetrics.density
 
     private var multi = false
@@ -36,7 +41,7 @@ internal class TouchWebView(ctx: Context, private val onGesture: (Gesture) -> Un
     private var lastTapUpAt = 0L; private var lastTapX = 0f; private var lastTapY = 0f
     private var downAt = 0L; private var downX = 0f; private var downY = 0f
     private var swallowing = false
-    private var dragging = false; private var dragLastX = 0f; private var dragAcc = 0f; private var dragSentAt = 0L
+    private var dragStarted = false; private var dragging = false; private var dragLastX = 0f; private var dragAcc = 0f; private var dragSentAt = 0L
 
     private fun span(e: MotionEvent): Triple<Float, Float, Float> {
         val sx = abs(e.getX(0) - e.getX(1)); val sy = abs(e.getY(0) - e.getY(1))
@@ -47,11 +52,6 @@ internal class TouchWebView(ctx: Context, private val onGesture: (Gesture) -> Un
         val c = MotionEvent.obtain(e); c.action = MotionEvent.ACTION_CANCEL; super.dispatchTouchEvent(c); c.recycle()
     }
 
-    private fun clickToPage(e: MotionEvent) {
-        val t = SystemClock.uptimeMillis()
-        val d = MotionEvent.obtain(t, t, MotionEvent.ACTION_DOWN, e.x, e.y, 0); super.dispatchTouchEvent(d); d.recycle()
-        val u = MotionEvent.obtain(t, t + 40, MotionEvent.ACTION_UP, e.x, e.y, 0); super.dispatchTouchEvent(u); u.recycle()
-    }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun dispatchTouchEvent(e: MotionEvent): Boolean {
@@ -63,14 +63,13 @@ internal class TouchWebView(ctx: Context, private val onGesture: (Gesture) -> Un
                     swallowing = true; return true
                 }
                 if (moveMode) {
-                    clickToPage(e)  // select the item under the finger
-                    dragging = true; dragLastX = e.x; dragAcc = 0f; dragSentAt = e.eventTime
+                    dragging = true; dragStarted = false; dragLastX = e.x; dragAcc = 0f; dragSentAt = e.eventTime
                     return true
                 }
             }
             MotionEvent.ACTION_POINTER_DOWN -> if (e.pointerCount == 2) {
                 if (!multi && !swallowing && !dragging) cancelToPage(e)
-                if (dragging) { flushDrag(true); dragging = false }
+                if (dragging) { if (dragStarted) flushDrag(true); dragging = false }
                 multi = true; swallowing = false
                 val (sx, sy, s) = span(e); baseSpanX = sx; baseSpanY = sy; baseSpan = s
                 lastCx = (e.getX(0) + e.getX(1)) / 2; lastCy = (e.getY(0) + e.getY(1)) / 2; accX = 0f; accY = 0f
@@ -80,6 +79,12 @@ internal class TouchWebView(ctx: Context, private val onGesture: (Gesture) -> Un
                 if (multi) { if (e.pointerCount >= 2) multiMove(e); return true }
                 if (swallowing) return true
                 if (dragging) {
+                    if (!dragStarted) {
+                        if (hypot(e.x - downX, e.y - downY) < 10 * dp) return true
+                        dragStarted = true
+                        onGesture(Gesture.Move(0f, false, rx(downX), ry(downY)))  // grab the item under the finger
+                        dragLastX = e.x; dragSentAt = e.eventTime; return true
+                    }
                     dragAcc += (e.x - dragLastX) * remotePerDevice; dragLastX = e.x
                     if (e.eventTime - dragSentAt > 45 && abs(dragAcc) >= 2f) flushDrag(false)
                     return true
@@ -93,7 +98,12 @@ internal class TouchWebView(ctx: Context, private val onGesture: (Gesture) -> Un
                     if (e.actionMasked == MotionEvent.ACTION_UP) onGesture(Gesture.Action("zoom_item"))
                     return true
                 }
-                if (dragging) { dragging = false; flushDrag(true); return true }
+                if (dragging) {
+                    dragging = false
+                    if (dragStarted) flushDrag(true)
+                    else if (e.actionMasked == MotionEvent.ACTION_UP) onGesture(Gesture.Move(0f, false, rx(downX), ry(downY)))  // tap = select
+                    return true
+                }
                 if (e.actionMasked == MotionEvent.ACTION_UP && e.eventTime - downAt < 250 && hypot(e.x - downX, e.y - downY) < 12 * dp) {
                     lastTapUpAt = e.eventTime; lastTapX = e.x; lastTapY = e.y
                 } else lastTapUpAt = 0L

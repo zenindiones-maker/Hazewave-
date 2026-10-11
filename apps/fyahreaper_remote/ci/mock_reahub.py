@@ -15,6 +15,6 @@ class Studio:
     def set_track(self, g, u): self._log('set_track', g, u); return self.tracks()[0]
     TOUCH_ACTIONS = {'zoom_in_h','zoom_out_h','zoom_in_v','zoom_out_v','scroll_left','scroll_right','scroll_up','scroll_down','zoom_item','play','stop','record','undo','redo'}
     def action(self, name, repeat=1): self._log('action', name, repeat); return {'action': name, 'repeat': repeat, 'state': self.state}
-    def move_selected(self, d, commit=False): self._log('move', round(d,1), commit); return {'moved': 1}
+    def move_selected(self, d, commit=False, x=None, y=None): self._log('move', round(d,1), commit, x, y); return {'moved': 1}
     def create_midi(self, r): self._log('create_midi', len(r.notes)); return {'notes_created': len(r.notes)}
 app = app_factory(Studio(), os.environ['MOCK_TOKEN'])

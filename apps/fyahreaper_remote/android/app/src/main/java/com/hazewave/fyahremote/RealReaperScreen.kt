@@ -66,7 +66,7 @@ internal const val NOVNC_STATUS_JS = "(function(){var d=document.documentElement
     "return (d.contains('noVNC_connected')?'conectado':(d.contains('noVNC_connecting')?'conectando':'desconectado'))+(needPw?' · PEDE SENHA':'')+' · '+s.trim().slice(0,80)+(c?' · tela '+c.clientWidth+'x'+c.clientHeight:'');})()"
 
 /** remote framebuffer px per device px (canvas.width is the remote width; CSS width x DPR is device px). */
-internal const val SCALE_JS = "(function(){var c=document.querySelector('#noVNC_container canvas');if(!c||!c.clientWidth)return '';return String(c.width/(c.clientWidth*window.devicePixelRatio));})()"
+internal const val SCALE_JS = "(function(){var c=document.querySelector('#noVNC_container canvas');if(!c||!c.clientWidth)return '';var r=c.getBoundingClientRect(),d=window.devicePixelRatio;return (c.width/(c.clientWidth*d))+','+(r.left*d)+','+(r.top*d);})()"
 
 // JS helpers operating on the noVNC page's own controls (ids from noVNC vnc.html).
 private fun clickJs(id: String) = "(function(){var b=document.getElementById('$id');if(b){b.click();return 'ok'}return 'missing'})()"
@@ -123,7 +123,11 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                 val j = JSONObject(h.request("/health")); state = j.getString("state"); hubStatus = "OK (${j.optString("state")})"
             } catch (e: Exception) { state = "offline"; hubStatus = "ERRO: ${e.message?.take(120)}" }
             webView?.evaluateJavascript(NOVNC_STATUS_JS) { v -> vncStatus = v?.trim('"') ?: "?" }
-            webView?.evaluateJavascript(SCALE_JS) { v -> v?.trim('"')?.toFloatOrNull()?.let { if (it > 0.2f && it < 5f) (webView as? TouchWebView)?.remotePerDevice = it } }
+            webView?.evaluateJavascript(SCALE_JS) { v ->
+                val p = v?.trim('"')?.split(',')?.mapNotNull { it.toFloatOrNull() }
+                val tw = webView as? TouchWebView
+                if (p != null && p.size == 3 && tw != null && p[0] > 0.2f && p[0] < 5f) { tw.remotePerDevice = p[0]; tw.offX = p[1]; tw.offY = p[2] }
+            }
             delay(1500)
         }
     }
@@ -137,7 +141,7 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
             while (true) {
                 val next = gestures.tryReceive().getOrNull() ?: break
                 g = when {
-                    g is Gesture.Move && next is Gesture.Move -> Gesture.Move(g.remotePx + next.remotePx, g.commit || next.commit)
+                    g is Gesture.Move && next is Gesture.Move && next.grabX == null -> Gesture.Move(g.remotePx + next.remotePx, g.commit || next.commit, g.grabX, g.grabY)
                     g is Gesture.Action && next is Gesture.Action && g.name == next.name -> Gesture.Action(g.name, minOf(8, g.repeat + next.repeat))
                     else -> { pending = next; break }
                 }
@@ -146,7 +150,12 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
             try {
                 when (g) {
                     is Gesture.Action -> { h.request("/api/action/${g.name}?repeat=${g.repeat}", "POST"); lastGesture = "${g.name}×${g.repeat}" }
-                    is Gesture.Move -> { h.request("/api/items/move", "POST", JSONObject().put("delta_px", g.remotePx.toDouble()).put("commit", g.commit)); lastGesture = "move ${g.remotePx.toInt()}px" }
+                    is Gesture.Move -> {
+                        val body = JSONObject().put("delta_px", g.remotePx.toDouble()).put("commit", g.commit)
+                        if (g.grabX != null && g.grabY != null) body.put("x", g.grabX).put("y", g.grabY)
+                        val r = JSONObject(h.request("/api/items/move", "POST", body))
+                        lastGesture = if (g.grabX != null) "pegar item @${g.grabX},${g.grabY}: ${if (r.optInt("moved") > 0) "ok" else "nenhum item"}" else "move ${g.remotePx.toInt()}px"
+                    }
                 }
                 android.util.Log.i("FyahGesture", lastGesture)
             } catch (e: Exception) { diag("gesto falhou: ${e.message?.take(100)}"); snackbar.showSnackbar(e.message ?: "Falha") }
@@ -208,7 +217,7 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                     }, update = { (it as? TouchWebView)?.moveMode = moveMode })
                 }
             }
-            if (moveMode) Text("MODO MOVER: toque no item e arraste", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp,
+            if (moveMode) Text("MODO MOVER: arraste o item com o dedo · toque = selecionar", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(6.dp).background(Color(0xFFFFC107)).padding(horizontal = 10.dp, vertical = 4.dp))
             if (moreOpen) Surface(Modifier.align(Alignment.TopEnd).padding(6.dp), color = Color(0xEE1E1E24)) {
                 Column(Modifier.padding(6.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {

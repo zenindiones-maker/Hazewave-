@@ -32,6 +32,8 @@ class MidiRequest(BaseModel):
 class MovePayload(BaseModel):
     delta_px: float = Field(ge=-4000, le=4000)
     commit: bool = False
+    x: int | None = Field(default=None, ge=0, le=16384)
+    y: int | None = Field(default=None, ge=0, le=16384)
 
 
 class TrackPatch(BaseModel):
@@ -119,7 +121,7 @@ def app_factory(studio, token: str, call_timeout: float | None = None) -> FastAP
 
     @app.post('/api/items/move', dependencies=[Depends(authenticate)])
     async def move_items(payload: MovePayload):
-        return await run_in_threadpool(guarded, studio.move_selected, payload.delta_px, payload.commit)
+        return await run_in_threadpool(guarded, studio.move_selected, payload.delta_px, payload.commit, payload.x, payload.y)
 
     @app.post('/api/project/create_midi', dependencies=[Depends(authenticate)])
     async def create_midi(payload: MidiRequest):
