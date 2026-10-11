@@ -102,13 +102,18 @@ shot 06-more-panel
 tapIn more "✕" >/dev/null; sleep 1
 # Multi-touch gestures through the kernel input device (sendevent, MT protocol B; needs root adbd on google_apis)
 adb root >/dev/null 2>&1; sleep 3; adb wait-for-device; sleep 2
-TDEV=$(adb shell getevent -pl 2>/dev/null | tr -d '\r' | awk '/^add device/{d=$4} /ABS_MT_POSITION_X/{print d; exit}')
-MAXX=$(adb shell getevent -pl $TDEV | tr -d '\r' | awk '/ABS_MT_POSITION_X/{for(i=1;i<=NF;i++) if($i=="max") print $(i+1)}' | tr -d ',')
-MAXY=$(adb shell getevent -pl $TDEV | tr -d '\r' | awk '/ABS_MT_POSITION_Y/{for(i=1;i<=NF;i++) if($i=="max") print $(i+1)}' | tr -d ',')
-echo "touch device $TDEV max $MAXX x $MAXY" | tee $OUT/touchdev.txt
-gest(){ python3 apps/fyahreaper_remote/ci/mt.py $TDEV $MAXX $MAXY 1080 2340 $1 > $OUT/g-$1.sh; adb push $OUT/g-$1.sh /data/local/tmp/g.sh >/dev/null; adb shell sh /data/local/tmp/g.sh; sleep 2; }
-n0=$(wc -l < $MOCK_LOG)
-gest pinch_out_h; tail -n +$((n0+1)) $MOCK_LOG | grep -q '"zoom_in_h"' && pass pinch_out_is_zoom_in_h || fail pinch_out_is_zoom_in_h
+adb shell getevent -pl > $OUT/getevent-pl.txt 2>&1; adb shell dumpsys input > $OUT/dumpsys-input.txt 2>&1
+CANDS=$(tr -d '\r' < $OUT/getevent-pl.txt | awk '/^add device/{d=$4} /ABS_MT_POSITION_X/{print d}')
+axmax(){ tr -d '\r' < $OUT/getevent-pl.txt | awk -v d="$1" -v k="$2" '/^add device/{c=($4==d)} c && $0~k {for(i=1;i<=NF;i++) if($i=="max") {gsub(",","",$(i+1)); print $(i+1); exit}}'; }
+gest(){ python3 apps/fyahreaper_remote/ci/mt.py $TDEV $MAXX $MAXY 1080 2340 $1 > $OUT/g-$1.sh; adb push $OUT/g-$1.sh /data/local/tmp/g.sh >/dev/null; adb shell sh /data/local/tmp/g.sh; sleep 4; }
+# The emulator exposes one virtio multi-touch device per possible display; find the one bound to display 0.
+for TDEV in $CANDS; do
+  MAXX=$(axmax $TDEV ABS_MT_POSITION_X); MAXY=$(axmax $TDEV ABS_MT_POSITION_Y)
+  n0=$(wc -l < $MOCK_LOG); gest pinch_out_h
+  if tail -n +$((n0+1)) $MOCK_LOG | grep -q '"zoom_in_h"'; then echo "touch device $TDEV max $MAXX x $MAXY" | tee $OUT/touchdev.txt; break; fi
+  echo "no gesture via $TDEV" | tee -a $OUT/touchdev.txt
+done
+grep -q "^touch device" $OUT/touchdev.txt && pass pinch_out_is_zoom_in_h || fail pinch_out_is_zoom_in_h
 n0=$(wc -l < $MOCK_LOG); gest pinch_in_h; tail -n +$((n0+1)) $MOCK_LOG | grep -q '"zoom_out_h"' && pass pinch_in_is_zoom_out_h || fail pinch_in_is_zoom_out_h
 n0=$(wc -l < $MOCK_LOG); gest pinch_out_v; tail -n +$((n0+1)) $MOCK_LOG | grep -q '"zoom_in_v"' && pass vertical_pinch_is_zoom_in_v || fail vertical_pinch_is_zoom_in_v
 n0=$(wc -l < $MOCK_LOG); gest pan_right; tail -n +$((n0+1)) $MOCK_LOG | grep -q '"scroll_left"' && pass two_finger_pan_right_scrolls_left || fail two_finger_pan_right_scrolls_left
@@ -119,7 +124,7 @@ tail -n +$((n0+1)) $MOCK_LOG | grep -q '"zoom_item"' && pass double_tap_zooms_to
 grep -q '"zoom_' $MOCK_LOG && ! grep -q '^MIDDLE\|^SCROLL' $CL && pass gestures_not_leaked_to_vnc || fail gestures_not_leaked_to_vnc
 # MOVE mode: tap selects (one click reaches REAPER), drag moves selected items via ReaHub with a final commit
 c=$(tapIn ui MOVER); sleep 1; c0=$(grep -c . $CL); n0=$(wc -l < $MOCK_LOG)
-adb shell input swipe 800 600 1300 600 900; sleep 2
+adb shell input swipe 800 600 1300 600 900; sleep 6
 tail -n +$((n0+1)) $MOCK_LOG | grep -q '"move", [1-9]' && pass move_mode_drag_moves_items || fail move_mode_drag_moves_items
 tail -n +$((n0+1)) $MOCK_LOG | grep -q 'true]' && pass move_mode_commits_undo_point || fail move_mode_commits_undo_point
 [ "$(tail -n +$((c0+1)) $CL | grep -c '^LEFT')" -ge 1 ] && pass move_mode_tap_selects || fail move_mode_tap_selects

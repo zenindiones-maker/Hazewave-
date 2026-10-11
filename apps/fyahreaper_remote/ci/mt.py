@@ -11,7 +11,7 @@ def frame(pts, first=False):
     for s, (x, y) in enumerate(pts):
         rx, ry = raw(x, y); ev(3, 47, s)
         if first: ev(3, 57, 100 + s)
-        ev(3, 53, rx); ev(3, 54, ry)
+        ev(3, 53, rx); ev(3, 54, ry); ev(3, 58, 60)
     if first: ev(1, 330, 1)
     ev(0, 0, 0)
 def up(n):

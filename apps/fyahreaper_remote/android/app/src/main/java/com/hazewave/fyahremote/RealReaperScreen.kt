@@ -129,7 +129,19 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
     }
     // Gestures -> allowlisted ReaHub actions, strictly in order (never floods REAPER).
     LaunchedEffect(reloadKey) {
-        for (g in gestures) {
+        var pending: Gesture? = null
+        for (first in gestures) {
+            // Coalesce whatever queued up while the previous request was in flight (keeps drags/pinches in sync
+            // with the finger even on a slow link instead of replaying a backlog).
+            var g = first
+            while (true) {
+                val next = gestures.tryReceive().getOrNull() ?: break
+                g = when {
+                    g is Gesture.Move && next is Gesture.Move -> Gesture.Move(g.remotePx + next.remotePx, g.commit || next.commit)
+                    g is Gesture.Action && next is Gesture.Action && g.name == next.name -> Gesture.Action(g.name, minOf(8, g.repeat + next.repeat))
+                    else -> { pending = next; break }
+                }
+            }
             val h = hub() ?: continue
             try {
                 when (g) {
@@ -138,6 +150,7 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                 }
                 android.util.Log.i("FyahGesture", lastGesture)
             } catch (e: Exception) { diag("gesto falhou: ${e.message?.take(100)}"); snackbar.showSnackbar(e.message ?: "Falha") }
+            pending?.let { p -> pending = null; gestures.trySend(p) }
         }
     }
     suspend fun testConnection(): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
