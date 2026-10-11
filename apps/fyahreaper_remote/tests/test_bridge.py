@@ -13,7 +13,8 @@ class RPR:
     def GetPlayState(self): return self.state
     def CountTracks(self,p): return len(self.tracks)
     def GetTrack(self,p,i): return self.tracks[i]
-    def GetTrackGUID(self,t):return t['guid']
+    def GetTrackGUID(self,t):return '(GUID*)0x1'
+    def GetSetMediaTrackInfo_String(self,t,k,v,setnew):return [True,t,k,t['guid'],setnew]
     def GetTrackName(self,t,n,s):return (True,t,t['name'],s)
     def GetMediaTrackInfo_Value(self,t,key):
         return (self.tracks.index(t)+1) if key=='IP_TRACKNUMBER' else t[key]
@@ -31,7 +32,7 @@ class RPR:
     def PreventUIRefresh(self,x): pass
     def InsertTrackAtIndex(self,i,x):self.tracks.insert(i,{'guid':'{new}','name':'MIDI','I_RECARM':0,'D_VOL':1.0,'B_MUTE':0,'I_SOLO':0})
     def TrackFX_AddByName(self,*a):return self.fx
-    def CreateNewMIDIItemInProj(self,t,start,end,qn):return {'take':{'midi':True,'events':[]}}
+    def CreateNewMIDIItemInProj(self,t,start,end,qn):return [{'take':{'midi':True,'events':[]}},t,start,end,0]
     def MIDI_DisableSort(self,take): pass
     def MIDI_GetPPQPosFromProjTime(self,take,sec):return sec*960.0
     def MIDI_InsertNote(self,take,selected,muted,a,b,chan,pitch,velocity,no_sort):
@@ -80,7 +81,7 @@ def test_null_pointer_string_take_is_rejected():
 
 def test_null_created_midi_take_rolls_back_track():
     api=RPR();api.fx=0
-    api.CreateNewMIDIItemInProj=lambda *a:{'take':NULL_TAKE}
+    api.CreateNewMIDIItemInProj=lambda *a:[{'take':NULL_TAKE},None,0,1,0]
     api.GetActiveTake=lambda item:item.get('take',{'midi':False}) if item is api.selected_item else NULL_TAKE
     req=MidiRequest(notes=[Note(pitch=36,start=0,duration=.2)])
     with pytest.raises(RuntimeError,match='MIDI_TAKE_CREATE_FAILED'):ReaperBridge(api=api).create_midi(req)
@@ -90,3 +91,11 @@ def test_is_null_helper():
     from reaper_bridge import _is_null
     assert _is_null(None) and _is_null('') and _is_null(NULL_TAKE)
     assert not _is_null('(MediaTrack*)0x00007f1234567890') and not _is_null({'x':1})
+
+def test_rec_refused_by_reaper_is_reported_not_silent():
+    api=RPR();api.Main_OnCommand=lambda a,f:None
+    b=ReaperBridge(api=api);b.set_track('{source}',{'armed':True})
+    with pytest.raises(RuntimeError,match='REC_NOT_STARTED'):b.transport('rec')
+
+def test_track_id_is_stable_guid_string_not_pointer():
+    assert ReaperBridge(api=RPR()).tracks()[0]['id']=='{source}'

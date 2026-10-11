@@ -5,6 +5,7 @@ Never boots REAPER, creates a new session or touches projects without an API req
 from __future__ import annotations
 
 import math
+import time
 from contextlib import nullcontext
 
 
@@ -54,6 +55,13 @@ class ReaperBridge:
                        for i in range(int(self.r.CountTracks(0)))):
                 raise ValueError('NO_TRACK_ARMED')
             self.r.Main_OnCommand(1013,0)
+            for _ in range(20):
+                if self._state() == 'recording':
+                    break
+                time.sleep(0.05)
+            else:
+                # Do not report success when REAPER silently refuses (e.g. no audio device).
+                raise RuntimeError('REC_NOT_STARTED')
         elif action == 'play':
             if state in ('playing','recording'):
                 return {'state':state}
@@ -66,17 +74,26 @@ class ReaperBridge:
             raise ValueError('UNKNOWN_TRANSPORT_ACTION')
         return {'state':self._state()}
 
+    def _guid(self, track):
+        # GetTrackGUID returns an opaque '(GUID*)0x...' pointer over the dist API;
+        # the stable '{...}' string comes from GetSetMediaTrackInfo_String.
+        res = self.r.GetSetMediaTrackInfo_String(track,'GUID','',False)
+        guid = res[3] if isinstance(res,(list,tuple)) else res
+        if not (isinstance(guid,str) and guid.startswith('{')):
+            raise RuntimeError('TRACK_GUID_UNAVAILABLE')
+        return guid
+
     def _by_guid(self, guid):
         for i in range(int(self.r.CountTracks(0))):
             track = self.r.GetTrack(0,i)
-            if str(self.r.GetTrackGUID(track)) == guid:
+            if self._guid(track) == guid:
                 return track
         raise KeyError(guid)
 
     def _snapshot(self, track):
         _,_,name,*_ = self.r.GetTrackName(track,'',512)
         return {
-            'id':str(self.r.GetTrackGUID(track)),
+            'id':self._guid(track),
             'name':str(name),
             'mute':bool(self.r.GetMediaTrackInfo_Value(track,'B_MUTE')),
             'solo':bool(self.r.GetMediaTrackInfo_Value(track,'I_SOLO')),
@@ -136,6 +153,10 @@ class ReaperBridge:
                 if int(fx) < 0:
                     raise ValueError('FYAHGRABBER_808_JSFX_MISSING')
                 midi_item = r.CreateNewMIDIItemInProj(created,start,start+duration,False)
+                # Real reapy 0.10 / reaper_python returns
+                # [item, track, start, end, qnIn] because qnIn is an optional pointer arg.
+                if isinstance(midi_item,(list,tuple)):
+                    midi_item = midi_item[0] if midi_item else None
                 if _is_null(midi_item):
                     raise RuntimeError('MIDI_TAKE_CREATE_FAILED')
                 take = r.GetActiveTake(midi_item)
@@ -154,7 +175,7 @@ class ReaperBridge:
                 if int(counted[2]) != len(request.notes):
                     raise RuntimeError('MIDI_READBACK_COUNT_MISMATCH')
                 r.UpdateArrange()
-                return {'notes_created':len(request.notes),'track_id':str(r.GetTrackGUID(created)),
+                return {'notes_created':len(request.notes),'track_id':self._guid(created),
                         'position_seconds':start}
             except Exception:
                 if not _is_null(created):
