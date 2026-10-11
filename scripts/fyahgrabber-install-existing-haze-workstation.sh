@@ -31,8 +31,10 @@ before_head="$(git -C "$REPO" rev-parse HEAD)"
 before_status="$(git -C "$REPO" status --porcelain=v1)"
 echo "HAZE_EXISTING_HEAD=$before_head"
 echo "HAZE_WORKTREE_DIRTY=$([[ -z "$before_status" ]] && echo false || echo true)"
-git -C "$REPO" fetch --no-tags origin "refs/heads/$BRANCH"
-source_sha="$(git -C "$REPO" rev-parse FETCH_HEAD)"
+expected_source_sha="26868b4bbce8fce372159332a09ceffc882f6ef2"
+git -C "$REPO" cat-file -e "${expected_source_sha}^{commit}" || { echo "BLOCKED:PINNED_SOURCE_NOT_LOCAL"; exit 3; }
+source_sha="$(git -C "$REPO" rev-parse "${expected_source_sha}^{commit}")"
+[[ "$source_sha" == "$expected_source_sha" ]] || { echo "BLOCKED:PINNED_SOURCE_MISMATCH"; exit 3; }
 if [[ ! "$source_sha" =~ ^[a-f0-9]{40}$ ]]; then
   echo "BLOCKED:INVALID_FETCHED_SHA";exit 3
 fi
