@@ -11,7 +11,17 @@ import {
 import {basename, dirname, isAbsolute, join, relative, resolve, sep} from "node:path";
 import {fileURLToPath} from "node:url";
 
-const SITE=resolve(dirname(fileURLToPath(import.meta.url)),"..");
+// During Astro prerender Vite relocates bundled modules to dist/.prerender.
+// Resolve the source site via immutable, well-known provenance in cwd, rather
+// than treating the relocated import.meta.url as an authority for source files.
+const moduleSite=resolve(dirname(fileURLToPath(import.meta.url)),"..");
+const cwdSite=resolve(process.cwd());
+const checkoutSite=resolve(cwdSite,"apps/hazewave-site");
+const SITE=[moduleSite,cwdSite,checkoutSite].find(path=>
+  existsSync(join(path,"owner-art-provenance.json"))&&
+  existsSync(join(path,"astro.config.mjs"))
+);
+if(!SITE)throw Error("HAZEWAVE_ARTCRAFT_SOURCE_SITE_UNRESOLVED");
 const REPO=resolve(SITE,"../..");
 const SCHEMA="HazewaveArtCraftSevenLabHandoff/v1";
 const ARTIFACTS={
