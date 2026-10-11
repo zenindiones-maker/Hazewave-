@@ -248,3 +248,15 @@ class ReaperBridge:
 
     def create_midi(self, request):
         return self._guarded(self._create_midi_impl, request)
+
+    # Allowlisted REAPER actions only: Edit: Undo (40029) / Edit: Redo (40030).
+    _EDIT_ACTIONS = {'undo': 40029, 'redo': 40030}
+
+    def _edit_impl(self, action):
+        if action not in self._EDIT_ACTIONS:
+            raise ValueError('UNKNOWN_EDIT_ACTION')
+        self.r.Main_OnCommand(self._EDIT_ACTIONS[action], 0)
+        return {'action': action, 'command_id': self._EDIT_ACTIONS[action], 'state': self._state()}
+
+    def edit(self, action):
+        return self._guarded(self._edit_impl, action)

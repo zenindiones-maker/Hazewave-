@@ -101,6 +101,10 @@ def app_factory(studio, token: str, call_timeout: float | None = None) -> FastAP
     async def transport(action: Literal['play', 'stop', 'rec']):
         return await run_in_threadpool(guarded, studio.transport, action)
 
+    @app.post('/api/edit/{action}', dependencies=[Depends(authenticate)])
+    async def edit(action: Literal['undo', 'redo']):
+        return await run_in_threadpool(guarded, studio.edit, action)
+
     @app.post('/api/project/create_midi', dependencies=[Depends(authenticate)])
     async def create_midi(payload: MidiRequest):
         return await run_in_threadpool(guarded, studio.create_midi, payload)

@@ -1,0 +1,174 @@
+package com.hazewave.fyahremote
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.net.Uri
+import android.webkit.WebChromeClient
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import org.json.JSONObject
+
+/** Settings live only in app-private SharedPreferences on the phone; nothing is hardcoded. */
+internal class RemoteSettings(ctx: Context) {
+    private val p = ctx.getSharedPreferences("fyahreaper_remote", Context.MODE_PRIVATE)
+    var vncUrl: String get() = p.getString("vnc_url", "http://100.113.8.91:6090")!!; set(v) = p.edit().putString("vnc_url", v.trim()).apply()
+    var vncPassword: String get() = p.getString("vnc_password", "")!!; set(v) = p.edit().putString("vnc_password", v).apply()
+    var hubUrl: String get() = p.getString("hub_url", "http://100.113.8.91:8787")!!; set(v) = p.edit().putString("hub_url", v.trim()).apply()
+    var hubToken: String get() = p.getString("hub_token", "")!!; set(v) = p.edit().putString("hub_token", v).apply()
+    val configured get() = vncPassword.isNotBlank()
+}
+
+/** noVNC page served by websockify on the workstation (tailnet only). */
+internal fun noVncPage(base: String, password: String): String =
+    Uri.parse(base.trimEnd('/') + "/vnc.html").buildUpon()
+        .appendQueryParameter("autoconnect", "1")
+        .appendQueryParameter("resize", "scale")
+        .appendQueryParameter("reconnect", "1")
+        .appendQueryParameter("reconnect_delay", "1500")
+        .appendQueryParameter("show_dot", "1")
+        .appendQueryParameter("path", "websockify")
+        .appendQueryParameter("password", password)
+        .build().toString()
+
+// JS helpers operating on the noVNC page's own controls (ids from noVNC vnc.html).
+private fun clickJs(id: String) = "(function(){var b=document.getElementById('$id');if(b){b.click();return 'ok'}return 'missing'})()"
+private fun shiftJs(down: Boolean): String {
+    val type = if (down) "keydown" else "keyup"
+    return "(function(){var c=document.querySelector('#noVNC_container canvas')||document.querySelector('canvas');if(!c)return 'missing';" +
+        "c.dispatchEvent(new KeyboardEvent('$type',{key:'Shift',code:'ShiftLeft',keyCode:16,which:16,bubbles:true}));return 'ok'})()"
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+internal fun RealReaperScreen(onOpenNative: () -> Unit) {
+    val ctx = LocalContext.current
+    val prefs = remember { RemoteSettings(ctx) }
+    var showSettings by remember { mutableStateOf(!prefs.configured) }
+    var reloadKey by remember { mutableIntStateOf(0) }
+    var webView by remember { mutableStateOf<WebView?>(null) }
+    var barOpen by remember { mutableStateOf(true) }
+    var ctrl by remember { mutableStateOf(false) }
+    var alt by remember { mutableStateOf(false) }
+    var shift by remember { mutableStateOf(false) }
+    var state by remember { mutableStateOf("—") }
+    var busy by remember { mutableStateOf(false) }
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    fun hub(): ReaHub? = runCatching {
+        if (prefs.hubToken.isBlank()) null else ReaHub(prefs.hubUrl, prefs.hubToken)
+    }.getOrNull()
+
+    fun call(path: String) {
+        val h = hub() ?: run { scope.launch { snackbar.showSnackbar("Configure o token do ReaHub") }; return }
+        scope.launch {
+            busy = true
+            try { state = JSONObject(h.request(path, "POST")).optString("state", state) }
+            catch (e: Exception) { snackbar.showSnackbar(e.message ?: "Falha de rede") }
+            finally { busy = false }
+        }
+    }
+    // Truthful transport state from the real REAPER (no fake data).
+    LaunchedEffect(reloadKey, showSettings) {
+        while (true) {
+            hub()?.let { h -> state = runCatching { JSONObject(h.request("/health")).getString("state") }.getOrDefault("offline") }
+            delay(1000)
+        }
+    }
+
+    Scaffold(snackbarHost = { SnackbarHost(snackbar) }, containerColor = Color.Black) { pad ->
+        Box(Modifier.fillMaxSize().padding(pad)) {
+            if (!showSettings) {
+                key(reloadKey) {
+                    AndroidView(modifier = Modifier.fillMaxSize(), factory = { c ->
+                        WebView(c).apply {
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            settings.useWideViewPort = true
+                            settings.loadWithOverviewMode = true
+                            settings.builtInZoomControls = false
+                            settings.mediaPlaybackRequiresUserGesture = false
+                            webViewClient = WebViewClient()
+                            webChromeClient = WebChromeClient()
+                            loadUrl(noVncPage(prefs.vncUrl, prefs.vncPassword))
+                            webView = this
+                        }
+                    })
+                }
+            }
+            // Slim collapsible overlay bar
+            Column(Modifier.align(Alignment.TopEnd).padding(4.dp), horizontalAlignment = Alignment.End) {
+                FilledTonalButton(onClick = { barOpen = !barOpen }, contentPadding = PaddingValues(horizontal = 10.dp)) {
+                    Text(if (barOpen) "▸" else "◂ $state", color = Color.White)
+                }
+                if (barOpen) {
+                    Column(Modifier.background(Color(0xCC1E1E24)).padding(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        val stateColor = when (state) { "recording" -> Color(0xFFFF4040); "playing" -> Color(0xFF52D16A); "offline" -> Color.Gray; else -> Color(0xFFDDDDDD) }
+                        Text(state.uppercase(), color = stateColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        BarBtn("PLAY", Color(0xFF2E7D32), !busy) { call("/api/transport/play") }
+                        BarBtn("STOP", Color(0xFF455A64), !busy) { call("/api/transport/stop") }
+                        BarBtn("REC", if (state == "recording") Color(0xFFFF1744) else Color(0xFFB71C1C), !busy) { call("/api/transport/rec") }
+                        BarBtn("UNDO", Color(0xFF37474F), !busy) { call("/api/edit/undo") }
+                        Toggle("CTRL", ctrl) { ctrl = !ctrl; webView?.evaluateJavascript(clickJs("noVNC_toggle_ctrl_button"), null) }
+                        Toggle("ALT", alt) { alt = !alt; webView?.evaluateJavascript(clickJs("noVNC_toggle_alt_button"), null) }
+                        Toggle("SHIFT", shift) { shift = !shift; webView?.evaluateJavascript(shiftJs(shift), null) }
+                        BarBtn("ESC", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_send_esc_button"), null) }
+                        BarBtn("⌨", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_keyboard_button"), null) }
+                        BarBtn("⚙", Color(0xFF37474F), true) { showSettings = true }
+                        BarBtn("NATIVO", Color(0xFF37474F), true) { onOpenNative() }
+                    }
+                }
+            }
+            if (showSettings) SettingsPanel(prefs) { showSettings = false; reloadKey++ }
+        }
+    }
+}
+
+
+@Composable private fun BarBtn(label: String, color: Color, enabled: Boolean, onClick: () -> Unit) {
+    Button(onClick = onClick, enabled = enabled, modifier = Modifier.width(76.dp).heightIn(min = 48.dp),
+        contentPadding = PaddingValues(2.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = Color.White)) {
+        Text(label, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
+    }
+}
+
+@Composable private fun Toggle(label: String, on: Boolean, onClick: () -> Unit) =
+    BarBtn(label, if (on) Color(0xFFFF8F00) else Color(0xFF37474F), true, onClick)
+
+@Composable private fun SettingsPanel(s: RemoteSettings, onDone: () -> Unit) {
+    var vnc by remember { mutableStateOf(s.vncUrl) }
+    var pw by remember { mutableStateOf(s.vncPassword) }
+    var hub by remember { mutableStateOf(s.hubUrl) }
+    var tok by remember { mutableStateOf(s.hubToken) }
+    Surface(Modifier.fillMaxSize(), color = Color(0xFF15151B)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("FyahReaper Remote · conexão", color = Color.White, fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(vnc, { vnc = it }, label = { Text("REAPER (noVNC)") }, singleLine = true, modifier = Modifier.weight(1f))
+                OutlinedTextField(pw, { pw = it }, label = { Text("Senha VNC") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.weight(1f))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(hub, { hub = it }, label = { Text("ReaHub") }, singleLine = true, modifier = Modifier.weight(1f))
+                OutlinedTextField(tok, { tok = it }, label = { Text("Token ReaHub") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.weight(1f))
+            }
+            Button(onClick = { s.vncUrl = vnc; s.vncPassword = pw; s.hubUrl = hub; s.hubToken = tok; onDone() },
+                enabled = vnc.startsWith("http") && pw.isNotBlank(), modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("ABRIR REAPER") }
+        }
+    }
+}

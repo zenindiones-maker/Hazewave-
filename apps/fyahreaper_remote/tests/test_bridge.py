@@ -20,7 +20,7 @@ class RPR:
         return (self.tracks.index(t)+1) if key=='IP_TRACKNUMBER' else t[key]
     def SetMediaTrackInfo_Value(self,t,key,val): t[key]=val;return True
     def TrackList_AdjustWindows(self,x): pass
-    def Main_OnCommand(self,action,flag): self.cmds=getattr(self,'cmds',[])+[action];self.state={1013:5,1016:0,40667:0,1007:1}[action]
+    def Main_OnCommand(self,action,flag): self.cmds=getattr(self,'cmds',[])+[action];self.state={1013:5,1016:0,40667:0,1007:1,40029:self.state,40030:self.state}[action]
     def CountSelectedMediaItems(self,p):return 1
     def GetSelectedMediaItem(self,p,i):return self.selected_item
     def GetActiveTake(self,item):return item.get('take',{'midi':False})
@@ -197,3 +197,10 @@ def test_app_websocket_receives_transport_frames():
     with c.websocket_connect('/ws',headers=H) as ws:
         m=ws.receive_json()
     assert m['type']=='transport' and m['state']=='stopped'
+
+def test_app_undo_redo_allowlisted_actions():
+    c,H,api=_app_client();hdr={**H,'Content-Type':'application/json; charset=utf-8'}
+    assert c.post('/api/edit/undo',content='{}',headers=hdr).json()['command_id']==40029
+    assert c.post('/api/edit/redo',content='{}',headers=hdr).json()['command_id']==40030
+    assert c.post('/api/edit/delete_everything',content='{}',headers=hdr).status_code==422
+    assert api.cmds==[40029,40030]

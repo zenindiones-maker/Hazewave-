@@ -32,11 +32,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 
-private data class Track(val id:String, val name:String, val volume:Float,
+internal data class Track(val id:String, val name:String, val volume:Float,
                          val mute:Boolean, val solo:Boolean, val armed:Boolean)
-private data class PaintedNote(val pitch:Int, val start:Double, val duration:Double=0.20)
+internal data class PaintedNote(val pitch:Int, val start:Double, val duration:Double=0.20)
 
-private class ReaHub(private val url:String, private val token:String) {
+internal class ReaHub(private val url:String, private val token:String) {
     private val http = OkHttpClient()
     init { require(url.startsWith("http://") || url.startsWith("https://")) }
     private fun route(path:String) = url.trimEnd('/') + path
@@ -86,11 +86,23 @@ private class ReaHub(private val url:String, private val token:String) {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState:Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme(colorScheme=darkColorScheme()) { FyahScreen() } }
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        androidx.core.view.WindowInsetsControllerCompat(window, window.decorView).apply {
+            hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+        setContent { MaterialTheme(colorScheme=darkColorScheme()) {
+            var native by remember { mutableStateOf(false) }
+            if (native) Box(Modifier.fillMaxSize()) {
+                NativeScreen()
+                TextButton(onClick={native=false}, modifier=Modifier.align(androidx.compose.ui.Alignment.TopEnd)) { Text("REAPER ▸", color=Color.White) }
+            } else RealReaperScreen(onOpenNative={ native=true })
+        } }
     }
 }
 
-@Composable private fun FyahScreen() {
+@Composable internal fun NativeScreen() {
     var host by remember { mutableStateOf("http://100.113.8.91:8787") }
     var token by remember { mutableStateOf("") }
     var hub by remember { mutableStateOf<ReaHub?>(null) }
