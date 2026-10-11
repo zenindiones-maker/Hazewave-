@@ -1,5 +1,6 @@
 name: WAVE VectorCraft Real CLI Proof
 on:
+  workflow_call:
   pull_request:
     paths:
       - "apps/hazewave-site/experiments/travessia-v4/artcraft_vector_bridge.py"
@@ -14,7 +15,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: vectorcraft-real-proof-${{ github.event.pull_request.number || github.ref }}
+  group: vectorcraft-real-proof-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
