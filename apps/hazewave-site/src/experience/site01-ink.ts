@@ -90,8 +90,8 @@ export function mountSite01Ink(): void {
     seed.style.opacity=String(smooth(segment(p,.006,.045)));
     const brand=segment(p,.69,.92);
     stage.style.setProperty("--brand-visibility",String(brand>.008?1:0));
-    stage.style.setProperty("--brand-brush",String(brand));
-    stage.style.setProperty("--signature-brush",String(segment(p,.91,.98)));
+    stage.style.setProperty("--brand-clip",String((1-brand)*100)+"%");
+    stage.style.setProperty("--signature-clip",String((1-segment(p,.91,.98))*100)+"%");
     stage.style.setProperty("--arrival",String(segment(p,.92,.99)));
     // Camera is SUBORDINATE to drawing. Reduced motion removes it entirely.
     if(!reduced.matches){
