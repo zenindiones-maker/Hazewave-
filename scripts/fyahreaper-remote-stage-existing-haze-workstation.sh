@@ -4,7 +4,7 @@
 set -Eeuo pipefail
 REPO=/workspaces/Hazewave-
 APPROVED=hazewave-zero-cost-4jxp45676rq6279xx
-PIN=ce69288070b65e8b1f0c761a0ae1bbbfd0d89221
+PIN=63219f44dd9363f83c087d7b1424e395347eb36e
 ROOT="$HOME/.local/share/hazewave/fyahreaper-remote"
 RELEASE="$ROOT/source-$PIN"
 if [[ -n "${CODESPACE_NAME:-}" && "$CODESPACE_NAME" != "$APPROVED" ]]; then
