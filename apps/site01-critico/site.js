@@ -32,10 +32,14 @@
     let data = null, byG = null, st = null, pending = null, decoding = false, LW = lw;
     const ready = () => !!data;
     function load() { if (decoding) return; decoding = true; fetchBuf(src).then(ab => idle(() => { data = decode(ab); cv.width = data.W; cv.height = data.H; cx.lineCap = 'round'; cx.lineJoin = 'round'; cx.strokeStyle = INKC; cx.lineWidth = lw; LW = lw; byG = [0, 1, 2].map(g => data.S.filter(s => s.g === g)); st = byG.map(() => 0); if (pending) draw(pending); })); }
-    function piece(s, a, b) { const A = a * s.len, B = b * s.len, P = s.P, Cm = s.cum; cx.beginPath(); let on = false;
+    function piece(s, a, b) { const T = .14;
+      if (a < T) { seg1(s, a, Math.min(b, T), .45); if (b <= T) return; a = T; }
+      if (b > 1 - T) { if (a < 1 - T) seg1(s, a, 1 - T, 1); seg1(s, Math.max(a, 1 - T), b, .45); return; }
+      seg1(s, a, b, 1); }
+    function seg1(s, a, b, wm) { const A = a * s.len, B = b * s.len, P = s.P, Cm = s.cum; cx.beginPath(); let on = false;
       for (let i = 1; i < Cm.length; i++) { if (Cm[i] < A) continue; const s0 = Math.max(A, Cm[i - 1]), s1 = Math.min(B, Cm[i]); if (s1 < s0) break; const L = Cm[i] - Cm[i - 1] || 1, u0 = (s0 - Cm[i - 1]) / L, u1 = (s1 - Cm[i - 1]) / L, x0 = P[i * 2 - 2], y0 = P[i * 2 - 1], dx = P[i * 2] - x0, dy = P[i * 2 + 1] - y0;
         if (!on) { cx.moveTo(x0 + dx * u0, y0 + dy * u0); on = true; } cx.lineTo(x0 + dx * u1, y0 + dy * u1); if (Cm[i] >= B) break; }
-      if (on) { cx.lineWidth = LW * s.w; cx.stroke(); } }
+      if (on) { cx.lineWidth = LW * s.w * wm; cx.stroke(); } }
     function draw(ks) {
       if (!data) { pending = ks; load(); return; }
       ks = ks.map(k => RM ? 1 : k);
@@ -48,6 +52,13 @@
     }
     return { cv, draw, load, ready };
   }
+
+  /* revelação da cor por "pincelada": duas camadas em contra-translação (só compositor, sem repaint) + borda de tinta */
+  function Wipe(img) { const w = el('div', { class: 'wipe' }); img.parentNode.insertBefore(w, img); w.appendChild(img); el('i', { class: 'edge' }, w); w._f = -1;
+    return f => { f = RM ? 1 : f; if (f === w._f) return; w._f = f; const d = ((1 - f) * 100).toFixed(2); w.style.transform = `translate3d(0,-${d}%,0)`; img.style.transform = `translate3d(0,${d}%,0)`; w.classList.toggle('mid', f > 0 && f < 1); w.style.visibility = f ? 'visible' : 'hidden'; }; }
+  /* toque: anel de tinta + retraçado rápido */
+  function ripple(host, ev) { const r = host.getBoundingClientRect(), d = el('i', { class: 'ripple' }, host); d.style.left = (ev.clientX - r.left) + 'px'; d.style.top = (ev.clientY - r.top) + 'px'; setTimeout(() => d.remove(), 700); }
+  function retrace(ink, ks) { if (RM || !ink.ready()) return; const t0 = performance.now(); const go = t => { const u = Math.min(1, (t - t0) / 650); ink.draw(ks.map(k => k * ease(u))); if (u < 1) requestAnimationFrame(go); }; ink.draw([0, 0, 0]); requestAnimationFrame(go); }
 
   /* ================= JORNADA ================= */
   const W = C.world, pin = document.querySelector('#journey .pin'), world = document.getElementById('world');
@@ -73,8 +84,8 @@
     const at = RPTS.reduce((b, q, i) => { const d = Math.hypot(q[0] - (L.x + L.w / 2), q[1] - (L.y + L.w * .28)); return d < b[0] ? [d, i / RS] : b; }, [1e9, 0])[1]; lockedEls.push({ im, tag, at }); });
   const I = C.islands.find(i => i.status === 'active'), P = I.art.placement, ih = P.w * I.art.h / I.art.w;
   const ibox = el('div', { class: 'island', style: `left:${P.x}px;top:${P.y}px;width:${P.w}px;height:${ih}px` }, world);
-  const flat = el('img', { src: I.art.flat, alt: `Ilha-MPC de ${I.name}, colorida`, width: I.art.w, height: I.art.h, decoding: 'async' }, ibox);
-  ibox.addEventListener('click', () => { ibox.classList.remove('wig'); void ibox.offsetWidth; ibox.classList.add('wig'); });
+  const flat = el('img', { src: I.art.flat, alt: `Ilha-MPC de ${I.name}, colorida`, width: I.art.w, height: I.art.h, decoding: 'async' }, ibox); const flatWipe = Wipe(flat);
+  let islandKs = [1, 1, 1]; ibox.addEventListener('click', ev => { ripple(ibox, ev); ibox.classList.remove('wig'); void ibox.offsetWidth; ibox.classList.add('wig'); });
   const islandInk = InkLayer(ibox, I.art.ink, { w: I.art.w, h: I.art.h, label: `Ilha-MPC de ${I.name} sendo desenhada` });
   const card = document.getElementById('card'); const capEl = el('p', { class: 'cap', id: 'cap' }, pin);
   card.innerHTML = `<h2>${I.name}</h2><div class="btns">` + I.actions.map((a, i) => a.url ? `<a class="btn${i ? '' : ' main'}" href="${a.url}">${a.label}</a>` : `<button class="btn${i ? '' : ' main'}" aria-disabled="true" title="em breve">${a.label}</button>`).join('') + `</div><p class="prov">PROVISÓRIO — clipe, faixa e arquivo para download a fornecer.</p>`;
@@ -109,7 +120,7 @@
     lockedEls.forEach(o => { const v = RM ? 1 : seg(kr, o.at - .08, o.at); o.im.style.opacity = .32 * v; o.tag.style.opacity = .6 * v; });
     if (t > .25) islandInk.load();
     islandInk.draw([seg(t, .5, .6), seg(t, .56, .7), seg(t, .62, .8)]);
-    const f = RM ? 1 : seg(t, .78, .88); flat.style.opacity = f ? 1 : 0; flat.style.clipPath = `inset(0 0 ${(100 * (1 - f)).toFixed(1)}% 0)`;
+    const f = RM ? 1 : seg(t, .78, .88); flatWipe(f);
     const c = RM ? 1 : ease(seg(t, .88, .96)); card.style.opacity = c; card.style.transform = `translateY(${24 * (1 - c)}px)`; card.classList.toggle('on', c > .5);
     const ci = C.captions.reduce((b, c, i) => t >= c[0] ? i : b, 0);
     if (ci !== capEl._i) { capEl._i = ci; capEl.textContent = C.captions[ci][1]; }
@@ -124,9 +135,10 @@
     const pinS = el('div', { class: 'pin' }, sec), box = el('div', { class: 'box' }, pinS);
     const back = el('div', { class: 'back', 'aria-hidden': 'true' }, pinS); el('img', { src: C.sky.far, alt: '', loading: 'lazy', decoding: 'async' }, back);
     const art = el('div', { class: 'art', tabindex: '-1' }, box);
-    art.addEventListener('click', () => { art.classList.remove('wig'); void art.offsetWidth; art.classList.add('wig'); });
+    art.addEventListener('click', ev => { ripple(art, ev); art.classList.remove('wig'); void art.offsetWidth; art.classList.add('wig'); const o = secs.find(o => o.art === art); o && retrace(o.ink, o.ks || [1, 1, 1]); });
     const fl = el('img', { src: S.flat || S.icon.flat, alt: '', decoding: 'async', loading: 'lazy' }, art);
     const ink = InkLayer(art, S.ink || S.icon.ink, { w: big ? 1280 : 560, h: big ? 720 : 360, lw: big ? 3.2 : 2.6, label: S.title });
+    const flW = Wipe(fl);
     fl.onload = () => { art.style.aspectRatio = `${fl.naturalWidth}/${fl.naturalHeight}`; };
     const dv = el('svg:svg', { class: 'divider', viewBox: '0 0 300 24', 'aria-hidden': 'true' }); box.insertBefore(dv, art);
     const dp = el('svg:path', { d: 'M4 14 C 30 2, 50 22, 76 12 S 120 4, 150 13 S 200 22, 226 11 S 272 6, 296 13' }, dv); const DL = 300; dp.style.strokeDasharray = DL; dp.style.strokeDashoffset = DL;
@@ -135,7 +147,7 @@
     const p = el('p', {}, box); p.textContent = S.text;
     if (S.cta) { const b = S.cta.url ? el('a', { class: 'btn main', href: S.cta.url }, box) : el('button', { class: 'btn main', 'aria-disabled': 'true', title: 'em breve' }, box); b.textContent = S.cta.url ? S.cta.label : S.cta.label + ' — em breve'; }
     if (S.provisional) { const q = el('p', { class: 'prov' }, box); q.textContent = S.provisional; }
-    secs.push({ sec, ink, fl, big, dp, DL, back, art });
+    secs.push({ sec, ink, fl, flW, big, dp, DL, back, art });
   }
   C.sections.forEach(S => makeSection(S));
   makeSection(C.finale, { len: 2.6, big: true });
@@ -154,17 +166,20 @@
   /* ================= laço ================= */
   const scenes = [...document.querySelectorAll('.scene')];
   scenes.forEach(s => s.style.height = (+s.dataset.len * 100) + 'vh');
-  const prog = s => { const r = s.getBoundingClientRect(); return clamp(-r.top / Math.max(1, r.height - innerHeight)); };
-  const secProg = s => { const r = s.getBoundingClientRect(); return clamp((innerHeight - r.top) / r.height); };
+  /* posições cacheadas no resize: nenhum getBoundingClientRect por quadro (evitava layout forçado entre escritas) */
+  const POS = new Map(); const measure = () => { const y = scrollY; scenes.forEach(s => { const r = s.getBoundingClientRect(); POS.set(s, [r.top + y, r.height]); }); };
+  let SY = 0; const prog = s => { const [t, h] = POS.get(s); return clamp((SY - t) / Math.max(1, h - VH)); };
+  const secProg = s => { const [t, h] = POS.get(s); return clamp((VH - (t - SY)) / h); }; let VH = innerHeight;
+  measure();
   const journeyEl = document.getElementById('journey'); let q = 0;
   const frame = () => {
-    q = 0; const t = prog(journeyEl); journeyEl.dataset.p = t.toFixed(3); journey(t);
-    secs.forEach(o => { const k = secProg(o.sec); o.sec.dataset.p = k.toFixed(3); if (k > 0 && k < 1.01 || o.ink.ready()) { if (k > 0) o.ink.draw(o.big ? [seg(k, .12, .3), seg(k, .2, .45), seg(k, .28, .62)] : [seg(k, .1, .25), seg(k, .15, .38), seg(k, .2, .5)]); }
+    q = 0; SY = scrollY; VH = innerHeight; const t = prog(journeyEl); journeyEl.dataset.p = t.toFixed(3); journey(t);
+    secs.forEach(o => { const k = secProg(o.sec); o.sec.dataset.p = k.toFixed(3); if (k > 0 && k < 1.01 || o.ink.ready()) { if (k > 0) o.ink.draw(o.ks = o.big ? [seg(k, .12, .3), seg(k, .2, .45), seg(k, .28, .62)] : [seg(k, .1, .25), seg(k, .15, .38), seg(k, .2, .5)]); }
       const f = RM ? 1 : (o.big ? seg(k, .6, .75) : seg(k, .45, .6)); o.fl.style.opacity = f;
       if (!RM && k > 0 && k < 1) { const z = ease3(seg(k, .05, .55)); o.back.style.transform = `translate3d(-50%,${((.5 - k) * 120).toFixed(1)}px,0)`; o.art.style.transform = `translate3d(0,${((.5 - k) * 36).toFixed(1)}px,0) scale(${(1.14 - .14 * z).toFixed(4)})`; } o.dp.style.strokeDashoffset = o.DL * (1 - (RM ? 1 : seg(k, .05, .3))); o.fl.style.clipPath = `inset(0 0 ${(100 * (1 - f)).toFixed(1)}% 0)`; });
   };
   addEventListener('scroll', () => { if (!q) q = requestAnimationFrame(frame); }, { passive: true });
-  addEventListener('resize', frame); frame();
+  addEventListener('resize', () => { measure(); frame(); }); addEventListener('load', () => { measure(); frame(); }); frame();
   if (RM) { islandInk.load(); secs.forEach(o => o.ink.load()); }
   idle(() => islandInk.load());
   document.documentElement.dataset.ready = '1'; const ld = document.getElementById('loader'); if (ld) { ld.classList.add('done'); setTimeout(() => ld.remove(), 600); }

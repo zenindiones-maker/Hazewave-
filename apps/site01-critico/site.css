@@ -14,7 +14,7 @@
 .island svg path{stroke-width:1.6}
 .island img{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0}
 .island canvas{position:absolute;left:0;top:0;width:100%;height:100%;will-change:transform}
-.island-card{position:absolute;left:4vw;right:4vw;bottom:3vh;background:var(--paper);border:3px solid var(--ink);border-radius:14px;padding:.9rem 1rem;box-shadow:6px 6px 0 var(--ink);opacity:0;transform:translateY(24px);pointer-events:none}
+.island-card{will-change:transform,opacity;position:absolute;left:4vw;right:4vw;bottom:3vh;background:var(--paper);border:3px solid var(--ink);border-radius:14px;padding:.9rem 1rem;box-shadow:6px 6px 0 var(--ink);opacity:0;transform:translateY(24px);pointer-events:none}
 .island-card.on{pointer-events:auto}
 .island-card h2{margin:0 0 .5rem;font:2rem/1 "Bangers","Impact",sans-serif;letter-spacing:.06em}
 .btns{display:flex;flex-wrap:wrap;gap:.5rem}
@@ -81,3 +81,14 @@
  .sec .box>*:not(.art){grid-column:2}.sec svg.divider{margin:0}.sec p{margin-left:0}
  .sec.big .box>.art{width:min(52vw,700px)}}
 @media (orientation:landscape){.sec .box>.art{height:62vh;width:auto;max-width:44vw;justify-self:center}.sec.big .box>.art{height:70vh;max-width:54vw}.sec .box>.btn{justify-self:start}.sec .box{min-height:80vh}}
+
+.wipe{position:absolute;inset:0;overflow:hidden;will-change:transform;visibility:hidden}
+.wipe>img{position:absolute;inset:0;width:100%;height:100%;opacity:1!important;will-change:transform}
+.island .wipe>img{position:absolute}
+.wipe .edge{position:absolute;left:-2%;right:-2%;bottom:0;height:10px;display:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 12' preserveAspectRatio='none'%3E%3Cpath d='M0 6 Q8 1 15 6 T30 6 T45 5 T60 7 T75 5 T90 6 T105 5 T120 6' fill='none' stroke='%231d1b1a' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") 0 0/100% 100%}
+.wipe.mid .edge{display:block}
+.ripple{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border:3px solid var(--ink);border-radius:50%;pointer-events:none;animation:rip .65s ease-out forwards;z-index:4}
+@keyframes rip{to{transform:scale(7);opacity:0;border-width:1px}}
+/* transição entre cenas: a página nova entra com uma borda de onda em tinta, sobrepondo a anterior */
+.sec{position:relative;margin-top:-6vh}
+.sec::before{content:"";position:sticky;top:0;display:block;height:6vh;margin-bottom:-6vh;z-index:3;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 40' preserveAspectRatio='none'%3E%3Cpath d='M0 40 L0 22 C 40 6, 70 34, 110 20 S 180 6, 220 22 S 300 36, 340 18 S 390 12, 400 20 L400 40 Z' fill='%23f4efe6'/%3E%3Cpath d='M0 22 C 40 6, 70 34, 110 20 S 180 6, 220 22 S 300 36, 340 18 S 390 12, 400 20' fill='none' stroke='%231d1b1a' stroke-width='3'/%3E%3C/svg%3E") 0 100%/100% 100% no-repeat;pointer-events:none}

@@ -1,0 +1,12 @@
+import { chromium } from '@playwright/test';
+const b=await chromium.launch(); const vp=process.argv[2]==='phys'?{viewport:{width:1080,height:2340},deviceScaleFactor:1}:{viewport:{width:412,height:915},deviceScaleFactor:2.625};
+const ctx=await b.newContext(vp); const p=await ctx.newPage();
+await p.goto('http://127.0.0.1:8096/'); await p.waitForFunction(()=>document.documentElement.dataset.ready); await p.waitForTimeout(800);
+const cdp=await ctx.newCDPSession(p); await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});
+await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval',{interval:200}); await cdp.send('Profiler.start');
+const r=await p.evaluate(async()=>{const H=document.documentElement.scrollHeight-innerHeight;const bad=[];let last=performance.now(),y=0,n=0;await new Promise(res=>{const f=t=>{const d=t-last;last=t;if(n++&&d>20)bad.push([+(y/H).toFixed(3),Math.round(d)]);y+=H/700;scrollTo(0,y);if(y<H)requestAnimationFrame(f);else res()};requestAnimationFrame(f)});return bad});
+const {profile}=await cdp.send('Profiler.stop'); const self={}; const idx={}; profile.nodes.forEach(n=>idx[n.id]=n);
+profile.samples.forEach((s,i)=>{const n=idx[s];const k=n.callFrame.functionName+':'+n.callFrame.lineNumber;self[k]=(self[k]||0)+(profile.timeDeltas[i]||0)});
+console.log('bad frames',JSON.stringify(r));
+console.log(Object.entries(self).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k,v])=>k+' '+Math.round(v/1000)+'ms').join(' | '));
+await b.close();

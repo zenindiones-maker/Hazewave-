@@ -21,3 +21,27 @@ Nota final = média ponderada. Critérios bloqueados por material do Luiz são m
 | 14 | Som **[B]** | 3 | — | 3 | gancho pronto, sem áudio |
 
 Nota ponderada v6 ≈ **7,6/10** (sem os bloqueados: **8,3/10**).
+
+
+## v7 (re-pontuação estrita)
+Perf agora = rolagem de ponta a ponta (700 quadros), CPU 4×, **mediana de 5** (`tests/perf5-a15.mjs`).
+Causa raiz dos quadros perdidos (perfil CDP, `tests/profile-scroll.mjs`): `getBoundingClientRect` por seção a cada quadro + leitura de `scrollY` depois das escritas = layout forçado (≈470 ms de 20 s). Corrigido com posições cacheadas no resize e uma leitura de scroll por quadro. Revelação de cor trocou `clip-path` (repaint) por duas camadas em contra-translação (só compositor).
+
+| # | Critério | v6 | v7 | Por quê |
+|---|---|---|---|---|
+| 1 | Scroll é o pincel | 9 | 9 | + retraçado ao tocar |
+| 2 | Traço à mão | 8 | 9 | pontas afinadas (14% inicial/final a 45% da espessura) + tremor + espessura variável |
+| 3 | Direção de arte | 8 | 8 | teto atual = arte IA não aprovada / sem passe humano **[parcialmente B]** |
+| 4 | Profundidade | 8 | 8,5 | 3 planos por cena; falta plano de primeiro plano (cabos) desenhado à mão |
+| 5 | Câmera | 8 | 8,5 | passeio pelos pads; entre seções ainda não há câmera contínua (cada seção é um palco) |
+| 6 | Ritmo / transições | 8 | 9 | revelação com borda de tinta; páginas entram com borda de onda sobreposta |
+| 7 | Toque | 7 | 9 | anel de tinta + balanço + retraçado do desenho |
+| 8 | Tipografia | 8 | 8,5 | |
+| 9 | Carregamento | 9 | 9 | |
+| 10 | Paisagem | 8 | 8,5 | jank mediano 23/700 quadros vs 3–6 em retrato |
+| 11 | Desempenho | 8 | 9 | p95 mediano 16,8 ms nos 3 viewports, 0 long tasks (retrato); jank mediano 3 / 6 / 23 |
+| 12 | Acessibilidade | 9 | 9 | |
+| 13 | Conteúdo real **[B]** | 2 | 2 | |
+| 14 | Som **[B]** | 3 | 3 | |
+
+Ponderada v7 ≈ **7,9/10**; sem bloqueados ≈ **8,7/10**.
