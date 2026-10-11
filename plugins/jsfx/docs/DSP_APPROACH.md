@@ -14,5 +14,5 @@ Modelado a partir de conhecimento público de circuitos analógicos (compressore
 - **Magnetização com memória:** `m += (tanh(drive·x + α·m) − m)·rate`. O termo `α·m` (realimentação de estado) cria um laço dependente da história do sinal (histerese simplificada, inspirada qualitativamente no modelo Jiles-Atherton); `rate` impõe slew. Menos bias → mais α e menos rate (mais memória, mais cor); mais bias → mais linear. O slew também atenua agudos (efeito de bias baixo).
 - **Head bump:** peaking biquad (45 Hz +3 dB / 65 Hz +2,5 dB / 110 Hz +2 dB para 7,5/15/30 ips) + passa-altas a 0,35× a frequência do bump.
 - **Perda de agudos:** passa-baixas 2ª ordem a 9 / 16 / 22 kHz (limitado a 0,45·fs).
-- **Wow & flutter:** linha de atraso fracionária (2 ms base) modulada por 0,6 Hz (±1,5 ms) e 7 Hz (±0,2 ms). Observação: o sinal seco do Mix não é compensado nesses 2 ms.
+- **Wow & flutter:** linha de atraso fracionária (2 ms base) modulada por 0,6 Hz (±1,5 ms) e 7 Hz (±0,2 ms). O sinal seco do Mix é atrasado pelos mesmos 2 ms (sem filtro pente com Mix < 100%).
 - **Hiss:** ruído branco no nível escolhido.

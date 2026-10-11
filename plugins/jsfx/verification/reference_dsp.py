@@ -70,16 +70,18 @@ class FyahTape:
 
     def process(self, x):
         sr, m, bsz = self.sr, 0.0, 4096
-        buf = np.zeros(bsz); wp = 0; ph1 = ph2 = 0.0
+        buf = np.zeros(bsz); dry = np.zeros(bsz); wp = 0; ph1 = ph2 = 0.0
         st = [[0.0, 0.0] for _ in self.filters]; y_out = np.empty_like(x)
         noise = self.rng.uniform(-1, 1, len(x)) * self.hiss
         for n, s in enumerate(x):
             m += (math.tanh(self.drv * s + self.alpha * m) - m) * self.rate
-            buf[wp] = m * (1 - self.alpha) / self.drv
+            buf[wp] = m * (1 - self.alpha) / self.drv; dry[wp] = s
             ph1 = (ph1 + 0.6 / sr) % 1; ph2 = (ph2 + 7 / sr) % 1
             d = 0.002 * sr + self.wf * (0.0015 * sr * math.sin(2 * math.pi * ph1) + 0.0002 * sr * math.sin(2 * math.pi * ph2))
             rp = (wp - d) % bsz; i = int(rp); fr = rp - i
-            y = buf[i] * (1 - fr) + buf[(i + 1) % bsz] * fr; wp = (wp + 1) % bsz
+            y = buf[i] * (1 - fr) + buf[(i + 1) % bsz] * fr
+            rq = (wp - 0.002 * sr) % bsz; k = int(rq); fq = rq - k
+            s = dry[k] * (1 - fq) + dry[(k + 1) % bsz] * fq; wp = (wp + 1) % bsz
             for (b, a), z in zip(self.filters, st):
                 o = b[0] * y + z[0]; z[0] = b[1] * y - a[1] * o + z[1]; z[1] = b[2] * y - a[2] * o; y = o
             y += noise[n]

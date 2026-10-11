@@ -20,4 +20,6 @@ pip install numpy matplotlib pytest
 python plugins/jsfx/verification/measure.py     # gera results/results.json e gráficos PNG
 pytest plugins/jsfx/verification                 # testes de regressão
 ```
-Limite: isto é UNIT PASS do modelo de referência. O carregamento real dos `.jsfx` no REAPER (HOST E2E) ainda não foi feito.
+Status:
+- UNIT PASS: 8/8 testes do modelo de referência (inclui regressão do alinhamento seco/molhado do FyahTape).
+- HOST PASS (REAPER 7.82 de teste, Codespace, 2026-10-11): os dois `.jsfx` carregam (TrackFX_AddByName ≥ 0; 11 e 10 parâmetros), render offline de tom 1 kHz −6 dBFS pela cadeia FET→Tape bate com o Python: RMS −16,547 dBFS nos dois, diferença máx. 2,0e−5, residual −85,2 dB (ver `verification/results/host_vs_python.json`, scripts em `verification/host/`).

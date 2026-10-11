@@ -37,11 +37,14 @@ m0 += (tanh(drv*xl + alpha*m0) - m0)*rate;
 m1 += (tanh(drv*xr + alpha*m1) - m1)*rate;
 yl = m0*(1-alpha)/drv; yr = m1*(1-alpha)/drv;
 // wow (0.6 Hz) + flutter (7 Hz) via modulated delay
-buf[wp] = yl; buf[wp+bsz] = yr;
+buf[wp] = yl; buf[wp+bsz] = yr; buf[wp+2*bsz] = xl; buf[wp+3*bsz] = xr;
 ph1 += 0.6/srate; ph2 += 7/srate; ph1 -= floor(ph1); ph2 -= floor(ph2);
 d = 0.002*srate + wf*(0.0015*srate*sin(2*$pi*ph1) + 0.0002*srate*sin(2*$pi*ph2));
 rp = wp - d; rp < 0 ? rp += bsz; i = floor(rp); fr = rp - i; j = (i+1)%bsz;
 yl = buf[i]*(1-fr) + buf[j]*fr; yr = buf[i+bsz]*(1-fr) + buf[j+bsz]*fr;
+// dry path delayed by the same 2 ms base latency (no comb at Mix<100%)
+rq = wp - 0.002*srate; rq < 0 ? rq += bsz; k = floor(rq); fq = rq - k; k2 = (k+1)%bsz;
+xl = buf[k+2*bsz]*(1-fq) + buf[k2+2*bsz]*fq; xr = buf[k+3*bsz]*(1-fq) + buf[k2+3*bsz]*fq;
 wp = (wp+1)%bsz;
 yl = dl.bq(ll.bq(bl.bq(yl))) + hiss*(rand(2)-1);
 yr = dr.bq(lr.bq(br.bq(yr))) + hiss*(rand(2)-1);

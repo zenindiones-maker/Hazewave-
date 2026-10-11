@@ -40,3 +40,11 @@ def test_tape_thd_grows_with_level():
         S = np.abs(np.fft.rfft(y * np.hanning(len(y)))); k = 1000 * len(y) // SR
         return S[3 * k - 2:3 * k + 3].max() / S[k - 2:k + 3].max()
     assert thd(0.03) < thd(0.3) < thd(1.0)
+
+def test_tape_mix_no_comb_filter():
+    # Mix 50% with linear-ish settings: dry and wet must be time-aligned -> no deep notch near 1/(2*2ms)=250 Hz
+    imp = np.zeros(SR // 2); imp[100] = 1e-3
+    y = FyahTape(SR, wow=0, hiss_db=-200, bias=1.0, mix=0.5, speed=30).process(imp)
+    H = 20 * np.log10(np.abs(np.fft.rfft(y)) / 1e-3 + 1e-12); f = np.fft.rfftfreq(len(y), 1 / SR)
+    band = (f > 150) & (f < 5000)
+    assert H[band].min() > -3.0
