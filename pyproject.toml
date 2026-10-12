@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hazewave"
-version = "0.2.0"
-description = "Local generative music and neural audio processing tools for Hazewave."
+version = "0.3.0"
+description = "Local generative music, neural audio, and Wan2GP video tools for Hazewave."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

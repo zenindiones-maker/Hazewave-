@@ -13,12 +13,21 @@ from hazewave.acestep import (
     serve_runtime,
 )
 from hazewave.separation import DEFAULT_MODEL, SeparationError, separate_track
+from hazewave.wan2gp import (
+    DEFAULT_RUNTIME_DIR as WAN2GP_RUNTIME_DIR,
+    DEFAULT_SERVER_PORT,
+    Wan2GPError,
+    install_runtime as install_wan2gp,
+    process_queue,
+    runtime_status,
+    serve_runtime as serve_wan2gp,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="hazewave",
-        description="Hazewave generative music and neural audio tools.",
+        description="Hazewave generative music, neural audio, and local Wan2GP video.",
     )
     subcommands = parser.add_subparsers(dest="command", required=True)
 
@@ -142,6 +151,80 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Output audio path. Defaults to output/acestep/<source-or-generated>.<format>.",
     )
+
+    wan = subcommands.add_parser(
+        "wan2gp",
+        help="Install and run the pinned deepbeepmeep/Wan2GP video studio.",
+    )
+    wan_commands = wan.add_subparsers(dest="wan_command", required=True)
+
+    wan_install = wan_commands.add_parser(
+        "install",
+        help="Clone the pinned Wan2GP repository and install its dependencies.",
+    )
+    wan_install.add_argument(
+        "--runtime-dir",
+        default=str(WAN2GP_RUNTIME_DIR),
+        help=f"Managed runtime directory. Default: {WAN2GP_RUNTIME_DIR}",
+    )
+    wan_install.add_argument(
+        "--gpu",
+        choices=("rtx", "gtx10"),
+        default="rtx",
+        help="Upstream torch install. rtx = RTX 20xx-50xx (cu130). gtx10 = GTX 10xx (cu128).",
+    )
+    wan_install.add_argument(
+        "--skip-deps",
+        action="store_true",
+        help="Clone and pin the repository without installing torch or requirements.txt.",
+    )
+
+    wan_serve = wan_commands.add_parser(
+        "serve",
+        help="Start the official Wan2GP web UI (python wgp.py).",
+    )
+    wan_serve.add_argument("--runtime-dir", default=str(WAN2GP_RUNTIME_DIR))
+    wan_serve.add_argument("--port", type=int, default=DEFAULT_SERVER_PORT)
+    wan_serve.add_argument(
+        "--listen",
+        action="store_true",
+        help="Bind on the local network (wgp.py --listen).",
+    )
+    wan_serve.add_argument("--share", action="store_true", help="Create a Gradio share URL.")
+    wan_serve.add_argument("--open-browser", action="store_true")
+    wan_serve.add_argument(
+        "--memory-profile",
+        default=None,
+        help="Wan2GP VRAM profile number passed as wgp.py --profile.",
+    )
+    wan_serve.add_argument(
+        "--attention",
+        default=None,
+        help="Attention mode passed as wgp.py --attention, for example sdpa.",
+    )
+
+    wan_process = wan_commands.add_parser(
+        "process",
+        help="Run a saved queue (.zip) or settings (.json) overnight, without the web UI.",
+    )
+    wan_process.add_argument("queue", help="Path to a Wan2GP queue.zip or settings.json.")
+    wan_process.add_argument("--runtime-dir", default=str(WAN2GP_RUNTIME_DIR))
+    wan_process.add_argument(
+        "--output-dir",
+        default="output/wan2gp",
+        help="Directory for rendered videos. Default: output/wan2gp",
+    )
+    wan_process.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate the queue and exit without generating.",
+    )
+
+    wan_status = wan_commands.add_parser(
+        "status",
+        help="Show whether the pinned Wan2GP checkout is installed.",
+    )
+    wan_status.add_argument("--runtime-dir", default=str(WAN2GP_RUNTIME_DIR))
     return parser
 
 
@@ -220,7 +303,48 @@ def main() -> int:
             print(f"output={result.output_path}")
             return 0
 
-    except (SeparationError, AceStepError) as exc:
+        if args.command == "wan2gp" and args.wan_command == "install":
+            result = install_wan2gp(
+                args.runtime_dir,
+                gpu_profile=args.gpu,
+                install_deps=not args.skip_deps,
+            )
+            print(f"runtime={result.runtime_dir}")
+            print(f"upstream_ref={result.upstream_ref}")
+            print(f"gpu_profile={result.gpu_profile}")
+            print(f"dependencies_installed={str(result.dependencies_installed).lower()}")
+            return 0
+
+        if args.command == "wan2gp" and args.wan_command == "serve":
+            return serve_wan2gp(
+                args.runtime_dir,
+                port=args.port,
+                listen=args.listen,
+                share=args.share,
+                open_browser=args.open_browser,
+                memory_profile=args.memory_profile,
+                attention=args.attention,
+            )
+
+        if args.command == "wan2gp" and args.wan_command == "process":
+            return process_queue(
+                args.queue,
+                args.runtime_dir,
+                output_dir=args.output_dir,
+                dry_run=args.dry_run,
+            )
+
+        if args.command == "wan2gp" and args.wan_command == "status":
+            status = runtime_status(args.runtime_dir)
+            print(f"runtime={status.runtime_dir}")
+            print(f"installed={str(status.installed).lower()}")
+            print(f"upstream_ref={status.upstream_ref or ''}")
+            print(f"expected_ref={status.expected_ref}")
+            print(f"dependencies_installed={str(status.dependencies_installed).lower()}")
+            pinned = status.installed and status.upstream_ref == status.expected_ref
+            return 0 if pinned else 3
+
+    except (SeparationError, AceStepError, Wan2GPError) as exc:
         print(f"error={exc}")
         return 2
 

@@ -1,6 +1,6 @@
 # Hazewave
 
-Hazewave é um projeto independente para geração musical local e processamento neural de áudio.
+Hazewave é um projeto independente para geração musical local, processamento neural de áudio e vídeo local com Wan2GP.
 
 ## ACE-Step 1.5 — geração instrumental
 
@@ -81,6 +81,72 @@ hazewave acestep generate "meu-instrumental-limpo.wav" \
 O Hazewave força a intenção instrumental enviando `lyrics=[Instrumental]` e acrescentando ao prompt: `Instrumental only. No vocals, no singing, no choir, no spoken words.`
 
 No modo `cover`, o WAV é enviado à API oficial como `src_audio`. No modo `reference`, é enviado como `reference_audio`.
+
+## Wan2GP — estúdio de vídeo local
+
+O Hazewave instala o repositório exatamente como no cartão público: **deepbeepmeep/Wan2GP**.
+
+```text
+https://github.com/deepbeepmeep/Wan2GP.git
+```
+
+O checkout fica em `.hazewave/runtime/Wan2GP` e não é versionado. O upstream está pinado em `57d57dc753edcd5472e6768809420fdda4d835b6`.
+
+Wan 2.1, Wan 2.2, LTX-2, LTX-2.5 e os finetunes 14B (Text2video 14B e os outros da lista do app) não são repositórios Git separados. Eles são modelos que o próprio Wan2GP baixa na primeira geração.
+
+### Instalar
+
+RTX 20xx até 50xx, o mesmo bloco do README oficial (`torch==2.10.0` + CUDA 13.0 + `requirements.txt`):
+
+```bash
+hazewave wan2gp install
+```
+
+GTX 10xx, o bloco antigo do README (`torch==2.7.1` + CUDA 12.8):
+
+```bash
+hazewave wan2gp install --gpu gtx10
+```
+
+Só o clone, sem PyTorch:
+
+```bash
+hazewave wan2gp install --skip-deps
+```
+
+### Interface
+
+```bash
+hazewave wan2gp serve
+```
+
+Abre o `wgp.py` oficial em `http://127.0.0.1:7860`. Na interface, escolha o modelo (por exemplo Wan2.1 Text2video 14B ou LTX-2.5). O app baixa o checkpoint sozinho.
+
+Na rede local:
+
+```bash
+hazewave wan2gp serve --listen --port 7860
+```
+
+### Lote sem a interface
+
+Salve a fila dentro do Wan2GP e rode de noite, sem abrir o navegador:
+
+```bash
+hazewave wan2gp process lote.zip --output-dir output/wan2gp
+```
+
+Validar a fila sem gerar:
+
+```bash
+hazewave wan2gp process lote.zip --dry-run
+```
+
+Conferir o pin:
+
+```bash
+hazewave wan2gp status
+```
 
 ## Demucs / HTDemucs — stems e limpeza
 

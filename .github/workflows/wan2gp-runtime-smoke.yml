@@ -1,0 +1,28 @@
+name: Wan2GP Runtime Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "src/hazewave/wan2gp.py"
+      - "tests/test_wan2gp.py"
+      - ".github/workflows/wan2gp-runtime-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Hazewave
+        uses: actions/checkout@v4
+
+      - name: Clone pinned Wan2GP
+        run: |
+          git clone --filter=blob:none https://github.com/deepbeepmeep/Wan2GP.git .runtime/Wan2GP
+          git -C .runtime/Wan2GP checkout --detach 57d57dc753edcd5472e6768809420fdda4d835b6
+          test "$(git -C .runtime/Wan2GP rev-parse HEAD)" = "57d57dc753edcd5472e6768809420fdda4d835b6"
+          test -f .runtime/Wan2GP/wgp.py
+          test -f .runtime/Wan2GP/requirements.txt

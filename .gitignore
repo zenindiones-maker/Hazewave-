@@ -19,3 +19,8 @@ stems/
 *.mp3
 *.m4a
 *.aac
+
+# Local video outputs from Wan2GP
+*.mp4
+*.webm
+*.mkv
