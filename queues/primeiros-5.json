@@ -1,0 +1,52 @@
+[
+  {
+    "model_type": "t2v_1.3B",
+    "settings_version": 2.8,
+    "image_mode": 0,
+    "resolution": "832x480",
+    "video_length": 33,
+    "num_inference_steps": 20,
+    "seed": 1001,
+    "prompt": "A round 3D cartoon fox with big eyes hopping through a sunny flower meadow toward a floating red balloon, soft lighting, children's animated film, camera follows from the side, no text"
+  },
+  {
+    "model_type": "t2v_1.3B",
+    "settings_version": 2.8,
+    "image_mode": 0,
+    "resolution": "832x480",
+    "video_length": 33,
+    "num_inference_steps": 20,
+    "seed": 1002,
+    "prompt": "A small friendly 3D cartoon robot with rounded metal parts watering blue flowers on a rooftop garden at sunrise, kids animation, gentle dolly in, no text"
+  },
+  {
+    "model_type": "t2v_1.3B",
+    "settings_version": 2.8,
+    "image_mode": 0,
+    "resolution": "832x480",
+    "video_length": 33,
+    "num_inference_steps": 20,
+    "seed": 1003,
+    "prompt": "A chubby 3D cartoon penguin sliding down a snowy hill and landing in a pile of colorful pillows, bright children's movie style, no text"
+  },
+  {
+    "model_type": "t2v_1.3B",
+    "settings_version": 2.8,
+    "image_mode": 0,
+    "resolution": "832x480",
+    "video_length": 33,
+    "num_inference_steps": 20,
+    "seed": 1004,
+    "prompt": "A tiny 3D cartoon turtle with a yellow backpack walking across a wooden bridge over a sparkling stream, lush forest, children's animation, no text"
+  },
+  {
+    "model_type": "t2v_1.3B",
+    "settings_version": 2.8,
+    "image_mode": 0,
+    "resolution": "832x480",
+    "video_length": 33,
+    "num_inference_steps": 20,
+    "seed": 1005,
+    "prompt": "A fluffy 3D cartoon owl opening a picture book under a glowing tree at dusk, warm light, slow push-in, children's film, no text"
+  }
+]

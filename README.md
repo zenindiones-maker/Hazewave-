@@ -179,3 +179,11 @@ novo instrumental
 ## Escopo
 
 Este repositório é independente e não compartilha runtime, pipeline ou estado com outros projetos.
+
+## Primeiros 5 vídeos na workstation
+
+O GitHub Actions não tem GPU nesta conta. A geração roda só na workstation, registrada como runner `hazewave-gpu`.
+
+A fila está em `queues/primeiros-5.json`: cinco desenhos 3D curtos no Wan2.1 Text2video 1.3B. O modelo cabe numa GPU comum. O 14B continua disponível na interface, mas não é o padrão desta fila.
+
+Na workstation, registre o runner apontando para este repositório com a label `hazewave-gpu` e deixe o processo no ar. O job **Wan2GP primeiros 5** instala o runtime em `~/.hazewave/runtime/Wan2GP` e grava os MP4 em `~/.hazewave/output/primeiros-5`.

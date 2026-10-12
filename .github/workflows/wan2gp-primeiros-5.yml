@@ -1,0 +1,58 @@
+name: Wan2GP primeiros 5
+
+on:
+  workflow_dispatch:
+    inputs:
+      gpu:
+        description: Perfil de torch da workstation
+        required: true
+        default: rtx
+        type: choice
+        options:
+          - rtx
+          - gtx10
+
+jobs:
+  generate:
+    runs-on: [self-hosted, hazewave-gpu]
+    timeout-minutes: 360
+    steps:
+      - name: Checkout Hazewave
+        uses: actions/checkout@v4
+
+      - name: Check GPU
+        run: nvidia-smi
+
+      - name: Install Hazewave CLI
+        run: python3 -m pip install -e .
+
+      - name: Install pinned Wan2GP runtime
+        env:
+          GPU: ${{ inputs.gpu }}
+        run: |
+          set -euo pipefail
+          runtime="${HOME}/.hazewave/runtime/Wan2GP"
+          if [ ! -x "${runtime}/.venv/bin/python" ] || [ ! -f "${runtime}/wgp.py" ]; then
+            hazewave wan2gp install --runtime-dir "${runtime}" --gpu "${GPU}"
+          fi
+          hazewave wan2gp status --runtime-dir "${runtime}"
+
+      - name: Generate the first five videos
+        run: |
+          set -euo pipefail
+          runtime="${HOME}/.hazewave/runtime/Wan2GP"
+          output="${HOME}/.hazewave/output/primeiros-5"
+          mkdir -p "${output}"
+          hazewave wan2gp process queues/primeiros-5.json \
+            --runtime-dir "${runtime}" \
+            --output-dir "${output}"
+          mkdir -p output/wan2gp
+          cp -a "${output}/." output/wan2gp/
+
+      - name: Upload videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: primeiros-5
+          path: output/wan2gp
+          if-no-files-found: warn
