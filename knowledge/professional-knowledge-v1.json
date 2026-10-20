@@ -1,0 +1,153 @@
+{
+  "schema": "ProfessionalKnowledgeRegistry/v1",
+  "authority": "NONE",
+  "grants_execution_authority": false,
+  "entries": [
+    {
+      "schema": "ToolKnowledge/v1",
+      "knowledge_id": "tool-blender-5.2-lts",
+      "title": "Blender 5.2 LTS production baseline",
+      "kind": "TOOL_CAPABILITY",
+      "evidence": [
+        {
+          "schema": "KnowledgeEvidence/v1",
+          "source": "https://www.blender.org/releases/5-2/",
+          "source_type": "OFFICIAL_RELEASE",
+          "retrieved_at": "2026-10-06T00:00:00+00:00",
+          "version": "5.2.2",
+          "platform": "linux",
+          "architecture": "x86_64",
+          "license_or_cost_class": "FREE_OPEN_SOURCE",
+          "confidence": 1,
+          "freshness_days": 90,
+          "validation_status": "SOURCE_VERIFIED"
+        }
+      ],
+      "tool_id": "blender",
+      "tool_version": "5.2.2",
+      "capabilities": [
+        "GREASE_PENCIL",
+        "COMPOSITOR",
+        "PYTHON_API",
+        "BACKGROUND_RENDER"
+      ]
+    },
+    {
+      "schema": "ToolKnowledge/v1",
+      "knowledge_id": "tool-opentimelineio",
+      "title": "OpenTimelineIO editorial interchange baseline",
+      "kind": "TOOL_CAPABILITY",
+      "evidence": [
+        {
+          "schema": "KnowledgeEvidence/v1",
+          "source": "https://pypi.org/project/OpenTimelineIO/",
+          "source_type": "OFFICIAL_PACKAGE_RELEASE",
+          "retrieved_at": "2026-10-06T00:00:00+00:00",
+          "version": "0.18.1",
+          "platform": "linux",
+          "architecture": "x86_64",
+          "license_or_cost_class": "FREE_OPEN_SOURCE",
+          "confidence": 0.99,
+          "freshness_days": 120,
+          "validation_status": "SOURCE_VERIFIED"
+        }
+      ],
+      "tool_id": "opentimelineio",
+      "tool_version": "0.18.1",
+      "capabilities": [
+        "TIMELINE_MODEL",
+        "CLIPS",
+        "TRACKS",
+        "TRANSITIONS",
+        "MARKERS",
+        "EXTERNAL_MEDIA_REFERENCES"
+      ]
+    },
+    {
+      "schema": "ToolKnowledge/v1",
+      "knowledge_id": "tool-pyscenedetect",
+      "title": "PySceneDetect scene analysis baseline",
+      "kind": "TOOL_CAPABILITY",
+      "evidence": [
+        {
+          "schema": "KnowledgeEvidence/v1",
+          "source": "https://www.scenedetect.com/download/",
+          "source_type": "OFFICIAL_RELEASE",
+          "retrieved_at": "2026-10-06T00:00:00+00:00",
+          "version": "0.7.1",
+          "platform": "linux",
+          "architecture": "x86_64",
+          "license_or_cost_class": "FREE_OPEN_SOURCE",
+          "confidence": 1,
+          "freshness_days": 90,
+          "validation_status": "SOURCE_VERIFIED"
+        }
+      ],
+      "tool_id": "pyscenedetect",
+      "tool_version": "0.7.1",
+      "capabilities": [
+        "SCENE_DETECTION",
+        "CUT_DETECTION",
+        "ADAPTIVE_DETECTION"
+      ]
+    },
+    {
+      "schema": "ToolKnowledge/v1",
+      "knowledge_id": "tool-krita",
+      "title": "Krita professional raster/animation candidate",
+      "kind": "COMPATIBILITY_EVIDENCE",
+      "evidence": [
+        {
+          "schema": "KnowledgeEvidence/v1",
+          "source": "https://krita.org/en/posts/2026/krita-5.3.4-released/",
+          "source_type": "OFFICIAL_RELEASE",
+          "retrieved_at": "2026-10-06T00:00:00+00:00",
+          "version": "6.0.4",
+          "platform": "linux",
+          "architecture": "x86_64",
+          "license_or_cost_class": "FREE_OPEN_SOURCE",
+          "confidence": 1,
+          "freshness_days": 90,
+          "validation_status": "SOURCE_VERIFIED"
+        }
+      ],
+      "tool_id": "krita",
+      "tool_version": "6.0.4",
+      "capabilities": [
+        "CONCEPT_ART",
+        "BACKGROUND_PAINTING",
+        "RASTER_ANIMATION",
+        "STORYBOARD_ASSETS"
+      ]
+    },
+    {
+      "schema": "ToolKnowledge/v1",
+      "knowledge_id": "tool-opentoonz",
+      "title": "OpenToonz traditional animation candidate",
+      "kind": "COMPATIBILITY_EVIDENCE",
+      "evidence": [
+        {
+          "schema": "KnowledgeEvidence/v1",
+          "source": "https://github.com/opentoonz/opentoonz/releases/tag/v1.8.0",
+          "source_type": "PROJECT_RELEASE",
+          "retrieved_at": "2026-10-06T00:00:00+00:00",
+          "version": "1.8.0",
+          "platform": "linux",
+          "architecture": "x86_64",
+          "license_or_cost_class": "FREE_OPEN_SOURCE",
+          "confidence": 0.98,
+          "freshness_days": 120,
+          "validation_status": "SOURCE_VERIFIED"
+        }
+      ],
+      "tool_id": "opentoonz",
+      "tool_version": "1.8.0",
+      "capabilities": [
+        "XSHEET",
+        "VECTOR_RASTER_LEVELS",
+        "TRADITIONAL_ANIMATION",
+        "COMPOSITING"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+name: REA 6.0.0 published CLI proof
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/rea6-compatibility.yml"
+      - "config/reverse-engineering-foundation-v1.json"
+      - "src/hazewave/rea6_integration.py"
+      - "scripts/codespaces/install-reverse-engineering-foundation.sh"
+      - "scripts/codespaces/reverse-engineering-doctor.sh"
+      - "tests/test_rea6_integration.py"
+
+permissions:
+  contents: read
+
+jobs:
+  rea6-published-cli:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify published npm identity and pinned Harness policy
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          policy = json.loads(Path("config/reverse-engineering-foundation-v1.json").read_text())
+          rea = next(item for item in policy["tools"] if item["tool_id"] == "rea")
+          assert rea["version"] == "6.0.0"
+          assert rea["package"] == "rea-agents@6.0.0"
+          assert rea["grants_execution_authority"] is False
+          PY
+          npm view rea-agents@6.0.0 version --json | grep -Fx '"6.0.0"'
+          npm view rea-agents@6.0.0 dist.integrity --json > "$RUNNER_TEMP/rea-integrity.json"
+          node -e 'const x=require(process.argv[1]);if(typeof x !== "string" || !/^sha512-[A-Za-z0-9+/]+=*$/.test(x))process.exit(2)' "$RUNNER_TEMP/rea-integrity.json"
+      - name: Install published version only in disposable CI filesystem
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/rea6"
+          npm_config_ignore_scripts=true npm install --prefix "$RUNNER_TEMP/rea6" --no-audit --no-fund --ignore-scripts rea-agents@6.0.0
+          node -e 'const p=require(process.argv[1]);if(p.name!=="rea-agents"||p.version!=="6.0.0"||p.license!=="MIT")process.exit(2)' "$RUNNER_TEMP/rea6/node_modules/rea-agents/package.json"
+          "$RUNNER_TEMP/rea6/node_modules/.bin/rea" --version
+          "$RUNNER_TEMP/rea6/node_modules/.bin/rea" capabilities --json > "$RUNNER_TEMP/rea-capabilities.json"
+          node -e 'const d=require(process.argv[1]);if(typeof d!=="object"||d===null)process.exit(2)' "$RUNNER_TEMP/rea-capabilities.json"
+      - name: Bound CI proof honestly
+        run: |
+          echo "REA6_PUBLISHED_CLI=PROVEN"
+          echo "REA6_GHIDRA_RUNTIME=NOT_TESTED"
+          echo "REA6_MCP_AGENT_CONNECTION=NOT_TESTED"
+          echo "HAZEWAVE_PRODUCTION_APPROVAL=NOT_GRANTED"

@@ -1,0 +1,129 @@
+name: Zero-Cost Workstation V3 Verify
+
+on:
+  push:
+    branches:
+      - work/zero-cost-workstation-v3
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact candidate
+        run: |
+          set -euo pipefail
+          git init repo
+          cd repo
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+
+      - name: Validate shell and devcontainer syntax
+        working-directory: repo
+        run: |
+          set -euo pipefail
+          bash -n scripts/codespaces/install-reaper-pinned.sh
+          bash -n scripts/codespaces/install-tape-echo-2-pinned.sh
+          bash -n scripts/codespaces/upgrade-professional-v2.sh
+          bash -n scripts/codespaces/start-professional-desktop.sh
+          bash -n scripts/codespaces/professional-doctor.sh
+          bash -n scripts/codespaces/hazewave-termux-control.sh
+          bash -n scripts/codespaces/hazewave-audio-smoke.sh
+          bash -n scripts/codespaces/hazewave-runtime-proof.sh
+          bash -n scripts/codespaces/test-install-xpra-fast-path.sh
+          bash -n scripts/codespaces/test-ensure-apt-packages-fast-path.sh
+          bash -n scripts/codespaces/ensure-apt-packages.sh
+          python -m json.tool .devcontainer/devcontainer.json >/dev/null
+
+      - name: Prove Xpra reuse avoids apt and network
+        working-directory: repo
+        run: |
+          set -euo pipefail
+          bash scripts/codespaces/test-install-xpra-fast-path.sh
+
+      - name: Prove package reuse avoids apt and network
+        working-directory: repo
+        run: |
+          set -euo pipefail
+          bash scripts/codespaces/test-ensure-apt-packages-fast-path.sh
+          grep -q 'ensure-apt-packages.sh' scripts/codespaces/upgrade-professional-v2.sh
+
+      - name: Validate workstation role and zero-cost lifecycle
+        working-directory: repo
+        run: |
+          set -euo pipefail
+          grep -q 'work/zero-cost-workstation-v3' scripts/codespaces/hazewave-termux-control.sh
+          grep -q -- '--idle-timeout 20m' scripts/codespaces/hazewave-termux-control.sh
+          grep -q -- '--retention-period 24h' scripts/codespaces/hazewave-termux-control.sh
+          grep -q 'MACHINE="basicLinux32gb"' scripts/codespaces/hazewave-termux-control.sh
+          grep -q 'WORKSTATION_ROLE=HAZE_AUDIO_REAPER' scripts/codespaces/hazewave-termux-control.sh
+          grep -q 'ZERO_COST_MODE=INCLUDED_USAGE_ONLY' scripts/codespaces/hazewave-termux-control.sh
+          grep -q 'HAZE_AUDIO_REAPER' .devcontainer/devcontainer.json
+          grep -q 'libasound2-plugins' scripts/codespaces/upgrade-professional-v2.sh
+          grep -q 'install-tape-echo-2-pinned.sh' scripts/codespaces/upgrade-professional-v2.sh
+          grep -q 'REAPER_AUDIO_BRIDGE=ALSA_PULSE' scripts/codespaces/start-professional-desktop.sh
+          grep -q 'REAPER_AUDIO_BRIDGE=ALSA_PULSE' scripts/codespaces/professional-doctor.sh
+          grep -q 'XPRA_REQUIRED=TRUE' scripts/codespaces/hazewave-termux-control.sh
+          grep -q 'proof)' scripts/codespaces/hazewave-termux-control.sh
+          grep -q 'WORKTREE=BLOCKED_DIRTY_PRESERVE_WIP' scripts/codespaces/hazewave-termux-control.sh
+          grep -q 'receipt.sha256' scripts/codespaces/hazewave-runtime-proof.sh
+          grep -q 'TAPE_ECHO_2_RUNTIME=PASS' scripts/codespaces/hazewave-runtime-proof.sh
+          ! grep -q 'FALLBACK_NOVNC' .devcontainer/devcontainer.json
+          ! grep -q 'XPRA=WAIT_FALLBACK_NOVNC' scripts/codespaces/hazewave-termux-control.sh
+          ! grep -R 'work/zero-cost-codespaces-v1'             .devcontainer scripts/codespaces/hazewave-termux-control.sh
+          CLOSE_FN="$(awk '/^cmd_close\(\)/,/^}/' scripts/codespaces/hazewave-termux-control.sh)"
+          grep -q 'verify_machine_only' <<<"$CLOSE_FN"
+          ! grep -q 'verify_identity' <<<"$CLOSE_FN"
+
+      - name: Prove pinned REAPER artifact installs
+        working-directory: repo
+        env:
+          CODESPACES: "true"
+        run: |
+          set -euo pipefail
+          bash scripts/codespaces/install-reaper-pinned.sh
+          test -x "$HOME/.local/bin/reaper"
+          test "$(readlink -f "$HOME/.local/bin/reaper")" =             "$HOME/.local/opt/reaper/7.82/REAPER/reaper"
+          RECEIPT="$HOME/.local/state/hazewave-codespace/reaper-7.82.receipt"
+          test -s "$RECEIPT"
+          FIRST_BINARY_SHA="$(sha256sum "$HOME/.local/bin/reaper" | awk '{print $1}')"
+          grep -Fxq 'REAPER_ARCHIVE_SHA256=a4aa961534f22ae5ae910e4ec0c200dcb4476c9f7556806fe09a9743cd582563' "$RECEIPT"
+          grep -Fxq "REAPER_BINARY_SHA256=$FIRST_BINARY_SHA" "$RECEIPT"
+          SECOND_RUN="$(bash scripts/codespaces/install-reaper-pinned.sh)"
+          grep -q 'REAPER_INSTALL=PASS_ALREADY_PRESENT' <<<"$SECOND_RUN"
+          printf 'tamper' >> "$HOME/.local/opt/reaper/7.82/REAPER/reaper"
+          REPAIR_RUN="$(bash scripts/codespaces/install-reaper-pinned.sh)"
+          grep -q 'REAPER_INSTALL=PASS_REPAIRED' <<<"$REPAIR_RUN"
+          test "$(sha256sum "$HOME/.local/bin/reaper" | awk '{print $1}')" = "$FIRST_BINARY_SHA"
+          file "$HOME/.local/bin/reaper"
+          echo "HAZEWAVE_WORKSTATION_V3_STATIC=PASS"
+          echo "REAPER_PINNED_INSTALL=PASS"
+          echo "REAPER_INTEGRITY_REPAIR=PASS"
+          echo "PAID_FALLBACK=FALSE"
+
+      - name: Prove pinned Tape Echo 2 installs for REAPER
+        working-directory: repo
+        env:
+          CODESPACES: "true"
+        run: |
+          set -euo pipefail
+          bash scripts/codespaces/install-tape-echo-2-pinned.sh
+          test -d "$HOME/.vst3/tape-echo-2.vst3"
+          test -s "$HOME/.local/state/hazewave-codespace/tape-echo-2-1.0.8.receipt"
+          grep -q 'TAPE_ECHO_2_VERSION=1.0.8' "$HOME/.local/state/hazewave-codespace/tape-echo-2-1.0.8.receipt"
+          grep -q 'ARCHIVE_SHA256=698c8825cac19547b40cd7a893d1b9bfac25587ec79cb30518f64084123b29f3' "$HOME/.local/state/hazewave-codespace/tape-echo-2-1.0.8.receipt"
+          echo "TAPE_ECHO_2_PINNED_INSTALL=PASS"
+
+      - name: Prove Hazewave non-GUI audio toolchain
+        working-directory: repo
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ffmpeg sox libsox-fmt-all rubberband-cli
+          bash scripts/codespaces/hazewave-audio-smoke.sh
+          echo "HAZEWAVE_AUDIO_TOOLCHAIN_SMOKE=PASS"

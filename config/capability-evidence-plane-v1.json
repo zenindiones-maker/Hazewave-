@@ -1,0 +1,174 @@
+{
+  "schema": "HazewaveCapabilityEvidencePlane/v1",
+  "project": "HAZEWAVE",
+  "authority": "HAZEWAVE_HARNESS",
+  "automatic_install": false,
+  "activation": "NONE",
+  "production_approved": false,
+  "evidence_namespace": "hazewave-capability-proof",
+  "states": [
+    "UNAVAILABLE",
+    "PRESENT_UNPROVEN",
+    "EVIDENCE_UNVERIFIED",
+    "STALE",
+    "FIXTURE_PROVEN",
+    "MEASURED_READY",
+    "BLOCKED"
+  ],
+  "policy": {
+    "data_scope": "LOCAL_ONLY",
+    "ready_requires": "OWNER_SIGNED_EXACT_BOUND_HOST_AND_BENCHMARK",
+    "refuse_unknown_cost": true,
+    "signature_principal": "hazewave-owner",
+    "minimum_samples": 3,
+    "maximum_evidence_lifetime_hours": 6,
+    "selection": "QUALITY_MINUS_COST_MINUS_RISK_UNDER_PASS_GATES",
+    "no_automatic_production_promotion": true
+  },
+  "tools": [
+    {
+      "tool_id": "iris",
+      "version": "0.4.1",
+      "domain": "WAVE",
+      "capability_id": "web.visual_regression",
+      "executable": "iris",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "risk_tier": "MEDIUM",
+      "source": "brijr/iris",
+      "bridge": "MCP_CAPTURE",
+      "constraints": [
+        "FIRST_PARTY_URL_ONLY",
+        "REDIRECT_SAFE_GATEWAY_PENDING"
+      ]
+    },
+    {
+      "tool_id": "rea6",
+      "version": "6.0.0",
+      "domain": "WAVE",
+      "capability_id": "research.visual.inspect",
+      "executable": "rea",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "risk_tier": "HIGH",
+      "source": "morluto/rea",
+      "bridge": "MCP_GHIDRA",
+      "constraints": [
+        "SIGNED_TARGET",
+        "GHIDRA_ONLY"
+      ]
+    },
+    {
+      "tool_id": "ffmpeg_audio",
+      "version": "HOST_PIN_REQUIRED",
+      "domain": "HAZE",
+      "capability_id": "audio.qc",
+      "executable": "ffmpeg",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "risk_tier": "LOW",
+      "source": "FFmpeg",
+      "bridge": "CLI",
+      "constraints": [
+        "OWNER_MEDIA_GRANT"
+      ]
+    },
+    {
+      "tool_id": "ffmpeg_video",
+      "version": "HOST_PIN_REQUIRED",
+      "domain": "WAVE",
+      "capability_id": "visual.qc",
+      "executable": "ffprobe",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "risk_tier": "LOW",
+      "source": "FFmpeg",
+      "bridge": "CLI",
+      "constraints": [
+        "OWNER_MEDIA_GRANT"
+      ]
+    },
+    {
+      "tool_id": "pillow",
+      "version": "12.3.0",
+      "domain": "WAVE",
+      "capability_id": "image.qc",
+      "executable": "python3",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "risk_tier": "LOW",
+      "source": "python-pillow/Pillow",
+      "bridge": "PYTHON",
+      "constraints": [
+        "BOUNDED_IMAGE"
+      ]
+    },
+    {
+      "tool_id": "pyscenedetect",
+      "version": "0.7.1",
+      "domain": "WAVE",
+      "capability_id": "scene.detect",
+      "executable": "scenedetect",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "risk_tier": "LOW",
+      "source": "Breakthrough/PySceneDetect",
+      "bridge": "CLI",
+      "constraints": [
+        "AUTHORIZED_VIDEO"
+      ]
+    },
+    {
+      "tool_id": "essentia",
+      "version": "2.1b6.dev1389",
+      "domain": "HAZE",
+      "capability_id": "audio.analyze",
+      "executable": "python3",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "risk_tier": "MEDIUM",
+      "source": "MTG/essentia",
+      "bridge": "PYTHON",
+      "constraints": [
+        "AGPL_REVIEW_REQUIRED",
+        "AUTHORIZED_AUDIO"
+      ]
+    },
+    {
+      "tool_id": "otio",
+      "version": "0.18.1",
+      "domain": "WAVE",
+      "capability_id": "timeline.inspect",
+      "executable": "python3",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "risk_tier": "LOW",
+      "source": "AcademySoftwareFoundation/OpenTimelineIO",
+      "bridge": "PYTHON",
+      "constraints": [
+        "AUTHORIZED_TIMELINE"
+      ]
+    },
+    {
+      "tool_id": "demucs",
+      "version": "4.0.1",
+      "domain": "HAZE",
+      "capability_id": "audio.separate",
+      "executable": "demucs",
+      "cost_class": "UNKNOWN_DENY",
+      "risk_tier": "HIGH",
+      "source": "facebookresearch/demucs",
+      "bridge": "CLI",
+      "constraints": [
+        "MODEL_LICENSE_PENDING",
+        "RESOURCES_PENDING"
+      ]
+    },
+    {
+      "tool_id": "opencv",
+      "version": "HOST_PIN_REQUIRED",
+      "domain": "WAVE",
+      "capability_id": "visual.analyze",
+      "executable": "python3",
+      "cost_class": "FREE_OPEN_SOURCE",
+      "risk_tier": "MEDIUM",
+      "source": "opencv/opencv",
+      "bridge": "PYTHON",
+      "constraints": [
+        "OPTICAL_FLOW_PROOF_PENDING"
+      ]
+    }
+  ]
+}

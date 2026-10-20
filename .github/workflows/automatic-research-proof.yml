@@ -1,0 +1,86 @@
+name: Native automatic synthesis and audiovisual fidelity controls
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/automatic-research-proof.yml"
+      - "src/hazewave/native_behavior_synthesis.py"
+      - "src/hazewave/av_fidelity_oracle.py"
+      - "tests/test_native_behavior_synthesis.py"
+      - "tests/test_av_fidelity_oracle.py"
+
+permissions:
+  contents: read
+
+jobs:
+  owned-auto-synthesis-and-media:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install and audit open-source FFmpeg only on disposable runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg
+          command -v ffmpeg
+          ffmpeg -hide_banner -version | head -n 2
+          echo "HAZEWAVE_RUNNER_FFMPEG_OPEN_SOURCE_PACKAGE=PASS"
+      - name: Admit FFmpeg measurement filters and native compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v ffmpeg
+          command -v cc
+          ffmpeg -hide_banner -filters | grep -E '(^| )ssim ' >/dev/null
+          ffmpeg -hide_banner -filters | grep -E '(^| )volumedetect ' >/dev/null
+          echo "HAZEWAVE_SYNTHETIC_MEDIA_TOOL_PREFLIGHT=PASS"
+      - name: Run focused test regressions with actual native compiler and FFmpeg
+        shell: bash
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python -m pip install -e . pytest==8.4.2
+          python -m pytest -q tests/test_native_behavior_synthesis.py tests/test_av_fidelity_oracle.py
+      - name: Execute source-owned binary I/O synthesis and check full accepted finite domain
+        env:
+          PYTHONPATH: src
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m hazewave.native_behavior_synthesis \
+            --state-root "$RUNNER_TEMP/native-auto-proofs" \
+            > "$RUNNER_TEMP/native-auto-report.jsonl"
+          python -m hazewave.av_fidelity_oracle \
+            --private-root "$RUNNER_TEMP/av-quality-proofs" \
+            > "$RUNNER_TEMP/av-quality-report.jsonl"
+          python - <<'PY'
+          from pathlib import Path
+          import json, os
+          root=Path(os.environ['RUNNER_TEMP'])
+          native=json.loads(next((root/'native-auto-proofs').glob('synthesis-receipt-*.json')).read_text())
+          av=json.loads(next((root/'av-quality-proofs').glob('av-receipt-*.json')).read_text())
+          assert native["inputs_checked"]==2001
+          assert native["automatic_candidate_generation"] is True
+          assert native["original_C_used_for_synthesis"] is False
+          assert native["outside_domain_equivalence_proven"] is False
+          assert native["general_binary_decompilation_proven"] is False
+          assert native["ghidra_guided_synthesis_proven"] is False
+          assert native["production_approved"] is False
+          assert av["actual_ffmpeg_executed"] is True
+          assert av["audio_attenuation_detected_db"] >= 10.0
+          assert av["identical_video_ssim"] > 0.999
+          assert av["altered_video_ssim"] < 0.99
+          assert av["production_approved"] is False
+          print("NATIVE_EXECUTABLE_AUTO_RECONSTRUCTION=PASS_BOUNDED_GRAMMAR")
+          print("NATIVE_FINITE_DOMAIN_EXHAUSTIVE=PASS_2001_INPUTS")
+          print("HAZE_AUDIO_LOUDNESS_NEGATIVE_CONTROL=PASS")
+          print("WAVE_VIDEO_SSIM_NEGATIVE_CONTROL=PASS")
+          print("REA_GHIDRA_GUIDED_SYNTHESIS=NOT_PROVEN")
+          print("EXISTING_CODESPACE_AND_AGENT_CONNECTION=NOT_TESTED")
+          PY

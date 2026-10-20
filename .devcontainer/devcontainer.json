@@ -1,0 +1,70 @@
+{
+  "name": "Hazewave HAZE Audio / REAPER Zero-Cost Workstation V3",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/sshd:1": {
+      "version": "latest"
+    }
+  },
+  "containerEnv": {
+    "HAZEWAVE_ZERO_COST": "1",
+    "HAZEWAVE_REMOTE_TRANSPORT": "XPRA_HTML5",
+    "MAKEFLAGS": "-j2",
+    "CMAKE_BUILD_PARALLEL_LEVEL": "2",
+    "CARGO_BUILD_JOBS": "2",
+    "OMP_NUM_THREADS": "2",
+    "OPENBLAS_NUM_THREADS": "2",
+    "MKL_NUM_THREADS": "2",
+    "NUMEXPR_MAX_THREADS": "2",
+    "RAYON_NUM_THREADS": "2",
+    "PIP_DISABLE_PIP_VERSION_CHECK": "1",
+    "HAZEWAVE_WORKSTATION_ROLE": "HAZE_AUDIO_REAPER",
+    "REAPER_VERSION_PIN": "7.82"
+  },
+  "forwardPorts": [
+    14500,
+    6080
+  ],
+  "portsAttributes": {
+    "6080": {
+      "label": "Hazewave noVNC Fallback",
+      "onAutoForward": "silent",
+      "protocol": "http"
+    },
+    "14500": {
+      "label": "Hazewave Professional Desktop",
+      "onAutoForward": "silent",
+      "protocol": "http"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "files.watcherExclude": {
+          "**/.git/objects/**": true,
+          "**/.git/subtree-cache/**": true,
+          "**/.venv/**": true,
+          "**/node_modules/**": true,
+          "**/__pycache__/**": true,
+          "**/.hazewave/runtime/**": true,
+          "**/output/**": true
+        },
+        "search.exclude": {
+          "**/.venv/**": true,
+          "**/node_modules/**": true,
+          "**/__pycache__/**": true,
+          "**/.hazewave/runtime/**": true,
+          "**/output/**": true
+        }
+      }
+    }
+  },
+  "postCreateCommand": "bash scripts/codespaces/bootstrap-zero-cost.sh && bash scripts/codespaces/upgrade-professional-v2.sh",
+  "postStartCommand": "bash scripts/codespaces/start-professional-desktop.sh",
+  "remoteUser": "vscode"
+}

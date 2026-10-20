@@ -1,0 +1,152 @@
+name: Harness executes REA and Iris first-party tools
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/harness-real-research-execution.yml"
+      - "src/hazewave/harness_research_execution.py"
+      - "tests/test_harness_research_execution.py"
+      - "tests/fixtures/rea6-javascript-owned/**"
+      - "tests/fixtures/iris-proof.html"
+
+permissions:
+  contents: read
+
+jobs:
+  real-harness-tool-dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Provision exact REA v6 in disposable CI worker
+        run: |
+          set -euo pipefail
+          npm_config_ignore_scripts=true npm install --prefix "$RUNNER_TEMP/rea6" --no-audit --no-fund --ignore-scripts rea-agents@6.0.0
+          node -e 'const p=require(process.argv[1]);if(p.name!=="rea-agents"||p.version!=="6.0.0") process.exit(20)' "$RUNNER_TEMP/rea6/node_modules/rea-agents/package.json"
+          echo "HARNESS_RUNNER_REA6=EXACT_VERSION_CONFIRMED"
+      - name: Provision exact Iris 0.4.1 official release and temporary Chrome
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/iris"
+          curl -fsSL --max-time 90 --retry 2             "https://github.com/brijr/iris/releases/download/v0.4.1/iris-x86_64-unknown-linux-musl.tar.gz"             -o "$RUNNER_TEMP/iris/iris.tgz"
+          printf '%s  %s\n'             'aa6073ba255c0bcf09364a5503cbd4794791b832e5934a52b169a455d66101c7'             "$RUNNER_TEMP/iris/iris.tgz" | sha256sum -c -
+          [[ "$(tar -tzf "$RUNNER_TEMP/iris/iris.tgz")" == "iris" || "$(tar -tzf "$RUNNER_TEMP/iris/iris.tgz")" == "./iris" ]]
+          tar -xzf "$RUNNER_TEMP/iris/iris.tgz" -C "$RUNNER_TEMP/iris" --no-same-owner --no-same-permissions
+          chmod 700 "$RUNNER_TEMP/iris/iris"
+          command -v chromium || command -v google-chrome
+          if command -v chromium >/dev/null 2>&1; then CHROME="$(command -v chromium)"; else CHROME="$(command -v google-chrome)"; fi
+          cat > "$RUNNER_TEMP/iris/chrome-owned-fixture-only" <<EOF
+          #!/bin/sh
+          exec "$CHROME" --no-sandbox --disable-dev-shm-usage "\$@"
+          EOF
+          chmod 700 "$RUNNER_TEMP/iris/chrome-owned-fixture-only"
+          "$RUNNER_TEMP/iris/chrome-owned-fixture-only" --headless=new --disable-gpu             --dump-dom "file://$GITHUB_WORKSPACE/tests/fixtures/iris-proof.html"             > "$RUNNER_TEMP/iris/chrome-dom.html"
+          grep -F 'HAZEWAVE / VISION EVIDENCE' "$RUNNER_TEMP/iris/chrome-dom.html"
+          echo "HARNESS_RUNNER_IRIS=OFFICIAL_SHA256_CONFIRMED"
+      - name: Prove actual Harness MCP tools/list and tools/call dispatch
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, select, subprocess, sys, time
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"])
+          repo = Path(os.environ["GITHUB_WORKSPACE"])
+          mcp_state = root / "private-mcp-evidence"
+          mcp_state.mkdir(mode=0o700, exist_ok=True)
+          cmd = [
+              sys.executable, "-m", "hazewave.harness_research_mcp",
+              "--workspace", str(repo),
+              "--expected-sha", subprocess.check_output(
+                  ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip(),
+              "--state-root", str(mcp_state),
+              "--rea", str(root / "rea6" / "node_modules" / ".bin" / "rea"),
+              "--iris", str(root / "iris" / "iris"),
+              "--chrome", str(root / "iris" / "chrome-owned-fixture-only"),
+          ]
+          with subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True, bufsize=1) as child:
+              def rpc(method, params=None, id=1, timeout=110):
+                  message={"jsonrpc":"2.0","id":id,"method":method}
+                  if params is not None: message["params"]=params
+                  child.stdin.write(json.dumps(message)+chr(10))
+                  child.stdin.flush()
+                  ready,_,_ = select.select([child.stdout], [], [], timeout)
+                  assert ready, ("Gateway did not respond in time", method)
+                  answer=json.loads(child.stdout.readline())
+                  assert answer.get("id")==id, answer
+                  assert not answer.get("error"), answer
+                  return answer["result"]
+              init=rpc("initialize", {"protocolVersion":"2025-11-25",
+                      "clientInfo":{"name":"harness-ci-mcp","version":"1.0.0"},
+                      "capabilities":{}}, id=1)
+              assert init["serverInfo"]["name"]=="hazewave-research-fixtures"
+              catalog=rpc("tools/list", {}, id=2)
+              assert {x["name"] for x in catalog["tools"]}=={
+                  "harness_rea_owned_js","harness_iris_owned_page"}, catalog
+              bad=rpc("tools/call", {"name":"harness_iris_owned_page",
+                      "arguments":{"task_id":"owner-owned-page-test","url":"https://example.com"}},id=3)
+              assert bad["isError"] is True
+              for index, name in enumerate(("harness_rea_owned_js","harness_iris_owned_page"), start=4):
+                  result=rpc("tools/call", {"name":name,
+                      "arguments":{"task_id":f"owner-mcp-fixture-{index}"}}, id=index)
+                  assert result["isError"] is False, result
+                  payload=json.loads(result["content"][0]["text"])
+                  assert payload["state"]=="OBSERVATION_ONLY"
+                  assert payload["production_approved"] is False
+                  assert payload["agent_mcp_session_connected"] is False
+              receipts=list((mcp_state/"research"/"receipts").glob("*.json"))
+              assert len(receipts)==2, receipts
+              assert all(x.stat().st_mode & 0o077 == 0 for x in receipts)
+              child.stdin.close()
+              child.wait(timeout=8)
+              assert child.returncode==0, child.returncode
+          print("HARNESS_GATEWAY_REAL_MCP_TOOLS_LIST=PASS")
+          print("HARNESS_GATEWAY_REAL_REA_TOOL_CALL=PASS")
+          print("HARNESS_GATEWAY_REAL_IRIS_TOOL_CALL=PASS")
+          print("HARNESS_GATEWAY_EXTERNAL_URL_DENIED=PASS")
+          print("HARNESS_CODESPACE_AGENT_CONNECTION=NOT_PROVEN")
+          PY
+      - name: Dispatch REAL REA and Iris from Harness, verify private receipts
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/private-evidence"
+          python -m hazewave.harness_research_execution             --kind rea_owned_js --task-id owned-rea-js-2026             --workspace "$GITHUB_WORKSPACE" --expected-sha "$(git rev-parse HEAD)"             --state-root "$RUNNER_TEMP/private-evidence"             --rea "$RUNNER_TEMP/rea6/node_modules/.bin/rea"             > "$RUNNER_TEMP/rea-harness.jsonl"
+          python -m hazewave.harness_research_execution             --kind iris_owned_page --task-id owned-iris-page-2026             --workspace "$GITHUB_WORKSPACE" --expected-sha "$(git rev-parse HEAD)"             --state-root "$RUNNER_TEMP/private-evidence"             --iris "$RUNNER_TEMP/iris/iris"             --chrome "$RUNNER_TEMP/iris/chrome-owned-fixture-only"             > "$RUNNER_TEMP/iris-harness.jsonl"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          folder = Path(os.environ["RUNNER_TEMP"]) / "private-evidence" / "research" / "receipts"
+          items = list(folder.glob("*.json"))
+          assert len(items) == 2, items
+          receipts = {json.loads(p.read_text())["kind"]: (json.loads(p.read_text()), p) for p in items}
+          assert set(receipts) == {"rea_owned_js", "iris_owned_page"}, receipts
+          for kind, (r, path) in receipts.items():
+              assert r["harness_authority"] == "HAZEWAVE_HARNESS"
+              assert r["harness_authorization_id"]
+              assert r["state"] == "OBSERVATION_ONLY"
+              assert r["source_fixture_sha256"]
+              assert r["provider_tool_sha256"]
+              assert r["production_approved"] is False
+              assert r["agent_mcp_session_connected"] is False
+              assert r["capability_plane_measured_ready"] is False
+              assert r["host_identity_verified"] is False
+              assert path.stat().st_mode & 0o077 == 0
+          assert receipts["rea_owned_js"][0]["measurements"]["module_node_count"] > 0
+          assert receipts["iris_owned_page"][0]["measurements"]["status"] == "CAPTURE_FILE_VERIFIED"
+          print("HARNESS_REAL_REA_EXECUTION=PASS:OWNED_JS")
+          print("HARNESS_REAL_IRIS_EXECUTION=PASS:OWNED_HTML")
+          print("HARNESS_PRIVATE_RECEIPTS=PASS")
+          print("HARNESS_CODESPACE_RUNTIME=NOT_PROVEN")
+          print("HARNESS_OWNER_AGENT_MCP=NOT_CONNECTED")
+          PY

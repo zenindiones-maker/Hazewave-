@@ -33,6 +33,8 @@ Creative canon defines identity and creative invariants. It does not grant execu
 - [ADR-0003 — Immutable Termux Runtime](./architecture/decisions/ADR-0003-immutable-termux-runtime.md)
 - [ADR-0004 — Hazewave Telegram Runtime Isolation](./architecture/decisions/ADR-0004-hazewave-telegram-runtime-isolation.md)
 - [ADR-0005 — FreeLLMAPI Provider Gateway](./architecture/decisions/ADR-0005-freellmapi-provider-gateway.md)
+- [ADR-0006 — Governed Zero-Cost Provider Fabric](./architecture/decisions/ADR-0006-governed-zero-cost-provider-fabric.md)
+- [ADR-0007 — Governed Reverse Engineering Lab](./architecture/decisions/ADR-0007-reverse-engineering-lab.md)
 
 ## Machine-readable contracts
 
@@ -46,12 +48,14 @@ Creative canon defines identity and creative invariants. It does not grant execu
 
 - [Hazewave Harness Reference v1](./reference/HAZEWAVE_HARNESS_V1.md)
 - [HAZE/WAVE State Contracts v1](./reference/HAZE_WAVE_STATE_CONTRACTS_V1.md)
+- [HAZE + WAVE Reverse Engineering Lab v1](./architecture/HAZE_WAVE_REVERSE_ENGINEERING_LAB_V1.md)
 
 ## Operations
 
 - [Termux Runtime Runbook v1](./runbooks/TERMUX_RUNTIME_V1.md)
 - [Hazewave Telegram Runtime Runbook v1](./runbooks/TELEGRAM_RUNTIME_V1.md)
 - [FreeLLMAPI Provider Runtime v1](./runbooks/FREELLMAPI_PROVIDER_V1.md)
+- [Reverse Engineering Lab Runbook v1](./runbooks/REVERSE_ENGINEERING_LAB_V1.md)
 
 ## WAVE
 

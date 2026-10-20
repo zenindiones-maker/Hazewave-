@@ -71,8 +71,10 @@ def test_documentation_registry_has_unique_existing_typed_entries() -> None:
     allowed_types = {
         "AGENT_CONTRACT",
         "PROJECT_PROFILE",
+        "PROJECT_POLICY",
         "CANON",
         "ARCHITECTURE_DECISION",
+        "ARCHITECTURE_POLICY",
         "EXPLANATION",
         "REFERENCE",
         "RUNBOOK",
