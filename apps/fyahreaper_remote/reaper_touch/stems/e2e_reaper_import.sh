@@ -31,11 +31,16 @@ local tsv = os.getenv("FYAH_STEMS_TSV")
 local proof = os.getenv("FYAH_STEMS_PROOF")
 local projdir = os.getenv("FYAH_STEMS_PROJDIR")
 local function color_int(hex)
-  local r = tonumber(hex:sub(1,2),16)
-  local g = tonumber(hex:sub(3,4),16)
-  local b = tonumber(hex:sub(5,6),16)
+  local r = tonumber(hex:sub(1,2),16) or 128
+  local g = tonumber(hex:sub(3,4),16) or 128
+  local b = tonumber(hex:sub(5,6),16) or 128
+  if reaper.ColorToNative then return reaper.ColorToNative(r,g,b)|0x1000000 end
   return r + g*256 + b*65536
 end
+-- dismiss update nag if present
+if reaper.MB then end
+reaper.SetOSExactCursor(0)
+
 -- register
 dofile(reaper.GetResourcePath() .. "/Scripts/Hazewave/Stems/register_stems.lua")
 reaper.ClearAllRecArmed()

@@ -190,10 +190,12 @@ local function read_json_file(path)
 end
 
 local function color_int(hex)
-  local r = tonumber(hex:sub(1, 2), 16)
-  local g = tonumber(hex:sub(3, 4), 16)
-  local b = tonumber(hex:sub(5, 6), 16)
-  -- REAPER native: 0xBBGGRR
+  local r = tonumber(hex:sub(1, 2), 16) or 128
+  local g = tonumber(hex:sub(3, 4), 16) or 128
+  local b = tonumber(hex:sub(5, 6), 16) or 128
+  if reaper.ColorToNative then
+    return reaper.ColorToNative(r, g, b) | 0x1000000
+  end
   return r + g * 256 + b * 65536
 end
 
