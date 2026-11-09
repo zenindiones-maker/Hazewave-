@@ -14,6 +14,8 @@ build/
 output/
 outputs/
 stems/
+!apps/fyahreaper_remote/reaper_touch/stems/
+!apps/fyahreaper_remote/reaper_touch/stems/**
 *.wav
 *.flac
 *.mp3

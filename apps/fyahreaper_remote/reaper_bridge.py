@@ -270,6 +270,8 @@ class ReaperBridge:
         'scroll_right': 40141, 'scroll_up': 40138, 'scroll_down': 40139, 'insert_track': 40001,
         'arm_selected': 9, 'metronome': 40364, 'mixer': 40078, 'midi_editor': 40153,
         'select_all_items': 40182, 'toolbar_arrange': 41105, 'toolbar_edit': 41106, 'unselect_items': 40289, 'marker': 40157, 'save': 40026,
+        # separate_stems resolved at runtime via ExtState (custom ReaScript id)
+        'separate_stems': 0,
     }
     TOUCH_TRACK_HEIGHT = 150
 
@@ -278,6 +280,26 @@ class ReaperBridge:
             raise ValueError('UNKNOWN_ACTION')
         repeat = max(1, min(int(repeat), 8))
         cmd = self.TOUCH_ACTIONS[name]
+        if name == 'separate_stems':
+            # Custom ReaScript id stored by install/startup (never accept client-supplied ids).
+            raw = self.r.GetExtState('HazewaveStems', 'cmd_id')
+            try:
+                cmd = int(raw)
+            except (TypeError, ValueError):
+                cmd = 0
+            if not cmd:
+                named = self.r.GetExtState('HazewaveStems', 'named_cmd') or ''
+                if named:
+                    cmd = int(self.r.NamedCommandLookup(named) or 0)
+            if not cmd:
+                raise ValueError('STEMS_ACTION_NOT_REGISTERED')
+            mode = self.r.GetExtState('HazewaveStems', 'mode') or '6'
+            if mode not in ('2', '4', '6'):
+                mode = '6'
+            self.r.SetExtState('HazewaveStems', 'mode', mode, False)
+            self.r.SetExtState('HazewaveStems', 'auto_start', '1', False)
+            self.r.Main_OnCommand(cmd, 0)
+            return {'action': name, 'command_id': cmd, 'repeat': 1, 'mode': mode, 'state': self._state()}
         for _ in range(repeat):
             self.r.Main_OnCommand(cmd, 0)
         if name == 'insert_track':
@@ -504,3 +526,14 @@ class ReaperBridge:
 
     def drag(self, phase, x=0, y=0):
         return self._guarded(self._drag_impl, phase, x, y)
+
+
+    def _separate_stems_impl(self, mode='6'):
+        mode = str(mode or '6')
+        if mode not in ('2', '4', '6'):
+            raise ValueError('INVALID_STEMS_MODE')
+        self.r.SetExtState('HazewaveStems', 'mode', mode, False)
+        return self._action_impl('separate_stems', 1)
+
+    def separate_stems(self, mode='6'):
+        return self._guarded(self._separate_stems_impl, mode)

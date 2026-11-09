@@ -29,6 +29,11 @@ class MidiRequest(BaseModel):
     notes: list[Note] = Field(min_length=1, max_length=2048)
 
 
+class StemsRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    mode: Literal['2', '4', '6'] = '6'
+
+
 class DragPayload(BaseModel):
     phase: Literal['grab', 'drag', 'end', 'cancel']
     x: int = Field(default=0, ge=0, le=16384)
@@ -151,6 +156,10 @@ def app_factory(studio, token: str, call_timeout: float | None = None) -> FastAP
     @app.post('/api/project/create_midi', dependencies=[Depends(authenticate)])
     async def create_midi(payload: MidiRequest):
         return await run_in_threadpool(guarded, studio.create_midi, payload)
+
+    @app.post('/api/project/separate_stems', dependencies=[Depends(authenticate)])
+    async def separate_stems(payload: StemsRequest = StemsRequest()):
+        return await run_in_threadpool(guarded, studio.separate_stems, payload.mode)
 
     @app.websocket('/ws')
     async def feedback(socket: WebSocket):

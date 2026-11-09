@@ -5,3 +5,5 @@
 - `fyah_touch_layout.lua` runs from `Scripts/__startup.lua`. It hides the mixer and sets tracks to 150 px, so a track is about 9 mm on an A15 through the app.
 - Toolbar 1 is docked at the top: `reaper.ini` has `dockermode15=2`, `dockheight_t=144`, and `[REAPERdockpref] toolbar=... 15`. I set this once in the UI (toolbar context menu: Position toolbar > In Docker, then Docker: Show in top of main window).
 - Back up the configs before you apply this. The backups are in `fyahreaper-test/config-backup-*`.
+
+- `stems/`: Hazewave Separar Stems (Demucs offline). See `stems/README_PT.md`.

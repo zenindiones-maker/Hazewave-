@@ -16,10 +16,11 @@ I = {  # name: (label, glyph, command, colour)
  'save': ('SAVE', '⬇', 40026, '#2e7d32'), 'mark': ('MARKER', '⚑', 40157, '#f9a825'), 'selall': ('SEL ALL', '▦', 40182, '#455a64'),
  'tall': ('TALL', '⇕', 40113, '#00838f'), 'unsel': ('UNSEL', '▢', 40289, '#455a64'), 'snap': ('SNAP', '#', 1157, '#6d4c41'),
  'arr': ('◂ ARRANGE', '▤', 41105, '#0d47a1'), 'edit': ('EDIT ▸', '✎', 41106, '#bf360c'),
+ 'stems': ('STEMS', '☍', 0, '#b71c1c'),
 }
 # The context switch lives on the docked toolbar itself: pressing it makes that toolbar the active one, so
 # "Toolbars: Switch to toolbar N" swaps the docked strip in place.
-ARRANGE = ['edit', 'play', 'stop', 'rec', 'undo', 'redo', 'zinh', 'zouth', 'zinv', 'zoutv', 'fit', 'trk', 'arm', 'click']
+ARRANGE = ['edit', 'play', 'stop', 'rec', 'undo', 'redo', 'stems', 'zinh', 'zouth', 'zinv', 'zoutv', 'fit', 'trk', 'arm', 'click']
 EDIT = ['arr', 'undo', 'redo', 'split', 'del', 'snap', 'selall', 'unsel', 'mark', 'loop', 'midi', 'mix', 'tall']
 MAIN = ['save', 'mix', 'fit', 'tall']
 

@@ -264,6 +264,18 @@ internal fun RealReaperScreen(onOpenNative: () -> Unit) {
                         BarBtn("DIAG", if (vncStatus.startsWith("conectado")) Color(0xFF37474F) else Color(0xFFE65100), true) { moreOpen = false; showDiag = !showDiag }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        BarBtn("STEMS", Color(0xFFB71C1C), !busy) {
+                            moreOpen = false
+                            scope.launch {
+                                busy = true
+                                try {
+                                    val h = hub() ?: run { snackbar.showSnackbar("Configure o token do ReaHub"); return@launch }
+                                    h.request("/api/project/separate_stems", "POST", JSONObject().put("mode", "6"))
+                                    snackbar.showSnackbar("Separando stems… veja o progresso no REAPER")
+                                } catch (e: Exception) { snackbar.showSnackbar(e.message ?: "Falha STEMS") }
+                                finally { busy = false }
+                            }
+                        }
                         BarBtn("FIT", Color(0xFF1565C0), true) { gestures.trySend(Gesture.Action("zoom_project")) }
                         BarBtn("⌨", Color(0xFF37474F), true) { webView?.evaluateJavascript(clickJs("noVNC_keyboard_button"), null) }
                         BarBtn("NATIVO", Color(0xFF37474F), true) { onOpenNative() }

@@ -285,3 +285,34 @@ def test_drag_move_snaps_and_changes_track_and_single_undo():
     b.drag('end');assert len(undo)==1
     b.drag('grab',1295,400);assert b._drag['mode']=='trim_right'
     b.drag('end');assert len(undo)==1       # tap/no change -> no undo point
+
+def test_separate_stems_requires_registered_action_and_sets_mode():
+    api = RPR()
+    api._ext = {}
+    api.GetExtState = lambda s, k: api._ext.get((s, k), '')
+    api.SetExtState = lambda s, k, v, p: api._ext.__setitem__((s, k), v)
+    api.NamedCommandLookup = lambda n: 0
+    b = ReaperBridge(api=api)
+    try:
+        b.separate_stems('6')
+        assert False, 'expected STEMS_ACTION_NOT_REGISTERED'
+    except ValueError as e:
+        assert 'STEMS_ACTION_NOT_REGISTERED' in str(e)
+    api._ext[('HazewaveStems', 'cmd_id')] = '424242'
+    out = b.separate_stems('6')
+    assert out['command_id'] == 424242 and out['mode'] == '6' and api.cmds[-1] == 424242
+    assert api._ext[('HazewaveStems', 'mode')] == '6'
+    b.separate_stems('2')
+    assert api._ext[('HazewaveStems', 'mode')] == '2'
+
+def test_separate_stems_endpoint():
+    c, H, api = _app_client()
+    # attach separate_stems on studio used by app — ReaperBridge path
+    # _app_client uses ReaperBridge(api); ensure ExtState helpers exist
+    api._ext = {}
+    api.GetExtState = lambda s, k: api._ext.get((s, k), '')
+    api.SetExtState = lambda s, k, v, p: api._ext.__setitem__((s, k), v)
+    api._ext[('HazewaveStems', 'cmd_id')] = '99'
+    r = c.post('/api/project/separate_stems', headers=H, json={'mode': '6'})
+    assert r.status_code == 200 and r.json()['action'] == 'separate_stems'
+    assert c.post('/api/project/separate_stems', headers=H, json={'mode': '9'}).status_code == 422
